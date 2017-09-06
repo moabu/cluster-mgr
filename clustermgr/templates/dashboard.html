@@ -48,6 +48,7 @@
           </div>
       </div>
       <!-- Replication test info box -->
+      {#
       <div class="col-xs-12 col-sm-6 col-md-4">
           <div class="panel {% if conf.last_test %}panel-success{% else %}panel-danger{% endif %}">
               <div class="panel-heading">
@@ -73,6 +74,7 @@
               </a>
           </div>
       </div>
+      #}
 
   </div>
 
@@ -100,6 +102,7 @@
         <td>
             {% if not server.setup %}
                 <a class="btn btn-primary btn-xs" href="{{ url_for('cluster.setup_ldap_server', server_id=server.id, step=3) }}">Retry Setup</a>
+            {#
             {% elif server.role == "provider" and server.setup and not server.initialized %}
                 <div class="btn-group">
                     <button type="button" class="btn btn-xs btn-success dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -113,6 +116,7 @@
             {% elif server.role == "provider" and server.initialized %}
                 <a class="btn btn-success btn-xs" href="{{ url_for('cluster.initialize', server_id=server.id) }}">Reinitialize</a>
                 <a class="btn btn-primary btn-xs" href="{{ url_for('cluster.new_server', stype='consumer') }}">Add Consumer</a>
+            #}
             {% endif %}
             <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal" data-serverid="{{server.id}}"
                 data-hostname="{{ server.hostname }}">Remove</a>

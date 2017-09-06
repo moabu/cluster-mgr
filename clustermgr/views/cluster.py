@@ -169,27 +169,20 @@ def remove_server(server_id):
     return redirect(url_for('index.home'))
 
 
-@cluster.route('/initialize/<int:server_id>/')
-def initialize(server_id):
-    """Initialize function establishes starttls connection, authenticates
-    and adds the replicator account to the o=gluu suffix."""
-    server = LDAPServer.query.get(server_id)
-    use_ldif = bool(request.args.get('ldif', 0))
-    if not server:
-        return redirect(url_for('error', error='invalid-id-for-init'))
-    if server.role != 'provider':
-        flash("Intialization is required only for provider. %s is not a "
-              "provider. Nothing done." % server.hostname, "warning")
-        return redirect(url_for('home'))
-
-    task = initialize_provider.delay(server_id, use_ldif)
-    head = "Initializing server"
-    return render_template('logger.html', heading=head, server=server,
-                           task=task)
-
-
-@cluster.route('/fulltest/run')
-def test_replication():
-    task = replicate.delay()
-    head = "Replication Test"
-    return render_template('logger.html', heading=head, task=task)
+# @cluster.route('/initialize/<int:server_id>/')
+# def initialize(server_id):
+#     """Initialize function establishes starttls connection, authenticates
+#     and adds the replicator account to the o=gluu suffix."""
+#     server = LDAPServer.query.get(server_id)
+#     use_ldif = bool(request.args.get('ldif', 0))
+#     if not server:
+#         return redirect(url_for('error', error='invalid-id-for-init'))
+#     if server.role != 'provider':
+#         flash("Intialization is required only for provider. %s is not a "
+#               "provider. Nothing done." % server.hostname, "warning")
+#         return redirect(url_for('home'))
+#
+#     task = initialize_provider.delay(server_id, use_ldif)
+#     head = "Initializing server"
+#     return render_template('logger.html', heading=head, server=server,
+#                            task=task)
