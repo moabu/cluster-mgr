@@ -157,7 +157,7 @@ vi /opt/symas/etc/openldap/symas-openldap.conf
 HOST_LIST="ldaps://127.0.0.1:1636/"
 ```
 
-With: 
+- With: 
 
 ```
 HOST_LIST="ldaps://0.0.0.0:1636/ ldaps:///"
