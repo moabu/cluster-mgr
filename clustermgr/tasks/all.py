@@ -4,9 +4,6 @@ from datetime import datetime
 
 import requests
 
-from fabric.api import execute, put
-from fabric.context_managers import settings
-
 from clustermgr.extensions import celery, db
 from clustermgr.models import LDAPServer, KeyRotation, \
         OxauthServer, OxelevenKeyID
@@ -156,23 +153,17 @@ def _rotate_keys(kr, javalibs_dir, jks_path):
         db.session.add(kr)
         db.session.commit()
 
-        # FIXME there are some fabric based command below, move them to
-        # clustermgr.core.remote.RemoteClient
         if kr.type == "jks":
-            def _copy_jks(path, hostname, dest_path):
-                out = put(path, dest_path)
-                if out.failed:
-                    print "unable to copy JKS file to " \
-                        "oxAuth server {}".format(hostname)
-                else:
-                    print "JKS file has been copied " \
-                        "to {}".format(hostname)
-
+            from clustermgr.core.remote import RemoteClient
             for server in OxauthServer.query:
-                host = "root@{}".format(server.hostname)
-                with settings(warn_only=True):
-                    execute(_copy_jks, jks_path, server.hostname,
-                            server.jks_path, hosts=[host])
+                c = RemoteClient(server.ip)
+                try:
+                    c.startup()
+                except Exception:
+                    print "Couldn't connect to server %s. Can't copy JKS" % server.ip
+                    continue
+                c.upload(jks_path, server.jks_path)
+                c.close()
 
 
 @celery.task
