@@ -2,19 +2,20 @@
 # Manual Gluu Server Clustering 
 
 ## Introduction
-Below are the steps to follow for manually configuring delta-syncrepl multi-master replication with Gluu.
+If you have requirements for high availability (HA) or failover, you can configure your Gluu Server for multi-master replication by following the instructions below.
 
 ## Prerequisites
 
 Some prerequisites are necessary for setting up Gluu with delta-syncrepl MMR:
 
-- A minimum of 3 server VM's, 2 for Gluu and 1 for NGINX.
-- Gluu server 3.x
-- I used Ubuntu 14 Trusty, but the process shouldn't be OS specific.
+- A minimum of three (3) servers or VMs--two (2) for Gluu Servers and one (1) for load balancing (in our example, NGINX); 
+- To create the following instructions we used Ubuntu 14 Trusty, but the process should not be OS specific;
+- To create the following instructions we used an Nginx load balancer, however if you have your own load balancer, like F5 or Cisco, you can use that instead and disregard the bottom instructions about configuring Nginx. 
+- Gluu Server 3.x using OpenLDAP.
 
 ## Instructions
 
-1. [Install Gluu](https://gluu.org/docs/ce/3.0.2/installation-guide/install/) on one server making sure to use a separate NGINX server FQDN as hostname.
+1. [Install Gluu](https://gluu.org/docs/ce/3.0.2/installation-guide/install/) on one server making sure to use a separate NGINX server FQDN as hostname. 
 
 - A separate NGINX server is recommended, but not necessary, since replicating a Gluu server to a different hostname breaks the functionality of the Gluu webpage, when using a hostname other than what is in the certificates. For example, if I used c1.gluu.info as my host and another install of gluu as c2.gluu.info, the process of accessing the site on c2.gluu.info, even with replication, will fail authentication. So if c1 failed, you couldn't access the Gluu web GUI anymore.
 
@@ -27,7 +28,7 @@ Gluu.Root # logout
 # service gluu-server-3.0.2 stop
 ```
 
-- Now tar the `/opt/gluu-server-3.0.2/` folder, copy it to the other servers and extract it in the /opt/ folder.
+- Now tar the `/opt/gluu-server-3.0.2/ folder`, copy it to the other servers and extract it in the /opt/ folder.
 
 ```
 tar -cvf gluu.gz /opt/gluu-server-3.0.2/
