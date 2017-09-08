@@ -42,13 +42,13 @@ def new_server(stype):
         form = NewProviderForm()
     elif stype == 'consumer':
         form = NewConsumerForm()
-        form.provider.choices = [(p.id, p.hostname) for p in providers]
+        form.provider.choices = [(p.id, p.name) for p in providers]
         if len(form.provider.choices) == 0:
             return redirect(url_for('error_page', error='no-provider'))
 
     if form.validate_on_submit():
         s = LDAPServer()
-        s.hostname = form.hostname.data
+        s.name = form.name.data
         s.ip = form.ip.data
         s.port = form.port.data
         s.role = stype
@@ -66,8 +66,8 @@ def new_server(stype):
         try:
             db.session.commit()
         except:
-            flash("Failed to add new server {0}. Probably it is a duplicate."
-                  "".format(form.hostname.data), "danger")
+            flash("Failed to add new server {0}.".format(form.name.data),
+                  "danger")
             return redirect(url_for('index.home'))
         return redirect(url_for('cluster.setup_ldap_server',
                                 server_id=s.id, step=2))
@@ -103,7 +103,7 @@ def generate_conf(server):
 
     if s.role == 'consumer':
         vals["r_id"] = s.provider_id
-        vals["phost"] = s.provider.hostname
+        vals["phost"] = s.provider.ip
         vals["pport"] = s.provider.port
         vals["r_pw"] = appconfig.replication_pw
         vals["pprotocol"] = "ldap"
@@ -112,7 +112,7 @@ def generate_conf(server):
             vals["pprotocol"] = "ldaps"
         if s.provider.protocol != "ldap":
             cert = "tls_cacert=\"/opt/symas/ssl/{0}.crt\"".format(
-                s.provider.hostname)
+                s.provider.name)
             vals["provider_cert"] = cert
     conf = conf.format(**vals)
     return conf
@@ -143,7 +143,7 @@ def setup_ldap_server(server_id, step):
         conffile = os.path.join(app.config['SLAPDCONF_DIR'],
                                 "{0}_slapd.conf".format(server_id))
         task = setup_server.delay(server_id, conffile)
-        head = "Setting up server: "+s.hostname
+        head = "Setting up server: "+s.name
         return render_template("logger.html", heading=head, server=s,
                                task=task, nextpage=nextpage)
 
@@ -162,7 +162,7 @@ def ldif_upload(server_id):
 @cluster.route('/server/<int:server_id>/remove/')
 def remove_server(server_id):
     s = LDAPServer.query.get(server_id)
-    flash('Server %s removed from cluster configuration.' % s.hostname,
+    flash('Server %s removed from cluster configuration.' % s.name,
           "success")
     db.session.delete(s)
     db.session.commit()
@@ -179,7 +179,7 @@ def remove_server(server_id):
 #         return redirect(url_for('error', error='invalid-id-for-init'))
 #     if server.role != 'provider':
 #         flash("Intialization is required only for provider. %s is not a "
-#               "provider. Nothing done." % server.hostname, "warning")
+#               "provider. Nothing done." % server.name, "warning")
 #         return redirect(url_for('home'))
 #
 #     task = initialize_provider.delay(server_id, use_ldif)

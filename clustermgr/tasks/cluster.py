@@ -83,15 +83,7 @@ def setup_server(self, server_id, conffile):
     else:
         chdir = None
 
-    wlogger.log(tid, "Connecting to the server %s" % server.hostname)
-    c = RemoteClient(server.hostname)
-    try:
-        c.startup()
-    except Exception as e:
-        wlogger.log(tid, "Cannot establish SSH connection {0}".format(e),
-                    "error")
-
-    wlogger.log(tid, "Retrying with the IP address")
+    wlogger.log(tid, "Establishing connection to the server")
     c = RemoteClient(server.ip)
     try:
         c.startup()
@@ -193,7 +185,7 @@ def setup_server(self, server_id, conffile):
         else:
             remote = server.tls_servercert
         local = os.path.join(app.config["CERTS_DIR"],
-                             "{0}.crt".format(server.hostname))
+                             "{0}.crt".format(server.name))
         download_file(tid, c, remote, local)
 
     # 9. Generate OLC slapd.d

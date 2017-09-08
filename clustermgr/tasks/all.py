@@ -26,7 +26,7 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass=""):
     if not pub_keys:
         return
 
-    with ldap_conn(server.hostname, server.port, "cn=directory manager,o=gluu",
+    with ldap_conn(server.ip, server.port, "cn=directory manager,o=gluu",
                    server.admin_pw, starttls(server)) as conn:
         # base DN for oxAuth config
         oxauth_base = ",".join([

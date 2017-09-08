@@ -20,14 +20,14 @@ $(function() {
 
     // add new oxAuth server
     $("#add-oxauth").click(function() {
-        var hostname = $("input#add-oxauth-hostname").val();
+        var ip = $("input#add-oxauth-ip").val();
         var gluu_server = $("input#gluu_server").is(":checked");
         var gluu_version = $("select#gluu_version").val();
 
-        if (hostname != "" | hostname === undefined) {
+        if (ip != "" | ip === undefined) {
             $.post(
                 "/api/oxauth_server",
-                {"hostname": hostname, "gluu_server": gluu_server, "gluu_version": gluu_version},
+                {"ip": ip, "gluu_server": gluu_server, "gluu_version": gluu_version},
                 function(data) {
                     var html = "";
 
@@ -37,7 +37,7 @@ $(function() {
                         html += "  <table class='table table-bordered' id='oxauth-servers'>";
                         html += "    <thead>";
                         html += "      <tr>";
-                        html += "        <th>Hostname</th>";
+                        html += "        <th>Server IP</th>";
                         html += "        <th>Gluu Server?</th>";
                         html += "        <th>Version</th>";
                         html += "        <th>Remove?</th>";
@@ -53,7 +53,7 @@ $(function() {
                     }
 
                     html += "<tr id='oxauth-server-" + data.id + "'>";
-                    html += "  <td>" + data.hostname + "</td>";
+                    html += "  <td>" + data.ip + "</td>";
                     html += "  <td>" + data.gluu_server + "</td>";
                     html += "  <td>" + data.get_version + "</td>";
                     html += "  <td>";
@@ -64,7 +64,7 @@ $(function() {
                     html += "</tr>";
                     $("#oxauth-servers tbody").append(html);
                     html = "";
-                    $("input#add-oxauth-hostname").val("");
+                    $("input#add-oxauth-ip").val("");
                 }
             );
         }

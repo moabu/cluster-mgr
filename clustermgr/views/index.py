@@ -122,7 +122,7 @@ def key_rotation():
 @index.route("/api/oxauth_server", methods=["GET", "POST"])
 def oxauth_server():
     if request.method == "POST":
-        hostname = request.form.get("hostname")
+        ip = request.form.get("ip")
         gluu_server = request.form.get("gluu_server")
         gluu_version = request.form.get("gluu_version")
 
@@ -132,29 +132,29 @@ def oxauth_server():
             gluu_server = False
             gluu_version = ""
 
-        if not hostname:
+        if not ip:
             return jsonify({
                 "status": 400,
                 "message": "Invalid data",
-                "params": "hostname can't be empty",
+                "params": "server ip can't be empty",
             }), 400
 
         server = OxauthServer()
-        server.hostname = hostname
+        server.ip = ip
         server.gluu_server = gluu_server
         server.gluu_version = gluu_version
         db.session.add(server)
         db.session.commit()
         return jsonify({
             "id": server.id,
-            "hostname": server.hostname,
+            "ip": server.ip,
             "gluu_server": server.gluu_server,
             "get_version": server.get_version,
         }), 201
 
     servers = [{
         "id": srv.id,
-        "hostname": srv.hostname,
+        "ip": srv.ip,
         "version": srv.get_version,
         "gluu_server": srv.gluu_server,
     } for srv in OxauthServer.query]
