@@ -1,6 +1,6 @@
 syncrepl
     rid={#PROVIDER_ID#}
-    provider=ldaps://{#PROVIDER_ADDR#}
+    provider=ldaps://{#PROVIDER_ADDR#}:1636
     tls_reqcert=never
     bindmethod=simple
     binddn="cn=directory manager,o=gluu"
