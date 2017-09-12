@@ -1,5 +1,5 @@
 
-# Manual Gluu Server Clustering 
+# Manual Gluu Server Clustering
 
 ## Introduction
 If you have requirements for high availability (HA) or failover, you can configure your Gluu Server for multi-master replication by following the instructions below.
@@ -8,9 +8,9 @@ If you have requirements for high availability (HA) or failover, you can configu
 
 Some prerequisites are necessary for setting up Gluu with delta-syncrepl MMR:
 
-- A minimum of three (3) servers or VMs--two (2) for Gluu Servers and one (1) for load balancing (in our example, NGINX); 
+- A minimum of three (3) servers or VMs--two (2) for Gluu Servers and one (1) for load balancing (in our example, NGINX);
 - To create the following instructions we used Ubuntu 14 Trusty, but the process should not be OS specific;
-- To create the following instructions we used an Nginx load balancer/proxy, however if you have your own load balancer, like F5 or Cisco, you should use that instead and disregard the bottom instructions about configuring Nginx. 
+- To create the following instructions we used an Nginx load balancer/proxy, however if you have your own load balancer, like F5 or Cisco, you should use that instead and disregard the bottom instructions about configuring Nginx.
 - Gluu Server 3.x using OpenLDAP.
 
 ## Concept
@@ -19,9 +19,9 @@ Multi-master replication with OpenLDAP through delta-syncrepl by creating an acc
 
 ## Instructions
 
-1. [Install Gluu](https://gluu.org/docs/ce/3.0.2/installation-guide/install/) on one of the servers making sure to use a separate NGINX server FQDN as hostname. 
+1. [Install Gluu](https://gluu.org/docs/ce/3.0.2/installation-guide/install/) on one of the servers making sure to use a separate NGINX server FQDN as hostname.
 
-- A separate NGINX server is recommended, but not necessary, since replicating a Gluu server to a different hostname breaks the functionality of the Gluu webpage, when using a hostname other than what is in the certificates. For example, if I used c1.gluu.info as my host and copied that to a second server (e.g. c2.gluu.info), the process of accessing the site on c2.gluu.info, even with replication, will fail authentication, due to hostname conflics. So if c1 failed, you couldn't access the Gluu web GUI anymore.
+- A separate NGINX server is recommended, but not necessary, since replicating a Gluu server to a different hostname breaks the functionality of the Gluu web page, when using a hostname other than what is in the certificates. For example, if I used c1.gluu.info as my host and copied that to a second server (e.g. c2.gluu.info), the process of accessing the site on c2.gluu.info, even with replication, will fail authentication, due to hostname conflict. So if c1 failed, you couldn't access the Gluu web GUI anymore.
 
 - The other servers should [install the Gluu Server Package](https://gluu.org/docs/ce/3.0.2/installation-guide/install/#install-gluu-server-package) but not run setup.py. This will install the necessary init.d scripts for us.
 
@@ -49,7 +49,7 @@ rm -rf /opt/gluu-server-3.0.2/
 tar -xvf gluu.gz
 ```
 
-- Make sure the direcotry structure here is `/opt/gluu-server-3.0.2/`
+- Make sure the directory structure here is `/opt/gluu-server-3.0.2/`
 
 - For CentOS and RHEL, it is necessary to add your /etc/gluu/keys/gluu-console.pub to ssh into your other Gluu instances, so you can login.
 
@@ -58,7 +58,7 @@ cat /etc/gluu/keys/gluu-console.pub >> /opt/gluu-server-3.0.2/root/.ssh/authoriz
 ```
 
 
-3. Start Gluu, login and modify the `/etc/hosts/` inside the chroot to point the FQDN of the NGINX server to the current servers IP address
+3. Start Gluu, login and modify the `/etc/hosts/` inside the chroot to point the FQDN of the NGINX server to the current server's IP address
 
 - For example, my node 2 server's (c2.gluu.info) ip address is `138.197.100.101` so on server 2:
 
@@ -76,7 +76,7 @@ ff02::2         ip6-allrouters
 
 - This is necessary to deal with internal routing of NGINX to Apache2 and Apache2 to NGINX. So even though my ip of my FQDN is different, this process still works.
 
-4. There needs to be primary server to replicate from initially for delta-syncrepl to inject data from. After the initial sync, all servers will be exactly the same, as delta-syncrepl will fill the newly created database. 
+4. There needs to be primary server to replicate from initially for delta-syncrepl to inject data from. After the initial sync, all servers will be exactly the same, as delta-syncrepl will fill the newly created database.
 
 - So choose one server as a base and then on every other server:
 
@@ -161,7 +161,7 @@ Gluu.Root # vi /opt/symas/etc/openldap/ldap.conf
 ```
 TLS_CACERT /etc/certs/openldap.pem
 TLS_REQCERT never
-``` 
+```
 
 - Modify the HOST_LIST entry of symas-openldap.conf **on every server**:
 
@@ -169,13 +169,13 @@ TLS_REQCERT never
 vi /opt/symas/etc/openldap/symas-openldap.conf
 ```
 
-- Replace: 
+- Replace:
 
 ```
 HOST_LIST="ldaps://0.0.0.0:1636/"
 ```
 
-- With: 
+- With:
 
 ```
 HOST_LIST="ldaps://0.0.0.0:1636/ ldaps:///"
@@ -283,7 +283,9 @@ http {
 
 ```
 
-- Now all traffic for the Gluu web GUI will route through one address i.e. `nginx.gluu.info`. This gives us fail-over redundancy for our Gluu web GUI if any server goes down, as NGINX automatically does passive health checks.   
+- Now all traffic for the Gluu web GUI will route through one address i.e. `nginx.gluu.info`. This gives us failover redundancy for our Gluu web GUI if any server goes down, as NGINX automatically does passive health checks.   
 
-## Support 
+## Support
 If you have any questions or run into any issues, please open a ticket on [Gluu Support](https://support.gluu.org).
+
+
