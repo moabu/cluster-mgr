@@ -19,13 +19,13 @@ Multi-master replication with OpenLDAP through delta-syncrepl by creating an acc
 
 ## Instructions
 
-1. [Install Gluu](https://gluu.org/docs/ce/3.0.2/installation-guide/install/) on one of the servers making sure to use a separate NGINX server FQDN as hostname.
+### 1. [Install Gluu](https://gluu.org/docs/ce/3.0.2/installation-guide/install/) on one of the servers making sure to use a separate NGINX server FQDN as hostname.
 
 - A separate NGINX server is recommended, but not necessary, since replicating a Gluu server to a different hostname breaks the functionality of the Gluu web page, when using a hostname other than what is in the certificates. For example, if I used c1.gluu.info as my host and copied that to a second server (e.g. c2.gluu.info), the process of accessing the site on c2.gluu.info, even with replication, will fail authentication, due to hostname conflict. So if c1 failed, you couldn't access the Gluu web GUI anymore.
 
 - The other servers should [install the Gluu Server Package](https://gluu.org/docs/ce/3.0.2/installation-guide/install/#install-gluu-server-package) but not run setup.py. This will install the necessary init.d scripts for us.
 
-2. Copy the Gluu install environment to the other servers. **This is important before you tar /opt/gluu-server-3.0.2, otherwise it won't work**
+### 2. Copy the Gluu install environment to the other servers. **This is important before you tar /opt/gluu-server-3.0.2, otherwise it won't work**
 
 ```
 Gluu.Root # logout
@@ -58,7 +58,7 @@ cat /etc/gluu/keys/gluu-console.pub >> /opt/gluu-server-3.0.2/root/.ssh/authoriz
 ```
 
 
-3. Start Gluu, login and modify the `/etc/hosts/` inside the chroot to point the FQDN of the NGINX server to the current server's IP address
+### 3. Start Gluu, login and modify the `/etc/hosts/` inside the chroot to point the FQDN of the NGINX server to the current server's IP address
 
 - For example, my node 2 server's (c2.gluu.info) ip address is `138.197.100.101` so on server 2:
 
@@ -76,7 +76,7 @@ ff02::2         ip6-allrouters
 
 - This is necessary to deal with internal routing of NGINX to Apache2 and Apache2 to NGINX. So even though my ip of my FQDN is different, this process still works.
 
-4. There needs to be primary server to replicate from initially for delta-syncrepl to inject data from. After the initial sync, all servers will be exactly the same, as delta-syncrepl will fill the newly created database.
+### 4. There needs to be primary server to replicate from initially for delta-syncrepl to inject data from. After the initial sync, all servers will be exactly the same, as delta-syncrepl will fill the newly created database.
 
 - So choose one server as a base and then on every other server:
 
@@ -91,7 +91,7 @@ Gluu.Root # mkdir /opt/gluu/data/accesslog_db
 Gluu.Root # chown -R ldap. /opt/gluu/data/
 ```
 
-5. Now is where we will set servers to associate with each other for MMR by editing the slapd.conf, ldap.conf and symas-openldap.conf files.
+### 5. Now is where we will set servers to associate with each other for MMR by editing the slapd.conf, ldap.conf and symas-openldap.conf files.
 
 - Creating the slapd.conf file is relatively easy, but can be prone to errors if done manually. Attached is a script and template files for creating multiple slapd.conf files for every server. Download git and clone the necessary files on one server:
 
@@ -128,19 +128,18 @@ enable = Yes
 
 - If required, you can change the `/tmp/cluster-mgr/manual_install/slapd_conf_script/ldap_templates/slapd.conf` to fit your specific needs to include different schemas, indexes, etc. Avoid changing any of the `{#variables#}`.
 
-- Now run the python script `create_slapd_conf.py` in the `/tmp/cluster-mgr/manual_install/slapd_conf_script/` directory :
+- Now run the python script `create_slapd_conf.py` (Built with python 2.7) in the `/tmp/cluster-mgr/manual_install/slapd_conf_script/` directory :
 
 ```
 Gluu.Root # python create_slapd_conf.py
 ```
-
+- There is also a 2.6 Python script included.
 - This will output multiple `.conf` files in `/tmp/cluster-mgr/manual_install/slapd_conf_script/` named to match your server FQDN:
 
 ```
 Gluu.Root #  ls
 ... server1_com.conf  server2_com.conf ...
 ```
-
 - Move each .conf file to their respective server replacing the slapd.conf:
 ```
 Gluu.Root # /opt/symas/etc/openldap/slapd.conf
@@ -181,7 +180,7 @@ HOST_LIST="ldaps://0.0.0.0:1636/"
 HOST_LIST="ldaps://0.0.0.0:1636/ ldaps:///"
 ```
 
-6. It is important that our servers times are synchronized so we must install ntp outside of the Gluu chroot and set ntp to update by the minute (necessary for delta-sync log synchronization). If time gets out of sync, the entries will conflict and their could be issues with replication.
+### 6. It is important that our servers times are synchronized so we must install ntp outside of the Gluu chroot and set ntp to update by the minute (necessary for delta-sync log synchronization). If time gets out of sync, the entries will conflict and their could be issues with replication.
 
 ```
 GLUU.root@host:/ # logout
@@ -197,13 +196,13 @@ GLUU.root@host:/ # logout
  
 - This synchronizes the time every minute.
 
-7. Force-reload solserver on every server
+- Force-reload solserver on every server
 ```
 # service gluu-server-3.0.2 login
 # service solserver force-reload
 ```
 
-8. Delta-sync multi-master replication should be initializing and running. Check the logs for confirmation. It might take a moment for them to sync, but you should end up see something like the following:
+- Delta-sync multi-master replication should be initializing and running. Check the logs for confirmation. It might take a moment for them to sync, but you should end up see something like the following:
 
 ```
 # tail -f /var/log/openldap/ldap.log | grep sync
@@ -213,7 +212,7 @@ Aug 23 22:40:29 dc4 slapd[79544]: syncprov_matchops: skipping original sid 001
 Aug 23 22:40:29 dc4 slapd[79544]: syncrepl_message_to_op: rid=001 be_modify
 ```
 
-9. **If you have your own load balancer, you are done here.** If not, let's configure our NGINX server for oxTrust and oxAuth web failover.
+### 8. **If you have your own load balancer, you are done here.** If not, let's configure our NGINX server for oxTrust and oxAuth web failover.
 
 - We need the httpd.crt and httpd.key certs from one of the Gluu servers.   
 
@@ -225,7 +224,7 @@ scp root@server1.com:/opt/gluu-server-3.0.2/etc/certs/httpd.key /etc/nginx/ssl/
 scp root@server1.com:/opt/gluu-server-3.0.2/etc/certs/httpd.crt /etc/nginx/ssl/
 ```
 
-10. Next we install, clear the nginx.conf file and configure NGINX to proxy-pass connections.  
+### 9. Next we install, clear the nginx.conf file and configure NGINX to proxy-pass connections.  
 
 ```
 apt-get install nginx -y
