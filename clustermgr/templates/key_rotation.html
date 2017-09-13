@@ -48,9 +48,9 @@
         <div class="panel-body">
             <div class="form-group">
                 <label class="control-label" for="">
-                    <label for="">oxAuth Server IP Address</label>
+                    <label for="">oxAuth Server Hostname</label>
                 </label>
-                <input id="add-oxauth-ip" type="text" name="ip" class="form-control">
+                <input id="add-oxauth-hostname" type="text" name="hostname" class="form-control">
             </div>
             <div class="form-group">
                 {{ form.gluu_server.label(class="control-label") }}
@@ -73,7 +73,7 @@
                     <table class="table table-bordered" id="oxauth-servers">
                         <thead>
                             <tr>
-                                <th>Server IP</th>
+                                <th>Hostname</th>
                                 <th>Gluu Server?</th>
                                 <th>Version</th>
                                 <th>Remove?</th>
@@ -82,7 +82,7 @@
                         <tbody>
                             {% for oxauth in oxauth_servers %}
                             <tr id="oxauth-server-{{ oxauth.id }}">
-                                <td>{{ oxauth.ip }}</td>
+                                <td>{{ oxauth.hostname }}</td>
                                 <td>{{ oxauth.gluu_server }}</td>
                                 <td>{{ oxauth.get_version }}</td>
                                 <td>

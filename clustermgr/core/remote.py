@@ -1,5 +1,5 @@
 from paramiko.client import SSHClient, AutoAddPolicy
-
+import StringIO
 
 class ClientNotSetupException(Exception):
     """Exception raised when the client is not initialized because
@@ -11,11 +11,14 @@ class RemoteClient(object):
     """Remote Client is a wrapper over SSHClient with utility functions.
 
     Args:
-        host (string): server host name or IP address
+        host (string): The hostname of the server to connect. It can be an IP
+            address of the server also.
         user (string, optional): The user to connect to the remote server. It
             defaults to root
 
     Attributes:
+        host (string): The hostname passed in as a the argument
+        user (string): The user to connect as to the remote server
         client (:class:`paramiko.client.SSHClient`): The SSHClient object used
             for all the communications with the remote server.
         sftpclient (:class:`paramiko.sftp_client.SFTPClient`): The SFTP object
@@ -117,6 +120,56 @@ class RemoteClient(object):
                 output.append('')
 
         return tuple(output)
+
+    # MB
+    def putFile(self,  filename, filecontent):
+        """Puts content to a file on remote server
+        
+        Args:
+            filename (string): name of file to be written on remote server
+            filecontent (string): content of file
+        
+        Returns:
+            tuple: True/False, file size / error
+        
+        """
+        #renameFile(server, filename, filename+'.%d' % time.time())
+        
+        # write content to IO File
+        f = StringIO.StringIO()
+        f.write(filecontent)
+        f.seek(0)
+
+        try:
+            r=self.sftpclient.putfo(f, filename)
+            return True, r.st_size
+        except Exception as err:
+            return False, err
+
+    """
+
+    def chownFile(server, chroot, filenme, user, group):
+        cmd = "chroot {} chown {}.{} {}".format(chroot, user, group, filenme)
+        print cmd
+        server['ssh'].exec_command(cmd)
+
+    def chmodFile(server, filenme, mode):
+        server['sftp'].chmod(filenme, mode)
+
+    def mkDir(server, dirname):
+        try:
+            server['sftp'].mkdir(dirname)
+        except:
+            pass
+
+    def renameFile(server, filenme, newfilename):
+        try:
+            server['sftp'].rename(filenme, newfilename)
+        except:
+            pass
+
+
+"""
 
     def close(self):
         """Close the SSH Connection

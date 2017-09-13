@@ -1,14 +1,12 @@
 import re
 import os
-import json
-
+import time
 from flask import current_app as app
-from ldap3 import Server, Connection, ALL, SUBTREE, MODIFY_ADD, MODIFY_REPLACE
 
-from clustermgr.models import LDAPServer, AppConfiguration
+from clustermgr.models import LDAPServer, LdapServer, MultiMaster, Provider
 from clustermgr.extensions import celery, wlogger, db
 from clustermgr.core.remote import RemoteClient
-
+from ldap_functions import ldapOLC
 
 def run_command(tid, c, command, container=None):
     """Shorthand for RemoteClient.run(). This function automatically logs
@@ -34,20 +32,16 @@ def run_command(tid, c, command, container=None):
     cin, cout, cerr = c.run(command)
     output = ''
     if cout:
-        if 'failed' in cout:
-            wlogger.log(tid, cout, 'error')
-        else:
-            wlogger.log(tid, cout, "debug")
-        output = cout
+        wlogger.log(tid, cout, "debug")
+        output += "\n"+ cout
     if cerr:
         # For some reason slaptest decides to send success message as err, so
         if 'config file testing succeeded' in cerr:
             wlogger.log(tid, cerr, "success")
-        elif '-d 1' in command:  # when run with a debug flag, log it as debug
-            wlogger.log(tid, cerr, "debug")
         else:
             wlogger.log(tid, cerr, "error")
         output += "\n" + cerr
+        
     return output
 
 
@@ -90,7 +84,15 @@ def setup_server(self, server_id, conffile):
     else:
         chdir = None
 
-    wlogger.log(tid, "Establishing connection to the server")
+    wlogger.log(tid, "Connecting to the server %s" % server.hostname)
+    c = RemoteClient(server.hostname)
+    try:
+        c.startup()
+    except Exception as e:
+        wlogger.log(tid, "Cannot establish SSH connection {0}".format(e),
+                    "error")
+
+    wlogger.log(tid, "Retrying with the IP address")
     c = RemoteClient(server.ip)
     try:
         c.startup()
@@ -192,7 +194,7 @@ def setup_server(self, server_id, conffile):
         else:
             remote = server.tls_servercert
         local = os.path.join(app.config["CERTS_DIR"],
-                             "{0}.crt".format(server.name))
+                             "{0}.crt".format(server.hostname))
         download_file(tid, c, remote, local)
 
     # 9. Generate OLC slapd.d
@@ -204,13 +206,10 @@ def setup_server(self, server_id, conffile):
                 "slapd.conf -F /opt/symas/etc/openldap/slapd.d", chdir)
 
     # 10. Reset ownerships
-    if server.gluu_server:
-        run_command(tid, c, "chown -R ldap:ldap /opt/gluu/data", chdir)
-        run_command(tid, c, "chown -R ldap:ldap /opt/gluu/schema/openldap",
-                    chdir)
-        run_command(tid, c,
-                    "chown -R ldap:ldap /opt/symas/etc/openldap/slapd.d",
-                    chdir)
+    run_command(tid, c, "chown -R ldap:ldap /opt/gluu/data", chdir)
+    run_command(tid, c, "chown -R ldap:ldap /opt/gluu/schema/openldap", chdir)
+    run_command(tid, c, "chown -R ldap:ldap /opt/symas/etc/openldap/slapd.d",
+                chdir)
 
     # 11. Restart the solserver with the new OLC configuration
     wlogger.log(tid, "Restarting LDAP server with OLC configuration")
@@ -228,115 +227,391 @@ def setup_server(self, server_id, conffile):
     server.setup = setup_success
     db.session.commit()
 
+######### MB
+
+import time
 
 @celery.task(bind=True)
-def copy_syncrepl_from_new_server(self, server_id):
-    server = LDAPServer.query.get(server_id)
-    appconf = AppConfiguration.query.first()
+def setupMmrServer(self, server_id):
+    
     tid = self.request.id
-    cnuser = 'cn=admin,cn=config'
-    providers = LDAPServer.query.filter_by(role='provider').all()
-
-    c = RemoteClient(server.ip)
+    
+    server = LdapServer.query.get(server_id)
+    tid = self.request.id
+    chroot = '/opt/gluu-server-'+server.gluu_version
+   
+    wlogger.log(tid, "Connecting to the server %s" % server.fqn_hostname)
+    c = RemoteClient(server.fqn_hostname)
+    
+    conn_addr = server.fqn_hostname
+    
     try:
         c.startup()
     except Exception as e:
-        wlogger.log(tid, "Cannot establish SSH connection {0}".format(e),
-                    "error")
+        wlogger.log(tid, "Cannot establish SSH connection {0}".format(e), "warning")
+        
+        wlogger.log(tid, "Retrying with the IP address")
+        c = RemoteClient(server.ip_address)
+        conn_addr = server.ip_address
+        try:
+            c.startup()
+        except Exception as e:
+            wlogger.log(tid, "Cannot establish SSH connection {0}".format(e), "error")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return False
+    
+    # check if remote is gluu server
+    if c.exists(chroot):
+        wlogger.log(tid, 'Checking if remote is gluu server', 'success')
+    else:
+        wlogger.log(tid, "Remote is not a gluu server.", "error")
         wlogger.log(tid, "Ending server setup process.", "error")
         return False
+    
 
-    # Gather all the values necessary for syncrepl.conf
-    vals = {'r_id': server.id, 'phost': server.ip, 'pport': server.port,
-            'replication_dn': appconf.replication_dn,
-            'replication_pw': appconf.replication_pw,
-            'pprotocol': server.protocol,
-            }
-    if server.protocol == 'ldaps':
-        vals['pcert'] = 'tls_cacert="/opt/symas/ssl/{0}.crt"'.format(
-            server.name)
+    # symas-openldap.conf file exists
+    if c.exists(os.path.join(chroot, 'opt/symas/etc/openldap/symas-openldap.conf')):
+        wlogger.log(tid, 'Checking symas-openldap.conf exists', 'success')
     else:
-        vals['pcert'] = ''
+        wlogger.log(tid, 'Checking if symas-openldap.conf exists', 'fail')
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
 
-    f = open(os.path.join(app.root_path, 'templates', 'slapd',
-                          'syncrepl.conf'))
-    syncreplTemplate = f.read()
-    f.close()
+    # uplodading symas-openldap.conf file to remote server: enable openldap remote
+    # access and make openldap sldapd.d
+    confile = os.path.join(app.root_path, "templates", "slapd", "symas-openldap.conf")
+    confile_content = open(confile).read()
+    
+    
+    HOST_LIST='HOST_LIST="ldaps://127.0.0.1:1636/ ldaps://{0}:1636/"'.format(conn_addr)
+    EXTRA_SLAPD_ARGS='EXTRA_SLAPD_ARGS="-F /opt/symas/etc/openldap/slapd.d"'
+    
+    confile_content = confile_content.format(**{'HOST_LIST': HOST_LIST, 'EXTRA_SLAPD_ARGS': EXTRA_SLAPD_ARGS})
+    
+    r=c.putFile(os.path.join(chroot, 'opt/symas/etc/openldap/symas-openldap.conf'), confile_content)
+    
+    if r[0]:
+        wlogger.log(tid, 'symas-openldap.conf file uploaded', 'success')
+    else:
+        wlogger.log(tid, 'An error occured while uploading symas-openldap.conf: {0}'.format(r[1], 'fail'))
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
 
-    olcSyncrepl = syncreplTemplate.format(**vals).strip()  # generates syncrepl
-    # This is to hold the syncrepl configs from other server to the current
-    # server
-    reverseSyncrepl = []
+    accesslog_dir = '/opt/gluu/data/accesslog'
 
-    # Now propogate that syncrepl config and the server's address across all
-    # servers
+    # Generate OLC slapd.d
+    wlogger.log(tid, "Convert slapd.conf to slapd.d OLC")
+    run_command(tid, c, 'service solserver stop', chroot)
+    run_command(tid, c, "rm -rf /opt/symas/etc/openldap/slapd.d", chroot)
+    run_command(tid, c, "mkdir /opt/symas/etc/openldap/slapd.d", chroot)
+    run_command(tid, c, "/opt/symas/bin/slaptest -f /opt/symas/etc/openldap/"
+                "slapd.conf -F /opt/symas/etc/openldap/slapd.d", chroot)
+    run_command(tid, c, "chown -R {0}.{1} /opt/symas/etc/openldap/slapd.d".format(server.ldap_user, server.ldap_group), chroot)
+
+    if not c.exists(chroot+accesslog_dir):
+        run_command(tid, c, "mkdir {0}".format(accesslog_dir), chroot)
+        
+    run_command(tid, c, "chown -R {0}.{1} {2}".format(server.ldap_user, server.ldap_group, accesslog_dir), chroot)
+
+
+    # Restart the solserver with the new OLC configuration
+    wlogger.log(tid, "Restarting LDAP server with OLC configuration")
+    log = run_command(tid, c, "service solserver start", chroot)
+    if 'failed' in log:
+        wlogger.log(tid, "There seems to be some issue in restarting the server.", "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+        
+        # fix later !!!
+        #            "Running LDAP server in debug mode for troubleshooting")
+        #run_command(tid, c, "service solserver start -d 1", chdir)
+    #wait a couple of seconds to start
+    time.sleep(3)
+    ldp = ldapOLC('ldaps://{}:1636'.format(conn_addr), 'cn=config', server.ldap_password)
+    r=None
+    try:
+        r = ldp.connect()
+    except Exception as e:
+        wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(e), "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+
+    if not r:
+        wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+
+    wlogger.log(tid, 'Successfully connected to LDAPServer ', 'success')
+
+    if ldp.setServerID(server.id):
+        wlogger.log(tid, 'Setting Server ID {0}'.format(server.id), 'success')
+    else:
+        wlogger.log(tid, "Stting Server ID failed: {0}".format(ldp.conn.result['description']), "error")
+        return
+
+    if ldp.loadModules("syncprov", "accesslog"):
+        wlogger.log(tid, 'Loading syncprov and accesslog', 'success')
+    else:
+        wlogger.log(tid, "Loading syncprov and accesslog failed: {0}".format(ldp.conn.result['description']), "error")
+        return
+
+    if ldp.accesslogDBEntry(accesslog_dir):
+        wlogger.log(tid, 'Creating accesslog database entry', 'success')
+    else:
+        wlogger.log(tid, "Creating accesslog database entry failed: {0}".format(ldp.conn.result['description']), "error")
+        return
+    
+    # !WARNING UNBIND NECASSARY - I DON'T KNOW WHY.*****
+    ldp.conn.unbind()
+    ldp.conn.bind()
+    
+    r=''
+    r1=ldp.syncprovOverlaysDB2()
+    
+    if not r1: r += ldp.conn.result['description']
+    
+    r2=ldp.syncprovOverlaysDB1()
+    if not r2: r += ' ' + ldp.conn.result['description']
+    
+    if not (r):
+        wlogger.log(tid, 'Creating syncprovOverlays entries', 'success')
+    else:
+        wlogger.log(tid, "Creating syncprovOverlays entries failed: {0}".format(r), "error")
+        return
+    
+    if ldp.accesslogPurge():
+        wlogger.log(tid, 'Creating accesslog purge entry', 'success')
+    else:
+        wlogger.log(tid, "Creating accesslog purge entry failed: {0}".format(ldp.conn.result['description']), "warning")
+        
+
+    providers = MultiMaster.query.filter(MultiMaster.mmr_id != server.id).filter(MultiMaster.replicator==True).all()
+    
     for p in providers:
-        if p.id == server.id:
-            continue
-        # 1. Copy the server certificate to the provider
-        local = os.path.join(app.config["CERTS_DIR"],
-                             "{0}.crt".format(server.name))
-        remote = '/opt/symas/ssl/{0}.crt'.format(server.name)
-        upload_file(tid, c, local, remote)
+        pq = Provider.query.filter(Provider.provider_id==p.mmr_id).filter(Provider.consumer_id==server.id).first()
+        if not pq:
+            np = Provider()
+            np.provider_id=p.mmr_id
+            np.consumer_id=server.id
+            db.session.add(np)
 
-        # 2. Make an ldap3 connection
-        reciever = Server(p.ip)
-        conn = Connection(reciever, user=cnuser, password=p.admin_pw,
-                          auto_bind=True)
-
-        # get all the DB config and pick the o=gluu entry
-        conn.search("cn=config", "(objectclass=olcMdbConfig)",
-                    search_scope=SUBTREE, attributes=['*'])
-        gluu_db_conf = None
-        for entry in conn.entries:
-            if 'o=gluu' in entry.olcSuffix:
-                gluu_db_conf = entry
-                break
-
-        # 3. Put the syncrepl config in place
-        dn = json.loads(gluu_db_conf.entry_to_json())['dn']
-        if conn.modify(dn, {'olcSyncRepl': [(MODIFY_ADD, [olcSyncrepl])]}):
-            wlogger.log(tid, 'Syncrepl config added to {0}'.format(p.name),
-                        "success")
+        pd = LdapServer.query.get(p.mmr_id)
+        if ldp.addProvider(pd.id, "ldaps://{0}:1636".format(pd.fqn_hostname), "cn=directory manager,o=gluu", pd.ldap_password):
+            wlogger.log(tid, 'Adding provider {0}'.format(pd.fqn_hostname), 'success')
         else:
-            wlogger.log(tid, 'Syncrepl config adding failed for {0}'.format(
-                        p.name), "fail")
-            # TODO Track these failures and write repair routines to fix them
-        conn.unbind()
+            wlogger.log(tid, 'Adding provider {0} failed: {1}'.format(pd.fqn_hostname, ldp.conn.result['description']), "warning")
+    
+    #FIX ME: enabling mirror mode is moved to addProvider() function. Check if it is enabled.
+    if ldp.makeMirroMode():
+        wlogger.log(tid, 'Enabling mirror mode', 'success')
+    else:
+        wlogger.log(tid, "Enabling mirror mode failed: {0}".format(ldp.conn.result['description']), "warning")
+   
+   
+    #FIX ME: Add current ldap server as a provider to previously deployed servers.
+    """
 
-        # Generate the syncrepl for the current server from the provider
-        vals = {'r_id': p.id, 'phost': p.ip, 'pport': p.port,
-                'replication_dn': appconf.replication_dn,
-                'replication_pw': appconf.replication_pw,
-                'pprotocol': p.protocol, 'pcert': ''
-                }
-        if server.protocol == 'ldaps':
-            vals['pcert'] = 'tls_cacert="/opt/symas/ssl/{0}.crt"'.format(
-                server.name)
-        conf = syncreplTemplate.format(**vals).strip()
-        reverseSyncrepl.append(conf)
-
-    # Now copy all the reverse configs to the current server
-    s = Server(server.ip)
-    c = Connection(s, user=cnuser, password=server.admin_pw, auto_bind=True)
-    conn.search("cn=config", "(objectclass=olcMdbConfig)",
-                search_scope=SUBTREE, attributes=['*'])
-    gluu_db_conf = None
-    for entry in conn.entries:
-        if 'o=gluu' in entry.olcSuffix:
-            gluu_db_conf = entry
-            break
-    dn = json.loads(gluu_db_conf.entry_to_json())['dn']
-    conn.modify(dn, {'olcSyncRepl': [(MODIFY_ADD, reverseSyncrepl)]})
-    conn.unbind()
-
-    # Now copy all the certificates
+    LdapServers = LdapServer.query.filter(LdapServer.setup==True).filter(LdapServer.id != server.id).all()
+    
+    for ldp in LdapServers:
+        print ldp.fqn_hostname
+        providers = Provider.query.filter(Provider.consumer_id==ldp.id).all()
+        for p in providers:
+            if p.provider_id == server.id:
+                break
+        else:
+            wlogger.log(tid, "Adding this master as a provider for {}".format(ldp.fqn_hostname))
+            np = Provider()
+            np.provider_id=server.id
+            np.consumer_id=ldp.id
+            db.session.add(np)
+    """
+    
+    providers = MultiMaster.query.filter(MultiMaster.mmr_id != server.id).filter(MultiMaster.replicator==True).all()
     for p in providers:
-        if p.id == server.id:
-            continue
-        local = os.path.join(app.config["CERTS_DIR"],
-                             "{0}.crt".format(p.name))
-        remote = '/opt/symas/ssl/{0}.crt'.format(p.name)
-        upload_file(tid, c, local, remote)
+        pq = Provider.query.filter(Provider.provider_id==p.mmr_id).filter(Provider.consumer_id==server.id).first()
+        print pq
+        if not pq:
+            np = Provider()
+            np.provider_id=p.mmr_id
+            np.consumer_id=server.id
+            db.session.add(np)
+    
+    
+    server.initialized = True
 
-    # MMR Done
+    db.session.commit()
+
+@celery.task(bind=True)
+def removeProviderFromConsumer(self, consumer_id, provider_id):
+    tid = self.request.id
+    server = LdapServer.query.get(consumer_id)
+    
+    ldp = ldapOLC('ldaps://{}:1636'.format(server.fqn_hostname), 'cn=config', server.ldap_password)
+    r=None
+    try:
+        r = ldp.connect()
+    except Exception as e:
+        wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(e), "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+
+    if not r:
+        wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+
+    wlogger.log(tid, 'Successfully connected to LDAPServer ', 'success')
+
+    provider = LdapServer.query.get(provider_id)
+    pq = Provider.query.filter(Provider.provider_id==provider_id).filter(Provider.consumer_id==consumer_id).first()
+    r = ldp.removeProvider("ldaps://{0}:1636".format(provider.fqn_hostname))
+    if r:
+        wlogger.log(tid, 'Provder is removed', 'success')
+        db.session.delete(pq)
+    else:
+        if not r==None:
+            wlogger.log(tid, "Removing provider is failed: {0}".format(ldp.conn.result['description']), "error")
+        else:
+            wlogger.log(tid, "Provider is not found on this server", "warning")
+            db.session.delete(pq)
+    db.session.commit()
+
+@celery.task(bind=True)
+def addProviderToConsumer(self, consumer_id, provider_id):
+    tid = self.request.id
+
+    server = LdapServer.query.get(consumer_id)
+    
+    ldp = ldapOLC('ldaps://{}:1636'.format(server.fqn_hostname), 'cn=config', server.ldap_password)
+    r=None
+    try:
+        r = ldp.connect()
+    except Exception as e:
+        wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(e), "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+
+    if not r:
+        wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+
+    wlogger.log(tid, 'Successfully connected to LDAPServer ', 'success')
+
+    provider = LdapServer.query.get(provider_id)
+    pq = Provider.query.filter(Provider.provider_id==provider_id).filter(Provider.consumer_id==consumer_id).first()
+    if ldp.addProvider(provider.id, "ldaps://{0}:1636".format(provider.fqn_hostname), "cn=directory manager,o=gluu", provider.ldap_password):
+        wlogger.log(tid, 'Provder is added', 'success')
+        np = Provider()
+        np.consumer_id=consumer_id
+        np.provider_id=provider_id
+        db.session.add(np)
+        db.session.commit()
+    else:
+        wlogger.log(tid, "Removing provider is failed: {0}".format(ldp.conn.result['description']), "error")
+
+
+
+
+
+@celery.task(bind=True)
+def removeMultiMasterReplicator(self, server_id):
+    tid = self.request.id
+    server = LdapServer.query.get(server_id)
+    #pq = Provider.query.filter(Provider.provider_id==provider_id).filter(Provider.consumer_id==consumer_id).first()
+    #print(pq)
+    #db.session.delete(pq)
+    #db.session.commit()
+    wlogger.log(tid, "Removing Master")
+
+
+    ldapc=Provider.query.filter_by(consumer_id=server_id).all()
+    for c in ldapc:
+        db.session.delete(c)
+
+    mmrs=MultiMaster.query.filter_by(mmr_id=server_id).first()
+    db.session.delete(mmrs)
+    db.session.commit()
+
+@celery.task(bind=True)
+def removeMultiMasterDeployement(self, server_id):
+
+    server = LdapServer.query.get(server_id)
+    tid = self.request.id
+    chroot = '/opt/gluu-server-'+server.gluu_version
+   
+    wlogger.log(tid, "Connecting to the server %s" % server.fqn_hostname)
+    c = RemoteClient(server.fqn_hostname)
+    
+    conn_addr = server.fqn_hostname
+    
+    try:
+        c.startup()
+    except Exception as e:
+        wlogger.log(tid, "Cannot establish SSH connection {0}".format(e), "warning")
+        
+        wlogger.log(tid, "Retrying with the IP address")
+        c = RemoteClient(server.ip_address)
+        conn_addr = server.ip_address
+        try:
+            c.startup()
+        except Exception as e:
+            wlogger.log(tid, "Cannot establish SSH connection {0}".format(e), "error")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return False
+    
+    # check if remote is gluu server
+    if c.exists(chroot):
+        wlogger.log(tid, 'Checking if remote is gluu server', 'success')
+    else:
+        wlogger.log(tid, "Remote is not a gluu server.", "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return False
+    
+
+    # symas-openldap.conf file exists
+    if c.exists(os.path.join(chroot, 'opt/symas/etc/openldap/symas-openldap.conf')):
+        wlogger.log(tid, 'Checking symas-openldap.conf exists', 'success')
+    else:
+        wlogger.log(tid, 'Checking if symas-openldap.conf exists', 'fail')
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+
+    # sldapd.conf file exists
+    if c.exists(os.path.join(chroot, 'opt/symas/etc/openldap/slapd.conf')):
+        wlogger.log(tid, 'Checking slapd.conf exists', 'success')
+    else:
+        wlogger.log(tid, 'Checking if slapd.conf exists', 'fail')
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+
+
+    # uplodading symas-openldap.conf file
+    confile = os.path.join(app.root_path, "templates", "slapd", "symas-openldap.conf")
+    confile_content = open(confile).read()
+    
+    
+    HOST_LIST='HOST_LIST="ldaps://127.0.0.1:1636/"'.format(conn_addr)
+    EXTRA_SLAPD_ARGS='EXTRA_SLAPD_ARGS=""'
+    confile_content = confile_content.format(**{'HOST_LIST': HOST_LIST, 'EXTRA_SLAPD_ARGS': EXTRA_SLAPD_ARGS})
+    r=c.putFile(os.path.join(chroot, 'opt/symas/etc/openldap/symas-openldap.conf'), confile_content)
+    
+    if r[0]:
+        wlogger.log(tid, 'symas-openldap.conf file uploaded', 'success')
+    else:
+        wlogger.log(tid, 'An error occured while uploading symas-openldap.conf: {0}'.format(r[1], 'fail'))
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+
+    run_command(tid, c, "chown -R {0}.{1} /opt/symas/etc/openldap".format(server.ldap_user, server.ldap_group), chroot)
+
+    # Restart the solserver with the new OLC configuration
+    wlogger.log(tid, "Restarting LDAP server with slapd.conf configuration")
+    log = run_command(tid, c, "service solserver restart", chroot)
+    if 'failed' in log:
+        wlogger.log(tid, "There seems to be some issue in restarting the server.", "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+    server.initialized = False
+    db.session.commit()

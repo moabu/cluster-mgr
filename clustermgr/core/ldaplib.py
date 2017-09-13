@@ -4,7 +4,7 @@ import ldap
 
 
 @contextmanager
-def ldap_conn(address, port, user, passwd, starttls=False):
+def ldap_conn(hostname, port, user, passwd, starttls=False):
     """Establishes connection to LDAP and releases the connection
     after being used.
 
@@ -15,17 +15,17 @@ def ldap_conn(address, port, user, passwd, starttls=False):
 
     Example::
 
-        with ldap_conn(address, port, user, passwd) as conn:
+        with ldap_conn(hostname, port, user, passwd) as conn:
             conn.search_s()
     """
     try:
-        conn = ldap.initialize('ldap://{}:{}'.format(address, port))
+        conn = ldap.initialize('ldap://{}:{}'.format(hostname, port))
         if starttls:
             conn.start_tls_s()
         conn.bind_s(user, passwd)
         yield conn
     except ldap.SERVER_DOWN:
-        conn = ldap.initialize('ldaps://{}:{}'.format(address, port))
+        conn = ldap.initialize('ldaps://{}:{}'.format(hostname, port))
         conn.bind_s(user, passwd)
         yield conn
     except ldap.LDAPError as exc:

@@ -12,7 +12,7 @@ from flask_wtf.file import FileField, FileRequired, FileAllowed
 class NewProviderForm(FlaskForm):
     gluu_server = BooleanField('This is a Gluu Server (OpenLDAP installed inside chroot)', default=False)
     gluu_version = SelectField('Gluu Server Version', choices=[('3.0.1', '3.0.1'), ('3.0.2', '3.0.2')])
-    name = StringField('Short Server Name *', validators=[DataRequired()])
+    hostname = StringField('Hostname *', validators=[DataRequired()])
     ip = StringField('IP Address *', validators=[DataRequired(), IPAddress()])
     port = IntegerField('Port *', validators=[DataRequired()])
     admin_pw = PasswordField('LDAP Admin Password *', validators=[DataRequired()])
@@ -30,7 +30,7 @@ class NewConsumerForm(FlaskForm):
     provider = SelectField('Provider *', coerce=int)
     gluu_server = BooleanField('This is a Gluu Server (OpenLDAP installed inside chroot)', default=False)
     gluu_version = SelectField('Gluu Server Version', choices=[('3.0.1', '3.0.1'), ('3.0.2', '3.0.2')])
-    name = StringField('Short Server Name *', validators=[DataRequired()])
+    hostname = StringField('Hostname *', validators=[DataRequired()])
     ip = StringField('IP Address *', validators=[DataRequired(), IPAddress()])
     port = IntegerField('Port *', validators=[DataRequired()])
     admin_pw = PasswordField('LDAP Admin Password *', validators=[DataRequired()])  # noqa
@@ -108,3 +108,17 @@ class LoggingServerForm(FlaskForm):
     # db_password = PasswordField("Password", validators=[DataRequired()])
     url = StringField("URL", validators=[DataRequired(),
                                          URL(require_tld=False)])
+
+
+
+########## MB
+
+
+class LdapServerForm(FlaskForm):
+    gluu_version = SelectField('Gluu Server Version', choices=[('3.0.1', '3.0.1'), ('3.0.2', '3.0.2')])
+    fqn_hostname = StringField('Hostname *', validators=[DataRequired()])
+    ip_address = StringField('IP Address *', validators=[DataRequired(), IPAddress()])
+    ldap_password = StringField('LDAP Admin Password *', validators=[DataRequired()])
+    ldap_user = StringField('LDAP User *', validators=[DataRequired()])
+    ldap_group = StringField('LDAP Group *', validators=[DataRequired()])
+
