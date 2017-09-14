@@ -190,13 +190,12 @@ class ldapOLC(object):
 
     def addTestUser(self,  cn, sn, mail):
         uid = '{0}@{1}'.format(time.time(), self.hostname)
-        dn = "uid={0},ou=people,o=gluu".format(uid)
+        dn = "uid={0},ou=testusers,o=gluu".format(uid)
         return self.conn.add(dn,   
              attributes={ 
                  'objectClass': ['top', 'inetOrgPerson'],
                  "cn": cn,
                  'mail': mail,
-                 'ou': 'people',
                  'sn': sn,
                  'title': 'gluuClusterMgrTestUser',
                  'uid': uid
@@ -204,8 +203,22 @@ class ldapOLC(object):
              )
 
 
+    def checkTestUserBase():
+        if not self.conn.search(search_base = 'ou=testusers,o=gluu',
+                search_filter = '(objectClass=inetOrgPerson)',
+                search_scope = BASE,
+                attributes='*'
+                ):
+            conn.add('ou=testusers,o=gluu',   
+                 attributes={ 
+                     'objectClass': ['top', 'organizationalUnit'],
+                     'ou': 'testusers',
+                     }
+                 )
+
+
     def searchTestUsers(self):
-        return self.conn.search(search_base = 'ou=people,o=gluu',
+        return self.conn.search(search_base = 'ou=testusers,o=gluu',
             search_filter = '(title=gluuClusterMgrTestUser)',
             search_scope = LEVEL,
             attributes='*'

@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+clustermgr/migrations/versions/*.py
+clustermgr/migrations/versions/*.pyc
+
 # C extensions
 *.so
 

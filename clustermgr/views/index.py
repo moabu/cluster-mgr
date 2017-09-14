@@ -354,10 +354,10 @@ def add_test_user(server_id):
         try:
             r = ldp.connect()
         except Exception as e:
-            falsh("Connection to LDAPserver at port 1636 was failed: {0}".format(e), "error")
+            flash("Connection to LDAPserver at port 1636 was failed: {0}".format(e), "danger")
 
         if not r:
-            flash("Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "error")
+            flash("Connection to LDAPserver at port 1636 was failed.", "danger")
         
         if ldp.conn:
             if ldp.addTestUser(form.first_name.data, form.last_name.data,form.email.data):
@@ -383,24 +383,26 @@ def search_test_users(server_id):
     try:
         r = ldp.connect()
     except Exception as e:
-        falsh("Connection to LDAPserver at port 1636 was failed: {0}".format(e), "error")
+        flash("Connection to LDAPserver at port 1636 was failed: {0}".format(e), "danger")
 
     if not r:
-        flash("Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "error")
+        flash("Connection to LDAPserver at port 1636 was failed", "danger")
 
-    if ldp.conn:
+    else:
 
-        if not ldp.searchTestUsers():
-            flash("Searching user failed: {0}".format(ldp.conn.result['description']), "error")
-        else:
-            users = ldp.conn.response
-            print users
-            for user in users:
-                host = user['dn'].split('@')[1].split(',')[0]
-                user['host']=host
-    if users:
-        st = '{0}({1})'.format(ldps.fqn_hostname, len(users))
-        return render_template('test_users.html', server_id=server_id, server= st, users = users )
+        if ldp.conn:
+
+            if not ldp.searchTestUsers():
+                flash("Searching user failed: {0}".format(ldp.conn.result['description']), "danger")
+            else:
+                users = ldp.conn.response
+                print users
+                for user in users:
+                    host = user['dn'].split('@')[1].split(',')[0]
+                    user['host']=host
+        if users:
+            st = '{0}({1})'.format(ldps.fqn_hostname, len(users))
+            return render_template('test_users.html', server_id=server_id, server= st, users = users )
         
     return redirect(url_for('index.multi_master_replication'))
 
@@ -413,15 +415,15 @@ def delete_test_user(server_id, dn):
     try:
         r = ldp.connect()
     except Exception as e:
-        falsh("Connection to LDAPserver at port 1636 was failed: {0}".format(e), "error")
+        flash("Connection to LDAPserver at port 1636 was failed: {0}".format(e), "danger")
 
     if not r:
-        flash("Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "error")
+        flash("Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "danger")
 
     if ldp.conn:
         if ldp.delDn(dn):
             flash("Test User deleted", "success")
         else:
-            flash("Test User deletation failed: {0}".format(ldp.conn.result['description']), "error")
+            flash("Test User deletation failed: {0}".format(ldp.conn.result['description']), "danger")
             
     return redirect(url_for('index.search_test_users', server_id=server_id))

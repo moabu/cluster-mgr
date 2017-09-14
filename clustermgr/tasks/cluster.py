@@ -336,7 +336,10 @@ def setupMmrServer(self, server_id):
         return
 
     if not r:
-        wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "error")
+        try:
+            wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "error")
+        except:
+            pass
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
@@ -456,7 +459,10 @@ def removeProviderFromConsumer(self, consumer_id, provider_id):
         return
 
     if not r:
-        wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "error")
+        try:
+            wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "error")
+        except:
+            pass
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
@@ -492,7 +498,10 @@ def addProviderToConsumer(self, consumer_id, provider_id):
         return
 
     if not r:
-        wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "error")
+        try:
+            wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "error")
+        except:
+            pass
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
@@ -616,29 +625,3 @@ def removeMultiMasterDeployement(self, server_id):
     db.session.commit()
 
 
-@celery.task(bind=True)
-def addTestUser(self, data):
-    tid = self.request.id
-    
-    ldp = ldapOLC('ldaps://{}:1636'.format(data["server"]), "cn=directory manager,o=gluu", data["ldap_password"])
-    r=None
-    try:
-        r = ldp.connect()
-    except Exception as e:
-        wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(e), "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    if not r:
-        wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-    
-    wlogger.log(tid, 'Successfully connected to LDAPServer ', 'success')
-    
-    if ldp.addTestUser(data["cn"], data["sn"], data["mail"]):
-        wlogger.log(tid, 'Adding user', 'success')
-    else:
-        wlogger.log(tid, "CAdding user failed: {0}".format(ldp.conn.result['description']), "warning")
-    
-    del session["tes_user"]

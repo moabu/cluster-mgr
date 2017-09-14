@@ -14,7 +14,7 @@ from clustermgr.forms import NewConsumerForm, NewProviderForm, LDIFForm
 from clustermgr.core.utils import ldap_encode
 from clustermgr.tasks.cluster import setup_server, setupMmrServer, \
         removeProviderFromConsumer, removeMultiMasterReplicator, addProviderToConsumer, \
-        removeMultiMasterDeployement, addTestUser
+        removeMultiMasterDeployement
 
 
 cluster = Blueprint('cluster', __name__, template_folder='templates')
