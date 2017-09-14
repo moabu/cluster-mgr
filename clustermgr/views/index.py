@@ -11,7 +11,7 @@ from clustermgr.models import LDAPServer, AppConfiguration, KeyRotation, \
     OxauthServer, LdapServer, MultiMaster, Provider
 
 from clustermgr.forms import AppConfigForm, KeyRotationForm, SchemaForm, \
-    LdapServerForm, TestUser
+    LdapServerForm
     
 from clustermgr.core.ldap_functions import ldapOLC 
     
