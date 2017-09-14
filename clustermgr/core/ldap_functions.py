@@ -1,5 +1,18 @@
-from ldap3 import Server, Connection, MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE, SUBTREE, ALL, BASE
+from ldap3 import Server, Connection, MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE, SUBTREE, ALL, BASE, LEVEL
 import re
+import time
+import hashlib
+import os
+
+def makeLdapPassword(passwd):
+    salt=os.urandom(4)
+    sha=hashlib.sha1(passwd)
+    sha.update(salt)    
+    digest= (sha.digest()+ salt).encode('base64').strip()
+    ssha_passwd = '{SSHA}'+ digest
+
+    return ssha_passwd
+
 
 class ldapOLC(object):
     
@@ -9,6 +22,10 @@ class ldapOLC(object):
         self.passwd = passwd
         self.server = None
         self.conn = None
+        p = '(?:ldap.*://)?(?P<host>[^:/ ]+).?(?P<port>[0-9]*).*'
+        m = re.search(p, self.addr)
+        self.hostname = m.group('host')
+
         
     def connect(self):
         print ("Making Ldap Connection")
@@ -36,7 +53,6 @@ class ldapOLC(object):
         return self.conn.modify('cn=module{0},cn=config', {'olcModuleLoad': [MODIFY_ADD, addList]})
 
 
-
     def accesslogDBEntry(self, log_dir = "/opt/gluu/data/accesslog"):
         self.conn.search(search_base = 'cn=config', search_filter = '(olcSuffix=cn=accesslog)', search_scope = SUBTREE, attributes = ["*"])
         if not self.conn.response:
@@ -45,10 +61,13 @@ class ldapOLC(object):
             return self.conn.add('olcDatabase={2}mdb,cn=config', attributes={'objectClass':  ['olcDatabaseConfig', 'olcMdbConfig'],
                                                            'olcDatabase': '{2}mdb',
                                                            'olcDbDirectory': log_dir,
+                                                           'OlcDbMaxSize': 1073741824,
                                                            'olcSuffix': 'cn=accesslog',
                                                            'olcRootDN': 'cn=admin, cn=accesslog',
-                                                           'olcRootPW': 'TopSecret',
+                                                           'olcRootPW': makeLdapPassword(self.passwd),
                                                            'olcDbIndex': ['default eq', 'entryCSN,objectClass,reqEnd,reqResult,reqStart'],
+                                                           'olcLimits': 'dn.exact="cn=directory manager,o=gluu" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited',
+                                                           
                                                        })
 
     def syncprovOverlaysDB1(self):
@@ -56,7 +75,10 @@ class ldapOLC(object):
         if not self.conn.response:
             return self.conn.add('olcOverlay=syncprov,olcDatabase={1}mdb,cn=config', attributes={'objectClass':  ['olcOverlayConfig', 'olcSyncProvConfig'],
                                                            'olcOverlay': 'syncprov',
-                                                           'olcSpNoPresent': 'TRUE',
+                                                           #'olcSpNoPresent': 'TRUE', ???
+                                                           'olcSpReloadHint': 'TRUE',
+                                                           'olcSpCheckPoint': '100 10',
+                                                           'olcSpSessionlog': '10000',
                                                            })
 
 
@@ -64,10 +86,15 @@ class ldapOLC(object):
 
         self.conn.search(search_base = 'olcDatabase={2}mdb,cn=config', search_filter = '(olcOverlay=syncprov)', search_scope = SUBTREE, attributes = ["*"])
         if not self.conn.response:
-            return self.conn.add('olcOverlay=syncprov,olcDatabase={2}mdb,cn=config', attributes={'objectClass':  ['olcOverlayConfig', 'olcSyncProvConfig'],
+            return self.conn.add('olcOverlay=syncprov,olcDatabase={2}mdb,cn=config', attributes={
+                                                           'objectClass':  ['olcOverlayConfig', 'olcSyncProvConfig'],
+                                                           #'structuralObjectClass': ['olcSyncProvConfig'],
                                                            'olcOverlay': 'syncprov',
                                                            'olcSpNoPresent': 'TRUE',
                                                            'olcSpReloadHint': 'TRUE',
+                                                           #'olcSpCheckPoint': '100 10',
+                                                           #'olcSpSessionlog': '10000',
+                                                           #'olcLimits': 'dn.exact="cn=directory manager,o=gluu" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited',
                                                          })    
 
 
@@ -158,3 +185,31 @@ class ldapOLC(object):
 
     def checkAccesslogDB(self):
         return self.conn.search(search_base = 'cn=config', search_filter = '(olcSuffix=cn=accesslog)', search_scope = SUBTREE, attributes = ["*"])
+
+
+
+    def addTestUser(self,  cn, sn, mail):
+        uid = '{0}@{1}'.format(time.time(), self.hostname)
+        dn = "uid={0},ou=people,o=gluu".format(uid)
+        return self.conn.add(dn,   
+             attributes={ 
+                 'objectClass': ['top', 'inetOrgPerson'],
+                 "cn": cn,
+                 'mail': mail,
+                 'ou': 'people',
+                 'sn': sn,
+                 'title': 'gluuClusterMgrTestUser',
+                 'uid': uid
+                 }
+             )
+
+
+    def searchTestUsers(self):
+        return self.conn.search(search_base = 'ou=people,o=gluu',
+            search_filter = '(title=gluuClusterMgrTestUser)',
+            search_scope = LEVEL,
+            attributes='*'
+            )
+            
+    def delDn(self,dn):
+        return self.conn.delete(dn)

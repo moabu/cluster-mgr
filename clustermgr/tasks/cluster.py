@@ -1,12 +1,12 @@
 import re
 import os
-import time
-from flask import current_app as app
 
+from flask import current_app as app
+from flask import session
 from clustermgr.models import LDAPServer, LdapServer, MultiMaster, Provider
 from clustermgr.extensions import celery, wlogger, db
 from clustermgr.core.remote import RemoteClient
-from ldap_functions import ldapOLC
+from clustermgr.core.ldap_functions import ldapOLC
 
 def run_command(tid, c, command, container=None):
     """Shorthand for RemoteClient.run(). This function automatically logs
@@ -325,8 +325,7 @@ def setupMmrServer(self, server_id):
         # fix later !!!
         #            "Running LDAP server in debug mode for troubleshooting")
         #run_command(tid, c, "service solserver start -d 1", chdir)
-    #wait a couple of seconds to start
-    time.sleep(3)
+
     ldp = ldapOLC('ldaps://{}:1636'.format(conn_addr), 'cn=config', server.ldap_password)
     r=None
     try:
@@ -592,7 +591,7 @@ def removeMultiMasterDeployement(self, server_id):
     confile_content = open(confile).read()
     
     
-    HOST_LIST='HOST_LIST="ldaps://127.0.0.1:1636/"'.format(conn_addr)
+    HOST_LIST='HOST_LIST="ldaps://127.0.0.1:1636/"'
     EXTRA_SLAPD_ARGS='EXTRA_SLAPD_ARGS=""'
     confile_content = confile_content.format(**{'HOST_LIST': HOST_LIST, 'EXTRA_SLAPD_ARGS': EXTRA_SLAPD_ARGS})
     r=c.putFile(os.path.join(chroot, 'opt/symas/etc/openldap/symas-openldap.conf'), confile_content)
@@ -606,7 +605,7 @@ def removeMultiMasterDeployement(self, server_id):
 
     run_command(tid, c, "chown -R {0}.{1} /opt/symas/etc/openldap".format(server.ldap_user, server.ldap_group), chroot)
 
-    # Restart the solserver with the new OLC configuration
+    # Restart the solserver with slapd.conf configuration
     wlogger.log(tid, "Restarting LDAP server with slapd.conf configuration")
     log = run_command(tid, c, "service solserver restart", chroot)
     if 'failed' in log:
@@ -615,3 +614,31 @@ def removeMultiMasterDeployement(self, server_id):
         return
     server.initialized = False
     db.session.commit()
+
+
+@celery.task(bind=True)
+def addTestUser(self, data):
+    tid = self.request.id
+    
+    ldp = ldapOLC('ldaps://{}:1636'.format(data["server"]), "cn=directory manager,o=gluu", data["ldap_password"])
+    r=None
+    try:
+        r = ldp.connect()
+    except Exception as e:
+        wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(e), "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+
+    if not r:
+        wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+    
+    wlogger.log(tid, 'Successfully connected to LDAPServer ', 'success')
+    
+    if ldp.addTestUser(data["cn"], data["sn"], data["mail"]):
+        wlogger.log(tid, 'Adding user', 'success')
+    else:
+        wlogger.log(tid, "CAdding user failed: {0}".format(ldp.conn.result['description']), "warning")
+    
+    del session["tes_user"]

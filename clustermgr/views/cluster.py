@@ -2,9 +2,9 @@
 the servers managed in the cluster-manager
 """
 import os
-
+import json
 from flask import Blueprint, render_template, url_for, flash, redirect, \
-        request
+        request, session
 from flask import current_app as app
 
 
@@ -14,7 +14,7 @@ from clustermgr.forms import NewConsumerForm, NewProviderForm, LDIFForm
 from clustermgr.core.utils import ldap_encode
 from clustermgr.tasks.cluster import setup_server, setupMmrServer, \
         removeProviderFromConsumer, removeMultiMasterReplicator, addProviderToConsumer, \
-        removeMultiMasterDeployement
+        removeMultiMasterDeployement, addTestUser
 
 
 cluster = Blueprint('cluster', __name__, template_folder='templates')
@@ -248,3 +248,5 @@ def remove_deployment():
         whatNext= "Multi Master Replication"
         return render_template("logger.html", heading=head, server="",
                            task=task, nextpage=nextpage, whatNext=whatNext)
+
+

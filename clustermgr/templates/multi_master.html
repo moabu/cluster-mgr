@@ -46,6 +46,11 @@
                         <a class="btn btn-danger btn-xs" href="{{ url_for('index.remove_multi_master_replicator')}}?server_id={{server.id}}">Remove Master</a>
                     {% endif %}
                     
+                    {% if server.initialized %}
+                    <a href="{{ url_for('index.add_test_user', server_id=server.id) }}"  class="btn btn-default btn-xs" >Add Test User</a>
+                    <a href="{{ url_for('index.search_test_users', server_id=server.id) }}"  class="btn btn-default btn-xs" >Search Test Users</a>
+                    {% endif %}
+                    
                 </td>
             {% endif %}
           </tr>
@@ -119,6 +124,8 @@
 </div>
 
 
+
+
 {% endblock %}
 {% block js %}
 <script>
@@ -164,15 +171,7 @@ jQuery(function($){
     
 
 
-function addLdapProvider() {
-
-    var form = document.getElementById("ldapproviderlist");
-    var provider_id = form.elements["ldapprovider"].value;
-    //Ask Arun: Why there is provider_id if form has only one element although it is not selected?
-    if (provider_id) {
-        window.location.href = "{{url_for('cluster.add_provider_to_consumer')}}?consumer_id=" + consumer_id +"&provider_id="+provider_id;
-    }
-}
+function addLdapProvider() {    var form = document.getElementById("ldapproviderlist");    var provider = form.elements["ldapprovider"];    if ( (provider.toString().search("HTMLInputElement") != -1 && provider.checked) ||         (provider.toString().search("RadioNodeList") != -1 && provider.value) )    {      var provider_id = provider.value;      window.location.href = "/cluster/addprovidertocustomer?consumer_id=" + consumer_id +"&provider_id="+provider_id;    }}
 
 
 </script>
