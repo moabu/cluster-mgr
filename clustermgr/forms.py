@@ -5,7 +5,7 @@ except ImportError:
 from wtforms import StringField, SelectField, BooleanField, IntegerField, \
     PasswordField, RadioField, SubmitField
 from wtforms.validators import DataRequired, Regexp, AnyOf, \
-    ValidationError, URL, IPAddress
+    ValidationError, URL, IPAddress, Email
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 
 
@@ -122,3 +122,8 @@ class LdapServerForm(FlaskForm):
     ldap_user = StringField('LDAP User *', validators=[DataRequired()])
     ldap_group = StringField('LDAP Group *', validators=[DataRequired()])
 
+class TestUser(FlaskForm):
+    #server = SelectField('Ldap Server', choices=[])
+    first_name = StringField('First Name', validators=[DataRequired()])
+    last_name = StringField('Last Name', validators=[DataRequired()])
+    email = StringField('Email', validators=[DataRequired(), Email("Please enter valid email address.")])
