@@ -33,6 +33,8 @@ setup(
         "cryptography",
         "requests",
         "flask-migrate",
+        "ldap3",
+        "paramiko",
     ],
     entry_points={
         "console_scripts": ["clustermgr-cli=clusterapp:cli"],
