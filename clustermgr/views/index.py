@@ -8,7 +8,7 @@ from celery.result import AsyncResult
 
 from clustermgr.extensions import db, wlogger, celery
 from clustermgr.models import LDAPServer, AppConfiguration, KeyRotation, \
-    OxauthServer, LdapServer, MultiMaster, Provider
+    OxauthServer, LdapServer, MultiMaster
 
 from clustermgr.forms import AppConfigForm, KeyRotationForm, SchemaForm, \
     LdapServerForm, TestUser
@@ -180,6 +180,23 @@ def get_log(task_id):
     return jsonify(log)
 
 
+### MB
+
+
+def getLdapConn(addr, dn, passwd):
+    ldp = ldapOLC('ldaps://{}:1636'.format(addr), dn, passwd)
+    r=None
+    try:
+        r = ldp.connect()
+    except Exception as e:
+        flash("Connection to LDAPserver {0} at port 1636 was failed: {1}".format(addr, e), "danger")
+        return 
+    if not r:
+        flash("Connection to LDAPserver  {0} at port 1636 was failed: {1}".format(addr, ldp.conn.result['description']), "danger")
+        return
+
+    return ldp
+
 @index.route('/server/<server_id>/', methods=['GET', 'POST'])
 def edit_ldap_server(server_id):
     data={'title': 'Add New Ldap Server', 'button': 'Add Server'}
@@ -244,22 +261,19 @@ def remove_server(server_id):
 
 @index.route('/makemmrreplicator/')
 def make_multi_master_replicator():
-    r=0
     server_id = int(request.values.get("server_id"))
-    ldp = MultiMaster()
-    ldp.mmr_id = server_id
-    ldp.replicator = 1
-    db.session.add(ldp)
-    r=1
-    db.session.commit()
     
     ldp=LdapServer.query.filter_by(id=server_id).first()
-    
-    if r:
-        flash("Ldap Server {0} is added as Master Server".format(ldp.fqn_hostname))
+    if ldp:
+        mmr = MultiMaster()
+        mmr.mmr_id = server_id
+        mmr.replicator = 1
+        db.session.add(mmr)
+        db.session.commit()
+        flash("Ldap Server {0} is added as Master Server".format(ldp.fqn_hostname), "success")
     else:
-        flash("Master Ldap Server {0} is removed".format(ldp.fqn_hostname))
-
+        flash("No such LDAP Server", "warning")
+ 
     return redirect(url_for('index.multi_master_replication'))
 
 def get_mmr_list():
@@ -269,101 +283,72 @@ def get_mmr_list():
         if ldp.replicator:
             mmrs.append(ldp.mmr_id)
     return mmrs
-
-def getConsumerProviderDict():
-    pcDict={}
-    providers = Provider.query.all()
+ 
     
-    for p in providers:
-        ldpp=LdapServer.query.filter_by(id=p.provider_id).first()
-        ldpc=LdapServer.query.filter_by(id=p.consumer_id).first()
-        if ldpc.id in pcDict:
-            pcDict[ldpc.id].append(ldpp.id)
-        else:
-            pcDict[ldpc.id]=[ldpp.id]
-            
-    return pcDict
-
-    
-    
-
 @index.route('/mmr/')
 def multi_master_replication():
 
     mmrs = get_mmr_list()
     ldaps=LdapServer.query.all()
-    pc = getConsumerProviderDict()
     id_host_dict ={}
-    
-    pca = {x:[] for x in mmrs}
-    
+        
     addServerButton = False
     if not len(ldaps) == len(mmrs):
         addServerButton = True
     
+    serverStats = {}
+    
     
     for ldp in ldaps:
-        print "ldpin", ldp.id,  mmrs, ldp.id in mmrs
         if ldp.id in mmrs:
-            id_host_dict[ldp.id] = ldp.fqn_hostname
-            for l in ldaps:
-                if l.id in mmrs:
-                    if not l == ldp:
-                        if ldp.id not in pc:
-                            pca[ldp.id].append(l.id)
-                        else:
-                            if not l.id in pc[ldp.id]:
-                                pca[ldp.id].append(l.id)
+            s=ldapOLC("ldaps://{0}:1636".format(ldp.fqn_hostname), "cn=config", "secret")
+            r=None
+            try:
+                r = s.connect()
+            except Exception as e:
+                flash("Connection to LDAPserver {0} at port 1636 was failed: {1}".format(ldp.fqn_hostname, e), "warning")
 
-    return render_template('multi_master.html', ldapservers=ldaps, mmrs=mmrs, pc=pc, pca=pca,
+            if not r:
+                flash("Connection to LDAPserver {0} at port 1636 was failed".format(ldp.fqn_hostname), "warning")
+                
+            if r:
+                serverStats[ldp.fqn_hostname]=s.getMMRStatus()
+
+    return render_template('multi_master.html', ldapservers=ldaps, mmrs=mmrs,
                                                 id_host_dict=id_host_dict,
                                                 addServerButton=addServerButton,
-                                                
+                                                serverStats=serverStats,
                                                 )
 
 @index.route('/removemaster/')
 def remove_multi_master_replicator():
     server_id = int(request.values.get("server_id"))
-    ldaps=Provider.query.filter_by(provider_id=server_id).first()
 
-    if ldaps:
-        flash ("This server is a provider for an Ldap Server. Please first remove this server as provider.", "warning")
-        
-    else:
-        mmr=MultiMaster.query.filter(MultiMaster.mmr_id==server_id).first()
-        db.session.delete(mmr)
-        db.session.commit()
-        flash("Master server is removed", "success")
+    mmr=MultiMaster.query.filter(MultiMaster.mmr_id==server_id).first()
+    db.session.delete(mmr)
+    db.session.commit()
+    flash("Master server is removed", "success")
     
     return redirect(url_for('index.multi_master_replication'))
             
 @index.route('/addtestuser/<int:server_id>', methods=['GET', 'POST'])
 def add_test_user(server_id):
     print "SERVER ID", server_id
-    ldp = LdapServer.query.get(server_id)
+    server = LdapServer.query.get(server_id)
 
     form = TestUser()
-    data={'title': 'Add Test User [{0}]'.format(ldp.fqn_hostname), 'button': 'Add'}
-    
+    data={'title': 'Add Test User [{0}]'.format(server.fqn_hostname), 'button': 'Add'}
     
     
     if form.validate_on_submit():
         
-        ldp = ldapOLC('ldaps://{}:1636'.format(ldp.fqn_hostname), "cn=directory manager,o=gluu", ldp.ldap_password)
-        r=None
-        try:
-            r = ldp.connect()
-        except Exception as e:
-            flash("Connection to LDAPserver at port 1636 was failed: {0}".format(e), "danger")
-
-        if not r:
-            flash("Connection to LDAPserver at port 1636 was failed.", "danger")
-        
-        if ldp.conn:
+        ldp = getLdapConn(server.fqn_hostname, "cn=directory manager,o=gluu", server.ldap_password)
+            
+        if ldp:
             if ldp.addTestUser(form.first_name.data, form.last_name.data,form.email.data):
-                flash("Test User sucessfuly added.", "success")
+                flash("Test User {0} {1} to {2} was sucessfuly added.".format(form.first_name.data, form.last_name.data, server.fqn_hostname), "success")
             else:
-                flash("CAdding user failed: {0}".format(ldp.conn.result['description']), "warning")
+                flash("Adding user failed: {0}".format(ldp.conn.result['description']), "warning")
 
             return redirect(url_for('index.multi_master_replication'))
         
@@ -374,56 +359,80 @@ def add_test_user(server_id):
 def search_test_users(server_id):
     
     print "SERVER ID", server_id
-    ldps = LdapServer.query.get(server_id)
+    server = LdapServer.query.get(server_id)
     
     users = []
+    providers={}
+    ldp = getLdapConn(server.fqn_hostname, "cn=directory manager,o=gluu", server.ldap_password)
     
-    ldp = ldapOLC('ldaps://{}:1636'.format(ldps.fqn_hostname), "cn=directory manager,o=gluu", ldps.ldap_password)
-    r=None
-    try:
-        r = ldp.connect()
-    except Exception as e:
-        flash("Connection to LDAPserver at port 1636 was failed: {0}".format(e), "danger")
+    
+    
+    if ldp:
 
-    if not r:
-        flash("Connection to LDAPserver at port 1636 was failed", "danger")
+        if not ldp.searchTestUsers():
+            flash("Searching user failed: {0}".format(ldp.conn.result['description']), "danger")
+        else:
+            users = ldp.conn.response
+            for user in users:
+                host = user['dn'].split('@')[1].split(',')[0]
+                user['host']=host
+            
 
-    else:
-
-        if ldp.conn:
-
-            if not ldp.searchTestUsers():
-                flash("Searching user failed: {0}".format(ldp.conn.result['description']), "danger")
-            else:
-                users = ldp.conn.response
-                print users
-                for user in users:
-                    host = user['dn'].split('@')[1].split(',')[0]
-                    user['host']=host
-        if users:
-            st = '{0}({1})'.format(ldps.fqn_hostname, len(users))
-            return render_template('test_users.html', server_id=server_id, server= st, users = users )
-        
+    if users:
+        st = '{0}({1})'.format(server.fqn_hostname, len(users))
+        return render_template('test_users.html', server_id=server_id, server= st, users = users)
+    
     return redirect(url_for('index.multi_master_replication'))
 
 @index.route('/deletetestuser/<server_id>/<dn>')
 def delete_test_user(server_id, dn):
-    ldps = LdapServer.query.get(server_id)
-    ldp = ldapOLC('ldaps://{}:1636'.format(ldps.fqn_hostname), "cn=directory manager,o=gluu", ldps.ldap_password)
-    
-    r=None
-    try:
-        r = ldp.connect()
-    except Exception as e:
-        flash("Connection to LDAPserver at port 1636 was failed: {0}".format(e), "danger")
+    server = LdapServer.query.get(server_id)
 
-    if not r:
-        flash("Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "danger")
+    ldp = getLdapConn(server.fqn_hostname, "cn=directory manager,o=gluu", server.ldap_password)
 
-    if ldp.conn:
+    if ldp:
         if ldp.delDn(dn):
-            flash("Test User deleted", "success")
+            flash("Test User form {0} was deleted".format(server.fqn_hostname), "success")
         else:
             flash("Test User deletation failed: {0}".format(ldp.conn.result['description']), "danger")
             
     return redirect(url_for('index.search_test_users', server_id=server_id))
+
+
+
+@index.route('/removeprovider/<consumer_id>/<provider_addr>')
+def remove_provider_from_consumer(consumer_id, provider_addr):
+
+    server = LdapServer.query.get(consumer_id)
+
+    ldp = getLdapConn(server.fqn_hostname, "cn=config", server.ldap_password)
+
+    if ldp:
+        r = ldp.removeProvider("ldaps://{0}:1636".format(provider_addr))
+        if r:
+            flash('Provder {0} from {1} is removed'.format(provider_addr, server.fqn_hostname), 'success')
+        else:
+            flash("Removing provider was failed: {0}".format(ldp.conn.result['description']), "danger")
+            
+    return redirect(url_for('index.multi_master_replication'))
+
+
+@index.route('/addprovidertocustomer/<int:consumer_id>/<int:provider_id>')
+def add_provider_to_consumer(consumer_id, provider_id):
+
+    server = LdapServer.query.get(consumer_id)
+    
+    ldp = getLdapConn(server.fqn_hostname, "cn=config", server.ldap_password)
+
+    if ldp:
+        
+        provider = LdapServer.query.get(provider_id)
+        
+        if ldp.addProvider(provider.id, "ldaps://{0}:1636".format(provider.fqn_hostname), "cn=directory manager,o=gluu", provider.ldap_password):
+            flash("Provider {0} was added to {1}".format(provider.fqn_hostname, server.fqn_hostname), "success")
+        else:
+            flash("Adding provider {0} to {1} was failed: {2}".format(provider.fqn_hostname, server.fqn_hostname, ldp.conn.result['description']), "danger")
+        
+        ldp.makeMirroMode()
+        
+    return redirect(url_for('index.multi_master_replication'))

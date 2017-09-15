@@ -225,11 +225,11 @@ class MultiMaster(db.Model):
     config = db.Column(db.Text)
 
 
-class Provider(db.Model):
-    __tablename__ = "provider"
-
-    id = db.Column(db.Integer, primary_key=True)
-    provider_id = db.Column(db.Integer, db.ForeignKey("ldap_server.id"))
-    consumer_id = db.Column(db.Integer, db.ForeignKey("ldap_server.id"))
-    config = db.Column(db.Text)
+#class Provider(db.Model):
+#    __tablename__ = "provider"
+#
+#   id = db.Column(db.Integer, primary_key=True)
+#    provider_id = db.Column(db.Integer, db.ForeignKey("ldap_server.id"))
+#    consumer_id = db.Column(db.Integer, db.ForeignKey("ldap_server.id"))
+#    config = db.Column(db.Text)
     

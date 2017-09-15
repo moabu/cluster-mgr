@@ -13,6 +13,9 @@ def makeLdapPassword(passwd):
 
     return ssha_passwd
 
+def getHostPort(addr):
+    m = re.search('(?:ldap.*://)?(?P<host>[^:/ ]+).?(?P<port>[0-9]*).*',  addr)
+    return m.group('host'), m.group('port')
 
 class ldapOLC(object):
     
@@ -22,9 +25,7 @@ class ldapOLC(object):
         self.passwd = passwd
         self.server = None
         self.conn = None
-        p = '(?:ldap.*://)?(?P<host>[^:/ ]+).?(?P<port>[0-9]*).*'
-        m = re.search(p, self.addr)
-        self.hostname = m.group('host')
+        self.hostname = getHostPort(addr)[0]
 
         
     def connect(self):
@@ -53,11 +54,11 @@ class ldapOLC(object):
         return self.conn.modify('cn=module{0},cn=config', {'olcModuleLoad': [MODIFY_ADD, addList]})
 
 
-    def accesslogDBEntry(self, log_dir = "/opt/gluu/data/accesslog"):
-        self.conn.search(search_base = 'cn=config', search_filter = '(olcSuffix=cn=accesslog)', search_scope = SUBTREE, attributes = ["*"])
-        if not self.conn.response:
-            
+    def checkAccesslogDBEntry(self):
+        return self.conn.search(search_base = 'cn=config', search_filter = '(olcSuffix=cn=accesslog)', search_scope = SUBTREE, attributes = ["*"])
 
+    def accesslogDBEntry(self, log_dir = "/opt/gluu/data/accesslog"):
+        if not self.checkAccesslogDBEntry():
             return self.conn.add('olcDatabase={2}mdb,cn=config', attributes={'objectClass':  ['olcDatabaseConfig', 'olcMdbConfig'],
                                                            'olcDatabase': '{2}mdb',
                                                            'olcDbDirectory': log_dir,
@@ -70,9 +71,11 @@ class ldapOLC(object):
                                                            
                                                        })
 
+    def checkSyncprovOverlaysDB1(self):
+        return self.conn.search(search_base = 'olcDatabase={1}mdb,cn=config', search_filter = '(olcOverlay=syncprov)', search_scope = SUBTREE, attributes = ["*"])
+
     def syncprovOverlaysDB1(self):
-        self.conn.search(search_base = 'olcDatabase={1}mdb,cn=config', search_filter = '(olcOverlay=syncprov)', search_scope = SUBTREE, attributes = ["*"])
-        if not self.conn.response:
+        if not self.checkSyncprovOverlaysDB1():
             return self.conn.add('olcOverlay=syncprov,olcDatabase={1}mdb,cn=config', attributes={'objectClass':  ['olcOverlayConfig', 'olcSyncProvConfig'],
                                                            'olcOverlay': 'syncprov',
                                                            #'olcSpNoPresent': 'TRUE', ???
@@ -82,10 +85,11 @@ class ldapOLC(object):
                                                            })
 
 
-    def syncprovOverlaysDB2(self):
+    def checkSyncprovOverlaysDB2(self):
+        return self.conn.search(search_base = 'olcDatabase={2}mdb,cn=config', search_filter = '(olcOverlay=syncprov)', search_scope = SUBTREE, attributes = ["*"])
 
-        self.conn.search(search_base = 'olcDatabase={2}mdb,cn=config', search_filter = '(olcOverlay=syncprov)', search_scope = SUBTREE, attributes = ["*"])
-        if not self.conn.response:
+    def syncprovOverlaysDB2(self):
+        if not self.checkSyncprovOverlaysDB2():
             return self.conn.add('olcOverlay=syncprov,olcDatabase={2}mdb,cn=config', attributes={
                                                            'objectClass':  ['olcOverlayConfig', 'olcSyncProvConfig'],
                                                            #'structuralObjectClass': ['olcSyncProvConfig'],
@@ -98,13 +102,15 @@ class ldapOLC(object):
                                                          })    
 
 
-    
+    def checkServerID(self):
+        return self.conn.search(search_base='cn=config', search_filter='(objectClass=*)', search_scope=BASE, attributes = ["olcServerID"])
+        
     def setServerID(self, sid):
 
         mod_type  = MODIFY_ADD
         self.conn.search(search_base='cn=config', search_filter='(objectClass=*)', search_scope=BASE, attributes = ["olcServerID"])
 
-        if self.conn.response:
+        if self.checkServerID():
             if self.conn.response[0]['attributes']['olcServerID']:
                 mod_type = MODIFY_REPLACE
 
@@ -123,11 +129,11 @@ class ldapOLC(object):
         return self.conn.modify('olcDatabase={1}mdb,cn=config', {'olcDbIndex': [MODIFY_ADD, addList]})
         
 
-    def accesslogPurge(self):
-        print ("accessslog purge")
-        self.conn.search(search_base = 'cn=config', search_filter = '(objectClass=olcAccessLogConfig)', search_scope = SUBTREE, attributes = ["olcAccessLogPurge"])
+    def checkAccesslogPurge(self):
+        return self.conn.search(search_base = 'cn=config', search_filter = '(objectClass=olcAccessLogConfig)', search_scope = SUBTREE, attributes = ["olcAccessLogPurge"])
 
-        if not self.conn.response:
+    def accesslogPurge(self):
+        if not self.checkAccesslogPurge():
             return self.conn.add('olcOverlay=accesslog,olcDatabase={1}mdb,cn=config', attributes={'objectClass':  ['olcOverlayConfig', 'olcAccessLogConfig'],
                                                            'olcOverlay': 'accesslog',
                                                            'olcAccessLogDB': 'cn=accesslog',
@@ -143,19 +149,19 @@ class ldapOLC(object):
             if  self.conn.response[0]['attributes']['olcMirrorMode']:
                 return self.conn.modify('olcDatabase={1}mdb,cn=config', {"olcMirrorMode": [MODIFY_REPLACE, []]})
 
-    def makeMirroMode(self):
+
+    def checkMirroMode(self):
+        return self.conn.search(search_base = 'olcDatabase={1}mdb,cn=config', search_filter = '(objectClass=*)', search_scope = BASE, attributes = ["olcMirrorMode"])
         
-        self.conn.search(search_base = 'olcDatabase={1}mdb,cn=config', search_filter = '(objectClass=*)', search_scope = BASE, attributes = ["olcMirrorMode"])
-        if self.conn.response:
+    def makeMirroMode(self):
+        if self.checkMirroMode():
             if not self.conn.response[0]['attributes']['olcMirrorMode']:
                 return self.conn.modify('olcDatabase={1}mdb,cn=config', {"olcMirrorMode": [MODIFY_ADD, ["TRUE"]]})
 
     def removeProvider(self, raddr):
-        self.conn.search(search_base = 'olcDatabase={1}mdb,cn=config', search_filter = '(objectClass=*)', search_scope = BASE, attributes = ["olcSyncRepl"])
-
         rmMirrorMode = False
 
-        if len(self.conn.response[0]["attributes"]["olcSyncrepl"])==1:
+        if len(self.getProviders())<=1:
             rmMirrorMode = True
 
         if self.conn.response:
@@ -174,18 +180,15 @@ class ldapOLC(object):
                                             self.removeMirrorMode()
                                     return r
         return -1
-    def addProvider(self, rid, raddr, rbinddn, rcredentials):
-        self.removeProvider(raddr)
-        ridText='rid={} provider={} bindmethod=simple binddn="{}" tls_reqcert=never credentials={} searchbase="o=gluu" logbase="cn=accesslog" logfilter="(&(objectClass=auditWriteObject)(reqResult=0))" schemachecking=on type=refreshAndPersist retry="60 +" syncdata=accesslog'.format(rid, raddr, rbinddn, rcredentials)
-        return self.conn.modify('olcDatabase={1}mdb,cn=config', {"olcSyncRepl": [MODIFY_ADD, [ridText]]})
-        #if r: self.makeMirroMode()
-        #return r
-        
 
+    def addProvider(self, rid, raddr, rbinddn, rcredentials):
+        host = getHostPort(raddr)[0]
+        if not host in self.getProviders():
+            ridText='rid={0} provider={1} bindmethod=simple binddn="{2}" tls_reqcert=never credentials={3} searchbase="o=gluu" logbase="cn=accesslog" logfilter="(&(objectClass=auditWriteObject)(reqResult=0))" schemachecking=on type=refreshAndPersist retry="60 +" syncdata=accesslog'.format(rid, raddr, rbinddn, rcredentials)
+            return self.conn.modify('olcDatabase={1}mdb,cn=config', {"olcSyncRepl": [MODIFY_ADD, [ridText]]})
 
     def checkAccesslogDB(self):
         return self.conn.search(search_base = 'cn=config', search_filter = '(olcSuffix=cn=accesslog)', search_scope = SUBTREE, attributes = ["*"])
-
 
 
     def addTestUser(self,  cn, sn, mail):
@@ -226,3 +229,44 @@ class ldapOLC(object):
             
     def delDn(self,dn):
         return self.conn.delete(dn)
+
+
+    def getProviders(self):        
+        pDict={}
+        if self.conn.search(search_base = 'olcDatabase={1}mdb,cn=config', 
+                         search_filter = '(objectClass=*)',
+                         search_scope = BASE, attributes = ["olcSyncRepl"]):
+                             
+            for pe in self.conn.response[0]['attributes']['olcSyncrepl']:
+                for e in pe.split():
+                    es=e.split("=")
+                    if re.search('\{\d*\}rid',  es[0]):
+                        pid=es[1]
+                    elif es[0]=='provider':
+                        host, port = getHostPort(es[1])
+                pDict[host] = (pid, port)
+        
+        return pDict
+        
+
+
+    def getMMRStatus(self):
+        
+        retDict = {}
+        
+        if self.checkServerID():
+            retDict["server_id"] = self.conn.response[0]['attributes']['olcServerID'][0]
+
+        retDict["overlaysDB1"] = self.checkSyncprovOverlaysDB1()
+        retDict["overlaysDB2"] = self.checkSyncprovOverlaysDB2()
+        retDict["mirrorMode"] = self.checkMirroMode()
+        retDict["accesslogDB"] = self.checkAccesslogDBEntry()
+        retDict["accesslogPurge"] = self.checkAccesslogPurge()
+        retDict["providers"] = self.getProviders()
+        
+        return retDict
+            
+            
+            
+            
+            

@@ -23,34 +23,46 @@
                 <td>{{ server.id }}</td>
                 <td>{{ server.fqn_hostname }}</td>
                 <td>{{ server.ip_address }}</td>
+                
+                <!-- provders -->
+                
                 <td>
-                    {% if server.id in pc %}
-                        {% for p in pc[server.id] %}
-                            <li>{{p}} {{ id_host_dict[p]}} <a class="btn btn-danger btn-xs" href="{{ url_for('cluster.remove_provider_from_consumer', consumer_id=server.id, provider_id=p) }}">Remove</a></li>
+                    {% if server.fqn_hostname in serverStats %}
+                        {% for p in serverStats[server.fqn_hostname]['providers'] %}
+                            <li>{{ serverStats[server.fqn_hostname]['providers'][p][0] }} &nbsp;{{ p }}:{{ serverStats[server.fqn_hostname]['providers'][p][1] }} <a class="btn btn-danger btn-xs" href="{{ url_for('index.remove_provider_from_consumer', consumer_id=server.id, provider_addr=p) }}">Remove</a></li>
                         {% endfor %}
                     {% endif %}
-
-                    {% if server.initialized %}
-                    
-                        {% if pca[server.id] %}
-                            <a href="#;" data-id="{{server.id}}" class="btn btn-primary btn-single btn-sm showme">Add</a>
-                        {% endif %}
+                    {% if server.fqn_hostname in serverStats %}
+                        {% for ms in serverStats %}
+                            {% if (ms != server.fqn_hostname) and (ms not in serverStats[server.fqn_hostname]['providers']) %}
+                                <li><s>{{serverStats[ms]['server_id']}} {{ms}} </s><a href="{{ url_for('index.add_provider_to_consumer', consumer_id=server.id, provider_id= serverStats[ms]['server_id'])}}" class="btn btn-primary btn-single btn-sm">Add</a></li>
+                            {% endif %}
+                        {% endfor %}
                     {% endif %}
                 </td>
+                
+                <!-- provders end -->
+                
                 <td> 
-                    <a class="btn btn-danger btn-xs" href="{{ url_for('cluster.deploy_config', server_id=server.id) }}"> {% if server.initialized %} Re-deploy Configuration {% else %} Deploy Configuration {% endif %}</a>
                     
-                    {% if server.initialized %}
-                        <br><a class="btn btn-danger btn-xs" href="{{ url_for('cluster.remove_deployment', server_id=server.id) }}"> Remove Deployment</a>
+                    {% if server.fqn_hostname in serverStats %}
+                        {% if serverStats[server.fqn_hostname]['server_id'] and serverStats[server.fqn_hostname]['accesslogDB'] %}
+                            <a class="btn btn-danger btn-xs" href="{{ url_for('cluster.deploy_config', server_id=server.id) }}">Re-deploy Configuration</a>
+                            <a class="btn btn-danger btn-xs" href="{{ url_for('cluster.remove_deployment', server_id=server.id) }}"> Remove Deployment</a>
+                            <br><a href="{{ url_for('index.add_test_user', server_id=server.id) }}"  class="btn btn-default btn-xs">Add Test User</a>
+                            <a href="{{ url_for('index.search_test_users', server_id=server.id) }}"  class="btn btn-default btn-xs">Search Test Users</a>
+                            
+                        {% else %}
+                            <a class="btn btn-danger btn-xs" href="{{ url_for('index.remove_multi_master_replicator')}}?server_id={{server.id}}">Remove Master</a>
+
+                        {% endif %}
                     {% else %}
+                        {% if server.fqn_hostname in serverStats %}
+                            <a class="btn btn-danger btn-xs" href="{{ url_for('cluster.deploy_config', server_id=server.id) }}">Re-deploy Configuration</a>
+                        {% endif %}
+                        <a class="btn btn-danger btn-xs" href="{{ url_for('cluster.deploy_config', server_id=server.id) }}">Deploy Configuration</a>
                         <a class="btn btn-danger btn-xs" href="{{ url_for('index.remove_multi_master_replicator')}}?server_id={{server.id}}">Remove Master</a>
                     {% endif %}
-                    
-                    {% if server.initialized %}
-                    <a href="{{ url_for('index.add_test_user', server_id=server.id) }}"  class="btn btn-default btn-xs" >Add Test User</a>
-                    <a href="{{ url_for('index.search_test_users', server_id=server.id) }}"  class="btn btn-default btn-xs" >Search Test Users</a>
-                    {% endif %}
-                    
                 </td>
             {% endif %}
           </tr>
@@ -96,30 +108,7 @@
       
     </div>
   </div>
-  
-  <!-- Modal Begin: Add Provider -->
-  <div class="modal fade" id="modal-7" role="dialog">
-    <div class="modal-dialog">
-    
-      <!-- Modal content-->
-      <div class="modal-content">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
-          <h4 class="modal-title">Select Ldap Server</h4>
-        </div>
-        <form id="ldapproviderlist">
-            <div class="modal-body">
-            </div>
-        </form>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal" onclick="addLdapProvider()">Add Provider</button>
-        </div>
-      </div>
-      
-    </div>
 
- <!-- Modal End: Add Provider -->
-  
 
 </div>
 
@@ -137,41 +126,6 @@ function addLdapServer() {
         window.location.href = "{{url_for('index.make_multi_master_replicator')}}?server_id=" + form.elements["ldapserver"].value;
     }
 }
-
-
-jQuery(function($){
-     $('a.showme').click(function(ev){
-         ev.preventDefault();
-         consumer_id = $(this).data('id');
-         
-         var dataDict={ 
-                        {% for l in pca %}
-                            {% if pca[l] %}
-                            '{{l}}' : [
-                                {% for i in pca[l] %}
-                                    ["{{i}}", "{{id_host_dict[i]}}"],
-                                {% endfor %}
-                                ],
-                            {% endif %}
-                        {% endfor %}
-             };
-         
-         var html ='<form id="ldapserverlist"> <ul class="list-group">';
-         
-         dataDict[consumer_id].forEach(function(entry) {
-            html = html + '<li class="list-group-item"> <input type="radio" name="ldapprovider" value="' +  entry[0]  + '"> ' + entry[1] +'</input>';
-        });
-
-         $('#modal-7 .modal-body').html(html);
-         $('#modal-7').modal('show', {backdrop: 'static'});
-         
-
-     });
-});
-    
-
-
-function addLdapProvider() {    var form = document.getElementById("ldapproviderlist");    var provider = form.elements["ldapprovider"];    if ( (provider.toString().search("HTMLInputElement") != -1 && provider.checked) ||         (provider.toString().search("RadioNodeList") != -1 && provider.value) )    {      var provider_id = provider.value;      window.location.href = "/cluster/addprovidertocustomer?consumer_id=" + consumer_id +"&provider_id="+provider_id;    }}
 
 
 </script>

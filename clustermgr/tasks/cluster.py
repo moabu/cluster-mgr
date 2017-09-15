@@ -3,7 +3,7 @@ import os
 
 from flask import current_app as app
 from flask import session
-from clustermgr.models import LDAPServer, LdapServer, MultiMaster, Provider
+from clustermgr.models import LDAPServer, LdapServer, MultiMaster
 from clustermgr.extensions import celery, wlogger, db
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import ldapOLC
@@ -240,7 +240,7 @@ def setupMmrServer(self, server_id):
     tid = self.request.id
     chroot = '/opt/gluu-server-'+server.gluu_version
    
-    wlogger.log(tid, "Connecting to the server %s" % server.fqn_hostname)
+    wlogger.log(tid, "Making SSH connection to the server %s" % server.fqn_hostname)
     c = RemoteClient(server.fqn_hostname)
     
     conn_addr = server.fqn_hostname
@@ -387,139 +387,45 @@ def setupMmrServer(self, server_id):
         wlogger.log(tid, "Creating accesslog purge entry failed: {0}".format(ldp.conn.result['description']), "warning")
         
 
+    #Adding providers
     providers = MultiMaster.query.filter(MultiMaster.mmr_id != server.id).filter(MultiMaster.replicator==True).all()
     
     for p in providers:
-        pq = Provider.query.filter(Provider.provider_id==p.mmr_id).filter(Provider.consumer_id==server.id).first()
-        if not pq:
-            np = Provider()
-            np.provider_id=p.mmr_id
-            np.consumer_id=server.id
-            db.session.add(np)
 
-        pd = LdapServer.query.get(p.mmr_id)
-        if ldp.addProvider(pd.id, "ldaps://{0}:1636".format(pd.fqn_hostname), "cn=directory manager,o=gluu", pd.ldap_password):
-            wlogger.log(tid, 'Adding provider {0}'.format(pd.fqn_hostname), 'success')
+        serverp = LdapServer.query.get( p.mmr_id )
+        ldpp = ldapOLC('ldaps://{}:1636'.format(serverp.fqn_hostname), "cn=config", serverp.ldap_password)
+        r=None
+        try:
+            wlogger.log(tid, "Connecting to LDAP Server {0}".format(serverp.fqn_hostname))
+            r = ldpp.connect()
+        except Exception as e:
+             #wlogger.log(tid, "Connection to LDAPserver {0} at port 1636 was failed: {1}".format(serverp.fqn_hostname, e), "warning")
+            wlogger.log(tid, "Conection failed", "warning")
+        if not r:
+            wlogger.log(tid, "LDAPserver {0} was not added as provider".format(serverp.fqn_hostname), "warning")
+
         else:
-            wlogger.log(tid, 'Adding provider {0} failed: {1}'.format(pd.fqn_hostname, ldp.conn.result['description']), "warning")
+            serverStatus = ldpp.getMMRStatus()
+        
+            #checking only server_id and access log db, further checks may be required
+            if serverStatus["server_id"] and serverStatus["accesslogDB"]:
+        
+                if ldp.addProvider(serverp.id, "ldaps://{0}:1636".format(serverp.fqn_hostname), "cn=directory manager,o=gluu", serverp.ldap_password):
+                    wlogger.log(tid, 'Adding provider {0}'.format(serverp.fqn_hostname), 'success')
+                else:
+                    wlogger.log(tid, 'Adding provider {0} failed: {1}'.format(serverp.fqn_hostname, ldp.conn.result['description']), "warning")
+            else:
+                wlogger.log(tid, "LDAPserver {0} does not seem to be a valid provider, not added.".format(serverp.fqn_hostname), "warning")
     
-    #FIX ME: enabling mirror mode is moved to addProvider() function. Check if it is enabled.
+    
     if ldp.makeMirroMode():
         wlogger.log(tid, 'Enabling mirror mode', 'success')
     else:
         wlogger.log(tid, "Enabling mirror mode failed: {0}".format(ldp.conn.result['description']), "warning")
    
+    wlogger.log(tid, "Deployment is successful")
    
     #FIX ME: Add current ldap server as a provider to previously deployed servers.
-    """
-
-    LdapServers = LdapServer.query.filter(LdapServer.setup==True).filter(LdapServer.id != server.id).all()
-    
-    for ldp in LdapServers:
-        print ldp.fqn_hostname
-        providers = Provider.query.filter(Provider.consumer_id==ldp.id).all()
-        for p in providers:
-            if p.provider_id == server.id:
-                break
-        else:
-            wlogger.log(tid, "Adding this master as a provider for {}".format(ldp.fqn_hostname))
-            np = Provider()
-            np.provider_id=server.id
-            np.consumer_id=ldp.id
-            db.session.add(np)
-    """
-    
-    providers = MultiMaster.query.filter(MultiMaster.mmr_id != server.id).filter(MultiMaster.replicator==True).all()
-    for p in providers:
-        pq = Provider.query.filter(Provider.provider_id==p.mmr_id).filter(Provider.consumer_id==server.id).first()
-        print pq
-        if not pq:
-            np = Provider()
-            np.provider_id=p.mmr_id
-            np.consumer_id=server.id
-            db.session.add(np)
-    
-    
-    server.initialized = True
-
-    db.session.commit()
-
-@celery.task(bind=True)
-def removeProviderFromConsumer(self, consumer_id, provider_id):
-    tid = self.request.id
-    server = LdapServer.query.get(consumer_id)
-    
-    ldp = ldapOLC('ldaps://{}:1636'.format(server.fqn_hostname), 'cn=config', server.ldap_password)
-    r=None
-    try:
-        r = ldp.connect()
-    except Exception as e:
-        wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(e), "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    if not r:
-        try:
-            wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "error")
-        except:
-            pass
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    wlogger.log(tid, 'Successfully connected to LDAPServer ', 'success')
-
-    provider = LdapServer.query.get(provider_id)
-    pq = Provider.query.filter(Provider.provider_id==provider_id).filter(Provider.consumer_id==consumer_id).first()
-    r = ldp.removeProvider("ldaps://{0}:1636".format(provider.fqn_hostname))
-    if r:
-        wlogger.log(tid, 'Provder is removed', 'success')
-        db.session.delete(pq)
-    else:
-        if not r==None:
-            wlogger.log(tid, "Removing provider is failed: {0}".format(ldp.conn.result['description']), "error")
-        else:
-            wlogger.log(tid, "Provider is not found on this server", "warning")
-            db.session.delete(pq)
-    db.session.commit()
-
-@celery.task(bind=True)
-def addProviderToConsumer(self, consumer_id, provider_id):
-    tid = self.request.id
-
-    server = LdapServer.query.get(consumer_id)
-    
-    ldp = ldapOLC('ldaps://{}:1636'.format(server.fqn_hostname), 'cn=config', server.ldap_password)
-    r=None
-    try:
-        r = ldp.connect()
-    except Exception as e:
-        wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(e), "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    if not r:
-        try:
-            wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed: {0}".format(ldp.conn.result['description']), "error")
-        except:
-            pass
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    wlogger.log(tid, 'Successfully connected to LDAPServer ', 'success')
-
-    provider = LdapServer.query.get(provider_id)
-    pq = Provider.query.filter(Provider.provider_id==provider_id).filter(Provider.consumer_id==consumer_id).first()
-    if ldp.addProvider(provider.id, "ldaps://{0}:1636".format(provider.fqn_hostname), "cn=directory manager,o=gluu", provider.ldap_password):
-        wlogger.log(tid, 'Provder is added', 'success')
-        np = Provider()
-        np.consumer_id=consumer_id
-        np.provider_id=provider_id
-        db.session.add(np)
-        db.session.commit()
-    else:
-        wlogger.log(tid, "Removing provider is failed: {0}".format(ldp.conn.result['description']), "error")
-
-
 
 
 
@@ -527,12 +433,8 @@ def addProviderToConsumer(self, consumer_id, provider_id):
 def removeMultiMasterReplicator(self, server_id):
     tid = self.request.id
     server = LdapServer.query.get(server_id)
-    #pq = Provider.query.filter(Provider.provider_id==provider_id).filter(Provider.consumer_id==consumer_id).first()
-    #print(pq)
-    #db.session.delete(pq)
-    #db.session.commit()
-    wlogger.log(tid, "Removing Master")
 
+    wlogger.log(tid, "Removing Master")
 
     ldapc=Provider.query.filter_by(consumer_id=server_id).all()
     for c in ldapc:
@@ -549,7 +451,7 @@ def removeMultiMasterDeployement(self, server_id):
     tid = self.request.id
     chroot = '/opt/gluu-server-'+server.gluu_version
    
-    wlogger.log(tid, "Connecting to the server %s" % server.fqn_hostname)
+    wlogger.log(tid, "Making SSH connection to the server %s" % server.fqn_hostname)
     c = RemoteClient(server.fqn_hostname)
     
     conn_addr = server.fqn_hostname
@@ -621,7 +523,6 @@ def removeMultiMasterDeployement(self, server_id):
         wlogger.log(tid, "There seems to be some issue in restarting the server.", "error")
         wlogger.log(tid, "Ending server setup process.", "error")
         return
-    server.initialized = False
-    db.session.commit()
-
+    wlogger.log(tid, 'Deployment of Ldap Server was successfully removed')
+    return True
 

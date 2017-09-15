@@ -9,13 +9,13 @@ from flask import current_app as app
 
 
 from clustermgr.extensions import db
-from clustermgr.models import AppConfiguration, LDAPServer, LdapServer, Provider
+from clustermgr.models import AppConfiguration, LDAPServer, LdapServer, MultiMaster
 from clustermgr.forms import NewConsumerForm, NewProviderForm, LDIFForm
 from clustermgr.core.utils import ldap_encode
 from clustermgr.tasks.cluster import setup_server, setupMmrServer, \
-        removeProviderFromConsumer, removeMultiMasterReplicator, addProviderToConsumer, \
-        removeMultiMasterDeployement
+        removeMultiMasterReplicator, removeMultiMasterDeployement
 
+from clustermgr.core.ldap_functions import ldapOLC 
 
 cluster = Blueprint('cluster', __name__, template_folder='templates')
 
@@ -203,50 +203,36 @@ def deploy_config(server_id):
                            task=task, nextpage=nextpage, whatNext=whatNext)
                                
 
-
-@cluster.route('/removeprovider/<consumer_id>/<provider_id>')
-def remove_provider_from_consumer(consumer_id, provider_id):
-    task = removeProviderFromConsumer.delay(consumer_id, provider_id)
-    print "TASK STARTED", task.id
-    head = "Removing Provider"
-    nextpage = "index.multi_master_replication"
-    whatNext= "Multi Master Replication"
-    return render_template("logger.html", heading=head, server="",
-                           task=task, nextpage=nextpage, whatNext=whatNext)
-
-@cluster.route('/addprovidertocustomer')
-def add_provider_to_consumer():
-    consumer_id = request.args.get('consumer_id')
-    provider_id = request.args.get('provider_id')
-    
-
-    pq = Provider.query.filter(Provider.provider_id==provider_id).filter(Provider.consumer_id==consumer_id).first()
-    if pq:
-        flash ("This server is already in provider list.", "warning")
-        return redirect(url_for('index.multi_master_replication'))
-    else:
-        task = addProviderToConsumer.delay(consumer_id, provider_id)
-        print "TASK STARTED", task.id
-        head = "Adding Provider"
-        nextpage = "index.multi_master_replication"
-        whatNext= "Multi Master Replication"
-        return render_template("logger.html", heading=head, server="",
-                           task=task, nextpage=nextpage, whatNext=whatNext)
-
 @cluster.route('/removedeployment')
 def remove_deployment():
     server_id = int(request.values.get("server_id"))
-    ldaps=Provider.query.filter_by(provider_id=server_id).first()
-    if ldaps:
-        flash ("This server is a provider for an Ldap Server. Please first remove this server as provider.", "warning")
-        return redirect(url_for('index.multi_master_replication'))
-    else:
-        task = removeMultiMasterDeployement.delay(server_id)
-        print "TASK STARTED", task.id
-        head = "Removing Deployment"
-        nextpage = "index.multi_master_replication"
-        whatNext= "Multi Master Replication"
-        return render_template("logger.html", heading=head, server="",
-                           task=task, nextpage=nextpage, whatNext=whatNext)
+    
+    masterServer = server = LdapServer.query.get( server_id )
+    
+    mmr=MultiMaster.query.all()
+    
+    for m in mmr:
+        if not m.mmr_id == server_id:
+            server = LdapServer.query.get( m.mmr_id )
+            ldp = ldapOLC('ldaps://{}:1636'.format(server.fqn_hostname), "cn=config", server.ldap_password)
+            r=None
+            try:
+                r = ldp.connect()
+            except Exception as e:
+                flash("Connection to LDAPserver {0} at port 1636 was failed: {1}".format(server.fqn_hostname, e), "danger")
 
+            if r:
+                pd=ldp.getProviders()
+
+                if masterServer.fqn_hostname in pd:
+                    flash ("This server is a provider for Ldap Server {0}. Please first remove this server as provider.".format(masterServer.fqn_hostname), "warning")
+                    return redirect(url_for('index.multi_master_replication'))
+
+    task = removeMultiMasterDeployement.delay(server_id)
+    print "TASK STARTED", task.id
+    head = "Removing Deployment"
+    nextpage = "index.multi_master_replication"
+    whatNext= "Multi Master Replication"
+    return render_template("logger.html", heading=head, server="",
+                       task=task, nextpage=nextpage, whatNext=whatNext)
 
