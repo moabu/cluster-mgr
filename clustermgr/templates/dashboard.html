@@ -6,13 +6,16 @@
       <!-- provider info box -->
       <div class="col-xs-12 col-sm-6 col-md-3">
           <div class="panel panel-info">
+              <div class="bg-success"><b>Gluu Servers</b></div>
               <div class="panel-heading">
+                  
                   <div class="row">
                       <div class="col-xs-3">
+                          
                           <h1><i class="glyphicon glyphicon-hdd"></i></h1>
                       </div>
                       <div class="col-xs-9 text-right">
-                          <h3>{{ data.ldapservers.__len__() }} <br> <small>Server</small></h3>
+                          <h3>{{ data.gluu_server }} <br> <small>Server</small></h3>
                       </div>
                   </div>
               </div>
@@ -26,6 +29,34 @@
           </div>
       </div>
  
+      <!-- provider info box -->
+      <div class="col-xs-12 col-sm-6 col-md-3">
+          <div class="panel panel-info">
+              <div class="bg-success"><b>Non Gluu Servers</b></div>
+              <div class="panel-heading">
+                  <div class="row">
+                      
+                      <div class="col-xs-3">
+                          
+                          <h1><i class="glyphicon glyphicon-download-alt"></i></h1>
+                      </div>
+                      <div class="col-xs-9 text-right">
+                          <h3>{{data.nongluu_server}} <br> <small>Server</small></h3>
+                      </div>
+                  </div>
+              </div>
+              <a href="{{ url_for('index.install_ldap_server') }}" class="text-info">
+                  <div class="panel-body">
+                      <span class="pull-left">Install Symas LDAP Server</span>
+                      <span class="pull-right"><i class="glyphicon glyphicon-circle-arrow-right"></i></span>
+                      <div class="clearfix"></div>
+                  </div>
+              </a>
+          </div>
+      </div>
+ 
+
+
 
   {% if data.ldapservers %}
       <table id="servers" class="table table-bordered">
@@ -44,7 +75,7 @@
             <td>{{ server.id }}</td>
             <td>{{ server.fqn_hostname }}</td>
             <td>{{ server.ip_address }}</td>
-            <td>{{ server.gluu_version }}</td>
+            <td>{% if server.gluu_version=='-1' %}Non Gluu Server{% else %}{{ server.gluu_version }}{% endif %}</td>
             
             <td>
   

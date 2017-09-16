@@ -13,7 +13,7 @@ from clustermgr.models import AppConfiguration, LDAPServer, LdapServer, MultiMas
 from clustermgr.forms import NewConsumerForm, NewProviderForm, LDIFForm
 from clustermgr.core.utils import ldap_encode
 from clustermgr.tasks.cluster import setup_server, setupMmrServer, \
-        removeMultiMasterReplicator, removeMultiMasterDeployement
+        removeMultiMasterReplicator, removeMultiMasterDeployement, InstallLdapServer
 
 from clustermgr.core.ldap_functions import ldapOLC 
 
@@ -236,3 +236,15 @@ def remove_deployment():
     return render_template("logger.html", heading=head, server="",
                        task=task, nextpage=nextpage, whatNext=whatNext)
 
+@cluster.route('/installldapserver')
+def install_ldap_server():
+    
+    
+    task = InstallLdapServer.delay(session['nongluuldapinfo'])
+    
+    print "TASK STARTED", task.id
+    head = "Installing Symas Open-Ldap Server on " + session['nongluuldapinfo']['fqn_hostname']
+    nextpage = "index.multi_master_replication"
+    whatNext= "Multi Master Replication"
+    return render_template("logger.html", heading=head, server="",
+                       task=task, nextpage=nextpage, whatNext=whatNext)

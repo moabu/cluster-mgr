@@ -146,6 +146,17 @@ class RemoteClient(object):
         except Exception as err:
             return False, err
 
+
+
+    def mkDir(self,  dirname):
+        try:
+            self.sftpclient.mkdir(dirname)
+            return True, dirname
+        except Exception as err:
+            return False, err
+        
+            
+            
     """
 
     def chownFile(server, chroot, filenme, user, group):

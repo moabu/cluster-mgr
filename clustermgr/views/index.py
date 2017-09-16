@@ -11,7 +11,7 @@ from clustermgr.models import LDAPServer, AppConfiguration, KeyRotation, \
     OxauthServer, LdapServer, MultiMaster
 
 from clustermgr.forms import AppConfigForm, KeyRotationForm, SchemaForm, \
-    LdapServerForm, TestUser
+    LdapServerForm, TestUser, InstallServerForm
     
 from clustermgr.core.ldap_functions import ldapOLC 
     
@@ -25,13 +25,24 @@ index = Blueprint('index', __name__)
 
 @index.route('/')
 def home():
+    if session.has_key('nongluuldapinfo'):
+        del session['nongluuldapinfo']
     servers = []
     config = {}
     print(config, servers)
 
     ldaps=LdapServer.query.all()
 
-    data = {"ldapservers": ldaps}
+    gluu_server    = 0
+    nongluu_server = 0
+    for s in ldaps:
+        if s.gluu_version == "-1":
+            nongluu_server +=1
+        else:
+            gluu_server += 1
+
+
+    data = {"ldapservers": ldaps, 'nongluu_server':nongluu_server, 'gluu_server':gluu_server}
 
     return render_template('dashboard.html', data=data)
 
@@ -229,6 +240,12 @@ def edit_ldap_server(server_id):
             else:
                 ldps=LdapServer()
             
+                ldp = LdapServer().query.filter(LdapServer.fqn_hostname==form.fqn_hostname.data).first()
+                if ldp:
+                    flash("{0} is already in LDAP servers List".format(form.fqn_hostname.data), "warning")
+                    return render_template('ldap_server.html', form=form,  data=data )
+            
+            
             ldps.gluu_version = form.gluu_version.data
             ldps.fqn_hostname=form.fqn_hostname.data
             ldps.ip_address=form.ip_address.data
@@ -246,6 +263,43 @@ def edit_ldap_server(server_id):
     
 
     return render_template('ldap_server.html', data=data, form=form)
+
+
+
+@index.route('/installldapserver', methods=['GET', 'POST'])
+def install_ldap_server():
+    if session.has_key('nongluuldapinfo'):
+        del session['nongluuldapinfo']
+    form = InstallServerForm()
+    
+    data={'title': 'Install Symas Open-Ldap Server', 
+          'button': 'Install',
+         }
+
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            
+            ldp = LdapServer().query.filter(LdapServer.fqn_hostname==form.fqn_hostname.data).first()
+            if ldp:
+                flash("{0} is already in LDAP servers List".format(form.fqn_hostname.data), "warning")
+                return render_template('ldap_server.html', form=form,  data=data )
+
+            session['nongluuldapinfo']={'fqn_hostname'  : form.fqn_hostname.data,
+                                        'ip_address'    : form.ip_address.data,
+                                        'ldap_password' : form.ldap_password.data,
+                                        'ldap_user'     : 'ldap',
+                                        'ldap_group'    : 'ldap',
+                                        'countryCode'   : form.countryCode.data,
+                                        'state'         : form.state.data,
+                                        'city'          : form.city.data,
+                                        'orgName'       : form.orgName.data,
+                                        'admin_email'   : form.admin_email.data,
+                                        }
+                                        
+
+            return redirect(url_for('cluster.install_ldap_server'))
+
+    return render_template('ldap_server.html', form=form,  data=data )
 
 @index.route('/server/<int:server_id>/remove/')
 def remove_server(server_id):
@@ -288,6 +342,9 @@ def get_mmr_list():
 @index.route('/mmr/')
 def multi_master_replication():
 
+    if session.has_key('nongluuldapinfo'):
+        del session['nongluuldapinfo']
+
     mmrs = get_mmr_list()
     ldaps=LdapServer.query.all()
     id_host_dict ={}
@@ -301,7 +358,7 @@ def multi_master_replication():
     
     for ldp in ldaps:
         if ldp.id in mmrs:
-            s=ldapOLC("ldaps://{0}:1636".format(ldp.fqn_hostname), "cn=config", "secret")
+            s=ldapOLC("ldaps://{0}:1636".format(ldp.fqn_hostname), "cn=config", ldp.ldap_password)
             r=None
             try:
                 r = s.connect()
@@ -436,3 +493,4 @@ def add_provider_to_consumer(consumer_id, provider_id):
         ldp.makeMirroMode()
         
     return redirect(url_for('index.multi_master_replication'))
+
