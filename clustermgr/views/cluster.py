@@ -196,6 +196,9 @@ def deploy_config(server_id):
     s = LdapServer.query.get(server_id)
     nextpage = 'index.multi_master_replication'
     whatNext= "Multi Master Replication"
+    if not s:
+        flash("Server id {0} is not on database".format(server_id), 'warning')
+        return redirect(url_for("index.multi_master_replication"))
     task = setupMmrServer.delay(server_id)
     print "TASK STARTED", task.id
     head = "Setting up server: "+s.fqn_hostname

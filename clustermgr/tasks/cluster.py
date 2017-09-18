@@ -240,6 +240,12 @@ def setupMmrServer(self, server_id):
     tid = self.request.id
     gluu = False
     server = LdapServer.query.get(server_id)
+    
+    if not server:
+        wlogger.log(tid, "Server is not on database", "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return False
+    
     tid = self.request.id
     if server.gluu_version == "-1":
         chroot='/'
