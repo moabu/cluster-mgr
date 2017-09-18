@@ -583,7 +583,6 @@ def InstallLdapServer(self, ldap_info):
     wlogger.log(tid, "Downloading and installing Symas Open-Ldap Server")
     cmd = "wget http://104.237.133.194/pkg/GLUU/UB14/symas-openldap-gluu.amd64_2.4.45-2_amd64.deb -O /tmp/symas-openldap-gluu.amd64_2.4.45-2_amd64.deb"
     cin, cout, cerr = c.run(cmd)
-    print "cout", cout, "cerr", cerr
 
     if "‘/tmp/symas-openldap-gluu.amd64_2.4.45-2_amd64.deb’ saved" in cerr:
         wlogger.log(tid, 'Symas open-ldap package downloaded.', 'success')
@@ -708,7 +707,7 @@ def InstallLdapServer(self, ldap_info):
                                                                       ldap_info['admin_email'])
     
     cmd = '/usr/bin/openssl req -new -key /etc/certs/openldap.key -out /etc/certs/openldap.csr -subj {0}'.format(subj)
-    print cmd
+
     wlogger.log(tid, cmd, "debug")
     cin, cout, cerr = c.run(cmd)
     if cout.strip()+cerr.strip():

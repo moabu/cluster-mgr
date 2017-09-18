@@ -253,9 +253,10 @@ class ldapOLC(object):
     def getMMRStatus(self):
         
         retDict = {}
-        
+        retDict["server_id"] = None
         if self.checkServerID():
-            retDict["server_id"] = self.conn.response[0]['attributes']['olcServerID'][0]
+            if self.conn.response[0]['attributes']['olcServerID']:
+                retDict["server_id"] = self.conn.response[0]['attributes']['olcServerID'][0]
 
         retDict["overlaysDB1"] = self.checkSyncprovOverlaysDB1()
         retDict["overlaysDB2"] = self.checkSyncprovOverlaysDB2()
