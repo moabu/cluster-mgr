@@ -724,6 +724,7 @@ def InstallLdapServer(self, ldap_info):
     if cout.strip()+cerr.strip():
         wlogger.log(tid, cin+cout+cerr, "debug")
 
+    run_command(tid, c, "chown -R {0}.{1} /etc/certs".format(ldap_info["ldap_user"], ldap_info["ldap_group"]))
     
     # uplodading symas-openldap.conf file
     confile = os.path.join(app.root_path, "templates", "slapd", "symas-openldap.conf")
