@@ -519,7 +519,7 @@ def removeMultiMasterDeployement(self, server_id):
     EXTRA_SLAPD_ARGS='EXTRA_SLAPD_ARGS=""'
     
     SLAPD_GROUP=server.ldap_user
-    SLAPD_USER=ldap_group
+    SLAPD_USER=server.ldap_group
     
     confile_content = confile_content.format(**{'HOST_LIST': HOST_LIST, 
                                                 'EXTRA_SLAPD_ARGS': EXTRA_SLAPD_ARGS,
