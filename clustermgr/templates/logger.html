@@ -14,7 +14,7 @@
 {% if nextpage == 'provider' %}
     <a id="home" class="btn btn-block btn-success" style="display: none;" href="{{ url_for('cluster.new_server', stype='provider') }}">Add Mirror</a>
 {% else %}
-    <a id="home" class="btn btn-block btn-success" style="display: none;" href="{{ url_for('index.home') }}">Go to Dashboard</a>
+    <a id="home" class="btn btn-block btn-success" style="display: none;" href="{{ url_for(nextpage) }}">Go to {{whatNext}}</a>
 {% endif %}
 
 {% endblock content %}

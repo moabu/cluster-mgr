@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% from 'macros.html' import render_form %}
+{% block  content %}
+<h2 class="page-header">Multi Master Replication</h2>
+
+  {% if ldapservers %}
+      <table id="servers" class="table table-bordered">
+        <thead>
+          <tr>
+            <th>Server ID</th>
+            <th>Hostname</th>
+            <th>IP Address</th>
+            <th>Providers</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for server in ldapservers %}
+          
+          {% if server.id in mmrs %}
+          
+          <tr>
+                <td>{{ server.id }}</td>
+                <td>{{ server.fqn_hostname }}</td>
+                <td>{{ server.ip_address }}</td>
+                
+                <!-- provders -->
+                
+                <td>
+                    {% if server.fqn_hostname in serverStats %}
+                        {% for p in serverStats[server.fqn_hostname]['providers'] %}
+                            <li>{{ serverStats[server.fqn_hostname]['providers'][p][0] }} &nbsp;{{ p }}:{{ serverStats[server.fqn_hostname]['providers'][p][1] }} <a class="btn btn-danger btn-xs" href="{{ url_for('index.remove_provider_from_consumer', consumer_id=server.id, provider_addr=p) }}">Remove</a></li>
+                        {% endfor %}
+                    {% endif %}
+                    {% if server.fqn_hostname in serverStats %}
+                        {% for ms in serverStats %}
+                            {% if (ms != server.fqn_hostname) and (ms not in serverStats[server.fqn_hostname]['providers']) %}
+                                <li><s>{{serverStats[ms]['server_id']}} {{ms}} </s><a href="{{ url_for('index.add_provider_to_consumer', consumer_id=server.id, provider_id= serverStats[ms]['server_id'])}}" class="btn btn-primary btn-single btn-sm">Add</a></li>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </td>
+                
+                <!-- provders end -->
+                
+                <td> 
+                    
+                    {% if server.fqn_hostname in serverStats %}
+                        {% if serverStats[server.fqn_hostname]['server_id'] and serverStats[server.fqn_hostname]['accesslogDB'] %}
+                            <a class="btn btn-danger btn-xs" href="{{ url_for('cluster.deploy_config', server_id=server.id) }}">Re-deploy Configuration</a>
+                            <a class="btn btn-danger btn-xs" href="{{ url_for('cluster.remove_deployment', server_id=server.id) }}"> Remove Deployment</a>
+                            <br><a href="{{ url_for('index.add_test_user', server_id=server.id) }}"  class="btn btn-default btn-xs">Add Test User</a>
+                            <a href="{{ url_for('index.search_test_users', server_id=server.id) }}"  class="btn btn-default btn-xs">Search Test Users</a>
+                            
+                        {% else %}
+                            <a class="btn btn-danger btn-xs" href="{{ url_for('index.remove_multi_master_replicator')}}?server_id={{server.id}}">Remove Master</a>
+
+                        {% endif %}
+                    {% else %}
+                        {% if server.fqn_hostname in serverStats %}
+                            <a class="btn btn-danger btn-xs" href="{{ url_for('cluster.deploy_config', server_id=server.id) }}">Re-deploy Configuration</a>
+                        {% endif %}
+                        <a class="btn btn-danger btn-xs" href="{{ url_for('cluster.deploy_config', server_id=server.id) }}">Deploy Configuration</a>
+                        <a class="btn btn-danger btn-xs" href="{{ url_for('index.remove_multi_master_replicator')}}?server_id={{server.id}}">Remove Master</a>
+                    {% endif %}
+                </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+
+{% if addServerButton %}
+
+    <button type="button" class="btn btn-info btn-lg" data-toggle="modal" data-target="#myModal">Add Master</button>
+{% endif %}
+
+  <!-- Modal -->
+  <div class="modal fade" id="myModal" role="dialog">
+    <div class="modal-dialog">
+    
+      <!-- Modal content-->
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <h4 class="modal-title">Select Ldap Server</h4>
+        </div>
+        <div class="modal-body">
+            <form id="ldapserverlist">
+                <ul class="list-group">
+                {% for server in ldapservers %}
+                
+                    {% if not server.id in mmrs %}
+                
+                        <li class="list-group-item"><input type="radio" name="ldapserver" value="{{ server.id }}"> {{server.fqn_hostname}}</input>
+                    {% endif %}
+                {% endfor %}
+                </ul>
+            </form>
+          
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal" onclick="addLdapServer()">Add</button>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+
+</div>
+
+
+
+
+{% endblock %}
+{% block js %}
+<script>
+
+function addLdapServer() {
+    var form = document.getElementById("ldapserverlist");
+    ldapserver=form.elements["ldapserver"].value;
+    if (ldapserver) {
+        window.location.href = "{{url_for('index.make_multi_master_replicator')}}?server_id=" + form.elements["ldapserver"].value;
+    }
+}
+
+
+</script>
+
+
+
+
+{% endblock %}

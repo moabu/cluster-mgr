@@ -1,3 +1,4 @@
 graft clustermgr/templates
 graft clustermgr/static
 graft clustermgr/migrations
+recursive-exclude clustermgr/migrations/versions/ *.py *.pyc

@@ -2,18 +2,20 @@
 the servers managed in the cluster-manager
 """
 import os
-
+import json
 from flask import Blueprint, render_template, url_for, flash, redirect, \
-        request
+        request, session
 from flask import current_app as app
 
 
 from clustermgr.extensions import db
-from clustermgr.models import AppConfiguration, LDAPServer
+from clustermgr.models import AppConfiguration, LDAPServer, LdapServer, MultiMaster
 from clustermgr.forms import NewConsumerForm, NewProviderForm, LDIFForm
 from clustermgr.core.utils import ldap_encode
-from clustermgr.tasks.cluster import setup_server
+from clustermgr.tasks.cluster import setup_server, setupMmrServer, \
+        removeMultiMasterReplicator, removeMultiMasterDeployement, InstallLdapServer
 
+from clustermgr.core.ldap_functions import ldapOLC 
 
 cluster = Blueprint('cluster', __name__, template_folder='templates')
 
@@ -42,13 +44,13 @@ def new_server(stype):
         form = NewProviderForm()
     elif stype == 'consumer':
         form = NewConsumerForm()
-        form.provider.choices = [(p.id, p.name) for p in providers]
+        form.provider.choices = [(p.id, p.hostname) for p in providers]
         if len(form.provider.choices) == 0:
             return redirect(url_for('error_page', error='no-provider'))
 
     if form.validate_on_submit():
         s = LDAPServer()
-        s.name = form.name.data
+        s.hostname = form.hostname.data
         s.ip = form.ip.data
         s.port = form.port.data
         s.role = stype
@@ -66,8 +68,8 @@ def new_server(stype):
         try:
             db.session.commit()
         except:
-            flash("Failed to add new server {0}.".format(form.name.data),
-                  "danger")
+            flash("Failed to add new server {0}. Probably it is a duplicate."
+                  "".format(form.hostname.data), "danger")
             return redirect(url_for('index.home'))
         return redirect(url_for('cluster.setup_ldap_server',
                                 server_id=s.id, step=2))
@@ -103,7 +105,7 @@ def generate_conf(server):
 
     if s.role == 'consumer':
         vals["r_id"] = s.provider_id
-        vals["phost"] = s.provider.ip
+        vals["phost"] = s.provider.hostname
         vals["pport"] = s.provider.port
         vals["r_pw"] = appconfig.replication_pw
         vals["pprotocol"] = "ldap"
@@ -112,7 +114,7 @@ def generate_conf(server):
             vals["pprotocol"] = "ldaps"
         if s.provider.protocol != "ldap":
             cert = "tls_cacert=\"/opt/symas/ssl/{0}.crt\"".format(
-                s.provider.name)
+                s.provider.hostname)
             vals["provider_cert"] = cert
     conf = conf.format(**vals)
     return conf
@@ -143,7 +145,7 @@ def setup_ldap_server(server_id, step):
         conffile = os.path.join(app.config['SLAPDCONF_DIR'],
                                 "{0}_slapd.conf".format(server_id))
         task = setup_server.delay(server_id, conffile)
-        head = "Setting up server: "+s.name
+        head = "Setting up server: "+s.hostname
         return render_template("logger.html", heading=head, server=s,
                                task=task, nextpage=nextpage)
 
@@ -162,7 +164,7 @@ def ldif_upload(server_id):
 @cluster.route('/server/<int:server_id>/remove/')
 def remove_server(server_id):
     s = LDAPServer.query.get(server_id)
-    flash('Server %s removed from cluster configuration.' % s.name,
+    flash('Server %s removed from cluster configuration.' % s.hostname,
           "success")
     db.session.delete(s)
     db.session.commit()
@@ -179,10 +181,70 @@ def remove_server(server_id):
 #         return redirect(url_for('error', error='invalid-id-for-init'))
 #     if server.role != 'provider':
 #         flash("Intialization is required only for provider. %s is not a "
-#               "provider. Nothing done." % server.name, "warning")
+#               "provider. Nothing done." % server.hostname, "warning")
 #         return redirect(url_for('home'))
 #
 #     task = initialize_provider.delay(server_id, use_ldif)
 #     head = "Initializing server"
 #     return render_template('logger.html', heading=head, server=server,
 #                            task=task)
+
+############# MB
+
+@cluster.route('/deployconfig/<int:server_id>', methods=['GET', 'POST'])
+def deploy_config(server_id):
+    s = LdapServer.query.get(server_id)
+    nextpage = 'index.multi_master_replication'
+    whatNext= "Multi Master Replication"
+    task = setupMmrServer.delay(server_id)
+    print "TASK STARTED", task.id
+    head = "Setting up server: "+s.fqn_hostname
+    return render_template("logger.html", heading=head, server=s,
+                           task=task, nextpage=nextpage, whatNext=whatNext)
+                               
+
+@cluster.route('/removedeployment')
+def remove_deployment():
+    server_id = int(request.values.get("server_id"))
+    
+    masterServer = server = LdapServer.query.get( server_id )
+    
+    mmr=MultiMaster.query.all()
+    
+    for m in mmr:
+        if not m.mmr_id == server_id:
+            server = LdapServer.query.get( m.mmr_id )
+            ldp = ldapOLC('ldaps://{}:1636'.format(server.fqn_hostname), "cn=config", server.ldap_password)
+            r=None
+            try:
+                r = ldp.connect()
+            except Exception as e:
+                flash("Connection to LDAPserver {0} at port 1636 was failed: {1}".format(server.fqn_hostname, e), "danger")
+
+            if r:
+                pd=ldp.getProviders()
+
+                if masterServer.fqn_hostname in pd:
+                    flash ("This server is a provider for Ldap Server {0}. Please first remove this server as provider.".format(masterServer.fqn_hostname), "warning")
+                    return redirect(url_for('index.multi_master_replication'))
+
+    task = removeMultiMasterDeployement.delay(server_id)
+    print "TASK STARTED", task.id
+    head = "Removing Deployment"
+    nextpage = "index.multi_master_replication"
+    whatNext= "Multi Master Replication"
+    return render_template("logger.html", heading=head, server="",
+                       task=task, nextpage=nextpage, whatNext=whatNext)
+
+@cluster.route('/installldapserver')
+def install_ldap_server():
+    
+    
+    task = InstallLdapServer.delay(session['nongluuldapinfo'])
+    
+    print "TASK STARTED", task.id
+    head = "Installing Symas Open-Ldap Server on " + session['nongluuldapinfo']['fqn_hostname']
+    nextpage = "index.multi_master_replication"
+    whatNext= "Multi Master Replication"
+    return render_template("logger.html", heading=head, server="",
+                       task=task, nextpage=nextpage, whatNext=whatNext)

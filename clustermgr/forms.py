@@ -5,14 +5,14 @@ except ImportError:
 from wtforms import StringField, SelectField, BooleanField, IntegerField, \
     PasswordField, RadioField, SubmitField
 from wtforms.validators import DataRequired, Regexp, AnyOf, \
-    ValidationError, URL, IPAddress
+    ValidationError, URL, IPAddress, Email, Length
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 
 
 class NewProviderForm(FlaskForm):
     gluu_server = BooleanField('This is a Gluu Server (OpenLDAP installed inside chroot)', default=False)
     gluu_version = SelectField('Gluu Server Version', choices=[('3.0.1', '3.0.1'), ('3.0.2', '3.0.2')])
-    name = StringField('Short Server Name *', validators=[DataRequired()])
+    hostname = StringField('Hostname *', validators=[DataRequired()])
     ip = StringField('IP Address *', validators=[DataRequired(), IPAddress()])
     port = IntegerField('Port *', validators=[DataRequired()])
     admin_pw = PasswordField('LDAP Admin Password *', validators=[DataRequired()])
@@ -30,7 +30,8 @@ class NewConsumerForm(FlaskForm):
     provider = SelectField('Provider *', coerce=int)
     gluu_server = BooleanField('This is a Gluu Server (OpenLDAP installed inside chroot)', default=False)
     gluu_version = SelectField('Gluu Server Version', choices=[('3.0.1', '3.0.1'), ('3.0.2', '3.0.2')])
-    name = StringField('Short Server Name *', validators=[DataRequired()])
+    
+    hostname = StringField('Hostname *', validators=[DataRequired()])
     ip = StringField('IP Address *', validators=[DataRequired(), IPAddress()])
     port = IntegerField('Port *', validators=[DataRequired()])
     admin_pw = PasswordField('LDAP Admin Password *', validators=[DataRequired()])  # noqa
@@ -108,3 +109,34 @@ class LoggingServerForm(FlaskForm):
     # db_password = PasswordField("Password", validators=[DataRequired()])
     url = StringField("URL", validators=[DataRequired(),
                                          URL(require_tld=False)])
+
+
+
+########## MB
+
+
+class LdapServerForm(FlaskForm):
+    gluu_version = SelectField('Gluu Server Version', choices=[('3.0.1', '3.0.1'), ('3.0.2', '3.0.2'),('-1','non-gluu')])
+    fqn_hostname = StringField('Hostname *', validators=[DataRequired()])
+    ip_address = StringField('IP Address *', validators=[DataRequired(), IPAddress()])
+    ldap_password = StringField('LDAP Admin Password *', validators=[DataRequired()])
+    ldap_user = StringField('LDAP User *', validators=[DataRequired()])
+    ldap_group = StringField('LDAP Group *', validators=[DataRequired()])
+
+class TestUser(FlaskForm):
+    #server = SelectField('Ldap Server', choices=[])
+    first_name = StringField('First Name', validators=[DataRequired()])
+    last_name = StringField('Last Name', validators=[DataRequired()])
+    email = StringField('Email', validators=[DataRequired(), Email("Please enter valid email address.")])
+
+
+
+class InstallServerForm(FlaskForm):
+    fqn_hostname = StringField('Hostname *', validators=[DataRequired()])
+    ip_address = StringField('IP Address *', validators=[DataRequired(), IPAddress()])
+    ldap_password = StringField('LDAP Admin Password *', validators=[DataRequired()])
+    countryCode = StringField('Two Letter Country Code *', validators=[Length(min=2, max=2), DataRequired()])
+    state = StringField('Two Letter State Code *', validators=[Length(min=2, max=2), DataRequired()])
+    city = StringField('City *', validators=[DataRequired()])
+    orgName = StringField('Organization Name *', validators=[DataRequired()])
+    admin_email = StringField('Admin E-mail *', validators=[DataRequired()])
