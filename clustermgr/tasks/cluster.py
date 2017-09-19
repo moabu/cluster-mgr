@@ -436,7 +436,7 @@ def setupMmrServer(self, server_id):
             else:
                 wlogger.log(tid, "LDAPserver {0} does not seem to be a valid provider, not added.".format(serverp.fqn_hostname), "warning")
     
-    if not providers:
+    if providers:
         if ldp.makeMirroMode():
             wlogger.log(tid, 'Enabling mirror mode', 'success')
         else:
