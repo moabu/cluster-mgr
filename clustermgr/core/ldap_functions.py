@@ -151,12 +151,17 @@ class ldapOLC(object):
 
 
     def checkMirroMode(self):
-        return self.conn.search(search_base = 'olcDatabase={1}mdb,cn=config', search_filter = '(objectClass=*)', search_scope = BASE, attributes = ["olcMirrorMode"])
-        
+        r=self.conn.search(search_base = 'olcDatabase={1}mdb,cn=config', search_filter = '(objectClass=*)', search_scope = BASE, attributes = ["olcMirrorMode"])
+        if r:
+            if self.conn.response[0]['attributes']:
+                if self.conn.response[0]['attributes']['olcMirrorMode']:
+                    return self.conn.response[0]['attributes']['olcMirrorMode']
+                
+        return False
+
     def makeMirroMode(self):
-        if self.checkMirroMode():
-            if not self.conn.response[0]['attributes']['olcMirrorMode']:
-                return self.conn.modify('olcDatabase={1}mdb,cn=config', {"olcMirrorMode": [MODIFY_ADD, ["TRUE"]]})
+        if not self.checkMirroMode():
+            return self.conn.modify('olcDatabase={1}mdb,cn=config', {"olcMirrorMode": [MODIFY_ADD, ["TRUE"]]})
 
     def removeProvider(self, raddr):
         rmMirrorMode = False
