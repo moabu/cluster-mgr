@@ -29,7 +29,7 @@ class NewProviderForm(FlaskForm):
 class NewConsumerForm(FlaskForm):
     provider = SelectField('Provider *', coerce=int)
     gluu_server = BooleanField('This is a Gluu Server (OpenLDAP installed inside chroot)', default=False)
-    gluu_version = SelectField('Gluu Server Version', choices=[('3.1.0', '3.1.0'), ('3.0.2', '3.0.2'),('3.0.1', '3.0.1')])
+    gluu_version = SelectField('Gluu Server Version', choices=[('3.0.2', '3.0.2'),('3.0.1', '3.0.1')])
     
     hostname = StringField('Hostname *', validators=[DataRequired()])
     ip = StringField('IP Address *', validators=[DataRequired(), IPAddress()])
@@ -116,7 +116,7 @@ class LoggingServerForm(FlaskForm):
 
 
 class LdapServerForm(FlaskForm):
-    gluu_version = SelectField('Gluu Server Version', choices=[('3.0.1', '3.0.1'), ('3.0.2', '3.0.2'),('-1','non-gluu')])
+    gluu_version = SelectField('Gluu Server Version', choices=[('3.1.0', '3.1.0'), ('3.0.1', '3.0.1'), ('3.0.2', '3.0.2'),('-1','non-gluu')])
     fqn_hostname = StringField('Hostname *', validators=[DataRequired()])
     ip_address = StringField('IP Address *', validators=[DataRequired(), IPAddress()])
     ldap_password = StringField('LDAP Admin Password *', validators=[DataRequired()])
