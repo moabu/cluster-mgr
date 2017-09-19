@@ -116,7 +116,7 @@ class LoggingServerForm(FlaskForm):
 
 
 class LdapServerForm(FlaskForm):
-    gluu_version = SelectField('Gluu Server Version', choices=[('3.1.0', '3.1.0'), ('3.0.1', '3.0.1'), ('3.0.2', '3.0.2'),('-1','non-gluu')])
+    gluu_version = SelectField('Gluu Server Version', choices=[('3.1.1', '3.1.1'), ('3.1.0', '3.1.0'), ('3.0.2', '3.0.2'), ('3.0.1', '3.0.1'), ('-1','non-gluu')])
     fqn_hostname = StringField('Hostname *', validators=[DataRequired()])
     ip_address = StringField('IP Address *', validators=[DataRequired(), IPAddress()])
     ldap_password = StringField('LDAP Admin Password *', validators=[DataRequired()])
