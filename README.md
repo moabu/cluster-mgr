@@ -2,88 +2,69 @@
 
 GUI tool for managing Gluu Server OpenLDAP replication
 
+**The Cluster-mgr should NOT be internet-facing and installed on a secure adminstrators computer.**
+
 ## Installing Cluster Manager
 
 ### OS Packages
 
 Install prerequisites packages first. On debian or ubuntu, install them using `apt-get`:
 
-```
-sudo apt-get install build-essential libssl-dev libffi-dev python-dev openjdk-7-jre-headless
-```
+1) Establish an ssh connection from your administrators computer to the Gluu servers for Cluster-mgr, if you don't already have one set up
 
-### Java Libraries
+`- ssh-copy-id root@server1 && ssh-copy-id root@server2 ...`
 
-Note, OpenJDK or any JVM is required as Cluster Manager relies on several Java libraries.
-After prerequisites packages already installed, we need to get some Java JAR files and put them
-in predefined data directory (by default the location is `$HOME/.clustermgr/javalibs` directory).
+2) Install necessary modules
+
 
 ```
-mkdir -p $HOME/.clustermgr/javalibs
-wget http://ox.gluu.org/maven/org/xdi/oxauth-client/3.1.0-SNAPSHOT/oxauth-client-3.1.0-SNAPSHOT-jar-with-dependencies.jar -O $HOME/.clustermgr/javalibs/keygen.jar
+apt-get install build-essential libssl-dev libffi-dev python-dev redis-server python-setuptools libsasl2-dev  libldap2-dev
 ```
 
-### Python Libraries
-
-Clone this repo or download the source manually.
+3) Now clone the github repo
 
 ```
-cd /path/to/replication-mgr
+cd ~
+git clone https://github.com/GluuFederation/cluster-mgr.git
+```
+
+4) Install cluster-mgr
+
+```
+cd cluster-mgr/
 python setup.py install
 ```
 
-A successful installation will install a tool called `clustermgr-cli`.
+A successful installation will install a tool called clustermgr-cli.
 
-## Running Cluster Manager
-
-### Sync Database Schema
-
-Run the tool to sync the database schema:
+5) Prepare Databases
 
 ```
-clustermgr-cli db upgrade
+APP_MODE=dev clustermgr-cli db migrate
+
+APP_MODE=dev clustermgr-cli db upgrade
 ```
 
-### App Configuration
-
-Before running the app, we need to create custom config file to override default configuration.
-Create a file at `$HOME/.clustermgr/instance/config.py`. Here's an example of custom `config.py`:
+6) Run celery worker on a terminal
 
 ```
-DEBUG=False
-TESTING=False
-SQLALCHEMY_DATABASE_URI=/path/to/sqlite/db  # example: sqlite:////opt/cluster-mgr/clustermgr.db
-SECRET_KEY=unique-secret-string
+celery -A clusterapp.celery worker &
 ```
 
-### Running Server App
-
-For development mode, we can execute `clustermgr-cli runserver`.
-For production mode, it is recommended to use reliable WSGI server i.e. `gunicorn`.
-Here's an example of how to use gunicorn to run Cluster Manager app.
+7) On another terminal run cluster-mgr
 
 ```
-pip install gunicorn
-gunicorn -b 127.0.0.1:5000 clusterapp:app
+clustermgr-cli run
 ```
 
-By default, the app runs in development mode. To run it in production mode, simply pass environment variable
-`APP_MODE=prod` to alter the mode.
+8) Tunnel into cluster-mgr server
 
 ```
-gunicorn -b 127.0.0.1:5000 -e APP_MODE=prod clusterapp:app
+ssh -L 9999:localhost:5000 root@server
 ```
 
-### Running Background Task
-
-All delayed tasks are executed in background.
+9) Navigate to the cluster-mgr web GUI
 
 ```
-APP_MODE=prod celery -A clusterapp.celery worker
-```
-
-To run periodic tasks:
-
-```
-APP_MODE=prod celery -A clusterapp.celery beat
+http://localhost:9999/
 ```
