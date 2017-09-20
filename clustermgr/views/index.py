@@ -488,7 +488,7 @@ def add_provider_to_consumer(consumer_id, provider_id):
         
         provider = LdapServer.query.get(provider_id)
         
-        if ldp.addProvider(provider.id, "ldaps://{0}:1636".format(provider.fqn_hostname), "cn=replicator,o=gluu", provider.replicator_password):
+        if ldp.addProvider(provider.id, "ldaps://{0}:1636".format(provider.fqn_hostname), "cn=replicator@{0},o=gluu".format(provider.fqn_hostname), provider.replicator_password):
             flash("Provider {0} was added to {1}".format(provider.fqn_hostname, server.fqn_hostname), "success")
         else:
             flash("Adding provider {0} to {1} was failed: {2}".format(provider.fqn_hostname, server.fqn_hostname, ldp.conn.result['description']), "danger")
