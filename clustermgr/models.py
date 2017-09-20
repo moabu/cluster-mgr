@@ -5,8 +5,7 @@ from clustermgr.extensions import db
 
 from sqlalchemy.orm import relationship, backref
 
-"""
-#Removed by MB
+
 class LDAPServer(db.Model):
     __tablename__ = "ldap_server"
 
@@ -57,7 +56,7 @@ class LDAPServer(db.Model):
 
     def __repr__(self):
         return '<Server %s:%d>' % (self.hostname, self.port)
-"""
+
 
 class AppConfiguration(db.Model):
     __tablename__ = 'appconfig'
