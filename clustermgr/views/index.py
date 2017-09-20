@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import json
 from flask import Blueprint, render_template, redirect, url_for, flash, \
@@ -227,7 +228,7 @@ def edit_ldap_server(server_id):
             form.ldap_group.data = ldpsi.ldap_group
             form.gluu_version.data = ldpsi.gluu_version
             form.ldap_password.data = ldpsi.ldap_password
-
+            form.replicator_password.data = ldpsi.replicator_password
         else:
             
             form.ldap_group.data = 'ldap'
@@ -246,12 +247,13 @@ def edit_ldap_server(server_id):
                     return render_template('ldap_server.html', form=form,  data=data )
             
             
-            ldps.gluu_version = form.gluu_version.data
-            ldps.fqn_hostname=form.fqn_hostname.data
-            ldps.ip_address=form.ip_address.data
-            ldps.ldap_password=form.ldap_password.data
-            ldps.ldap_user=form.ldap_user.data
-            ldps.ldap_group=form.ldap_group.data
+            ldps.gluu_version         = form.gluu_version.data
+            ldps.fqn_hostname         = form.fqn_hostname.data
+            ldps.ip_address           = form.ip_address.data
+            ldps.ldap_password        = form.ldap_password.data
+            ldps.ldap_user            = form.ldap_user.data
+            ldps.ldap_group           = form.ldap_group.data
+            ldps.replicator_password  = form.replicator_password.data
             
             print "IP ADDR", ldps.ip_address, form.ip_address.data
             
@@ -284,16 +286,17 @@ def install_ldap_server():
                 flash("{0} is already in LDAP servers List".format(form.fqn_hostname.data), "warning")
                 return render_template('ldap_server.html', form=form,  data=data )
 
-            session['nongluuldapinfo']={'fqn_hostname'  : form.fqn_hostname.data,
-                                        'ip_address'    : form.ip_address.data,
-                                        'ldap_password' : form.ldap_password.data,
-                                        'ldap_user'     : 'ldap',
-                                        'ldap_group'    : 'ldap',
-                                        'countryCode'   : form.countryCode.data,
-                                        'state'         : form.state.data,
-                                        'city'          : form.city.data,
-                                        'orgName'       : form.orgName.data,
-                                        'admin_email'   : form.admin_email.data,
+            session['nongluuldapinfo']={'fqn_hostname'        : form.fqn_hostname.data,
+                                        'ip_address'          : form.ip_address.data,
+                                        'ldap_password'       : form.ldap_password.data,
+                                        'ldap_user'           : 'ldap',
+                                        'ldap_group'          : 'ldap',
+                                        'countryCode'         : form.countryCode.data,
+                                        'state'               : form.state.data,
+                                        'city'                : form.city.data,
+                                        'orgName'             : form.orgName.data,
+                                        'admin_email'         : form.admin_email.data,
+                                        'replicator_password' : form.replicator_password.data,
                                         }
                                         
 
@@ -485,7 +488,7 @@ def add_provider_to_consumer(consumer_id, provider_id):
         
         provider = LdapServer.query.get(provider_id)
         
-        if ldp.addProvider(provider.id, "ldaps://{0}:1636".format(provider.fqn_hostname), "cn=directory manager,o=gluu", provider.ldap_password):
+        if ldp.addProvider(provider.id, "ldaps://{0}:1636".format(provider.fqn_hostname), "cn=replicator,o=gluu", provider.replicator_password):
             flash("Provider {0} was added to {1}".format(provider.fqn_hostname, server.fqn_hostname), "success")
         else:
             flash("Adding provider {0} to {1} was failed: {2}".format(provider.fqn_hostname, server.fqn_hostname, ldp.conn.result['description']), "danger")

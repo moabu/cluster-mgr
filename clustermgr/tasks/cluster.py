@@ -368,18 +368,21 @@ def setupMmrServer(self, server_id):
         wlogger.log(tid, 'Setting Server ID {0}'.format(server.id), 'success')
     else:
         wlogger.log(tid, "Stting Server ID failed: {0}".format(ldp.conn.result['description']), "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
         return
 
     if ldp.loadModules("syncprov", "accesslog"):
         wlogger.log(tid, 'Loading syncprov and accesslog', 'success')
     else:
         wlogger.log(tid, "Loading syncprov and accesslog failed: {0}".format(ldp.conn.result['description']), "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
         return
 
     if ldp.accesslogDBEntry(accesslog_dir):
         wlogger.log(tid, 'Creating accesslog database entry', 'success')
     else:
         wlogger.log(tid, "Creating accesslog database entry failed: {0}".format(ldp.conn.result['description']), "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
         return
     
     # !WARNING UNBIND NECASSARY - I DON'T KNOW WHY.*****
@@ -398,13 +401,54 @@ def setupMmrServer(self, server_id):
         wlogger.log(tid, 'Creating syncprovOverlays entries', 'success')
     else:
         wlogger.log(tid, "Creating syncprovOverlays entries failed: {0}".format(r), "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
         return
     
     if ldp.accesslogPurge():
         wlogger.log(tid, 'Creating accesslog purge entry', 'success')
     else:
         wlogger.log(tid, "Creating accesslog purge entry failed: {0}".format(ldp.conn.result['description']), "warning")
-        
+    
+    if ldp.setLimitOnMainDb():
+        wlogger.log(tid, 'Setting size limit on main database for replicator user', 'success')
+    else:
+        wlogger.log(tid, "Setting size limit on main database for replicator user failed: {0}".format(ldp.conn.result['description']), "warning")
+
+
+    #Fix Me: For non-gluu symas ldapserveri there is no o=gluu base, can't add replicator user.
+    # create replicator user
+    adminOlc = ldapOLC('ldaps://{}:1636'.format(conn_addr), 'cn=directory manager,o=gluu', server.ldap_password)
+    r=None
+    try:
+        r = adminOlc.connect()
+    except Exception as e:
+        wlogger.log(tid, "Connection to LDAPserver as direcory manager at port 1636 was failed: {0}".format(e), "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+    
+    wlogger.log(tid, 'Creating replicator user: cn=replicator@{0},o=gluu'.format(server.fqn_hostname))
+    
+    if not adminOlc.addReplicatorUser(server.replicator_password):
+        if adminOlc.conn.result['description']=='entryAlreadyExists':
+            
+            wlogger.log(tid, 'Replicator user already exists', 'success')
+            
+            if adminOlc.changeReplicationUserPassword(server.replicator_password):
+                wlogger.log(tid, 'Replicator password changed', 'success')
+            else:
+                wlogger.log(tid, 'Chaning replicator password failed', 'warning')  
+        else:
+            
+            wlogger.log(tid, "Creating replicator user failed: {0}".format(adminOlc.conn.result['description']), "warning")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return
+    else:
+        wlogger.log(tid, 'Replicator user cn=replicator@{0},o=gluu created'.format(server.fqn_hostname), 'success')
+       
+            
+            
+            #Fix Me: if replicator user exists, paswword need to be changed.
+    
 
     #Adding providers
     providers = MultiMaster.query.filter(MultiMaster.mmr_id != server.id).filter(MultiMaster.replicator==True).all()
@@ -429,7 +473,7 @@ def setupMmrServer(self, server_id):
             #checking only server_id and access log db, further checks may be required
             if serverStatus["server_id"] and serverStatus["accesslogDB"]:
         
-                if ldp.addProvider(serverp.id, "ldaps://{0}:1636".format(serverp.fqn_hostname), "cn=directory manager,o=gluu", serverp.ldap_password):
+                if ldp.addProvider(serverp.id, "ldaps://{0}:1636".format(serverp.fqn_hostname), "cn=replicator@{0},o=gluu".format(serverp.fqn_hostname), serverp.replicator_password):
                     wlogger.log(tid, 'Adding provider {0}'.format(serverp.fqn_hostname), 'success')
                 else:
                     wlogger.log(tid, 'Adding provider {0} failed: {1}'.format(serverp.fqn_hostname, ldp.conn.result['description']), "warning")
@@ -468,7 +512,10 @@ def removeMultiMasterDeployement(self, server_id):
 
     server = LdapServer.query.get(server_id)
     tid = self.request.id
-    chroot = '/opt/gluu-server-'+server.gluu_version
+    if server.gluu_version == "-1":
+        chroot = '/'
+    else:
+        chroot = '/opt/gluu-server-'+server.gluu_version
    
     wlogger.log(tid, "Making SSH connection to the server %s" % server.fqn_hostname)
     c = RemoteClient(server.fqn_hostname)
@@ -489,14 +536,14 @@ def removeMultiMasterDeployement(self, server_id):
             wlogger.log(tid, "Cannot establish SSH connection {0}".format(e), "error")
             wlogger.log(tid, "Ending server setup process.", "error")
             return False
-    
-    # check if remote is gluu server
-    if c.exists(chroot):
-        wlogger.log(tid, 'Checking if remote is gluu server', 'success')
-    else:
-        wlogger.log(tid, "Remote is not a gluu server.", "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return False
+    if server.gluu_version != "-1":
+        # check if remote is gluu server
+        if c.exists(chroot):
+            wlogger.log(tid, 'Checking if remote is gluu server', 'success')
+        else:
+            wlogger.log(tid, "Remote is not a gluu server.", "error")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return False
     
 
     # symas-openldap.conf file exists
@@ -764,13 +811,13 @@ def InstallLdapServer(self, ldap_info):
         wlogger.log(tid, "There seems to be some issue in restarting the server.", "error")
         wlogger.log(tid, "Ending server setup process.", "error")
         return
-     
-    
+  
     ldps=LdapServer()
     ldps.gluu_version = "-1"
     ldps.fqn_hostname=ldap_info["fqn_hostname"]
     ldps.ip_address=ldap_info["ip_address"]
     ldps.ldap_password=ldap_info["ldap_password"]
+    ldps.replicator_password = ldap_info["replicator_password"]
     ldps.ldap_user="ldap"
     ldps.ldap_group="ldap"
     db.session.add(ldps)

@@ -67,7 +67,7 @@ class ldapOLC(object):
                                                            'olcRootDN': 'cn=admin, cn=accesslog',
                                                            'olcRootPW': makeLdapPassword(self.passwd),
                                                            'olcDbIndex': ['default eq', 'entryCSN,objectClass,reqEnd,reqResult,reqStart'],
-                                                           'olcLimits': 'dn.exact="cn=directory manager,o=gluu" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited',
+                                                           'olcLimits': 'dn.exact="cn=replicator,o=gluu" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited',
                                                            
                                                        })
 
@@ -189,7 +189,13 @@ class ldapOLC(object):
     def addProvider(self, rid, raddr, rbinddn, rcredentials):
         host = getHostPort(raddr)[0]
         if not host in self.getProviders():
-            ridText='rid={0} provider={1} bindmethod=simple binddn="{2}" tls_reqcert=never credentials={3} searchbase="o=gluu" logbase="cn=accesslog" logfilter="(&(objectClass=auditWriteObject)(reqResult=0))" schemachecking=on type=refreshAndPersist retry="60 +" syncdata=accesslog'.format(rid, raddr, rbinddn, rcredentials)
+            ridText= ('rid={0} provider={1} bindmethod=simple binddn="{2}" '
+                      'tls_reqcert=never credentials={3} searchbase="o=gluu" logbase="cn=accesslog" '
+                      'logfilter="(&(objectClass=auditWriteObject)(reqResult=0))" schemachecking=on '
+                      'type=refreshAndPersist retry="60 +" syncdata=accesslog').format(
+                                                                            rid, raddr, 
+                                                                            rbinddn, rcredentials)
+                    
             return self.conn.modify('olcDatabase={1}mdb,cn=config', {"olcSyncRepl": [MODIFY_ADD, [ridText]]})
 
     def checkAccesslogDB(self):
@@ -272,8 +278,29 @@ class ldapOLC(object):
         retDict["providers"] = self.getProviders()
         
         return retDict
+        
+    def getMainDbDN(self):
+        if self.conn.search(search_base="cn=config", search_scope = LEVEL, search_filter="(olcDbDirectory=/opt/gluu/data/main_db)", attributes='*'):
+            if self.conn.response:
+                return self.conn.response[0]['dn']
             
+    def setLimitOnMainDb(self):
+        main_db_dn = self.getMainDbDN()
+        return self.conn.modify(main_db_dn, {'olcLimits': [MODIFY_ADD, 'dn.exact="cn=replicator,o=gluu" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited']})
             
-            
-            
-            
+    def addReplicatorUser(self, passwd):
+        enc_passwd = makeLdapPassword(passwd)
+        self.conn.add('cn=replicator@{0},o=gluu'.format(self.hostname),
+                        attributes={ 'objectClass': ['top', 'inetOrgPerson'],
+                                     'cn': 'replicator',
+                                     'sn': 'replicator',
+                                     'uid': 'replicator',
+                                     'userpassword': enc_passwd,
+                                     }
+                    )
+        if self.conn.result['description']=='success':
+            return True
+    def changeReplicationUserPassword(self, passwd):
+        enc_passwd = makeLdapPassword(passwd)
+        print 'cn=replicator@{0},o=gluu'.format(self.hostname)
+        return self.conn.modify('cn=replicator@{0},o=gluu'.format(self.hostname), {"userPassword": [MODIFY_REPLACE, enc_passwd]})
