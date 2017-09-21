@@ -1,18 +1,15 @@
-import ldap
 import json
-from datetime import datetime
-
 import requests
 
+from datetime import datetime
+from ldap3 import Server, Connection, BASE, MODIFY_REPLACE
+
 from clustermgr.extensions import celery, db
-from clustermgr.models import LDAPServer, KeyRotation, \
+from clustermgr.models import LdapServer, KeyRotation, \
         OxauthServer, OxelevenKeyID
-from clustermgr.core.ldaplib import ldap_conn, search_from_ldap
 from clustermgr.core.utils import decrypt_text, random_chars
 from clustermgr.core.ox11 import generate_key, delete_key
 from clustermgr.core.keygen import generate_jks
-
-ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
 
 
 def starttls(server):
@@ -20,70 +17,74 @@ def starttls(server):
 
 
 def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass=""):
-    server = LDAPServer.query.filter_by(role="provider").first()
+    server = LdapServer.query.first()
 
     pub_keys = pub_keys or []
     if not pub_keys:
         return
 
-    with ldap_conn(server.ip, server.port, "cn=directory manager,o=gluu",
-                   server.admin_pw, starttls(server)) as conn:
-        # base DN for oxAuth config
-        oxauth_base = ",".join([
-            "ou=oxauth",
-            "ou=configuration",
-            "inum={}".format(kr.inum_appliance),
-            "ou=appliances",
-            "o=gluu",
-        ])
-        dn, attrs = search_from_ldap(conn, oxauth_base)
+    s = Server(host=server.ip_address, port=1636, use_ssl=True)
+    conn = Connection(s, user="cn=directory manager,o=gluu",
+                      password=server.ldap_password, auto_bind=True)
 
+    # base DN for oxAuth config
+    oxauth_base = ",".join([
+        "ou=oxauth",
+        "ou=configuration",
+        "inum={}".format(kr.inum_appliance),
+        "ou=appliances",
+        "o=gluu",
+    ])
+
+    conn.search(search_base=oxauth_base, search_filter="(objectClass=*)",
+                search_scope=BASE, attributes=['*'])
+    if not conn.entries:
         # search failed due to missing entry
-        if not dn:
-            return
+        return
+    entry = conn.entries[0]
 
-        # oxRevision is increased to mark update
-        ox_rev = str(int(attrs["oxRevision"][0]) + 1)
+    # oxRevision is increased to make update
+    ox_rev = str(int(entry['oxRevision'].values[0]) + 1)
 
-        # update public keys if necessary
-        keys_conf = json.loads(attrs["oxAuthConfWebKeys"][0])
-        keys_conf["keys"] = pub_keys
-        serialized_keys_conf = json.dumps(keys_conf)
+    # update public keys if necessary
+    keys_conf = json.lods(entry['oxAuthConfWebKeys'].values[0])
+    keys_conf["keys"] = pub_keys
+    serialized_keys_conf = json.dumps(keys_conf)
 
-        dyn_conf = json.loads(attrs["oxAuthConfDynamic"][0])
+    dyn_conf = json.loads(entry["oxAuthConfDynamic"].values[0])
+    dyn_conf.update({
+        "keyRegenerationEnabled": False,  # always set to False
+        "keyRegenerationInterval": kr.interval * 24,
+        "defaultSignatureAlgorithm": "RS512",
+    })
+
+    if kr.type == 'oxeleven':
         dyn_conf.update({
-            "keyRegenerationEnabled": False,  # always set to False
-            "keyRegenerationInterval": kr.interval * 24,
-            "defaultSignatureAlgorithm": "RS512",
+            "oxElevenGenerateKeyEndpoint": "{}/oxeleven/rest/oxeleven/generateKey".format(kr.oxeleven_url),  # noqa
+            "oxElevenSignEndpoint": "{}/oxeleven/rest/oxeleven/sign".format(kr.oxeleven_url),  # noqa
+            "oxElevenVerifySignatureEndpoint": "{}/oxeleven/rest/oxeleven/verifySignature".format(kr.oxeleven_url),  # noqa
+            "oxElevenDeleteKeyEndpoint": "{}/oxeleven/rest/oxeleven/deleteKey".format(kr.oxeleven_url),  # noqa
+            "oxElevenJwksEndpoint": "{}/oxeleven/rest/oxeleven/jwks".format(kr.oxeleven_url),  # noqa
+            "oxElevenTestModeToken": decrypt_text(kr.oxeleven_token, kr.oxeleven_token_key, kr.oxeleven_token_iv),  # noqa
+            "webKeysStorage": "pkcs11",
         })
+    else:
+        dyn_conf.update({
+            "webKeysStorage": "keystore",
+            "keyStoreSecret": openid_jks_pass,
+        })
+    serialized_dyn_conf = json.dumps(dyn_conf)
 
-        if kr.type == "oxeleven":
-            dyn_conf.update({
-                "oxElevenGenerateKeyEndpoint": "{}/oxeleven/rest/oxeleven/generateKey".format(kr.oxeleven_url),  # noqa
-                "oxElevenSignEndpoint": "{}/oxeleven/rest/oxeleven/sign".format(kr.oxeleven_url),  # noqa
-                "oxElevenVerifySignatureEndpoint": "{}/oxeleven/rest/oxeleven/verifySignature".format(kr.oxeleven_url),  # noqa
-                "oxElevenDeleteKeyEndpoint": "{}/oxeleven/rest/oxeleven/deleteKey".format(kr.oxeleven_url),  # noqa
-                "oxElevenJwksEndpoint": "{}/oxeleven/rest/oxeleven/jwks".format(kr.oxeleven_url),  # noqa
-                "oxElevenTestModeToken": decrypt_text(kr.oxeleven_token, kr.oxeleven_token_key, kr.oxeleven_token_iv),  # noqa
-                "webKeysStorage": "pkcs11",
-            })
-        else:
-            dyn_conf.update({
-                "webKeysStorage": "keystore",
-                "keyStoreSecret": openid_jks_pass,
-            })
-        serialized_dyn_conf = json.dumps(dyn_conf)
+    # update the attributes
+    conn.modify(entry.entry_dn, {
+        'oxRevision': [(MODIFY_REPLACE, [ox_rev])],
+        'oxAuthConfWebKeys': [(MODIFY_REPLACE, [serialized_keys_conf])],
+        'oxAuthConfDynamic': [(MODIFY_REPLACE, [serialized_dyn_conf])],
+    })
 
-        # list of attributes need to be updated
-        modlist = [
-            (ldap.MOD_REPLACE, "oxRevision", ox_rev),
-            (ldap.MOD_REPLACE, "oxAuthConfWebKeys", serialized_keys_conf),
-            (ldap.MOD_REPLACE, "oxAuthConfDynamic", serialized_dyn_conf),
-        ]
-
-        # update the attributes
-        conn.modify_s(dn, modlist)
-        return True
+    print conn.result
+    conn.unbind()
+    return True
 
 
 @celery.task(bind=True)
