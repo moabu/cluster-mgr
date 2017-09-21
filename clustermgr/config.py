@@ -49,7 +49,8 @@ class ProductionConfig(Config):
 
 class DevelopmentConfig(Config):
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = "sqlite:///{}/clustermgr.dev.db".format(Config.DATA_DIR)
+    SQLALCHEMY_DATABASE_URI = "sqlite:///{}/clustermgr.dev.db".format(
+        Config.DATA_DIR)
     SQLALCHEMY_TRACK_MODIFICATIONS = True
 
 

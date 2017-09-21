@@ -10,12 +10,15 @@ from flask_wtf.file import FileField, FileRequired, FileAllowed
 
 
 class NewProviderForm(FlaskForm):
-    gluu_server = BooleanField('This is a Gluu Server (OpenLDAP installed inside chroot)', default=False)
-    gluu_version = SelectField('Gluu Server Version', choices=[('3.0.1', '3.0.1'), ('3.0.2', '3.0.2')])
+    gluu_server = BooleanField(
+        'This is a Gluu Server (OpenLDAP installed inside chroot)', default=False)
+    gluu_version = SelectField('Gluu Server Version', choices=[
+                               ('3.0.1', '3.0.1'), ('3.0.2', '3.0.2')])
     hostname = StringField('Hostname *', validators=[DataRequired()])
     ip = StringField('IP Address *', validators=[DataRequired(), IPAddress()])
     port = IntegerField('Port *', validators=[DataRequired()])
-    admin_pw = PasswordField('LDAP Admin Password *', validators=[DataRequired()])
+    admin_pw = PasswordField('LDAP Admin Password *',
+                             validators=[DataRequired()])
     protocol = SelectField(
         'LDAP Connection Protocol', choices=[
             ('ldaps', 'ldaps'),
@@ -28,9 +31,11 @@ class NewProviderForm(FlaskForm):
 
 class NewConsumerForm(FlaskForm):
     provider = SelectField('Provider *', coerce=int)
-    gluu_server = BooleanField('This is a Gluu Server (OpenLDAP installed inside chroot)', default=False)
-    gluu_version = SelectField('Gluu Server Version', choices=[('3.0.2', '3.0.2'),('3.0.1', '3.0.1')])
-    
+    gluu_server = BooleanField(
+        'This is a Gluu Server (OpenLDAP installed inside chroot)', default=False)
+    gluu_version = SelectField('Gluu Server Version', choices=[
+                               ('3.0.2', '3.0.2'), ('3.0.1', '3.0.1')])
+
     hostname = StringField('Hostname *', validators=[DataRequired()])
     ip = StringField('IP Address *', validators=[DataRequired(), IPAddress()])
     port = IntegerField('Port *', validators=[DataRequired()])
@@ -59,7 +64,8 @@ class AppConfigForm(FlaskForm):
 class SchemaForm(FlaskForm):
     schema = FileField(validators=[
         FileRequired(),
-        FileAllowed(['schema'], 'Upload only Openldap Schema files with .schema extension.')
+        FileAllowed(
+            ['schema'], 'Upload only Openldap Schema files with .schema extension.')
     ])
     upload = SubmitField("Upload Schema")
 
@@ -67,7 +73,8 @@ class SchemaForm(FlaskForm):
 class LDIFForm(FlaskForm):
     ldif = FileField(validators=[
         FileRequired(),
-        FileAllowed(['ldif'], 'Upload OpenLDAP slapcat exported ldif files only!')
+        FileAllowed(
+            ['ldif'], 'Upload OpenLDAP slapcat exported ldif files only!')
     ])
 
 
@@ -81,7 +88,8 @@ class KeyRotationForm(FlaskForm):
     oxeleven_url = StringField("oxEleven URL")
     oxeleven_token = PasswordField("oxEleven Token")
     inum_appliance = StringField("Inum Appliance", validators=[DataRequired()])
-    gluu_server = BooleanField('Installed inside chroot-ed Gluu Server', default=True)
+    gluu_server = BooleanField(
+        'Installed inside chroot-ed Gluu Server', default=True)
     gluu_version = SelectField('Gluu Server Version', choices=[
         ('3.0.1', '3.0.1'),
         ('3.0.2', '3.0.2'),
@@ -111,34 +119,43 @@ class LoggingServerForm(FlaskForm):
                                          URL(require_tld=False)])
 
 
-
-########## MB
+# MB
 
 
 class LdapServerForm(FlaskForm):
-    gluu_version = SelectField('Gluu Server Version', choices=[('3.1.1', '3.1.1'), ('3.1.0', '3.1.0'), ('3.0.2', '3.0.2'), ('3.0.1', '3.0.1'), ('-1','non-gluu')])
+    gluu_version = SelectField('Gluu Server Version', choices=[('3.1.1', '3.1.1'), (
+        '3.1.0', '3.1.0'), ('3.0.2', '3.0.2'), ('3.0.1', '3.0.1'), ('-1', 'non-gluu')])
     fqn_hostname = StringField('Hostname *', validators=[DataRequired()])
-    ip_address = StringField('IP Address *', validators=[DataRequired(), IPAddress()])
-    ldap_password = StringField('LDAP Admin Password *', validators=[DataRequired()])
-    replicator_password = StringField('Replicator User Password *', validators=[DataRequired()])
+    ip_address = StringField(
+        'IP Address *', validators=[DataRequired(), IPAddress()])
+    ldap_password = StringField(
+        'LDAP Admin Password *', validators=[DataRequired()])
+    replicator_password = StringField(
+        'Replicator User Password *', validators=[DataRequired()])
     ldap_user = StringField('LDAP User *', validators=[DataRequired()])
     ldap_group = StringField('LDAP Group *', validators=[DataRequired()])
+
 
 class TestUser(FlaskForm):
     #server = SelectField('Ldap Server', choices=[])
     first_name = StringField('First Name', validators=[DataRequired()])
     last_name = StringField('Last Name', validators=[DataRequired()])
-    email = StringField('Email', validators=[DataRequired(), Email("Please enter valid email address.")])
-
+    email = StringField('Email', validators=[
+                        DataRequired(), Email("Please enter valid email address.")])
 
 
 class InstallServerForm(FlaskForm):
     fqn_hostname = StringField('Hostname *', validators=[DataRequired()])
-    ip_address = StringField('IP Address *', validators=[DataRequired(), IPAddress()])
-    ldap_password = StringField('LDAP Admin Password *', validators=[DataRequired()])
-    replicator_password = StringField('Replicator User Password *', validators=[DataRequired()])
-    countryCode = StringField('Two Letter Country Code *', validators=[Length(min=2, max=2), DataRequired()])
-    state = StringField('Two Letter State Code *', validators=[Length(min=2, max=2), DataRequired()])
+    ip_address = StringField(
+        'IP Address *', validators=[DataRequired(), IPAddress()])
+    ldap_password = StringField(
+        'LDAP Admin Password *', validators=[DataRequired()])
+    replicator_password = StringField(
+        'Replicator User Password *', validators=[DataRequired()])
+    countryCode = StringField(
+        'Two Letter Country Code *', validators=[Length(min=2, max=2), DataRequired()])
+    state = StringField('Two Letter State Code *',
+                        validators=[Length(min=2, max=2), DataRequired()])
     city = StringField('City *', validators=[DataRequired()])
     orgName = StringField('Organization Name *', validators=[DataRequired()])
     admin_email = StringField('Admin E-mail *', validators=[DataRequired()])

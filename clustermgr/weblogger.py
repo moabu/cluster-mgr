@@ -51,6 +51,7 @@ class WebLogger(object):
     Cleanup:
         Refer clean()
     """
+
     def __init__(self, app=None):
         self.app = app
         self.r = redis.Redis()
