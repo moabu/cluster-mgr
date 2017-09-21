@@ -230,7 +230,6 @@ def edit_ldap_server(server_id):
             form.ldap_group.data = ldpsi.ldap_group
             form.gluu_version.data = ldpsi.gluu_version
             form.ldap_password.data = ldpsi.ldap_password
-            form.replicator_password.data = ldpsi.replicator_password
         else:
 
             form.ldap_group.data = 'ldap'
@@ -256,7 +255,6 @@ def edit_ldap_server(server_id):
             ldps.ldap_password = form.ldap_password.data
             ldps.ldap_user = form.ldap_user.data
             ldps.ldap_group = form.ldap_group.data
-            ldps.replicator_password = form.replicator_password.data
 
             print "IP ADDR", ldps.ip_address, form.ip_address.data
 
