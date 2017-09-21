@@ -3,60 +3,6 @@ from datetime import timedelta
 
 from clustermgr.extensions import db
 
-from sqlalchemy.orm import relationship, backref
-
-
-class LDAPServer(db.Model):
-    __tablename__ = "ldap_server"
-
-    id = db.Column(db.Integer, primary_key=True)
-
-    # hostname of the ldap server
-    hostname = db.Column(db.String(150), unique=True)
-
-    # ip address of the server
-    ip = db.Column(db.String(45))
-
-    # port in which the LDAP server is  listening
-    port = db.Column(db.Integer)
-
-    # role is either provider or consumer
-    role = db.Column(db.String(10))
-
-    # LDAP communication protocol ldap, ldaps, starttls
-    protocol = db.Column(db.String(10))
-
-    # location of the certificates in the server
-    tls_cacert = db.Column(db.Text)
-    tls_servercert = db.Column(db.Text)
-    tls_serverkey = db.Column(db.Text)
-
-    # whether the replication user has been added to the DIT
-    # and the server is setup with replication
-    initialized = db.Column(db.Boolean)
-
-    # whether the server has been setup with proper configuration
-    setup = db.Column(db.Boolean)
-
-    # rootDN password for the LDAP server
-    admin_pw = db.Column(db.String(150))
-
-    # provider for the consumer LDAP server
-    provider_id = db.Column(db.Integer, db.ForeignKey('ldap_server.id'))
-
-    # consumers connected to a provider
-    consumers = relationship("LDAPServer", backref=backref(
-        'provider', remote_side=[id]))
-
-    # is the LDAP server inside the gluu server chroot container
-    gluu_server = db.Column(db.Boolean)
-
-    # gluu server version
-    gluu_version = db.Column(db.String(10))
-
-    def __repr__(self):
-        return '<Server %s:%d>' % (self.hostname, self.port)
-
 
 class AppConfiguration(db.Model):
     __tablename__ = 'appconfig'
