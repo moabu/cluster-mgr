@@ -1,6 +1,7 @@
 from paramiko.client import SSHClient, AutoAddPolicy
 import StringIO
 
+
 class ClientNotSetupException(Exception):
     """Exception raised when the client is not initialized because
     of connection failures."""
@@ -124,29 +125,27 @@ class RemoteClient(object):
     # MB
     def putFile(self,  filename, filecontent):
         """Puts content to a file on remote server
-        
+
         Args:
             filename (string): name of file to be written on remote server
             filecontent (string): content of file
-        
+
         Returns:
             tuple: True/False, file size / error
-        
+
         """
         #renameFile(server, filename, filename+'.%d' % time.time())
-        
+
         # write content to IO File
         f = StringIO.StringIO()
         f.write(filecontent)
         f.seek(0)
 
         try:
-            r=self.sftpclient.putfo(f, filename)
+            r = self.sftpclient.putfo(f, filename)
             return True, r.st_size
         except Exception as err:
             return False, err
-
-
 
     def mkDir(self,  dirname):
         try:
@@ -154,9 +153,7 @@ class RemoteClient(object):
             return True, dirname
         except Exception as err:
             return False, err
-        
-            
-            
+
     """
 
     def chownFile(server, chroot, filenme, user, group):
