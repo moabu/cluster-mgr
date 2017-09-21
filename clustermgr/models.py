@@ -147,9 +147,6 @@ class LdapServer(db.Model):
     # rootDN password for the LDAP server
     ldap_password = db.Column(db.String(150))
 
-    # password for replicator user: cn=replicator, o=gluu
-    replicator_password = db.Column(db.String(150))
-
     # is the LDAP server inside the gluu server chroot container
     gluu_server = db.Column(db.Boolean)
 
@@ -169,7 +166,7 @@ class MultiMaster(db.Model):
     __tablename__ = "multiMaster"
 
     id = db.Column(db.Integer, primary_key=True)
-    mmr_id = db.Column(db.Integer, db.ForeignKey("ldap_server.id"))
+    mmr_id = db.Column(db.Integer, db.ForeignKey("ldapServer.id"))
     replicator = db.Column(db.Boolean)
     config = db.Column(db.Text)
 

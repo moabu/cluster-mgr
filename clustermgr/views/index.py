@@ -350,6 +350,16 @@ def get_mmr_list():
 @index.route('/mmr/')
 def multi_master_replication():
 
+
+    app_config = AppConfiguration.query.first()
+    
+    appConfigured = False
+    
+    if app_config.replication_dn and app_config.replication_pw:
+        appConfigured = True
+    else:
+        flash("Repication user and/or password has not been defined. Please goo 'Configuration' and set these before proceed.", "warning")
+
     if 'nongluuldapinfo' in session:
         del session['nongluuldapinfo']
 
@@ -380,6 +390,10 @@ def multi_master_replication():
 
             if r:
                 serverStats[ldp.fqn_hostname] = s.getMMRStatus()
+
+
+    if not appConfigured:
+        addServerButton = False
 
     return render_template('multi_master.html', ldapservers=ldaps, mmrs=mmrs,
                            id_host_dict=id_host_dict,
@@ -497,13 +511,18 @@ def add_provider_to_consumer(consumer_id, provider_id):
 
     server = LdapServer.query.get(consumer_id)
 
+    app_config = AppConfiguration.query.first()
+    
+    
+    
+
     ldp = getLdapConn(server.fqn_hostname, "cn=config", server.ldap_password)
 
     if ldp:
 
         provider = LdapServer.query.get(provider_id)
 
-        if ldp.addProvider(provider.id, "ldaps://{0}:1636".format(provider.fqn_hostname), "cn=replicator@{0},o=gluu".format(provider.fqn_hostname), provider.replicator_password):
+        if ldp.addProvider(provider.id, "ldaps://{0}:1636".format(provider.fqn_hostname), app_config.replication_dn, app_config.replication_pw):
             flash("Provider {0} was added to {1}".format(
                 provider.fqn_hostname, server.fqn_hostname), "success")
         else:

@@ -63,19 +63,22 @@ class ldapOLC(object):
                                 search_filter='(olcSuffix=cn=accesslog)',
                                 search_scope=SUBTREE, attributes=["*"])
 
-    def accesslogDBEntry(self, log_dir="/opt/gluu/data/accesslog"):
-        attributes = {'objectClass':  ['olcDatabaseConfig', 'olcMdbConfig'],
-                      'olcDatabase': '{2}mdb',
-                      'olcDbDirectory': log_dir,
-                      'OlcDbMaxSize': 1073741824,
-                      'olcSuffix': 'cn=accesslog',
-                      'olcRootDN': 'cn=admin, cn=accesslog',
-                      'olcRootPW': makeLdapPassword(self.passwd),
-                      'olcDbIndex': ['default eq', 'entryCSN,objectClass,reqEnd,reqResult,reqStart'],
-                      'olcLimits': 'dn.exact="cn=replicator,o=gluu" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited',
-                      }
+    def accesslogDBEntry(self, replicator_dn, log_dir="/opt/gluu/data/accesslog"):
+        
+        attributes={'objectClass':  ['olcDatabaseConfig', 'olcMdbConfig'],
+                                                           'olcDatabase': '{2}mdb',
+                                                           'olcDbDirectory': log_dir,
+                                                           'OlcDbMaxSize': 1073741824,
+                                                           'olcSuffix': 'cn=accesslog',
+                                                           'olcRootDN': 'cn=admin, cn=accesslog',
+                                                           'olcRootPW': makeLdapPassword(self.passwd),
+                                                           'olcDbIndex': ['default eq', 'entryCSN,objectClass,reqEnd,reqResult,reqStart'],
+                                                           'olcLimits': 'dn.exact="{0}" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited'.format(replicator_dn),
+                                                           
+                                                       }
+        
         if not self.checkAccesslogDBEntry():
-            return self.conn.add('olcDatabase={2}mdb,cn=config', attributes)
+            return self.conn.add('olcDatabase={2}mdb,cn=config', attributes=attributes)
 
     def checkSyncprovOverlaysDB1(self):
         return self.conn.search(search_base='olcDatabase={1}mdb,cn=config',
@@ -93,7 +96,7 @@ class ldapOLC(object):
                       }
         if not self.checkSyncprovOverlaysDB1():
             return self.conn.add(
-                'olcOverlay=syncprov,olcDatabase={1}mdb,cn=config', attributes)
+                'olcOverlay=syncprov,olcDatabase={1}mdb,cn=config', attributes=attributes)
 
     def checkSyncprovOverlaysDB2(self):
         return self.conn.search(search_base='olcDatabase={2}mdb,cn=config',
@@ -113,7 +116,7 @@ class ldapOLC(object):
         }
         if not self.checkSyncprovOverlaysDB2():
             return self.conn.add(
-                'olcOverlay=syncprov,olcDatabase={2}mdb,cn=config', attributes)
+                'olcOverlay=syncprov,olcDatabase={2}mdb,cn=config', attributes=attributes)
 
     def checkServerID(self):
         return self.conn.search(search_base='cn=config',
@@ -165,7 +168,7 @@ class ldapOLC(object):
         }
         if not self.checkAccesslogPurge():
             return self.conn.add(
-                'olcOverlay=accesslog,olcDatabase={1}mdb,cn=config', attributes
+                'olcOverlay=accesslog,olcDatabase={1}mdb,cn=config', attributes=attributes
             )
 
     def removeMirrorMode(self):
@@ -313,24 +316,36 @@ class ldapOLC(object):
             if self.conn.response:
                 return self.conn.response[0]['dn']
 
-    def setLimitOnMainDb(self):
+    def setLimitOnMainDb(self, replicator_dn):
         main_db_dn = self.getMainDbDN()
-        return self.conn.modify(main_db_dn, {'olcLimits': [MODIFY_ADD, 'dn.exact="cn=replicator,o=gluu" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited']})
+        return self.conn.modify(main_db_dn, {'olcLimits': [MODIFY_ADD, 'dn.exact="{0}" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited'.format(replicator_dn)]})
 
-    def addReplicatorUser(self, passwd):
+    def addReplicatorUser(self, replicator_dn, passwd):
+        self.checkBaseDN()
         enc_passwd = makeLdapPassword(passwd)
-        self.conn.add('cn=replicator@{0},o=gluu'.format(self.hostname),
-                      attributes={'objectClass': ['top', 'inetOrgPerson'],
-                                  'cn': 'replicator',
-                                  'sn': 'replicator',
-                                  'uid': 'replicator',
-                                  'userpassword': enc_passwd,
-                                  }
-                      )
+        m=re.search('cn=(?P<cn>\w+),o=gluu', 'cn=replicator,o=gluu')
+        cn=m.group('cn')
+        if not self.conn.search(replicator_dn, search_filter='(objectClass=*)', search_scope=BASE):
+            self.conn.add(replicator_dn,
+                          attributes={'objectClass': ['top', 'inetOrgPerson'],
+                                      'cn': cn,
+                                      'sn': 'replicator',
+                                      'uid': 'replicator',
+                                      'userpassword': enc_passwd,
+                                      }
+                          )
         if self.conn.result['description'] == 'success':
             return True
 
-    def changeReplicationUserPassword(self, passwd):
+    def changeReplicationUserPassword(self, replicator_dn, passwd):
         enc_passwd = makeLdapPassword(passwd)
-        print 'cn=replicator@{0},o=gluu'.format(self.hostname)
-        return self.conn.modify('cn=replicator@{0},o=gluu'.format(self.hostname), {"userPassword": [MODIFY_REPLACE, enc_passwd]})
+        return self.conn.modify(replicator_dn, {"userPassword": [MODIFY_REPLACE, enc_passwd]})
+
+    def checkBaseDN(self):
+        if not self.conn.search(search_base="o=gluu", search_filter='(objectClass=top)', search_scope=BASE):
+            print "Adding base DN"
+            self.conn.add('o=gluu', attributes={
+                                        'objectClass': ['top', 'organization'],
+                                        'o': 'gluu',
+                                  }
+                        )

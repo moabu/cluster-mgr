@@ -130,8 +130,6 @@ class LdapServerForm(FlaskForm):
         'IP Address *', validators=[DataRequired(), IPAddress()])
     ldap_password = StringField(
         'LDAP Admin Password *', validators=[DataRequired()])
-    replicator_password = StringField(
-        'Replicator User Password *', validators=[DataRequired()])
     ldap_user = StringField('LDAP User *', validators=[DataRequired()])
     ldap_group = StringField('LDAP Group *', validators=[DataRequired()])
 

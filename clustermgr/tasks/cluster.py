@@ -3,7 +3,7 @@
 import os
 
 from flask import current_app as app
-from clustermgr.models import LdapServer, MultiMaster
+from clustermgr.models import LdapServer, MultiMaster, AppConfiguration
 from clustermgr.extensions import celery, wlogger, db
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import ldapOLC, makeLdapPassword
@@ -84,6 +84,9 @@ def setupMmrServer(self, server_id):
     tid = self.request.id
     gluu = False
     server = LdapServer.query.get(server_id)
+
+    app_config = AppConfiguration.query.first()
+
 
     if not server:
         wlogger.log(tid, "Server is not on database", "error")
@@ -234,7 +237,7 @@ def setupMmrServer(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
-    if ldp.accesslogDBEntry(accesslog_dir):
+    if ldp.accesslogDBEntry(app_config.replication_dn, accesslog_dir):
         wlogger.log(tid, 'Creating accesslog entry', 'success')
     else:
         wlogger.log(tid, "Creating accesslog entry failed: {0}".format(
@@ -271,7 +274,7 @@ def setupMmrServer(self, server_id):
         wlogger.log(tid, "Creating accesslog purge entry failed: {0}".format(
             ldp.conn.result['description']), "warning")
 
-    if ldp.setLimitOnMainDb():
+    if ldp.setLimitOnMainDb(app_config.replication_dn):
         wlogger.log(
             tid, 'Setting size limit on main database for replicator user',
             'success')
@@ -280,8 +283,7 @@ def setupMmrServer(self, server_id):
                     " user failed: {0}".format(ldp.conn.result['description']),
                     "warning")
 
-    # Fix Me: For non-gluu symas ldapserveri there is no o=gluu base, can't add
-    # replicator user. create replicator user
+
     adminOlc = ldapOLC('ldaps://{}:1636'.format(conn_addr),
                        'cn=directory manager,o=gluu', server.ldap_password)
     r = None
@@ -294,15 +296,14 @@ def setupMmrServer(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
-    wlogger.log(tid, 'Creating replicator user: cn=replicator@{0},o=gluu'.format(
-        server.fqn_hostname))
+    wlogger.log(tid, 'Creating replicator user: '.format(app_config.replication_dn))
 
-    if not adminOlc.addReplicatorUser(server.replicator_password):
+    if not adminOlc.addReplicatorUser(app_config.replication_dn,  app_config.replication_pw):
         if adminOlc.conn.result['description'] == 'entryAlreadyExists':
 
             wlogger.log(tid, 'Replicator user already exists', 'success')
 
-            if adminOlc.changeReplicationUserPassword(server.replicator_password):
+            if adminOlc.changeReplicationUserPassword(app_config.replication_dn, app_config.replication_pw):
                 wlogger.log(tid, 'Replicator password changed', 'success')
             else:
                 wlogger.log(
@@ -314,8 +315,7 @@ def setupMmrServer(self, server_id):
             wlogger.log(tid, "Ending server setup process.", "error")
             return
     else:
-        wlogger.log(tid, 'Replicator user cn=replicator@{0},o=gluu created'.format(
-            server.fqn_hostname), 'success')
+        wlogger.log(tid, 'Replicator user  created'.format(app_config.replication_dn), 'success')
 
         # Fix Me: if replicator user exists, paswword need to be changed.
 
@@ -345,7 +345,7 @@ def setupMmrServer(self, server_id):
             # checking only server_id and access log db, further checks may be
             # required
             if serverStatus["server_id"] and serverStatus["accesslogDB"]:
-                if ldp.addProvider(serverp.id, "ldaps://{0}:1636".format(serverp.fqn_hostname), "cn=replicator@{0},o=gluu".format(serverp.fqn_hostname), serverp.replicator_password):
+                if ldp.addProvider(serverp.id, "ldaps://{0}:1636".format(serverp.fqn_hostname), app_config.replication_dn, app_config.replication_pw):
                     wlogger.log(tid, 'Adding provider {0}'.format(
                         serverp.fqn_hostname), 'success')
                 else:
@@ -368,22 +368,6 @@ def setupMmrServer(self, server_id):
 
     # FIX ME: Add current ldap server as a provider to previously deployed
     # servers.
-
-
-# @celery.task(bind=True)
-# def removeMultiMasterReplicator(self, server_id):
-#     tid = self.request.id
-#
-#     wlogger.log(tid, "Removing Master")
-#
-#     # FIXME The Provider model doesn't exist
-#     ldapc = Provider.query.filter_by(consumer_id=server_id).all()
-#     for c in ldapc:
-#         db.session.delete(c)
-#
-#     mmrs = MultiMaster.query.filter_by(mmr_id=server_id).first()
-#     db.session.delete(mmrs)
-#     db.session.commit()
 
 
 @celery.task(bind=True)
