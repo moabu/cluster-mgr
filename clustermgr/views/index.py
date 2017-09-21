@@ -353,9 +353,10 @@ def multi_master_replication():
     
     appConfigured = False
     
-    if app_config.replication_dn and app_config.replication_pw:
-        appConfigured = True
-    else:
+    if app_config:
+        if app_config.replication_dn and app_config.replication_pw:
+            appConfigured = True
+    if not app_config:
         flash("Repication user and/or password has not been defined. Please goo 'Configuration' and set these before proceed.", "warning")
 
     if 'nongluuldapinfo' in session:

@@ -53,6 +53,7 @@
                             <a href="{{ url_for('index.search_test_users', server_id=server.id) }}"  class="btn btn-default btn-xs">Search Test Users</a>
                             
                         {% else %}
+                            <a class="btn btn-danger btn-xs" href="{{ url_for('cluster.deploy_config', server_id=server.id) }}">Deploy Configuration</a>
                             <a class="btn btn-danger btn-xs" href="{{ url_for('index.remove_multi_master_replicator')}}?server_id={{server.id}}">Remove Master</a>
 
                         {% endif %}
