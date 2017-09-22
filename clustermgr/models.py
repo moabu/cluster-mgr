@@ -11,8 +11,8 @@ class LDAPServer(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # a short identifier for the server
-    name = db.Column(db.String(50))
+    # hostname of the ldap server
+    hostname = db.Column(db.String(150), unique=True)
 
     # ip address of the server
     ip = db.Column(db.String(45))
@@ -55,7 +55,7 @@ class LDAPServer(db.Model):
     gluu_version = db.Column(db.String(10))
 
     def __repr__(self):
-        return '<Server %s:%d>' % (self.ip, self.port)
+        return '<Server %s:%d>' % (self.hostname, self.port)
 
 
 class AppConfiguration(db.Model):
@@ -123,7 +123,8 @@ class OxauthServer(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    ip = db.Column(db.String(45))
+    # hostname for SSH access
+    hostname = db.Column(db.String(255))
     gluu_server = db.Column(db.Boolean(), default=True)
     gluu_version = db.Column(db.String(10), default="3.0.1")
 
@@ -131,7 +132,7 @@ class OxauthServer(db.Model):
     def jks_path(self):
         if not self.gluu_server:
             return "/etc/certs/oxauth-keys.jks"
-        return "/opt/gluu-server-{0}/etc/certs/oxauth-keys.jks".format(self.gluu_version)
+        return "/opt/gluu-server-{}/etc/certs/oxauth-keys.jks".format(self.gluu_version)
 
     @property
     def get_version(self):
@@ -149,7 +150,7 @@ class LoggingServer(db.Model):
     # # RDBMS backend, must be ``mysql`` or ``postgres``
     # db_backend = db.Column(db.String(16))
 
-    # # RDBMS IP address
+    # # RDBMS hostname or IP address
     # db_host = db.Column(db.String(128))
 
     # # RDBMS port
@@ -160,7 +161,7 @@ class LoggingServer(db.Model):
     # # encrypted password; need to decrypt it before using the value
     # db_password = db.Column(db.String(255))
 
-    # # ActiveMQ host IP address
+    # # ActiveMQ hostname or IP address
     # mq_host = db.Column(db.String(128))
 
     # # ActiveMQ port

@@ -11,11 +11,14 @@ class RemoteClient(object):
     """Remote Client is a wrapper over SSHClient with utility functions.
 
     Args:
-        host (string): server host name or IP address
+        host (string): The hostname of the server to connect. It can be an IP
+            address of the server also.
         user (string, optional): The user to connect to the remote server. It
             defaults to root
 
     Attributes:
+        host (string): The hostname passed in as a the argument
+        user (string): The user to connect as to the remote server
         client (:class:`paramiko.client.SSHClient`): The SSHClient object used
             for all the communications with the remote server.
         sftpclient (:class:`paramiko.sftp_client.SFTPClient`): The SFTP object
