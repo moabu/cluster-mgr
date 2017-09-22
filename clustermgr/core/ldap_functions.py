@@ -72,7 +72,7 @@ class ldapOLC(object):
                                                            'olcSuffix': 'cn=accesslog',
                                                            'olcRootDN': 'cn=admin, cn=accesslog',
                                                            'olcRootPW': makeLdapPassword(self.passwd),
-                                                           'olcDbIndex': ['default eq', 'entryCSN,objectClass,reqEnd,reqResult,reqStart'],
+                                                           'olcDbIndex': ['default eq', 'objectClass,entryCSN,entryUUID,reqEnd,reqResult,reqStart'],
                                                            'olcLimits': 'dn.exact="{0}" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited'.format(replicator_dn),
                                                            
                                                        }
@@ -227,7 +227,7 @@ class ldapOLC(object):
     def addProvider(self, rid, raddr, rbinddn, rcredentials):
         host = getHostPort(raddr)[0]
         if host not in self.getProviders():
-            ridText = """rid={0} provider={1} bindmethod=simple binddn="{2}" tls_reqcert=never credentials={3} searchbase="o=gluu" logbase="cn=accesslog" logfilter="(&(objectClass=auditWriteObject)(reqResult=0))" schemachecking=on type=refreshAndPersist retry="60 +" syncdata=accesslog""".format(
+            ridText = """rid={0} provider={1} bindmethod=simple binddn="{2}" tls_reqcert=never credentials={3} searchbase="o=gluu" logbase="cn=accesslog" logfilter="(&(objectClass=auditWriteObject)(reqResult=0))" schemachecking=on type=refreshAndPersist retry="60 +" syncdata=accesslog sizeLimit=unlimited timelimit=unlimited""".format(
                 rid, raddr, rbinddn, rcredentials)
 
             return self.conn.modify('olcDatabase={1}mdb,cn=config',

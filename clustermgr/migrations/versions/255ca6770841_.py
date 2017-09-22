@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 85d04a42bba6
+Revision ID: 255ca6770841
 Revises: 
-Create Date: 2017-09-20 18:54:59.569079
+Create Date: 2017-09-22 19:01:38.374729
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '85d04a42bba6'
+revision = '255ca6770841'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -53,26 +53,6 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('fqn_hostname')
     )
-    op.create_table('ldap_server',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('hostname', sa.String(length=150), nullable=True),
-    sa.Column('ip', sa.String(length=45), nullable=True),
-    sa.Column('port', sa.Integer(), nullable=True),
-    sa.Column('role', sa.String(length=10), nullable=True),
-    sa.Column('protocol', sa.String(length=10), nullable=True),
-    sa.Column('tls_cacert', sa.Text(), nullable=True),
-    sa.Column('tls_servercert', sa.Text(), nullable=True),
-    sa.Column('tls_serverkey', sa.Text(), nullable=True),
-    sa.Column('initialized', sa.Boolean(), nullable=True),
-    sa.Column('setup', sa.Boolean(), nullable=True),
-    sa.Column('admin_pw', sa.String(length=150), nullable=True),
-    sa.Column('provider_id', sa.Integer(), nullable=True),
-    sa.Column('gluu_server', sa.Boolean(), nullable=True),
-    sa.Column('gluu_version', sa.String(length=10), nullable=True),
-    sa.ForeignKeyConstraint(['provider_id'], ['ldap_server.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('hostname')
-    )
     op.create_table('logging_server',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('url', sa.String(length=255), nullable=True),
@@ -95,7 +75,7 @@ def upgrade():
     sa.Column('mmr_id', sa.Integer(), nullable=True),
     sa.Column('replicator', sa.Boolean(), nullable=True),
     sa.Column('config', sa.Text(), nullable=True),
-    sa.ForeignKeyConstraint(['mmr_id'], ['ldap_server.id'], ),
+    sa.ForeignKeyConstraint(['mmr_id'], ['ldapServer.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     # ### end Alembic commands ###
@@ -107,7 +87,6 @@ def downgrade():
     op.drop_table('oxeleven_key_id')
     op.drop_table('oxauth_server')
     op.drop_table('logging_server')
-    op.drop_table('ldap_server')
     op.drop_table('ldapServer')
     op.drop_table('keyrotation')
     op.drop_table('appconfig')
