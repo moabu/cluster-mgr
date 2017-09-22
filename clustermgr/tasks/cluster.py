@@ -1,13 +1,12 @@
 import re
 import os
-import json
 
 from flask import current_app as app
-from ldap3 import Server, Connection, ALL, SUBTREE, MODIFY_ADD, MODIFY_REPLACE
 
 from clustermgr.models import LDAPServer, AppConfiguration
 from clustermgr.extensions import celery, wlogger, db
 from clustermgr.core.remote import RemoteClient
+from clustermgr.core.olc import CnManager
 
 
 def run_command(tid, c, command, container=None):
@@ -79,6 +78,36 @@ def download_file(tid, c, remote, local):
     """
     out = c.download(remote, local)
     wlogger.log(tid, out, 'error' if 'Error' in out else 'success')
+
+
+def get_syncrepl_string(server, appconf):
+    """Function that creates a syncrepl config using the values from server
+    and app config objects.
+
+    Args:
+        server (:obj:`LDAPServer`): an object of the LDAPServer model
+        appconf (:obj:`AppConfiguration`): an object of the app config
+
+    Returns:
+        string containing the syncrepl config
+    """
+    f = open(os.path.join(app.root_path, 'templates', 'slapd',
+                          'syncrepl.conf'))
+    syncreplTemplate = f.read()
+    f.close()
+
+    vals = {'r_id': server.id, 'phost': server.ip, 'pport': server.port,
+            'replication_dn': appconf.replication_dn,
+            'replication_pw': appconf.replication_pw,
+            'pprotocol': server.protocol,
+            }
+    if server.protocol == 'ldaps':
+        vals['pcert'] = 'tls_cacert="/opt/symas/ssl/{0}.crt"'.format(
+            server.hostname)
+    else:
+        vals['pcert'] = ''
+
+    return syncreplTemplate.format(**vals).strip()
 
 
 @celery.task(bind=True)
@@ -228,117 +257,46 @@ def setup_server(self, server_id, conffile):
                     "Running LDAP server in debug mode for troubleshooting")
         run_command(tid, c, "service solserver start -d 1", chdir)
 
-    # Everything is done. Set the flag to based on the messages
-    msgs = wlogger.get_messages(tid)
-    setup_success = True
-    for msg in msgs:
-        setup_success = setup_success and msg['level'] != 'error'
-    server.setup = setup_success
-    db.session.commit()
-
-
-@celery.task(bind=True)
-def copy_syncrepl_from_new_server(self, server_id):
-    server = LDAPServer.query.get(server_id)
+    # 12. Upload the Syncrepl config to all the servers
     appconf = AppConfiguration.query.first()
-    tid = self.request.id
     cnuser = 'cn=admin,cn=config'
     providers = LDAPServer.query.filter_by(role='provider').all()
-
-    c = RemoteClient(server.ip)
-    try:
-        c.startup()
-    except Exception as e:
-        wlogger.log(tid, "Cannot establish SSH connection {0}".format(e),
-                    "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return False
-
-    # Gather all the values necessary for syncrepl.conf
-    vals = {'r_id': server.id, 'phost': server.ip, 'pport': server.port,
-            'replication_dn': appconf.replication_dn,
-            'replication_pw': appconf.replication_pw,
-            'pprotocol': server.protocol,
-            }
-    if server.protocol == 'ldaps':
-        vals['pcert'] = 'tls_cacert="/opt/symas/ssl/{0}.crt"'.format(
-            server.name)
-    else:
-        vals['pcert'] = ''
-
-    f = open(os.path.join(app.root_path, 'templates', 'slapd',
-                          'syncrepl.conf'))
-    syncreplTemplate = f.read()
-    f.close()
-
-    olcSyncrepl = syncreplTemplate.format(**vals).strip()  # generates syncrepl
-    # This is to hold the syncrepl configs from other server to the current
-    # server
+    olcSyncrepl = get_syncrepl_string(server, appconf)
     reverseSyncrepl = []
 
-    # Now propogate that syncrepl config and the server's address across all
-    # servers
+    wlogger.log(tid, "Configuring all the providers to sync with {0}".format(
+        server.hostname))
     for p in providers:
         if p.id == server.id:
             continue
-        # 1. Copy the server certificate to the provider
+        # a. Copy the server certificate to the provider
         local = os.path.join(app.config["CERTS_DIR"],
                              "{0}.crt".format(server.name))
         remote = '/opt/symas/ssl/{0}.crt'.format(server.name)
         upload_file(tid, c, local, remote)
 
-        # 2. Make an ldap3 connection
-        reciever = Server(p.ip)
-        conn = Connection(reciever, user=cnuser, password=p.admin_pw,
-                          auto_bind=True)
-
-        # get all the DB config and pick the o=gluu entry
-        conn.search("cn=config", "(objectclass=olcMdbConfig)",
-                    search_scope=SUBTREE, attributes=['*'])
-        gluu_db_conf = None
-        for entry in conn.entries:
-            if 'o=gluu' in entry.olcSuffix:
-                gluu_db_conf = entry
-                break
-
-        # 3. Put the syncrepl config in place
-        dn = json.loads(gluu_db_conf.entry_to_json())['dn']
-        if conn.modify(dn, {'olcSyncRepl': [(MODIFY_ADD, [olcSyncrepl])]}):
+        # b. Put the syncrepl config in place
+        cnm = CnManager(p.ip, p.port, True, cnuser, p.admin_pw)
+        if cnm.add_olcsyncrepl(olcSyncrepl):
             wlogger.log(tid, 'Syncrepl config added to {0}'.format(p.name),
                         "success")
         else:
+            # TODO Track these failures and write repair routines to fix them
             wlogger.log(tid, 'Syncrepl config adding failed for {0}'.format(
                         p.name), "fail")
-            # TODO Track these failures and write repair routines to fix them
-        conn.unbind()
+            wlogger.log(tid, cnm.recent_result, "debug")
+
+        if len(providers) == 2:  # the second server is added just now
+            cnm.enable_mirrormode()
+        cnm.close()
 
         # Generate the syncrepl for the current server from the provider
-        vals = {'r_id': p.id, 'phost': p.ip, 'pport': p.port,
-                'replication_dn': appconf.replication_dn,
-                'replication_pw': appconf.replication_pw,
-                'pprotocol': p.protocol, 'pcert': ''
-                }
-        if server.protocol == 'ldaps':
-            vals['pcert'] = 'tls_cacert="/opt/symas/ssl/{0}.crt"'.format(
-                server.name)
-        conf = syncreplTemplate.format(**vals).strip()
+        conf = get_syncrepl_string(p, appconf)
         reverseSyncrepl.append(conf)
 
-    # Now copy all the reverse configs to the current server
-    s = Server(server.ip)
-    c = Connection(s, user=cnuser, password=server.admin_pw, auto_bind=True)
-    conn.search("cn=config", "(objectclass=olcMdbConfig)",
-                search_scope=SUBTREE, attributes=['*'])
-    gluu_db_conf = None
-    for entry in conn.entries:
-        if 'o=gluu' in entry.olcSuffix:
-            gluu_db_conf = entry
-            break
-    dn = json.loads(gluu_db_conf.entry_to_json())['dn']
-    conn.modify(dn, {'olcSyncRepl': [(MODIFY_ADD, reverseSyncrepl)]})
-    conn.unbind()
-
-    # Now copy all the certificates
+    # 13. Configure the current server with syncrepl of other providers
+    wlogger.log(tid, "Configuring {0} to sync with all providers".format(
+        server.hostname))
     for p in providers:
         if p.id == server.id:
             continue
@@ -347,4 +305,17 @@ def copy_syncrepl_from_new_server(self, server_id):
         remote = '/opt/symas/ssl/{0}.crt'.format(p.name)
         upload_file(tid, c, local, remote)
 
-    # MMR Done
+    if len(reverseSyncrepl) > 0:
+        cnm_provider = CnManager(server.hostname, server.port, True, cnuser,
+                                 server.admin_pw)
+        cnm_provider.add_olcsyncrepl(reverseSyncrepl)
+        cnm_provider.enable_mirrormode()
+        cnm_provider.close()
+
+    # Everything is done. Set the flag to based on the messages
+    msgs = wlogger.get_messages(tid)
+    setup_success = True
+    for msg in msgs:
+        setup_success = setup_success and msg['level'] != 'error'
+    server.setup = setup_success
+    db.session.commit()
