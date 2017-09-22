@@ -27,7 +27,7 @@ class CnManagerTest(unittest.TestCase):
         self.mgr.conn.modify(self.mgr.gluu_db_dn, mod)
         self.mgr.close()
 
-    def test_add_1_syncrepl_entry(self):
+    def test_1_add_a_syncrepl_entry(self):
         repl = self.repl_template.format(1)
         status = self.mgr.add_olcsyncrepl(repl)
         if not status:
@@ -38,7 +38,7 @@ class CnManagerTest(unittest.TestCase):
                              search_scope=BASE, attributes=['olcSyncRepl'])
         self.assertEqual(len(self.mgr.conn.entries[0].olcSyncRepl), 1)
 
-    def test_add_multiple_syncrepl_entry(self):
+    def test_2_add_multiple_syncrepl_entry(self):
         repls = [self.repl_template.format(i) for i in range(5)]
         for repl in repls:
             self.assertTrue(self.mgr.add_olcsyncrepl(repl))
@@ -47,7 +47,7 @@ class CnManagerTest(unittest.TestCase):
                              search_scope=BASE, attributes=['olcSyncRepl'])
         self.assertEqual(len(self.mgr.conn.entries[0].olcSyncRepl), 5)
 
-    def test_remove_particular_synrepl_entry(self):
+    def test_3_remove_particular_synrepl_entry(self):
         repls = [self.repl_template.format(i) for i in range(5)]
         for repl in repls:
             self.assertTrue(self.mgr.add_olcsyncrepl(repl))
@@ -63,6 +63,26 @@ class CnManagerTest(unittest.TestCase):
                              search_scope=BASE, attributes=['olcSyncRepl'])
         self.assertEqual(len(self.mgr.conn.entries[0].olcSyncRepl), 3)
 
+    def test_4_enable_mirrormode(self):
+        # Set the mirrormode after setting up the syncrepl values
+        repl = self.repl_template.format(1)
+        self.mgr.add_olcsyncrepl(repl)
+        self.mgr.enable_mirrormode()
+
+        self.mgr.conn.search(self.mgr.gluu_db_dn, '(objectclass=*)',
+                             search_scope=BASE, attributes=['olcMirrorMode'])
+        self.assertEqual(self.mgr.conn.entries[0].olcMirrorMode, True)
+
+    def test_5_disable_mirromode(self):
+        # Set the mirrormode after setting up the syncrepl values
+        repl = self.repl_template.format(1)
+        self.mgr.add_olcsyncrepl(repl)
+        self.mgr.enable_mirrormode()
+        self.mgr.disable_mirrormode()
+
+        self.mgr.conn.search(self.mgr.gluu_db_dn, '(objectclass=*)',
+                             search_scope=BASE, attributes=['olcMirrorMode'])
+        self.assertEqual(len(self.mgr.conn.entries[0].olcMirrorMode), 0)
 
 
 if __name__ == '__main__':

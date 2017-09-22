@@ -1,7 +1,8 @@
 """A LDAP3 based module that provides classes to handle manipulation of the
 On-Line Configuration (OLC) of OpenLDAP server.
 """
-from ldap3 import Server, Connection, BASE, SUBTREE, MODIFY_ADD, MODIFY_DELETE
+from ldap3 import Server, Connection, BASE, SUBTREE, MODIFY_ADD, \
+        MODIFY_DELETE, MODIFY_REPLACE
 
 
 class CnManager(object):
@@ -25,13 +26,13 @@ class CnManager(object):
                 self.gluu_db_dn = entry.entry_dn
         return None  # TODO: probably raise an exception and destroy conn
 
-    def add_olcsyncrepl(self, replstring):
+    def add_olcsyncrepl(self, repl):
         """Function adds a olcSyncRepl attribute value to the cn=config
         concerning the o=gluu database.
 
         Args:
-            replstring (string): the string which has the syncrepl config
-                to be added to the server
+            repl (string, list): the string which has the syncrepl config
+                to be added to the server, or a list of syncrepl strings
 
         Returns:
             success or failure of the add operation as True or False
@@ -39,7 +40,10 @@ class CnManager(object):
         if not self.gluu_db_dn:
             self.__get_gluu_db_dn()
 
-        mod = {'olcSyncRepl': [(MODIFY_ADD, [replstring])]}
+        if type(repl) is str:
+            repl = [repl]  # put it in a list to satisfy mod command
+
+        mod = {'olcSyncRepl': [(MODIFY_ADD, repl)]}
         return self.conn.modify(self.gluu_db_dn, mod)
 
     def remove_olcsyncrepl(self, server_id):
@@ -73,3 +77,36 @@ class CnManager(object):
         instant. Would be helpful for debugging errors in case operations fail
         """
         return self.conn.result
+
+    def enable_mirrormode(self):
+        """This function sets the MirrorMode value to TRUE
+        """
+        if not self.gluu_db_dn:
+            self.__get_gluu_db_dn()
+
+        self.conn.search(self.gluu_db_dn, "(objectclass=*)", search_scope=BASE,
+                         attributes=['olcMirrorMode'])
+        entry = self.conn.entries[0]
+
+        if len(entry.olcMirrorMode) == 0:
+            mod = {'olcMirrorMode': [(MODIFY_ADD, [True])]}
+        else:
+            mod = {'olcMirrorMode': [(MODIFY_REPLACE, [True])]}
+
+        return self.conn.modify(self.gluu_db_dn, mod)
+
+    def disable_mirrormode(self):
+        """This function removed the MirrorMode attribute from the entry.
+        """
+        if not self.gluu_db_dn:
+            self.__get_gluu_db_dn()
+
+        self.conn.search(self.gluu_db_dn, "(objectclass=*)", search_scope=BASE,
+                         attributes=['olcMirrorMode'])
+        entry = self.conn.entries[0]
+
+        if len(entry.olcMirrorMode) == 0:
+            return True
+
+        mod = {'olcMirrorMode': [(MODIFY_DELETE, [])]}
+        return self.conn.modify(self.gluu_db_dn, mod)
