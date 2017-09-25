@@ -239,6 +239,7 @@ class ldapOLC(object):
                                 search_scope=SUBTREE, attributes=["*"])
 
     def addTestUser(self,  cn, sn, mail):
+        self.checkBaseDN()
         self.checkTestUserBase()
         uid = '{0}@{1}'.format(time.time(), self.hostname)
         dn = "uid={0},ou=testusers,o=gluu".format(uid)
@@ -285,7 +286,8 @@ class ldapOLC(object):
             for pe in self.conn.response[0]['attributes']['olcSyncrepl']:
                 for e in pe.split():
                     es = e.split("=")
-                    if re.search('\{\d*\}rid',  es[0]):
+                    print e, es
+                    if re.search('(\{\d*\})*rid',  es[0]):
                         pid = es[1]
                     elif es[0] == 'provider':
                         host, port = getHostPort(es[1])
