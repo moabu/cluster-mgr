@@ -21,6 +21,14 @@ class AppConfiguration(db.Model):
     # the result of the last replication test
     last_test = db.Column(db.Boolean)
 
+    # gluu server version
+    gluu_version = db.Column(db.String(10))
+    
+    # primary server
+    primary_server = db.Column(db.Integer, db.ForeignKey("ldapServer.id"))
+    
+    # use ip for replication
+    use_ip_for_replication = db.Column(db.Boolean())
 
 class KeyRotation(db.Model):
     __tablename__ = "keyrotation"
@@ -149,9 +157,6 @@ class LdapServer(db.Model):
 
     # is the LDAP server inside the gluu server chroot container
     gluu_server = db.Column(db.Boolean)
-
-    # gluu server version
-    gluu_version = db.Column(db.String(10))
 
     ldap_user = db.Column(db.String(20))
     ldap_group = db.Column(db.String(20))

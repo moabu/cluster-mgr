@@ -36,10 +36,10 @@ def home():
     gluu_server = 0
     nongluu_server = 0
     for s in ldaps:
-        if s.gluu_version == "-1":
-            nongluu_server += 1
-        else:
+        if s.gluu_server:
             gluu_server += 1
+        else:
+            nongluu_server += 1
 
     data = {"ldapservers": ldaps, 'nongluu_server': nongluu_server,
             'gluu_server': gluu_server}
@@ -54,6 +54,31 @@ def app_configuration():
     config = AppConfiguration.query.first()
     schemafiles = os.listdir(app.config['SCHEMA_DIR'])
 
+    ldaps = LdapServer.query.all()
+
+    conf_form.primary_server.choices=[]
+    
+    for ldp in ldaps:
+        conf_form.primary_server.choices.append((str(ldp.id), ldp.fqn_hostname))
+
+    if not ldaps:
+        flash("Please go to Dahsboard and add LDAP Servers.", "warning")
+
+    if request.method == "GET":
+        
+        if config:
+        
+            if config.gluu_version:
+                conf_form.gluu_version.default = config.gluu_version
+            
+            if config.primary_server:
+                conf_form.primary_server.default = config.primary_server
+            
+            if config.primary_server:
+                conf_form.use_ip_for_replication.default = config.use_ip_for_replication
+                
+            conf_form.process()
+        
     if conf_form.update.data and conf_form.validate_on_submit():
         if not config:
             config = AppConfiguration()
@@ -61,7 +86,10 @@ def app_configuration():
             conf_form.replication_dn.data)
         config.replication_pw = conf_form.replication_pw.data
         config.certificate_folder = conf_form.certificate_folder.data
-
+        config.primary_server = int(conf_form.primary_server.data)
+        config.gluu_version = conf_form.gluu_version.data
+        config.use_ip_for_replication = conf_form.use_ip_for_replication.data
+        
         db.session.add(config)
         db.session.commit()
         flash("Gluu Replication Manager application configuration has been "
@@ -228,7 +256,6 @@ def edit_ldap_server(server_id):
             form.ip_address.data = ldpsi.ip_address
             form.ldap_user.data = ldpsi.ldap_user
             form.ldap_group.data = ldpsi.ldap_group
-            form.gluu_version.data = ldpsi.gluu_version
             form.ldap_password.data = ldpsi.ldap_password
         else:
 
@@ -249,14 +276,12 @@ def edit_ldap_server(server_id):
                         form.fqn_hostname.data), "warning")
                     return render_template('ldap_server.html', form=form, data=data)
 
-            ldps.gluu_version = form.gluu_version.data
+            ldps.gluu_server = True
             ldps.fqn_hostname = form.fqn_hostname.data
             ldps.ip_address = form.ip_address.data
             ldps.ldap_password = form.ldap_password.data
             ldps.ldap_user = form.ldap_user.data
             ldps.ldap_group = form.ldap_group.data
-
-            print "IP ADDR", ldps.ip_address, form.ip_address.data
 
             if int(server_id) < 0:
                 db.session.add(ldps)
@@ -308,12 +333,16 @@ def install_ldap_server():
 
 @index.route('/server/<int:server_id>/remove/')
 def remove_server(server_id):
+    
     ldpsi = LdapServer.query.filter_by(id=server_id).first()
-    db.session.delete(ldpsi)
-    db.session.commit()
+    
+    if not server_id in get_mmr_list():
+        db.session.delete(ldpsi)
+        db.session.commit()
 
-    flash("Ldap Server {0} is removed.".format(ldpsi.fqn_hostname), "warning")
-
+        flash("Ldap Server {0} is removed.".format(ldpsi.fqn_hostname), "success")
+    else:
+        flash("Ldap Server {0} is a member of multi master replication. Can't delete.".format(ldpsi.fqn_hostname), "warning")
     return redirect(url_for('index.home'))
 
 

@@ -286,7 +286,6 @@ class ldapOLC(object):
             for pe in self.conn.response[0]['attributes']['olcSyncrepl']:
                 for e in pe.split():
                     es = e.split("=")
-                    print e, es
                     if re.search('(\{\d*\})*rid',  es[0]):
                         pid = es[1]
                     elif es[0] == 'provider':

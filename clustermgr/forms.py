@@ -51,14 +51,28 @@ class NewConsumerForm(FlaskForm):
 
 
 class AppConfigForm(FlaskForm):
+    
+    gluu_version = SelectField('Gluu Server Version', choices=[('3.1.1', '3.1.1'), (
+        '3.1.0', '3.1.0'), ('3.0.2', '3.0.2'), ('3.0.1', '3.0.1')])
+    
+    primary_server = SelectField('Primary Server')
+    
+    use_ip_for_replication = BooleanField('Use IP for replication')
+    
     replication_dn = StringField('Replication Manager DN', validators=[
         DataRequired(), Regexp(
             '^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$',
             message="Only alphabets and space allowed; cannot end with space.")])  # noqa
-    replication_pw = PasswordField('Replication Manager Password',
+    
+    replication_pw = StringField('Replication Manager Password',
                                    validators=[DataRequired()])
+    
+    
     certificate_folder = StringField('Certificate Folder')
+    
+    
     update = SubmitField("Update Configuration")
+    
 
 
 class SchemaForm(FlaskForm):
@@ -123,8 +137,8 @@ class LoggingServerForm(FlaskForm):
 
 
 class LdapServerForm(FlaskForm):
-    gluu_version = SelectField('Gluu Server Version', choices=[('3.1.1', '3.1.1'), (
-        '3.1.0', '3.1.0'), ('3.0.2', '3.0.2'), ('3.0.1', '3.0.1'), ('-1', 'non-gluu')])
+    #gluu_version = SelectField('Gluu Server Version', choices=[('3.1.1', '3.1.1'), (
+    #    '3.1.0', '3.1.0'), ('3.0.2', '3.0.2'), ('3.0.1', '3.0.1'), ('-1', 'non-gluu')])
     fqn_hostname = StringField('Hostname *', validators=[DataRequired()])
     ip_address = StringField(
         'IP Address *', validators=[DataRequired(), IPAddress()])

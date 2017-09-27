@@ -65,7 +65,7 @@
             <th>Server ID</th>
             <th>Hostname</th>
             <th>IP Address</th>
-            <th>Gluu Version</th>
+            <th>Gluu Server</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -75,7 +75,7 @@
             <td>{{ server.id }}</td>
             <td>{{ server.fqn_hostname }}</td>
             <td>{{ server.ip_address }}</td>
-            <td>{% if server.gluu_version=='-1' %}Non Gluu Server{% else %}{{ server.gluu_version }}{% endif %}</td>
+            <td>{% if server.gluu_server %} <span class="glyphicon glyphicon-ok"></span>{% endif %}</td>
             
             <td>
   

@@ -9,6 +9,45 @@
   <div class="panel-body">
     <form id="cform" action="{{ url_for('index.app_configuration', next=next) }}" method="POST">
         {{ cform.csrf_token }}
+
+
+      <div class="form-group {{ 'has-error' if cform.gluu_version.errors else '' }}">
+        {{ cform.gluu_version.label(class="control-label") }}
+        <p class="help-block">Same Gluu Server versions can be replicated. Select version of your servers.</p>
+        <div class="input-group">
+            {{ cform.gluu_version(class="form-control") }}
+        </div>
+      {% for error in cform.gluu_version.errors %}
+        <p class="help-block">{{ error }}</p>
+      {% endfor %}
+      </div>
+      
+      
+      <div class="form-group">
+        {{ cform.use_ip_for_replication.label(class="control-label") }}
+        <p class="help-block">Mark this field if you want to use IP address instead of hostname for replication.</p>
+        <div class="input-group">
+            {{ cform.use_ip_for_replication(class="form-control") }}
+        </div>
+      </div>
+      
+      
+      <div class="form-group {{ 'has-error' if cform.primary_server.errors else '' }}">
+        {{ cform.primary_server.label(class="control-label") }}
+        <p class="help-block">Select your primary Server. Data on other servers will be purged, INUM of primary server will be copied to others.</p>
+        <div class="input-group">
+            {{ cform.primary_server(class="form-control") }}
+        </div>
+      {% for error in cform.primary_server.errors %}
+        <p class="help-block">{{ error }}</p>
+      {% endfor %}
+      </div>
+      
+      
+      
+      
+      
+      
       <div class="form-group {{ 'has-error' if cform.replication_dn.errors else '' }}">
         {{ cform.replication_dn.label(class="control-label") }}
         <p class="help-block">This DN (e.g., cn=replicator,o=gluu) will be used by all consumers to authenticate with providers.</p>
@@ -20,7 +59,10 @@
       {% for error in cform.replication_dn.errors %}
         <p class="help-block">{{ error }}</p>
       {% endfor %}
-    </div>
+      </div>
+      
+      
+      
     {{ render_field(cform.replication_pw) }}
 
     {{ render_field(cform.certificate_folder, placeholder="/etc/certs", help="Location of SSL certificates for Replication Manager to use.") }}
