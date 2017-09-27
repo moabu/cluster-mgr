@@ -26,8 +26,9 @@ class RemoteClient(object):
             for all the file transfer operations over the SSH.
     """
 
-    def __init__(self, host, user='root'):
+    def __init__(self, host, ip=None, user='root'):
         self.host = host
+        self.ip = ip
         self.user = user
         self.client = SSHClient()
         self.sftpclient = None
@@ -36,10 +37,16 @@ class RemoteClient(object):
 
     def startup(self):
         """Function that starts SSH connection and makes client available for
-        carrying out the functions.
+        carrying out the functions. It tries with the hostname, if it fails
+        it tries with the IP address if supplied
         """
-        self.client.connect(self.host, port=22, username=self.user)
-        self.sftpclient = self.client.open_sftp()
+        try:
+            self.client.connect(self.host, port=22, username=self.user)
+            self.sftpclient = self.client.open_sftp()
+        except:
+            if self.ip:
+                self.client.connect(self.ip, port=22, username=self.user)
+                self.sftpclient = self.client.open_sftp()
 
     def download(self, remote, local):
         """Downloads a file from remote server to the local system.
@@ -122,8 +129,7 @@ class RemoteClient(object):
 
         return tuple(output)
 
-    # MB
-    def putFile(self,  filename, filecontent):
+    def put_file(self,  filename, filecontent):
         """Puts content to a file on remote server
 
         Args:
@@ -134,9 +140,6 @@ class RemoteClient(object):
             tuple: True/False, file size / error
 
         """
-        #renameFile(server, filename, filename+'.%d' % time.time())
-
-        # write content to IO File
         f = StringIO.StringIO()
         f.write(filecontent)
         f.seek(0)
@@ -147,37 +150,12 @@ class RemoteClient(object):
         except Exception as err:
             return False, err
 
-    def mkDir(self,  dirname):
+    def mkdir(self,  dirname):
         try:
             self.sftpclient.mkdir(dirname)
             return True, dirname
         except Exception as err:
             return False, err
-
-    """
-
-    def chownFile(server, chroot, filenme, user, group):
-        cmd = "chroot {} chown {}.{} {}".format(chroot, user, group, filenme)
-        print cmd
-        server['ssh'].exec_command(cmd)
-
-    def chmodFile(server, filenme, mode):
-        server['sftp'].chmod(filenme, mode)
-
-    def mkDir(server, dirname):
-        try:
-            server['sftp'].mkdir(dirname)
-        except:
-            pass
-
-    def renameFile(server, filenme, newfilename):
-        try:
-            server['sftp'].rename(filenme, newfilename)
-        except:
-            pass
-
-
-"""
 
     def close(self):
         """Close the SSH Connection

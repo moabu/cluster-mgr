@@ -84,9 +84,8 @@ def setupMmrServer(self, server_id):
     tid = self.request.id
     gluu = False
     server = LdapServer.query.get(server_id)
-
+    conn_addr = server.fqn_hostname
     app_config = AppConfiguration.query.first()
-
 
     if not server:
         wlogger.log(tid, "Server is not on database", "error")
@@ -102,26 +101,17 @@ def setupMmrServer(self, server_id):
 
     wlogger.log(tid, "Making SSH connection to the server %s" %
                 server.fqn_hostname)
-    c = RemoteClient(server.fqn_hostname)
-
-    conn_addr = server.fqn_hostname
-
+    c = RemoteClient(server.fqn_hostname, ip=server.ip_address)
     try:
         c.startup()
     except Exception as e:
         wlogger.log(
             tid, "Cannot establish SSH connection {0}".format(e), "warning")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return False
 
-        wlogger.log(tid, "Retrying with the IP address")
-        c = RemoteClient(server.ip_address)
-        conn_addr = server.ip_address
-        try:
-            c.startup()
-        except Exception as e:
-            wlogger.log(
-                tid, "Cannot establish SSH connection {0}".format(e), "error")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return False
+    # FIXME This check is bogus. If chroot was set to '/' in 96 this check
+    # would pass. But the server will not be a gluu server
     if gluu:
         # check if remote is gluu server
         if c.exists(chroot):
@@ -157,7 +147,7 @@ def setupMmrServer(self, server_id):
 
     confile_content = confile_content.format(**vals)
 
-    r = c.putFile(os.path.join(
+    r = c.put_file(os.path.join(
         chroot, 'opt/symas/etc/openldap/symas-openldap.conf'), confile_content)
 
     if r[0]:
@@ -283,7 +273,6 @@ def setupMmrServer(self, server_id):
                     " user failed: {0}".format(ldp.conn.result['description']),
                     "warning")
 
-
     adminOlc = ldapOLC('ldaps://{}:1636'.format(conn_addr),
                        'cn=directory manager,o=gluu', server.ldap_password)
     r = None
@@ -296,7 +285,8 @@ def setupMmrServer(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
-    wlogger.log(tid, 'Creating replicator user: '.format(app_config.replication_dn))
+    wlogger.log(tid, 'Creating replicator user: '.format(
+        app_config.replication_dn))
 
     if not adminOlc.addReplicatorUser(app_config.replication_dn,  app_config.replication_pw):
         if adminOlc.conn.result['description'] == 'entryAlreadyExists':
@@ -315,7 +305,8 @@ def setupMmrServer(self, server_id):
             wlogger.log(tid, "Ending server setup process.", "error")
             return
     else:
-        wlogger.log(tid, 'Replicator user  created'.format(app_config.replication_dn), 'success')
+        wlogger.log(tid, 'Replicator user  created'.format(
+            app_config.replication_dn), 'success')
 
         # Fix Me: if replicator user exists, paswword need to be changed.
 
@@ -382,23 +373,16 @@ def removeMultiMasterDeployement(self, server_id):
 
     wlogger.log(tid, "Making SSH connection to the server %s" %
                 server.fqn_hostname)
-    c = RemoteClient(server.fqn_hostname)
+    c = RemoteClient(server.fqn_hostname, ip=server.ip_address)
 
     try:
         c.startup()
     except Exception as e:
         wlogger.log(
             tid, "Cannot establish SSH connection {0}".format(e), "warning")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return False
 
-        wlogger.log(tid, "Retrying with the IP address")
-        c = RemoteClient(server.ip_address)
-        try:
-            c.startup()
-        except Exception as e:
-            wlogger.log(
-                tid, "Cannot establish SSH connection {0}".format(e), "error")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return False
     if server.gluu_version != "-1":
         # check if remote is gluu server
         if c.exists(chroot):
@@ -438,7 +422,7 @@ def removeMultiMasterDeployement(self, server_id):
 
     confile_content = confile_content.format(**vals)
 
-    r = c.putFile(os.path.join(
+    r = c.put_file(os.path.join(
         chroot, 'opt/symas/etc/openldap/symas-openldap.conf'), confile_content)
 
     if r[0]:
@@ -450,7 +434,7 @@ def removeMultiMasterDeployement(self, server_id):
         return
 
     run_command(tid, c, "chown -R {0}.{1} /opt/symas/etc/openldap".format(
-            server.ldap_user, server.ldap_group), chroot)
+        server.ldap_user, server.ldap_group), chroot)
 
     # Restart the solserver with slapd.conf configuration
     wlogger.log(tid, "Restarting LDAP server with slapd.conf configuration")
@@ -471,23 +455,15 @@ def InstallLdapServer(self, ldap_info):
 
     wlogger.log(tid, "Making SSH connection to the server %s" %
                 ldap_info['fqn_hostname'])
-    c = RemoteClient(ldap_info['fqn_hostname'])
+    c = RemoteClient(ldap_info['fqn_hostname'], ip=ldap_info['ip_address'])
 
     try:
         c.startup()
     except Exception as e:
         wlogger.log(
             tid, "Cannot establish SSH connection {0}".format(e), "warning")
-
-        wlogger.log(tid, "Retrying with the IP address")
-        c = RemoteClient(ldap_info['ip_address'])
-        try:
-            c.startup()
-        except Exception as e:
-            wlogger.log(
-                tid, "Cannot establish SSH connection {0}".format(e), "error")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return False
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return False
 
     # check if debian clone
     if c.exists('/usr/bin/dpkg'):
@@ -568,8 +544,8 @@ def InstallLdapServer(self, ldap_info):
     gluu_slapd_conf_file_content = gluu_slapd_conf_file_content.replace(
         "{#ROOTPW#}", hashpw)
 
-    r = c.putFile("/opt/symas/etc/openldap/slapd.conf",
-                  gluu_slapd_conf_file_content)
+    r = c.put_file("/opt/symas/etc/openldap/slapd.conf",
+                   gluu_slapd_conf_file_content)
 
     if r[0]:
         wlogger.log(tid, 'slapd.conf file uploaded', 'success')
@@ -663,8 +639,8 @@ def InstallLdapServer(self, ldap_info):
 
     confile_content = confile_content.format(**vals)
 
-    r = c.putFile('/opt/symas/etc/openldap/symas-openldap.conf',
-                  confile_content)
+    r = c.put_file('/opt/symas/etc/openldap/symas-openldap.conf',
+                   confile_content)
 
     if r[0]:
         wlogger.log(tid, 'symas-openldap.conf file uploaded', 'success')

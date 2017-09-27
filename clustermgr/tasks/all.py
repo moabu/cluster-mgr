@@ -157,11 +157,11 @@ def _rotate_keys(kr, javalibs_dir, jks_path):
         if kr.type == "jks":
             from clustermgr.core.remote import RemoteClient
             for server in OxauthServer.query:
-                c = RemoteClient(server.ip)
+                c = RemoteClient(server.hostname)
                 try:
                     c.startup()
                 except Exception:
-                    print "Couldn't connect to server %s. Can't copy JKS" % server.ip
+                    print "Couldn't connect to server %s. Can't copy JKS" % server.hostname
                     continue
                 c.upload(jks_path, server.jks_path)
                 c.close()
