@@ -513,18 +513,17 @@ def add_provider_to_consumer(consumer_id, provider_id):
 
     if ldp:
         provider = Server.query.get(provider_id)
-        status = ldp.addProvider(
-            provider.id, "ldaps://{0}:1636".format(provider.hostname),
-            app_config.replication_dn, app_config.replication_pw)
 
-        if status:
         if app_config.use_ip_for_replication:
             p_addr = provider.ip_address
         else:
-            p_addr = provider.fqn_hostname
+            p_addr = provider.hostname
 
+        status = ldp.addProvider(
+            provider.id, "ldaps://{0}:1636".format(p_addr),
+            app_config.replication_dn, app_config.replication_pw)
 
-        if ldp.addProvider(provider.id, "ldaps://{0}:1636".format(p_addr), app_config.replication_dn, app_config.replication_pw):
+        if status:
             flash("Provider {0} was added to {1}".format(
                 provider.hostname, server.hostname), "success")
         else:
