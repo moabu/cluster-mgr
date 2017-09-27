@@ -93,10 +93,10 @@ def setupMmrServer(self, server_id):
         return False
 
     tid = self.request.id
-    if server.gluu_version == "-1":
+    if not server.gluu_server:
         chroot = '/'
     else:
-        chroot = '/opt/gluu-server-' + server.gluu_version
+        chroot = '/opt/gluu-server-' + app_config.gluu_version
         gluu = True
 
     wlogger.log(tid, "Making SSH connection to the server %s" %
@@ -285,30 +285,29 @@ def setupMmrServer(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
+
     wlogger.log(tid, 'Creating replicator user: '.format(
         app_config.replication_dn))
 
-    if not adminOlc.addReplicatorUser(app_config.replication_dn,  app_config.replication_pw):
-        if adminOlc.conn.result['description'] == 'entryAlreadyExists':
 
-            wlogger.log(tid, 'Replicator user already exists', 'success')
-
-            if adminOlc.changeReplicationUserPassword(app_config.replication_dn, app_config.replication_pw):
-                wlogger.log(tid, 'Replicator password changed', 'success')
-            else:
-                wlogger.log(
-                    tid, 'Chaning replicator password failed', 'warning')
+    if adminOlc.checkReplicationUser(app_config.replication_dn):
+        wlogger.log(tid, 'Replicator user already exists', 'success')
+        if adminOlc.changeReplicationUserPassword(app_config.replication_dn, app_config.replication_pw):
+            wlogger.log(tid, 'Replicator password changed', 'success')
         else:
-
+            wlogger.log(
+                    tid, 'Changing replicator password failed', 'warning')
+    else:
+        if not adminOlc.addReplicatorUser(app_config.replication_dn,  app_config.replication_pw):
             wlogger.log(tid, "Creating replicator user failed: {0}".format(
                 adminOlc.conn.result['description']), "warning")
             wlogger.log(tid, "Ending server setup process.", "error")
             return
-    else:
-        wlogger.log(tid, 'Replicator user  created'.format(
-            app_config.replication_dn), 'success')
 
-        # Fix Me: if replicator user exists, paswword need to be changed.
+        else:
+            wlogger.log(tid, 'Replicator user  created'.format(
+                app_config.replication_dn), 'success')
+
 
     # Adding providers
     providers = MultiMaster.query.filter(MultiMaster.mmr_id != server.id).filter(
@@ -317,6 +316,7 @@ def setupMmrServer(self, server_id):
     for p in providers:
 
         serverp = LdapServer.query.get(p.mmr_id)
+        
         ldpp = ldapOLC('ldaps://{}:1636'.format(serverp.fqn_hostname),
                        "cn=config", serverp.ldap_password)
         r = None
@@ -336,7 +336,13 @@ def setupMmrServer(self, server_id):
             # checking only server_id and access log db, further checks may be
             # required
             if serverStatus["server_id"] and serverStatus["accesslogDB"]:
-                if ldp.addProvider(serverp.id, "ldaps://{0}:1636".format(serverp.fqn_hostname), app_config.replication_dn, app_config.replication_pw):
+                
+                if app_config.use_ip_for_replication:
+                    p_addr = serverp.ip_address
+                else:
+                    p_addr = serverp.fqn_hostname
+                
+                if ldp.addProvider(serverp.id, "ldaps://{0}:1636".format(p_addr), app_config.replication_dn, app_config.replication_pw):
                     wlogger.log(tid, 'Adding provider {0}'.format(
                         serverp.fqn_hostname), 'success')
                 else:
@@ -366,10 +372,11 @@ def removeMultiMasterDeployement(self, server_id):
 
     server = LdapServer.query.get(server_id)
     tid = self.request.id
-    if server.gluu_version == "-1":
+    app_config = AppConfiguration.query.first()
+    if not server.gluu_server:
         chroot = '/'
     else:
-        chroot = '/opt/gluu-server-' + server.gluu_version
+        chroot = '/opt/gluu-server-' + app_config.gluu_version
 
     wlogger.log(tid, "Making SSH connection to the server %s" %
                 server.fqn_hostname)
@@ -383,7 +390,7 @@ def removeMultiMasterDeployement(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
         return False
 
-    if server.gluu_version != "-1":
+    if server.gluu_server:
         # check if remote is gluu server
         if c.exists(chroot):
             wlogger.log(tid, 'Checking if remote is gluu server', 'success')

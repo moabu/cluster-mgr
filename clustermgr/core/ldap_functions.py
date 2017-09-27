@@ -1,5 +1,8 @@
 from ldap3 import Server, Connection, SUBTREE, BASE, LEVEL, \
         MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
+
+from clustermgr.models import LdapServer
+
 import re
 import time
 import hashlib
@@ -20,6 +23,16 @@ def getHostPort(addr):
     m = re.search('(?:ldap.*://)?(?P<host>[^:/ ]+).?(?P<port>[0-9]*).*',  addr)
     return m.group('host'), m.group('port')
 
+
+def get_hostname_by_ip(ipaddr):
+    ldp = LdapServer.query.filter_by(ip_address=ipaddr).first()
+    if ldp:
+        return ldp.fqn_hostname
+
+def get_ip_by_hostname(hostname):
+    ldp = LdapServer.query.filter_by(fqn_hostname=hostname).first()
+    if ldp:
+        return ldp.ip_address
 
 class ldapOLC(object):
 
@@ -290,7 +303,12 @@ class ldapOLC(object):
                         pid = es[1]
                     elif es[0] == 'provider':
                         host, port = getHostPort(es[1])
-                pDict[host] = (pid, port)
+                        dkey = host
+                        if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$",host):
+                            dkey = get_hostname_by_ip(host)
+                        
+                        
+                pDict[dkey] = (pid, port, host)
 
         return pDict
 
@@ -321,13 +339,18 @@ class ldapOLC(object):
         main_db_dn = self.getMainDbDN()
         return self.conn.modify(main_db_dn, {'olcLimits': [MODIFY_ADD, 'dn.exact="{0}" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited'.format(replicator_dn)]})
 
+
+    def checkReplicationUser(self, replicator_dn):
+        return self.conn.search(replicator_dn, search_filter='(objectClass=*)', search_scope=BASE)
+
     def addReplicatorUser(self, replicator_dn, passwd):
         self.checkBaseDN()
         enc_passwd = makeLdapPassword(passwd)
         m=re.search('cn=(?P<cn>\w+),o=gluu', 'cn=replicator,o=gluu')
         cn=m.group('cn')
-        if not self.conn.search(replicator_dn, search_filter='(objectClass=*)', search_scope=BASE):
-            self.conn.add(replicator_dn,
+        print cn, replicator_dn 
+        if not self.checkReplicationUser(replicator_dn):
+            return self.conn.add(replicator_dn,
                           attributes={'objectClass': ['top', 'inetOrgPerson'],
                                       'cn': cn,
                                       'sn': 'replicator',
@@ -335,8 +358,6 @@ class ldapOLC(object):
                                       'userpassword': enc_passwd,
                                       }
                           )
-        if self.conn.result['description'] == 'success':
-            return True
 
     def changeReplicationUserPassword(self, replicator_dn, passwd):
         enc_passwd = makeLdapPassword(passwd)

@@ -219,9 +219,6 @@ def get_log(task_id):
     return jsonify(log)
 
 
-# MB
-
-
 def getLdapConn(addr, dn, passwd):
     ldp = ldapOLC('ldaps://{}:1636'.format(addr), dn, passwd)
     r = None
@@ -386,7 +383,9 @@ def multi_master_replication():
         if app_config.replication_dn and app_config.replication_pw:
             appConfigured = True
     if not app_config:
-        flash("Repication user and/or password has not been defined. Please goo 'Configuration' and set these before proceed.", "warning")
+        flash(("Repication user and/or password has not been defined. "
+               "Please go 'Configuration' and set these before proceed."),
+                "warning")
 
     if 'nongluuldapinfo' in session:
         del session['nongluuldapinfo']
@@ -417,8 +416,9 @@ def multi_master_replication():
                     ldp.fqn_hostname), "warning")
 
             if r:
-                serverStats[ldp.fqn_hostname] = s.getMMRStatus()
-
+                sstat = s.getMMRStatus()
+                if sstat['server_id']:
+                    serverStats[ldp.fqn_hostname] = sstat
 
     if not appConfigured:
         addServerButton = False
@@ -550,7 +550,13 @@ def add_provider_to_consumer(consumer_id, provider_id):
 
         provider = LdapServer.query.get(provider_id)
 
-        if ldp.addProvider(provider.id, "ldaps://{0}:1636".format(provider.fqn_hostname), app_config.replication_dn, app_config.replication_pw):
+        if app_config.use_ip_for_replication:
+            p_addr = provider.ip_address
+        else:
+            p_addr = provider.fqn_hostname
+
+
+        if ldp.addProvider(provider.id, "ldaps://{0}:1636".format(p_addr), app_config.replication_dn, app_config.replication_pw):
             flash("Provider {0} was added to {1}".format(
                 provider.fqn_hostname, server.fqn_hostname), "success")
         else:

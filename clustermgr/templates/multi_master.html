@@ -24,12 +24,12 @@
                 <td>{{ server.fqn_hostname }}</td>
                 <td>{{ server.ip_address }}</td>
                 
-                <!-- provders -->
+                <!-- providers -->
                 
                 <td>
                     {% if server.fqn_hostname in serverStats %}
                         {% for p in serverStats[server.fqn_hostname]['providers'] %}
-                            <li>{{ serverStats[server.fqn_hostname]['providers'][p][0] }} &nbsp;{{ p }}:{{ serverStats[server.fqn_hostname]['providers'][p][1] }} <a class="btn btn-danger btn-xs" href="{{ url_for('index.remove_provider_from_consumer', consumer_id=server.id, provider_addr=p) }}">Remove</a></li>
+                            <li>{{ serverStats[server.fqn_hostname]['providers'][p][0] }} &nbsp;{{ p }}:{{ serverStats[server.fqn_hostname]['providers'][p][1] }} <a class="btn btn-danger btn-xs" href="{{ url_for('index.remove_provider_from_consumer', consumer_id=server.id, provider_addr=serverStats[server.fqn_hostname]['providers'][p][2]) }}">Remove</a></li>
                         {% endfor %}
                     {% endif %}
                     {% if server.fqn_hostname in serverStats %}
@@ -41,7 +41,7 @@
                     {% endif %}
                 </td>
                 
-                <!-- provders end -->
+                <!-- providers end -->
                 
                 <td> 
                     
