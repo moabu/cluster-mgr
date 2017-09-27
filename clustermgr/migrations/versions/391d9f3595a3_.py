@@ -1,4 +1,4 @@
-"""empty message
+"""adds primary server and others to appconfig
 
 Revision ID: 391d9f3595a3
 Revises: 255ca6770841

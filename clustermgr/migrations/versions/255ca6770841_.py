@@ -1,7 +1,7 @@
-"""empty message
+"""initial version
 
 Revision ID: 255ca6770841
-Revises: 
+Revises:
 Create Date: 2017-09-22 19:01:38.374729
 
 """

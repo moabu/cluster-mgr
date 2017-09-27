@@ -23,12 +23,13 @@ class AppConfiguration(db.Model):
 
     # gluu server version
     gluu_version = db.Column(db.String(10))
-    
+
     # primary server
     primary_server = db.Column(db.Integer, db.ForeignKey("ldapServer.id"))
-    
+
     # use ip for replication
     use_ip_for_replication = db.Column(db.Boolean())
+
 
 class KeyRotation(db.Model):
     __tablename__ = "keyrotation"
