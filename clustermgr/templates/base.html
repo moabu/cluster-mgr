@@ -45,10 +45,11 @@
         <div class="col-sm-3 col-md-2 sidebar">
           <ul class="nav nav-sidebar">
             <li><a href="/">Dashboard</a></li>
-            <li><a href="{{ url_for('index.multi_master_replication') }}">Multi Master Replication</a></li>
-            <li><a href="{{ url_for('index.app_configuration') }}">Configuration</a></li>
+            <li><a href="{{ url_for('index.multi_master_replication') }}">LDAP Replication</a></li>
+            <li><a href="{{ url_for('cache_mgr.index') }}">Cache Management</a></li>
             <li><a href="{{ url_for('index.key_rotation') }}">oxAuth Key Rotation</a></li>
             <li><a href="{{ url_for('logserver.logging_server') }}">oxAuth Logging</a></li>
+            <li><a href="{{ url_for('index.app_configuration') }}">Configuration</a></li>
           </ul>
         </div>
         <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
