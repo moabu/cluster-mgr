@@ -3,7 +3,7 @@
 import os
 
 from flask import current_app as app
-from clustermgr.models import LdapServer, MultiMaster, AppConfiguration
+from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import celery, wlogger, db
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import ldapOLC, makeLdapPassword
@@ -83,8 +83,8 @@ def setupMmrServer(self, server_id):
 
     tid = self.request.id
     gluu = False
-    server = LdapServer.query.get(server_id)
-    conn_addr = server.fqn_hostname
+    server = Server.query.get(server_id)
+    conn_addr = server.hostname
     app_config = AppConfiguration.query.first()
 
     if not server:
@@ -100,8 +100,8 @@ def setupMmrServer(self, server_id):
         gluu = True
 
     wlogger.log(tid, "Making SSH connection to the server %s" %
-                server.fqn_hostname)
-    c = RemoteClient(server.fqn_hostname, ip=server.ip_address)
+                server.hostname)
+    c = RemoteClient(server.hostname, ip=server.ip)
     try:
         c.startup()
     except Exception as e:
@@ -141,8 +141,6 @@ def setupMmrServer(self, server_id):
 
     vals = {'HOST_LIST': HOST_LIST,
             'EXTRA_SLAPD_ARGS': EXTRA_SLAPD_ARGS,
-            'SLAPD_GROUP': server.ldap_user,
-            'SLAPD_USER': server.ldap_group,
             }
 
     confile_content = confile_content.format(**vals)
@@ -168,14 +166,12 @@ def setupMmrServer(self, server_id):
     run_command(tid, c, "/opt/symas/bin/slaptest -f /opt/symas/etc/openldap/"
                 "slapd.conf -F /opt/symas/etc/openldap/slapd.d", chroot)
     run_command(
-        tid, c, "chown -R {0}.{1} /opt/symas/etc/openldap/slapd.d".format(
-            server.ldap_user, server.ldap_group), chroot)
+        tid, c, "chown -R ldap:ldap /opt/symas/etc/openldap/slapd.d", chroot)
 
     if not c.exists(chroot + accesslog_dir):
         run_command(tid, c, "mkdir {0}".format(accesslog_dir), chroot)
 
-    run_command(tid, c, "chown -R {0}.{1} {2}".format(
-        server.ldap_user, server.ldap_group, accesslog_dir), chroot)
+    run_command(tid, c, "chown -R ldap:ldap {0}".format(accesslog_dir), chroot)
 
     # Restart the solserver with the new OLC configuration
     wlogger.log(tid, "Restarting LDAP server with OLC configuration")
@@ -285,57 +281,56 @@ def setupMmrServer(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
-
-    wlogger.log(tid, 'Creating replicator user: '.format(
+    wlogger.log(tid, 'Creating replicator user: {0}'.format(
         app_config.replication_dn))
 
+    if adminOlc.addReplicatorUser(app_config.replication_dn,
+                                  app_config.replication_pw):
+        wlogger.log(tid, 'Replicator user created.', 'success')
 
-    if adminOlc.checkReplicationUser(app_config.replication_dn):
+    elif adminOlc.conn.result['description'] == 'entryAlreadyExists':
         wlogger.log(tid, 'Replicator user already exists', 'success')
-        if adminOlc.changeReplicationUserPassword(app_config.replication_dn, app_config.replication_pw):
+        if adminOlc.changeReplicationUserPassword(app_config.replication_dn,
+                                                  app_config.replication_pw):
             wlogger.log(tid, 'Replicator password changed', 'success')
         else:
-            wlogger.log(
-                    tid, 'Changing replicator password failed', 'warning')
-    else:
+            wlogger.log(tid, 'Chaning replicator password failed', 'warning')
         if not adminOlc.addReplicatorUser(app_config.replication_dn,  app_config.replication_pw):
-            wlogger.log(tid, "Creating replicator user failed: {0}".format(
+    else:
+        wlogger.log(tid, "Creating replicator user failed: {0}".format(
                 adminOlc.conn.result['description']), "warning")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
 
-        else:
-            wlogger.log(tid, 'Replicator user  created'.format(
-                app_config.replication_dn), 'success')
 
 
     # Adding providers
-    providers = MultiMaster.query.filter(MultiMaster.mmr_id != server.id).filter(
-        MultiMaster.replicator == True).all()
+    providers = Server.query.filter_by(id != server.id).all()
 
     for p in providers:
-
-        serverp = LdapServer.query.get(p.mmr_id)
+        serverp = Server.query.get(p.id)
+        ldpp = ldapOLC('ldaps://{}:1636'.format(serverp.hostname),
         
-        ldpp = ldapOLC('ldaps://{}:1636'.format(serverp.fqn_hostname),
                        "cn=config", serverp.ldap_password)
         r = None
         try:
-            wlogger.log(tid, "Connecting to LDAP Server {0}".format(
-                serverp.fqn_hostname))
             r = ldpp.connect()
+            wlogger.log(
+                tid, "Connecting to LDAP Server {0}".format(serverp.hostname),
+                "success")
         except Exception as e:
             wlogger.log(tid, "Conection failed", "warning")
+
         if not r:
             wlogger.log(tid, "LDAPserver {0} was not added as provider".format(
-                serverp.fqn_hostname), "warning")
+                serverp.hostname), "warning")
+            continue
 
-        else:
-            serverStatus = ldpp.getMMRStatus()
+        serverStatus = ldpp.getMMRStatus()
 
-            # checking only server_id and access log db, further checks may be
-            # required
-            if serverStatus["server_id"] and serverStatus["accesslogDB"]:
+        # checking only server_id and access log db, further checks may be
+        # required
+        if not serverStatus["server_id"] or not serverStatus["accesslogDB"]:
                 
                 if app_config.use_ip_for_replication:
                     p_addr = serverp.ip_address
@@ -343,16 +338,20 @@ def setupMmrServer(self, server_id):
                     p_addr = serverp.fqn_hostname
                 
                 if ldp.addProvider(serverp.id, "ldaps://{0}:1636".format(p_addr), app_config.replication_dn, app_config.replication_pw):
-                    wlogger.log(tid, 'Adding provider {0}'.format(
-                        serverp.fqn_hostname), 'success')
-                else:
-                    wlogger.log(tid, 'Adding provider {0} failed: {1}'.format(
-                        serverp.fqn_hostname, ldp.conn.result['description']),
-                        "warning")
-            else:
-                wlogger.log(tid, "LDAPserver {0} does not seem to be a valid"
-                            " provider, not added.".format(
-                                serverp.fqn_hostname), "warning")
+            wlogger.log(tid, "LDAPserver {0} does not seem to be a valid"
+                        " provider, not added.".format(
+                            serverp.fqn_hostname), "warning")
+            continue
+
+        status = ldp.addProvider(
+            serverp.id, "ldaps://{0}:1636".format(serverp.hostname),
+            app_config.replication_dn, app_config.replication_pw)
+        if status:
+            wlogger.log(tid, 'Adding provider {0}'.format(serverp.hostname),
+                        'success')
+        else:
+            wlogger.log(tid, 'Adding provider {0} failed: {1}'.format(
+                serverp.hostname, ldp.conn.result['description']), "warning")
 
     if providers:
         if ldp.makeMirroMode():
@@ -369,8 +368,8 @@ def setupMmrServer(self, server_id):
 
 @celery.task(bind=True)
 def removeMultiMasterDeployement(self, server_id):
-
-    server = LdapServer.query.get(server_id)
+    app_config = AppConfiguration.query.first()
+    server = Server.query.get(server_id)
     tid = self.request.id
     app_config = AppConfiguration.query.first()
     if not server.gluu_server:
@@ -379,8 +378,8 @@ def removeMultiMasterDeployement(self, server_id):
         chroot = '/opt/gluu-server-' + app_config.gluu_version
 
     wlogger.log(tid, "Making SSH connection to the server %s" %
-                server.fqn_hostname)
-    c = RemoteClient(server.fqn_hostname, ip=server.ip_address)
+                server.hostname)
+    c = RemoteClient(server.hostname, ip=server.ip)
 
     try:
         c.startup()
@@ -423,8 +422,6 @@ def removeMultiMasterDeployement(self, server_id):
     vals = {
         'HOST_LIST': 'HOST_LIST="ldaps://127.0.0.1:1636/"',
         'EXTRA_SLAPD_ARGS': 'EXTRA_SLAPD_ARGS=""',
-        'SLAPD_GROUP': server.ldap_user,
-        'SLAPD_USER': server.ldap_group
     }
 
     confile_content = confile_content.format(**vals)
@@ -440,8 +437,7 @@ def removeMultiMasterDeployement(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
-    run_command(tid, c, "chown -R {0}.{1} /opt/symas/etc/openldap".format(
-        server.ldap_user, server.ldap_group), chroot)
+    run_command(tid, c, "chown -R ldap:ldap /opt/symas/etc/openldap", chroot)
 
     # Restart the solserver with slapd.conf configuration
     wlogger.log(tid, "Restarting LDAP server with slapd.conf configuration")
@@ -582,12 +578,14 @@ def InstallLdapServer(self, ldap_info):
         tid, 'Directories "/opt/gluu/data/main_db" and "/opt/gluu/data/site_db" were created', 'success')
 
     run_command(
-        tid, c, "chown -R {0}.{1} /opt/gluu/data/".format(ldap_info["ldap_user"], ldap_info["ldap_group"]))
+        tid, c, "chown -R {0}.{1} /opt/gluu/data/".format(
+            ldap_info["ldap_user"], ldap_info["ldap_group"]))
 
     run_command(tid, c, "mkdir -p /var/symas/run/")
 
     run_command(
-        tid, c, "chown -R {0}.{1} /var/symas".format(ldap_info["ldap_user"], ldap_info["ldap_group"]))
+        tid, c, "chown -R {0}.{1} /var/symas".format(
+            ldap_info["ldap_user"], ldap_info["ldap_group"]))
 
     run_command(tid, c, "mkdir -p /etc/certs/")
 
@@ -666,13 +664,9 @@ def InstallLdapServer(self, ldap_info):
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
-    ldps = LdapServer()
-    ldps.gluu_version = "-1"
-    ldps.fqn_hostname = ldap_info["fqn_hostname"]
-    ldps.ip_address = ldap_info["ip_address"]
+    ldps = Server()
+    ldps.hostname = ldap_info["fqn_hostname"]
+    ldps.ip = ldap_info["ip_address"]
     ldps.ldap_password = ldap_info["ldap_password"]
-    ldps.replicator_password = ldap_info["replicator_password"]
-    ldps.ldap_user = "ldap"
-    ldps.ldap_group = "ldap"
     db.session.add(ldps)
     db.session.commit()

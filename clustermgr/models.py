@@ -4,6 +4,42 @@ from datetime import timedelta
 from clustermgr.extensions import db
 
 
+class Server(db.Model):
+    __tablename__ = "server"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Hostname of the server
+    hostname = db.Column(db.String(250), unique=True)
+
+    # IP address of the server
+    ip = db.Column(db.String(45))
+
+    # rootDN password for the LDAP server
+    ldap_password = db.Column(db.String(150))
+
+    # Operating system running in the server
+    os = db.Column(db.String(150))
+
+    # Cache method used by the server if it has oxAuth
+    cache_method = db.Column(db.String(50))
+
+    # Installed components as comma seperated values
+    components = db.Column(db.Text)
+
+    # Flag to indicate whether LDAP MMR has been set up
+    mmr = db.Column(db.Boolean)
+
+    # Is the LDAP server inside the gluu server chroot container
+    gluu_server = db.Column(db.Boolean)
+
+    # Is this the primary server
+    primary_server = db.Column(db.Boolean)
+
+    def __repr__(self):
+        return '<Server %d %s>' % (self.id, self.hostname)
+
+
 class AppConfiguration(db.Model):
     __tablename__ = 'appconfig'
 
@@ -15,20 +51,14 @@ class AppConfiguration(db.Model):
     # the password for replication user
     replication_pw = db.Column(db.String(200))
 
-    # folder with the certificates for the app to use
-    certificate_folder = db.Column(db.String(200))
-
     # the result of the last replication test
     last_test = db.Column(db.Boolean)
 
     # gluu server version
     gluu_version = db.Column(db.String(10))
 
-    # primary server
-    primary_server = db.Column(db.Integer, db.ForeignKey("ldapServer.id"))
-
     # use ip for replication
-    use_ip_for_replication = db.Column(db.Boolean())
+    use_ip = db.Column(db.Boolean())
 
 
 class KeyRotation(db.Model):
@@ -73,27 +103,11 @@ class KeyRotation(db.Model):
         return self.rotated_at + timedelta(days=self.interval)
 
 
-class OxauthServer(db.Model):
-    __tablename__ = "oxauth_server"
+class OxelevenKeyID(db.Model):
+    __tablename__ = "oxeleven_key_id"
 
     id = db.Column(db.Integer, primary_key=True)
-
-    # hostname for SSH access
-    hostname = db.Column(db.String(255))
-    gluu_server = db.Column(db.Boolean(), default=True)
-    gluu_version = db.Column(db.String(10), default="3.0.1")
-
-    @property
-    def jks_path(self):
-        if not self.gluu_server:
-            return "/etc/certs/oxauth-keys.jks"
-        return "/opt/gluu-server-{}/etc/certs/oxauth-keys.jks".format(self.gluu_version)
-
-    @property
-    def get_version(self):
-        if not self.gluu_server:
-            return ""
-        return self.gluu_version
+    kid = db.Column(db.String(255))
 
 
 class LoggingServer(db.Model):
@@ -126,61 +140,3 @@ class LoggingServer(db.Model):
 
     # # encrypted password; need to decrypt it before using the value
     # mq_password = db.Column(db.String(255))
-
-
-class OxelevenKeyID(db.Model):
-    __tablename__ = "oxeleven_key_id"
-
-    id = db.Column(db.Integer, primary_key=True)
-    kid = db.Column(db.String(255))
-
-
-# MB
-class LdapServer(db.Model):
-    __tablename__ = "ldapServer"
-
-    id = db.Column(db.Integer, primary_key=True)
-
-    # hostname of the ldap server
-    fqn_hostname = db.Column(db.String(150), unique=True)
-
-    # ip address of the server
-    ip_address = db.Column(db.String(45))
-
-    # whether OLC configuration is deployed or not
-    initialized = db.Column(db.Boolean)
-
-    # whether the server has been setup with proper configuration
-    setup = db.Column(db.Boolean)
-
-    # rootDN password for the LDAP server
-    ldap_password = db.Column(db.String(150))
-
-    # is the LDAP server inside the gluu server chroot container
-    gluu_server = db.Column(db.Boolean)
-
-    ldap_user = db.Column(db.String(20))
-    ldap_group = db.Column(db.String(20))
-
-    config = db.Column(db.Text)
-
-    def __repr__(self):
-        return '<Server %d %s>' % (self.id, self.fqn_hostname)
-
-
-class MultiMaster(db.Model):
-    __tablename__ = "multiMaster"
-
-    id = db.Column(db.Integer, primary_key=True)
-    mmr_id = db.Column(db.Integer, db.ForeignKey("ldapServer.id"))
-    replicator = db.Column(db.Boolean)
-    config = db.Column(db.Text)
-
-
-# class Provider(db.Model):
-#    __tablename__ = "provider"
-#
-#   id = db.Column(db.Integer, primary_key=True)
-#    provider_id = db.Column(db.Integer, db.ForeignKey("ldap_server.id"))
-#    consumer_id = db.Column(db.Integer, db.ForeignKey("ldap_server.id"))
-#    config = db.Column(db.Text)

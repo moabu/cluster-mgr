@@ -7,8 +7,7 @@ from werkzeug.utils import secure_filename
 from celery.result import AsyncResult
 
 from clustermgr.extensions import db, wlogger, celery
-from clustermgr.models import AppConfiguration, KeyRotation, OxauthServer, \
-        LdapServer, MultiMaster
+from clustermgr.models import AppConfiguration, KeyRotation, Server
 
 from clustermgr.forms import AppConfigForm, KeyRotationForm, SchemaForm, \
     LdapServerForm, TestUser, InstallServerForm
@@ -31,7 +30,7 @@ def home():
     config = {}
     print(config, servers)
 
-    ldaps = LdapServer.query.all()
+    ldaps = Server.query.all()
 
     gluu_server = 0
     nongluu_server = 0
@@ -54,42 +53,26 @@ def app_configuration():
     config = AppConfiguration.query.first()
     schemafiles = os.listdir(app.config['SCHEMA_DIR'])
 
-    ldaps = LdapServer.query.all()
-
-    conf_form.primary_server.choices=[]
-    
-    for ldp in ldaps:
-        conf_form.primary_server.choices.append((str(ldp.id), ldp.fqn_hostname))
-
-    if not ldaps:
-        flash("Please go to Dahsboard and add LDAP Servers.", "warning")
-
     if request.method == "GET":
-        
         if config:
-        
+
             if config.gluu_version:
                 conf_form.gluu_version.default = config.gluu_version
-            
-            if config.primary_server:
-                conf_form.primary_server.default = config.primary_server
-            
-            if config.primary_server:
-                conf_form.use_ip_for_replication.default = config.use_ip_for_replication
-                
+
+            if config.use_ip:
+                conf_form.use_ip.default = config.use_ip
+
             conf_form.process()
-        
+
     if conf_form.update.data and conf_form.validate_on_submit():
         if not config:
             config = AppConfiguration()
         config.replication_dn = "cn={},o=gluu".format(
             conf_form.replication_dn.data)
         config.replication_pw = conf_form.replication_pw.data
-        config.certificate_folder = conf_form.certificate_folder.data
-        config.primary_server = int(conf_form.primary_server.data)
         config.gluu_version = conf_form.gluu_version.data
-        config.use_ip_for_replication = conf_form.use_ip_for_replication.data
-        
+        config.use_ip = conf_form.use_ip.data
+
         db.session.add(config)
         db.session.commit()
         flash("Gluu Replication Manager application configuration has been "
@@ -113,7 +96,6 @@ def app_configuration():
         conf_form.replication_dn.data = config.replication_dn.replace(
             "cn=", "").replace(",o=gluu", "")
         conf_form.replication_pw.data = config.replication_pw
-        conf_form.certificate_folder.data = config.certificate_folder
 
     return render_template('app_config.html', cform=conf_form, sform=sch_form,
                            config=config, schemafiles=schemafiles,
@@ -124,7 +106,7 @@ def app_configuration():
 def key_rotation():
     kr = KeyRotation.query.first()
     form = KeyRotationForm()
-    oxauth_servers = [server for server in OxauthServer.query]
+    oxauth_servers = [server for server in Server.query]
 
     if request.method == "GET" and kr is not None:
         form.interval.data = kr.interval
@@ -163,13 +145,11 @@ def oxauth_server():
     if request.method == "POST":
         hostname = request.form.get("hostname")
         gluu_server = request.form.get("gluu_server")
-        gluu_version = request.form.get("gluu_version")
 
         if gluu_server == "true":
             gluu_server = True
         else:
             gluu_server = False
-            gluu_version = ""
 
         if not hostname:
             return jsonify({
@@ -178,31 +158,28 @@ def oxauth_server():
                 "params": "hostname can't be empty",
             }), 400
 
-        server = OxauthServer()
+        server = Server()
         server.hostname = hostname
         server.gluu_server = gluu_server
-        server.gluu_version = gluu_version
         db.session.add(server)
         db.session.commit()
         return jsonify({
             "id": server.id,
             "hostname": server.hostname,
             "gluu_server": server.gluu_server,
-            "get_version": server.get_version,
         }), 201
 
     servers = [{
         "id": srv.id,
         "hostname": srv.hostname,
-        "version": srv.get_version,
         "gluu_server": srv.gluu_server,
-    } for srv in OxauthServer.query]
+    } for srv in Server.query]
     return jsonify(servers)
 
 
 @index.route("/api/oxauth_server/<id>", methods=["POST"])
 def delete_oxauth_server(id):
-    server = OxauthServer.query.get(id)
+    server = Server.query.get(id)
     if server:
         db.session.delete(server)
         db.session.commit()
@@ -225,14 +202,13 @@ def getLdapConn(addr, dn, passwd):
     try:
         r = ldp.connect()
     except Exception as e:
-        flash("Connection to LDAPserver {0} at port 1636 was failed: {1}".format(
+        flash("Connection to LDAPserver {0} at port 1636 failed: {1}".format(
             addr, e), "danger")
         return
     if not r:
-        flash("Connection to LDAPserver  {0} at port 1636 was failed: {1}".format(
+        flash("Connection to LDAPserver  {0} at port 1636 failed: {1}".format(
             addr, ldp.conn.result['description']), "danger")
         return
-
     return ldp
 
 
@@ -241,50 +217,43 @@ def edit_ldap_server(server_id):
     data = {'title': 'Add New Ldap Server', 'button': 'Add Server'}
 
     form = LdapServerForm()
-    if request.method == 'GET':
+
+    if form.validate_on_submit():
+        ldp = Server().query.filter(
+            Server.hostname == form.hostname.data).first()
+        if ldp:
+            flash("{0} is already in LDAP servers List".format(
+                form.hostname.data), "warning")
+            return render_template('ldap_server.html', form=form, data=data)
 
         if int(server_id) > 0:
-
-            data['title'] = 'Edit Server ID: {}'.format(server_id)
-            data['button'] = 'Update Server'
-
-            ldpsi = LdapServer.query.filter_by(id=server_id).first()
-            form.fqn_hostname.data = ldpsi.fqn_hostname
-            form.ip_address.data = ldpsi.ip_address
-            form.ldap_user.data = ldpsi.ldap_user
-            form.ldap_group.data = ldpsi.ldap_group
-            form.ldap_password.data = ldpsi.ldap_password
+            ldps = Server.query.filter_by(id=server_id).first()
         else:
+            ldps = Server()
 
-            form.ldap_group.data = 'ldap'
-            form.ldap_user.data = 'ldap'
+        ldps.gluu_server = True
+        ldps.hostname = form.hostname.data
+        ldps.ip = form.ip_address.data
+        ldps.ldap_password = form.ldap_password.data
 
+        if int(server_id) < 0:
+            db.session.add(ldps)
+
+        db.session.commit()
+        return redirect(url_for('index.home'))
+
+    # request.method == GET
+    ldpsi = Server.query.filter_by(id=server_id).first()
+    if ldpsi:
+        data['title'] = 'Edit Server ID: {}'.format(server_id)
+        data['button'] = 'Update Server'
+
+        form.hostname.data = ldpsi.hostname
+        form.ip_address.data = ldpsi.ip
+        form.ldap_password.data = ldpsi.ldap_password
     else:
-        if form.validate_on_submit():
-            if int(server_id) > 0:
-                ldps = LdapServer.query.filter_by(id=server_id).first()
-            else:
-                ldps = LdapServer()
-
-                ldp = LdapServer().query.filter(
-                    LdapServer.fqn_hostname == form.fqn_hostname.data).first()
-                if ldp:
-                    flash("{0} is already in LDAP servers List".format(
-                        form.fqn_hostname.data), "warning")
-                    return render_template('ldap_server.html', form=form, data=data)
-
-            ldps.gluu_server = True
-            ldps.fqn_hostname = form.fqn_hostname.data
-            ldps.ip_address = form.ip_address.data
-            ldps.ldap_password = form.ldap_password.data
-            ldps.ldap_user = form.ldap_user.data
-            ldps.ldap_group = form.ldap_group.data
-
-            if int(server_id) < 0:
-                db.session.add(ldps)
-
-            db.session.commit()
-            return redirect(url_for('index.home'))
+        flash("There is no server with the id {0}".format(server_id),
+              "danger")
 
     return render_template('ldap_server.html', data=data, form=form)
 
@@ -301,16 +270,16 @@ def install_ldap_server():
 
     if request.method == 'POST':
         if form.validate_on_submit():
-
-            ldp = LdapServer().query.filter(
-                LdapServer.fqn_hostname == form.fqn_hostname.data).first()
+            ldp = Server.query.filter(
+                Server.hostname == form.hostname.data).first()
             if ldp:
                 flash("{0} is already in LDAP servers List".format(
-                    form.fqn_hostname.data), "warning")
-                return render_template('ldap_server.html', form=form,  data=data)
+                    form.hostname.data), "warning")
+                return render_template('ldap_server.html', form=form,
+                                       data=data)
 
             session['nongluuldapinfo'] = {
-                'fqn_hostname': form.fqn_hostname.data,
+                'fqn_hostname': form.hostname.data,
                 'ip_address': form.ip_address.data,
                 'ldap_password': form.ldap_password.data,
                 'ldap_user': 'ldap',
@@ -330,16 +299,17 @@ def install_ldap_server():
 
 @index.route('/server/<int:server_id>/remove/')
 def remove_server(server_id):
-    
-    ldpsi = LdapServer.query.filter_by(id=server_id).first()
-    
-    if not server_id in get_mmr_list():
+    ldpsi = Server.query.filter_by(id=server_id).first()
+
+    if server_id not in get_mmr_list():
         db.session.delete(ldpsi)
         db.session.commit()
 
-        flash("Ldap Server {0} is removed.".format(ldpsi.fqn_hostname), "success")
+        flash("Ldap Server {0} is removed.".format(
+            ldpsi.fqn_hostname), "success")
     else:
-        flash("Ldap Server {0} is a member of multi master replication. Can't delete.".format(ldpsi.fqn_hostname), "warning")
+        flash("Ldap Server {0} is a member of multi master replication."
+              " Can't delete.".format(ldpsi.fqn_hostname), "warning")
     return redirect(url_for('index.home'))
 
 
@@ -347,12 +317,10 @@ def remove_server(server_id):
 def make_multi_master_replicator():
     server_id = int(request.values.get("server_id"))
 
-    ldp = LdapServer.query.filter_by(id=server_id).first()
+    ldp = Server.query.filter_by(id=server_id).first()
     if ldp:
-        mmr = MultiMaster()
-        mmr.mmr_id = server_id
-        mmr.replicator = 1
-        db.session.add(mmr)
+        ldp.mmr = True
+        db.session.add(ldp)
         db.session.commit()
         flash("Ldap Server {0} is added as Master Server".format(
             ldp.fqn_hostname), "success")
@@ -363,35 +331,32 @@ def make_multi_master_replicator():
 
 
 def get_mmr_list():
-    ldaps = LdapServer.query.all()
+    ldaps = Server.query.all()
     mmrs = []
-    for ldp in MultiMaster.query.all():
-        if ldp.replicator:
+    for ldp in ldaps:
+        if ldp.mmr:
             mmrs.append(ldp.mmr_id)
     return mmrs
 
 
 @index.route('/mmr/')
 def multi_master_replication():
-
-
     app_config = AppConfiguration.query.first()
-    
     appConfigured = False
-    
+
     if app_config:
         if app_config.replication_dn and app_config.replication_pw:
             appConfigured = True
     if not app_config:
-        flash(("Repication user and/or password has not been defined. "
-               "Please go 'Configuration' and set these before proceed."),
-                "warning")
+        flash("Repication user and/or password has not been defined."
+              " Please go to 'Configuration' and set these before proceed.",
+              "warning")
 
     if 'nongluuldapinfo' in session:
         del session['nongluuldapinfo']
 
     mmrs = get_mmr_list()
-    ldaps = LdapServer.query.all()
+    ldaps = Server.query.all()
     id_host_dict = {}
 
     addServerButton = False
@@ -403,17 +368,18 @@ def multi_master_replication():
     for ldp in ldaps:
         if ldp.id in mmrs:
             s = ldapOLC(
-                "ldaps://{0}:1636".format(ldp.fqn_hostname), "cn=config", ldp.ldap_password)
+                "ldaps://{0}:1636".format(ldp.hostname), "cn=config",
+                ldp.ldap_password)
             r = None
             try:
                 r = s.connect()
             except Exception as e:
-                flash("Connection to LDAPserver {0} at port 1636 was failed: {1}".format(
-                    ldp.fqn_hostname, e), "warning")
+                flash("Connection to LDAPserver {0} at port 1636 was failed:"
+                      " {1}".format(ldp.fqn_hostname, e), "warning")
 
             if not r:
-                flash("Connection to LDAPserver {0} at port 1636 was failed".format(
-                    ldp.fqn_hostname), "warning")
+                flash("Connection to LDAPserver {0} at port 1636 has"
+                      "failed".format(ldp.fqn_hostname), "warning")
 
             if r:
                 sstat = s.getMMRStatus()
@@ -434,7 +400,7 @@ def multi_master_replication():
 def remove_multi_master_replicator():
     server_id = int(request.values.get("server_id"))
 
-    mmr = MultiMaster.query.filter(MultiMaster.mmr_id == server_id).first()
+    mmr = Server.query.filter(Server.id == server_id).first()
     db.session.delete(mmr)
     db.session.commit()
     flash("Master server is removed", "success")
@@ -445,21 +411,22 @@ def remove_multi_master_replicator():
 @index.route('/addtestuser/<int:server_id>', methods=['GET', 'POST'])
 def add_test_user(server_id):
     print "SERVER ID", server_id
-    server = LdapServer.query.get(server_id)
+    server = Server.query.get(server_id)
 
     form = TestUser()
-    data = {'title': 'Add Test User [{0}]'.format(
-        server.fqn_hostname), 'button': 'Add'}
+    data = {'title': 'Add Test User [{0}]'.format(server.hostname),
+            'button': 'Add'}
 
     if form.validate_on_submit():
-
-        ldp = getLdapConn(server.fqn_hostname,
-                          "cn=directory manager,o=gluu", server.ldap_password)
+        ldp = getLdapConn(server.hostname, "cn=directory manager,o=gluu",
+                          server.ldap_password)
 
         if ldp:
-            if ldp.addTestUser(form.first_name.data, form.last_name.data, form.email.data):
+            if ldp.addTestUser(form.first_name.data, form.last_name.data,
+                               form.email.data):
                 flash("Test User {0} {1} to {2} was sucessfuly added.".format(
-                    form.first_name.data, form.last_name.data, server.fqn_hostname), "success")
+                    form.first_name.data, form.last_name.data,
+                    server.hostname), "success")
             else:
                 flash("Adding user failed: {0}".format(
                     ldp.conn.result['description']), "warning")
@@ -473,10 +440,10 @@ def add_test_user(server_id):
 def search_test_users(server_id):
 
     print "SERVER ID", server_id
-    server = LdapServer.query.get(server_id)
+    server = Server.query.get(server_id)
 
     users = []
-    ldp = getLdapConn(server.fqn_hostname,
+    ldp = getLdapConn(server.hostname,
                       "cn=directory manager,o=gluu", server.ldap_password)
 
     if ldp:
@@ -491,23 +458,24 @@ def search_test_users(server_id):
                 user['host'] = host
 
     if users:
-        st = '{0}({1})'.format(server.fqn_hostname, len(users))
-        return render_template('test_users.html', server_id=server_id, server=st, users=users)
+        st = '{0}({1})'.format(server.hostname, len(users))
+        return render_template('test_users.html', server_id=server_id,
+                               server=st, users=users)
 
     return redirect(url_for('index.multi_master_replication'))
 
 
 @index.route('/deletetestuser/<server_id>/<dn>')
 def delete_test_user(server_id, dn):
-    server = LdapServer.query.get(server_id)
+    server = Server.query.get(server_id)
 
-    ldp = getLdapConn(server.fqn_hostname,
+    ldp = getLdapConn(server.hostname,
                       "cn=directory manager,o=gluu", server.ldap_password)
 
     if ldp:
         if ldp.delDn(dn):
             flash("Test User form {0} was deleted".format(
-                server.fqn_hostname), "success")
+                server.hostname), "success")
         else:
             flash("Test User deletation failed: {0}".format(
                 ldp.conn.result['description']), "danger")
@@ -518,15 +486,15 @@ def delete_test_user(server_id, dn):
 @index.route('/removeprovider/<consumer_id>/<provider_addr>')
 def remove_provider_from_consumer(consumer_id, provider_addr):
 
-    server = LdapServer.query.get(consumer_id)
+    server = Server.query.get(consumer_id)
 
-    ldp = getLdapConn(server.fqn_hostname, "cn=config", server.ldap_password)
+    ldp = getLdapConn(server.hostname, "cn=config", server.ldap_password)
 
     if ldp:
         r = ldp.removeProvider("ldaps://{0}:1636".format(provider_addr))
         if r:
             flash('Provder {0} from {1} is removed'.format(
-                provider_addr, server.fqn_hostname), 'success')
+                provider_addr, server.hostname), 'success')
         else:
             flash("Removing provider was failed: {0}".format(
                 ldp.conn.result['description']), "danger")
@@ -537,19 +505,19 @@ def remove_provider_from_consumer(consumer_id, provider_addr):
 @index.route('/addprovidertocustomer/<int:consumer_id>/<int:provider_id>')
 def add_provider_to_consumer(consumer_id, provider_id):
 
-    server = LdapServer.query.get(consumer_id)
+    server = Server.query.get(consumer_id)
 
     app_config = AppConfiguration.query.first()
-    
-    
-    
 
-    ldp = getLdapConn(server.fqn_hostname, "cn=config", server.ldap_password)
+    ldp = getLdapConn(server.hostname, "cn=config", server.ldap_password)
 
     if ldp:
+        provider = Server.query.get(provider_id)
+        status = ldp.addProvider(
+            provider.id, "ldaps://{0}:1636".format(provider.hostname),
+            app_config.replication_dn, app_config.replication_pw)
 
-        provider = LdapServer.query.get(provider_id)
-
+        if status:
         if app_config.use_ip_for_replication:
             p_addr = provider.ip_address
         else:
@@ -558,10 +526,11 @@ def add_provider_to_consumer(consumer_id, provider_id):
 
         if ldp.addProvider(provider.id, "ldaps://{0}:1636".format(p_addr), app_config.replication_dn, app_config.replication_pw):
             flash("Provider {0} was added to {1}".format(
-                provider.fqn_hostname, server.fqn_hostname), "success")
+                provider.hostname, server.hostname), "success")
         else:
             flash("Adding provider {0} to {1} was failed: {2}".format(
-                provider.fqn_hostname, server.fqn_hostname, ldp.conn.result['description']), "danger")
+                provider.hostname, server.hostname,
+                ldp.conn.result['description']), "danger")
 
         ldp.makeMirroMode()
 
