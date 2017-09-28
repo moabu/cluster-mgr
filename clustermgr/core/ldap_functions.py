@@ -1,7 +1,7 @@
 from ldap3 import Server, Connection, SUBTREE, BASE, LEVEL, \
-        MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
+    MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
 
-from clustermgr.models import LdapServer
+from clustermgr.models import Server
 
 import re
 import time
@@ -25,14 +25,16 @@ def getHostPort(addr):
 
 
 def get_hostname_by_ip(ipaddr):
-    ldp = LdapServer.query.filter_by(ip_address=ipaddr).first()
+    ldp = Server.query.filter_by(ip=ipaddr).first()
     if ldp:
         return ldp.fqn_hostname
 
+
 def get_ip_by_hostname(hostname):
-    ldp = LdapServer.query.filter_by(fqn_hostname=hostname).first()
+    ldp = Server.query.filter_by(hostname=hostname).first()
     if ldp:
         return ldp.ip_address
+
 
 class ldapOLC(object):
 
@@ -77,21 +79,22 @@ class ldapOLC(object):
                                 search_scope=SUBTREE, attributes=["*"])
 
     def accesslogDBEntry(self, replicator_dn, log_dir="/opt/gluu/data/accesslog"):
-        
-        attributes={'objectClass':  ['olcDatabaseConfig', 'olcMdbConfig'],
-                                                           'olcDatabase': '{2}mdb',
-                                                           'olcDbDirectory': log_dir,
-                                                           'OlcDbMaxSize': 1073741824,
-                                                           'olcSuffix': 'cn=accesslog',
-                                                           'olcRootDN': 'cn=admin, cn=accesslog',
-                                                           'olcRootPW': makeLdapPassword(self.passwd),
-                                                           'olcDbIndex': ['default eq', 'objectClass,entryCSN,entryUUID,reqEnd,reqResult,reqStart'],
-                                                           'olcLimits': 'dn.exact="{0}" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited'.format(replicator_dn),
-                                                           
-                                                       }
-        
+
+        attributes = {'objectClass':  ['olcDatabaseConfig', 'olcMdbConfig'],
+                      'olcDatabase': '{2}mdb',
+                      'olcDbDirectory': log_dir,
+                      'OlcDbMaxSize': 1073741824,
+                      'olcSuffix': 'cn=accesslog',
+                      'olcRootDN': 'cn=admin, cn=accesslog',
+                      'olcRootPW': makeLdapPassword(self.passwd),
+                      'olcDbIndex': ['default eq', 'objectClass,entryCSN,entryUUID,reqEnd,reqResult,reqStart'],
+                      'olcLimits': 'dn.exact="{0}" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited'.format(replicator_dn),
+
+                      }
+
         if not self.checkAccesslogDBEntry():
-            return self.conn.add('olcDatabase={2}mdb,cn=config', attributes=attributes)
+            return self.conn.add('olcDatabase={2}mdb,cn=config',
+                                 attributes=attributes)
 
     def checkSyncprovOverlaysDB1(self):
         return self.conn.search(search_base='olcDatabase={1}mdb,cn=config',
@@ -109,7 +112,8 @@ class ldapOLC(object):
                       }
         if not self.checkSyncprovOverlaysDB1():
             return self.conn.add(
-                'olcOverlay=syncprov,olcDatabase={1}mdb,cn=config', attributes=attributes)
+                'olcOverlay=syncprov,olcDatabase={1}mdb,cn=config',
+                attributes=attributes)
 
     def checkSyncprovOverlaysDB2(self):
         return self.conn.search(search_base='olcDatabase={2}mdb,cn=config',
@@ -129,7 +133,8 @@ class ldapOLC(object):
         }
         if not self.checkSyncprovOverlaysDB2():
             return self.conn.add(
-                'olcOverlay=syncprov,olcDatabase={2}mdb,cn=config', attributes=attributes)
+                'olcOverlay=syncprov,olcDatabase={2}mdb,cn=config',
+                attributes=attributes)
 
     def checkServerID(self):
         return self.conn.search(search_base='cn=config',
@@ -181,7 +186,8 @@ class ldapOLC(object):
         }
         if not self.checkAccesslogPurge():
             return self.conn.add(
-                'olcOverlay=accesslog,olcDatabase={1}mdb,cn=config', attributes=attributes
+                'olcOverlay=accesslog,olcDatabase={1}mdb,cn=config',
+                attributes=attributes
             )
 
     def removeMirrorMode(self):
@@ -304,10 +310,9 @@ class ldapOLC(object):
                     elif es[0] == 'provider':
                         host, port = getHostPort(es[1])
                         dkey = host
-                        if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$",host):
+                        if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", host):
                             dkey = get_hostname_by_ip(host)
-                        
-                        
+
                 pDict[dkey] = (pid, port, host)
 
         return pDict
@@ -339,25 +344,24 @@ class ldapOLC(object):
         main_db_dn = self.getMainDbDN()
         return self.conn.modify(main_db_dn, {'olcLimits': [MODIFY_ADD, 'dn.exact="{0}" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited'.format(replicator_dn)]})
 
-
     def checkReplicationUser(self, replicator_dn):
         return self.conn.search(replicator_dn, search_filter='(objectClass=*)', search_scope=BASE)
 
     def addReplicatorUser(self, replicator_dn, passwd):
         self.checkBaseDN()
         enc_passwd = makeLdapPassword(passwd)
-        m=re.search('cn=(?P<cn>\w+),o=gluu', 'cn=replicator,o=gluu')
-        cn=m.group('cn')
-        print cn, replicator_dn 
+        m = re.search('cn=(?P<cn>\w+),o=gluu', 'cn=replicator,o=gluu')
+        cn = m.group('cn')
+        print cn, replicator_dn
         if not self.checkReplicationUser(replicator_dn):
             return self.conn.add(replicator_dn,
-                          attributes={'objectClass': ['top', 'inetOrgPerson'],
-                                      'cn': cn,
-                                      'sn': 'replicator',
-                                      'uid': 'replicator',
-                                      'userpassword': enc_passwd,
-                                      }
-                          )
+                                 attributes={'objectClass': ['top', 'inetOrgPerson'],
+                                             'cn': cn,
+                                             'sn': 'replicator',
+                                             'uid': 'replicator',
+                                             'userpassword': enc_passwd,
+                                             }
+                                 )
 
     def changeReplicationUserPassword(self, replicator_dn, passwd):
         enc_passwd = makeLdapPassword(passwd)
@@ -367,7 +371,7 @@ class ldapOLC(object):
         if not self.conn.search(search_base="o=gluu", search_filter='(objectClass=top)', search_scope=BASE):
             print "Adding base DN"
             self.conn.add('o=gluu', attributes={
-                                        'objectClass': ['top', 'organization'],
-                                        'o': 'gluu',
-                                  }
-                        )
+                'objectClass': ['top', 'organization'],
+                'o': 'gluu',
+            }
+            )

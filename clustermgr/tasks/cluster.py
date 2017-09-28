@@ -295,14 +295,11 @@ def setupMmrServer(self, server_id):
             wlogger.log(tid, 'Replicator password changed', 'success')
         else:
             wlogger.log(tid, 'Chaning replicator password failed', 'warning')
-        if not adminOlc.addReplicatorUser(app_config.replication_dn,  app_config.replication_pw):
     else:
         wlogger.log(tid, "Creating replicator user failed: {0}".format(
                 adminOlc.conn.result['description']), "warning")
         wlogger.log(tid, "Ending server setup process.", "error")
         return
-
-
 
     # Adding providers
     providers = Server.query.filter_by(id != server.id).all()
@@ -310,7 +307,6 @@ def setupMmrServer(self, server_id):
     for p in providers:
         serverp = Server.query.get(p.id)
         ldpp = ldapOLC('ldaps://{}:1636'.format(serverp.hostname),
-        
                        "cn=config", serverp.ldap_password)
         r = None
         try:
@@ -331,20 +327,18 @@ def setupMmrServer(self, server_id):
         # checking only server_id and access log db, further checks may be
         # required
         if not serverStatus["server_id"] or not serverStatus["accesslogDB"]:
-                
-                if app_config.use_ip_for_replication:
-                    p_addr = serverp.ip_address
-                else:
-                    p_addr = serverp.fqn_hostname
-                
-                if ldp.addProvider(serverp.id, "ldaps://{0}:1636".format(p_addr), app_config.replication_dn, app_config.replication_pw):
             wlogger.log(tid, "LDAPserver {0} does not seem to be a valid"
-                        " provider, not added.".format(
-                            serverp.fqn_hostname), "warning")
+                        " provider, not added.".format(serverp.hostname),
+                        "warning")
             continue
 
+        if app_config.use_ip_for_replication:
+            p_addr = serverp.ip
+        else:
+            p_addr = serverp.hostname
+
         status = ldp.addProvider(
-            serverp.id, "ldaps://{0}:1636".format(serverp.hostname),
+            serverp.id, "ldaps://{0}:1636".format(p_addr),
             app_config.replication_dn, app_config.replication_pw)
         if status:
             wlogger.log(tid, 'Adding provider {0}'.format(serverp.hostname),
