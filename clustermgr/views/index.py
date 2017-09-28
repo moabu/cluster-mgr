@@ -10,7 +10,7 @@ from clustermgr.extensions import db, wlogger, celery
 from clustermgr.models import AppConfiguration, KeyRotation, Server
 
 from clustermgr.forms import AppConfigForm, KeyRotationForm, SchemaForm, \
-    LdapServerForm, TestUser, InstallServerForm
+    ServerForm, TestUser, InstallServerForm
 
 from clustermgr.core.ldap_functions import ldapOLC
 
@@ -216,7 +216,7 @@ def getLdapConn(addr, dn, passwd):
 def edit_ldap_server(server_id):
     data = {'title': 'Add New Ldap Server', 'button': 'Add Server'}
 
-    form = LdapServerForm()
+    form = ServerForm()
 
     if form.validate_on_submit():
         ldp = Server().query.filter(
@@ -295,22 +295,6 @@ def install_ldap_server():
             return redirect(url_for('cluster.install_ldap_server'))
 
     return render_template('ldap_server.html', form=form,  data=data)
-
-
-@index.route('/server/<int:server_id>/remove/')
-def remove_server(server_id):
-    ldpsi = Server.query.filter_by(id=server_id).first()
-
-    if server_id not in get_mmr_list():
-        db.session.delete(ldpsi)
-        db.session.commit()
-
-        flash("Ldap Server {0} is removed.".format(
-            ldpsi.fqn_hostname), "success")
-    else:
-        flash("Ldap Server {0} is a member of multi master replication."
-              " Can't delete.".format(ldpsi.fqn_hostname), "warning")
-    return redirect(url_for('index.home'))
 
 
 @index.route('/makemmrreplicator/')

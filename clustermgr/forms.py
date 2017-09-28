@@ -82,12 +82,13 @@ class LoggingServerForm(FlaskForm):
                                          URL(require_tld=False)])
 
 
-class LdapServerForm(FlaskForm):
+class ServerForm(FlaskForm):
     hostname = StringField('Hostname *', validators=[DataRequired()])
-    ip_address = StringField(
+    ip = StringField(
         'IP Address *', validators=[DataRequired(), IPAddress()])
-    ldap_password = StringField(
+    ldap_password = PasswordField(
         'LDAP Admin Password *', validators=[DataRequired()])
+    gluu_server = BooleanField("Gluu Server is installed")
 
 
 class TestUser(FlaskForm):
