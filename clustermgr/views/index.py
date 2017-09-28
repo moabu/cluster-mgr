@@ -357,8 +357,7 @@ def add_test_user(server_id):
     server = Server.query.get(server_id)
 
     form = TestUser()
-    data = {'title': 'Add Test User [{0}]'.format(server.hostname),
-            'button': 'Add'}
+    header = 'Add Test User [{0}]'.format(server.hostname)
 
     if form.validate_on_submit():
         ldp = getLdapConn(server.hostname, "cn=directory manager,o=gluu",
@@ -376,7 +375,7 @@ def add_test_user(server_id):
 
             return redirect(url_for('index.multi_master_replication'))
 
-    return render_template('new_server.html', form=form,  data=data)
+    return render_template('new_server.html', form=form,  header=header)
 
 
 @index.route('/searchtestusers/<int:server_id>')
