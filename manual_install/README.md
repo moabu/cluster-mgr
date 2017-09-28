@@ -103,9 +103,14 @@ enable = Yes
 
 [server_3]
 ...
+
+[nginx]
+fqn_hostname = nginx.server.com
 ```
 
-- The hostname should be the FQDN of the servers, not the NGINX server.
+- The `fqn_hostname` under the `[server_x]` needs to be the FQDN of the Gluu server. 
+
+- The `create_slapd_conf.py` script now creates the NGINX configuration file for you as nginx.conf
 
 - If required, you can change the `/tmp/cluster-mgr/manual_install/slapd_conf_script/ldap_templates/slapd.conf` to fit your specific needs to include different schemas, indexes, etc. Avoid changing any of the `{#variables#}`.
 
