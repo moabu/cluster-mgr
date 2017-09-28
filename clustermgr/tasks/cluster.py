@@ -215,50 +215,76 @@ def setupMmrServer(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
-    if ldp.loadModules("syncprov", "accesslog"):
-        wlogger.log(tid, 'Loading syncprov and accesslog', 'success')
-    else:
-        wlogger.log(tid, "Loading syncprov and accesslog failed: {0}".format(
-            ldp.conn.result['description']), "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
 
-    if ldp.accesslogDBEntry(app_config.replication_dn, accesslog_dir):
-        wlogger.log(tid, 'Creating accesslog entry', 'success')
+    r = ldp.loadModules("syncprov", "accesslog") 
+
+    if r == -1:
+        wlogger.log(tid, 'Syncprov and accesslog modlues already exist', 'debug')
     else:
-        wlogger.log(tid, "Creating accesslog entry failed: {0}".format(
-            ldp.conn.result['description']), "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
+        if r:
+            wlogger.log(tid, 'Syncprov and accesslog modlues were loaded', 'success')
+        else:
+            wlogger.log(tid, "Loading syncprov and accesslog failed: {0}".format(
+                ldp.conn.result['description']), "error")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return
+
+
+    if not ldp.checkAccesslogDBEntry():
+
+        if ldp.accesslogDBEntry(app_config.replication_dn, accesslog_dir):
+            wlogger.log(tid, 'Creating accesslog entry', 'success')
+        else:
+            wlogger.log(tid, "Creating accesslog entry failed: {0}".format(
+                ldp.conn.result['description']), "error")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return
+    else:
+        wlogger.log(tid, 'Accesslog entry already exists.', 'debug')
 
     # !WARNING UNBIND NECASSARY - I DON'T KNOW WHY.*****
     ldp.conn.unbind()
     ldp.conn.bind()
 
-    r = ''
-    r1 = ldp.syncprovOverlaysDB2()
+    print "Check db1 overlay", ldp.checkSyncprovOverlaysDB1()
 
-    if not r1:
-        r += ldp.conn.result['description']
-
-    r2 = ldp.syncprovOverlaysDB1()
-    if not r2:
-        r += ' ' + ldp.conn.result['description']
-
-    if not (r):
-        wlogger.log(tid, 'Creating syncprovOverlays entries', 'success')
+    if not ldp.checkSyncprovOverlaysDB1():
+        if ldp.syncprovOverlaysDB1():
+            wlogger.log(tid, 'SyncprovOverlays entry on main database was created', 'success')
+        else:
+            wlogger.log(
+                tid, "Creating SyncprovOverlays entry on main database failed: {0}".format(
+                ldp.conn.result['description']), "error")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return
     else:
-        wlogger.log(
-            tid, "Creating syncprovOverlays entries failed: {0}".format(r),
-            "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
+        wlogger.log(tid, 'SyncprovOverlays entry on main database already exists.', 'debug')
 
-    if ldp.accesslogPurge():
-        wlogger.log(tid, 'Creating accesslog purge entry', 'success')
+    
+    if not ldp.checkSyncprovOverlaysDB2():
+
+        if ldp.syncprovOverlaysDB2():
+            wlogger.log(tid, 'SyncprovOverlays entry on accasslog database was created', 'success')
+        else:
+            wlogger.log(
+                tid, "Creating SyncprovOverlays entry on accasslog database failed: {0}".format(
+                ldp.conn.result['description']), "error")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return
     else:
-        wlogger.log(tid, "Creating accesslog purge entry failed: {0}".format(
-            ldp.conn.result['description']), "warning")
+        wlogger.log(tid, 'SyncprovOverlays entry on accasslog database already exists.', 'debug')
+    
+    
+    if not ldp.checkAccesslogPurge():
+    
+        if ldp.accesslogPurge():
+            wlogger.log(tid, 'Creating accesslog purge entry', 'success')
+        else:
+            wlogger.log(tid, "Creating accesslog purge entry failed: {0}".format(
+                ldp.conn.result['description']), "warning")
+                
+    else:
+        wlogger.log(tid, 'Accesslog purge entry already exists.', 'debug')
 
     if ldp.setLimitOnMainDb(app_config.replication_dn):
         wlogger.log(

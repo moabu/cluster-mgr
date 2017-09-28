@@ -457,8 +457,8 @@ def add_provider_to_consumer(consumer_id, provider_id):
     if ldp:
         provider = Server.query.get(provider_id)
 
-        if app_config.use_ip_for_replication:
-            p_addr = provider.ip_address
+        if app_config.use_ip:
+            p_addr = provider.ip
         else:
             p_addr = provider.hostname
 

@@ -27,7 +27,7 @@
             <!-- providers -->
 
             <td>
-                {% if server.fqn_hostname in serverStats %}
+                {% if server.hostname in serverStats %}
                 {% for p in serverStats[server.hostname]['providers'] %}
                 <li>{{ serverStats[server.hostname]['providers'][p][0] }} &nbsp;{{ p }}:{{ serverStats[server.hostname]['providers'][p][1] }} <a class="btn btn-danger btn-xs" href="{{ url_for('index.remove_provider_from_consumer', consumer_id=server.id, provider_addr=serverStats[server.hostname]['providers'][p][2]) }}">Remove</a></li>
                 {% endfor %}
@@ -45,7 +45,7 @@
 
             <td>
 
-                {% if server.fqn_hostname in serverStats %}
+                {% if server.hostname in serverStats %}
                 {% if serverStats[server.hostname]['server_id'] and serverStats[server.hostname]['accesslogDB'] %}
                 <a class="btn btn-default btn-xs" href="{{ url_for('cluster.deploy_config', server_id=server.id) }}">Re-deploy Configuration</a>
                 <a class="btn btn-danger btn-xs" href="{{ url_for('cluster.remove_deployment', server_id=server.id) }}"> Remove Deployment</a>

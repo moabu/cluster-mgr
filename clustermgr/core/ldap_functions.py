@@ -1,7 +1,7 @@
 from ldap3 import Server, Connection, SUBTREE, BASE, LEVEL, \
     MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
 
-from clustermgr.models import Server
+from clustermgr.models import Server as ServerModel
 
 import re
 import time
@@ -25,15 +25,15 @@ def getHostPort(addr):
 
 
 def get_hostname_by_ip(ipaddr):
-    ldp = Server.query.filter_by(ip=ipaddr).first()
+    ldp = ServerModel.query.filter_by(ip=ipaddr).first()
     if ldp:
-        return ldp.fqn_hostname
+        return ldp.hostname
 
 
 def get_ip_by_hostname(hostname):
-    ldp = Server.query.filter_by(hostname=hostname).first()
+    ldp = ServerModel.query.filter_by(hostname=hostname).first()
     if ldp:
-        return ldp.ip_address
+        return ldp.ip
 
 
 class ldapOLC(object):
@@ -54,9 +54,13 @@ class ldapOLC(object):
         return self.conn.bind()
 
     def loadModules(self, *modules):
+        """If modules are loaded, returns status, If modules are already loaded returns -1"""
+        
+        
         self.conn.search(search_base='cn=module{0},cn=config',
                          search_filter='(objectClass=*)', search_scope=BASE,
                          attributes=["olcModuleLoad"])
+
         addList = list(modules)
 
         if self.conn.response:
@@ -70,8 +74,13 @@ class ldapOLC(object):
                 if mn[0] in addList:
                     addList.remove(mn[0])
 
-        return self.conn.modify('cn=module{0},cn=config',
+        if addList:
+
+            return self.conn.modify('cn=module{0},cn=config',
                                 {'olcModuleLoad': [MODIFY_ADD, addList]})
+
+        return -1
+
 
     def checkAccesslogDBEntry(self):
         return self.conn.search(search_base='cn=config',
@@ -96,6 +105,7 @@ class ldapOLC(object):
             return self.conn.add('olcDatabase={2}mdb,cn=config',
                                  attributes=attributes)
 
+
     def checkSyncprovOverlaysDB1(self):
         return self.conn.search(search_base='olcDatabase={1}mdb,cn=config',
                                 search_filter='(olcOverlay=syncprov)',
@@ -111,9 +121,11 @@ class ldapOLC(object):
                       'olcSpSessionlog': '10000',
                       }
         if not self.checkSyncprovOverlaysDB1():
-            return self.conn.add(
+            self.conn.add(
                 'olcOverlay=syncprov,olcDatabase={1}mdb,cn=config',
                 attributes=attributes)
+            if self.conn.result['description']=='success':
+                return True
 
     def checkSyncprovOverlaysDB2(self):
         return self.conn.search(search_base='olcDatabase={2}mdb,cn=config',
@@ -132,9 +144,12 @@ class ldapOLC(object):
             # 'olcLimits': 'dn.exact="cn=directory manager,o=gluu" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited',
         }
         if not self.checkSyncprovOverlaysDB2():
-            return self.conn.add(
+            self.conn.add(
                 'olcOverlay=syncprov,olcDatabase={2}mdb,cn=config',
                 attributes=attributes)
+
+            if self.conn.result['description']=='success':
+                return True
 
     def checkServerID(self):
         return self.conn.search(search_base='cn=config',
