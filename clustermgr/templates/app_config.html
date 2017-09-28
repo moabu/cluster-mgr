@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from 'macros.html' import render_field, render_form %}
+{% from 'macros.html' import render_field, render_checkbox_field, render_form %}
 {% block content %}
 <h2 class="page-header">App Configuration</h2>
 <div class="panel panel-default">
@@ -24,10 +24,8 @@
 
 
             <div class="form-group">
-                {{ cform.use_ip.label(class="control-label") }}
-                <p class="help-block">Mark this field if you want to use IP address instead of hostname for replication.</p>
                 <div class="input-group">
-                    {{ cform.use_ip(class="form-control") }}
+                    {{ render_checkbox_field(cform.use_ip) }}
                 </div>
             </div>
 

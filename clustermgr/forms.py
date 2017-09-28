@@ -13,7 +13,7 @@ class AppConfigForm(FlaskForm):
     gluu_version = SelectField('Gluu Server Version', choices=[
         ('3.1.1', '3.1.1'), ('3.1.0', '3.1.0'), ('3.0.2', '3.0.2'),
         ('3.0.1', '3.0.1')])
-    use_ip = BooleanField('Use IP for replication')
+    use_ip = BooleanField('Use IP Address in place of Hostname for replication')
     replication_dn = StringField('Replication Manager DN', validators=[
         DataRequired(), Regexp(
             '^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$',
