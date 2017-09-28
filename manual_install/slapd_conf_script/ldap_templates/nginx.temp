@@ -1,0 +1,40 @@
+events {
+        worker_connections 768;
+}
+
+http {
+  upstream backend_id {
+  ip_hash;
+{#SERVERS#}
+  }
+  upstream backend {
+{#SERVERS#}
+  }
+  server {
+    listen       80;
+    server_name  {#NGINX#};
+    return       301 https://{#NGINX#}$request_uri;
+   }
+  server {
+    listen 443;
+    server_name {#NGINX#};
+
+    ssl on;
+    ssl_certificate         /etc/nginx/ssl/httpd.crt;
+    ssl_certificate_key     /etc/nginx/ssl/httpd.key;
+
+    location ~ ^(/)$ {
+      proxy_pass https://backend;
+    }
+    location /.well-known {
+        proxy_pass https://backend/.well-known;
+    }
+    location /oxauth {
+        proxy_pass https://backend/oxauth;
+    }
+    location /identity {
+        proxy_pass https://backend_id/identity;
+    }
+
+  }
+}
