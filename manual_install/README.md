@@ -1,6 +1,8 @@
 
 # Manual Gluu Server Clustering
 
+# This documentation is a developmental work in progress to optimize the process. Please refer to the official [Gluu Clustering Docs](https://gluu.org/docs/ce/3.0.2/installation-guide/cluster/) for clustering.
+
 ## Introduction
 If you have requirements for high availability (HA) or failover, you can configure your Gluu Server for multi-master replication by following the instructions below.
 
