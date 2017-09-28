@@ -9,6 +9,8 @@ config.readfp(open('syncrepl.cfg'))
 
 syncrepl_temp = open(os.path.join(cur_dir, "ldap_templates", "syncrepl.temp")).read()
 
+nginx_tmp = open(os.path.join(cur_dir, "ldap_templates", "nginx.temp")).read()
+
 
 def makeLdapPassword(passwd):
     salt=os.urandom(4)
@@ -24,15 +26,19 @@ ldp_servers = []
 s_id = 1
 for ldp in config.sections():
 
+    if ldp.startswith('server_'):
 
-    if config.get(ldp, 'enable').lower() in ('yes', 'true', 'on', '1'):
+        if config.get(ldp, 'enable').lower() in ('yes', 'true', 'on', '1'):
 
-        ldp_servers.append( {
-            'id': s_id,
-            'fqn_hostname':    config.get(ldp, 'fqn_hostname'),
-            'ldap_password': config.get(ldp, 'ldap_password'),
-               })
-        s_id +=1
+            ldp_servers.append( {
+                'id': s_id,
+                'fqn_hostname':    config.get(ldp, 'fqn_hostname'),
+                'ldap_password': config.get(ldp, 'ldap_password'),
+                   })
+            s_id +=1
+
+nginx = config.get('nginx', 'fqn_hostname')
+nginx_backends = []
 
 for ldp in ldp_servers:
     cur_ldp = ldp
@@ -44,6 +50,7 @@ for ldp in ldp_servers:
     slapd_tmp = slapd_tmp.replace('{#ROOTPW#}', rootpwd)
     slapd_tmp = slapd_tmp.replace('{#SERVER_ID#}', str(ldp['id']))
 
+    nginx_backends.append('  server {0}:443;'.format(ldp['fqn_hostname']))
 
     for ldpc in ldp_servers:
         if ldpc == ldp:
@@ -64,3 +71,11 @@ for ldp in ldp_servers:
     with open(conf_file_name,'w') as f:
         f.write(slapd_tmp)
         print "Configuration file for", ldp['fqn_hostname'], "was created as", conf_file_name
+
+
+nginx_tmp = nginx_tmp.replace('{#NGINX#}', nginx)
+nginx_tmp = nginx_tmp.replace('{#SERVERS#}', '\n'.join(nginx_backends))
+
+with open('nginx.conf','w') as f:
+    f.write(nginx_tmp)
+    print "Configuration file for nginx was created as nginx.conf"
