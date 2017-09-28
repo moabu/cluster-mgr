@@ -224,7 +224,7 @@ def edit_ldap_server(server_id):
         if ldp:
             flash("{0} is already in LDAP servers List".format(
                 form.hostname.data), "warning")
-            return render_template('ldap_server.html', form=form, data=data)
+            return render_template('new_server.html', form=form, data=data)
 
         if int(server_id) > 0:
             ldps = Server.query.filter_by(id=server_id).first()
@@ -255,7 +255,7 @@ def edit_ldap_server(server_id):
         flash("There is no server with the id {0}".format(server_id),
               "danger")
 
-    return render_template('ldap_server.html', data=data, form=form)
+    return render_template('new_server.html', data=data, form=form)
 
 
 @index.route('/installldapserver', methods=['GET', 'POST'])
@@ -275,7 +275,7 @@ def install_ldap_server():
             if ldp:
                 flash("{0} is already in LDAP servers List".format(
                     form.hostname.data), "warning")
-                return render_template('ldap_server.html', form=form,
+                return render_template('new_server.html', form=form,
                                        data=data)
 
             session['nongluuldapinfo'] = {
@@ -294,7 +294,7 @@ def install_ldap_server():
 
             return redirect(url_for('cluster.install_ldap_server'))
 
-    return render_template('ldap_server.html', form=form,  data=data)
+    return render_template('new_server.html', form=form,  data=data)
 
 
 @index.route('/makemmrreplicator/')
@@ -417,7 +417,7 @@ def add_test_user(server_id):
 
             return redirect(url_for('index.multi_master_replication'))
 
-    return render_template('ldap_server.html', form=form,  data=data)
+    return render_template('new_server.html', form=form,  data=data)
 
 
 @index.route('/searchtestusers/<int:server_id>')
