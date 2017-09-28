@@ -246,8 +246,6 @@ def setupMmrServer(self, server_id):
     ldp.conn.unbind()
     ldp.conn.bind()
 
-    print "Check db1 overlay", ldp.checkSyncprovOverlaysDB1()
-
     if not ldp.checkSyncprovOverlaysDB1():
         if ldp.syncprovOverlaysDB1():
             wlogger.log(tid, 'SyncprovOverlays entry on main database was created', 'success')
@@ -310,25 +308,30 @@ def setupMmrServer(self, server_id):
     wlogger.log(tid, 'Creating replicator user: {0}'.format(
         app_config.replication_dn))
 
-    if adminOlc.addReplicatorUser(app_config.replication_dn,
-                                  app_config.replication_pw):
-        wlogger.log(tid, 'Replicator user created.', 'success')
 
-    elif adminOlc.conn.result['description'] == 'entryAlreadyExists':
-        wlogger.log(tid, 'Replicator user already exists', 'success')
+    if not adminOlc.checkReplicationUser(app_config.replication_dn):
+
+        if adminOlc.addReplicatorUser(app_config.replication_dn,
+                                      app_config.replication_pw):
+            wlogger.log(tid, 'Replicator user created.', 'success')
+
+        else:
+            wlogger.log(tid, "Creating replicator user failed: {0}".format(
+                    adminOlc.conn.result['description']), "warning")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return
+    else:
+        wlogger.log(tid, 'Replicator user already exists.', 'debug')
         if adminOlc.changeReplicationUserPassword(app_config.replication_dn,
                                                   app_config.replication_pw):
             wlogger.log(tid, 'Replicator password changed', 'success')
         else:
             wlogger.log(tid, 'Chaning replicator password failed', 'warning')
-    else:
-        wlogger.log(tid, "Creating replicator user failed: {0}".format(
-                adminOlc.conn.result['description']), "warning")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
+
+
 
     # Adding providers
-    providers = Server.query.filter_by(id != server.id).all()
+    providers = Server.query.filter(Server.id != server.id).all()
 
     for p in providers:
         serverp = Server.query.get(p.id)
@@ -358,7 +361,7 @@ def setupMmrServer(self, server_id):
                         "warning")
             continue
 
-        if app_config.use_ip_for_replication:
+        if app_config.use_ip:
             p_addr = serverp.ip
         else:
             p_addr = serverp.hostname
@@ -374,12 +377,15 @@ def setupMmrServer(self, server_id):
                 serverp.hostname, ldp.conn.result['description']), "warning")
 
     if providers:
-        if ldp.makeMirroMode():
-            wlogger.log(tid, 'Enabling mirror mode', 'success')
+        
+        if not ldp.checkMirroMode():
+            if ldp.makeMirroMode():
+                wlogger.log(tid, 'Enabling mirror mode', 'success')
+            else:
+                wlogger.log(tid, "Enabling mirror mode failed: {0}".format(
+                    ldp.conn.result['description']), "warning")
         else:
-            wlogger.log(tid, "Enabling mirror mode failed: {0}".format(
-                ldp.conn.result['description']), "warning")
-
+            wlogger.log(tid, 'LDAP Server is already in mirror mode', 'debug')
     wlogger.log(tid, "Deployment is successful")
 
     # FIX ME: Add current ldap server as a provider to previously deployed

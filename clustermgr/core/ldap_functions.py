@@ -229,9 +229,8 @@ class ldapOLC(object):
         return False
 
     def makeMirroMode(self):
-        if not self.checkMirroMode():
-            return self.conn.modify('olcDatabase={1}mdb,cn=config',
-                                    {"olcMirrorMode": [MODIFY_ADD, ["TRUE"]]})
+        return self.conn.modify('olcDatabase={1}mdb,cn=config',
+                                {"olcMirrorMode": [MODIFY_ADD, ["TRUE"]]})
 
     def removeProvider(self, raddr):
         rmMirrorMode = False
@@ -367,16 +366,14 @@ class ldapOLC(object):
         enc_passwd = makeLdapPassword(passwd)
         m = re.search('cn=(?P<cn>\w+),o=gluu', 'cn=replicator,o=gluu')
         cn = m.group('cn')
-        print cn, replicator_dn
-        if not self.checkReplicationUser(replicator_dn):
-            return self.conn.add(replicator_dn,
-                                 attributes={'objectClass': ['top', 'inetOrgPerson'],
-                                             'cn': cn,
-                                             'sn': 'replicator',
-                                             'uid': 'replicator',
-                                             'userpassword': enc_passwd,
-                                             }
-                                 )
+        return self.conn.add(replicator_dn,
+                             attributes={'objectClass': ['top', 'inetOrgPerson'],
+                                         'cn': cn,
+                                         'sn': 'replicator',
+                                         'uid': 'replicator',
+                                         'userpassword': enc_passwd,
+                                         }
+                             )
 
     def changeReplicationUserPassword(self, replicator_dn, passwd):
         enc_passwd = makeLdapPassword(passwd)
