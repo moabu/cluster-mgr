@@ -73,7 +73,7 @@
             <td>{% if server.gluu_server %} <span class="glyphicon glyphicon-ok"></span>{% endif %}</td>
 
             <td>
-                <a class="btn btn-default btn-xs" href="{{ url_for('index.edit_ldap_server', server_id=server.id) }}">Edit</a>
+                <a class="btn btn-default btn-xs" href="{{ url_for('server.edit', server_id=server.id) }}">Edit</a>
                 <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal" data-serverid="{{server.id}}"
                 data-hostname="{{ server.hostname }}">Remove</a>
 

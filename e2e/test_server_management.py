@@ -39,7 +39,29 @@ def test_01_add_a_server(driver):
     assert 'dummy.example.com' in driver.find_element_by_tag_name('body').text
 
 
-def test_02_remove_added_server(driver):
+def test_02_change_server_details(driver):
+    hostname = 'dummy.example.com'
+    # User sees his server listed in the homepage in a table
+    assert hostname in driver.find_element_by_tag_name('table').text
+    # User clicks the "Edit" button in his/her server row
+    rows = driver.find_elements_by_tag_name('tr')
+    for row in rows:
+        if hostname in row.text:
+            row.find_element_by_link_text('Edit').click()
+            break
+    # User is taken to the "Update Server Details" page
+    heading = driver.find_element_by_tag_name('h2')
+    assert heading.text == "Update Server Details"
+    # User updates some data (ip address) of the server
+    ip = driver.find_element_by_id('ip')
+    ip.clear()
+    ip.send_keys('1.1.1.1')
+    ip.submit()
+    # User is redirected back to the hompage where his server is listed
+    assert '1.1.1.1' in driver.find_element_by_tag_name('body').text
+
+
+def test_03_remove_server(driver):
     hostname = 'dummy.example.com'
     # User sees his server listed in the homepage in a table
     assert hostname in driver.find_element_by_tag_name('table').text

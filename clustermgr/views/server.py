@@ -30,8 +30,38 @@ def index():
 
         db.session.add(server)
         db.session.commit()
+        # TODO start the background job to get system details
         return redirect(url_for('index.home'))
-    return render_template('new_server.html', form=form)
+    return render_template('new_server.html', form=form, header="New Server")
+
+
+@server.route('/edit/<int:server_id>', methods=['GET', 'POST'])
+def edit(server_id):
+    server = Server.query.get(server_id)
+    if not server:
+        flash('There is no server with the ID: %s' % server_id, "warning")
+        return redirect(url_for('index.home'))
+
+    form = ServerForm()
+
+    if request.method == 'POST' and not form.ldap_password.data:
+        form.ldap_password.data = '**dummy**'
+
+    if form.validate_on_submit():
+        server.gluu_server = form.gluu_server.data
+        server.hostname = form.hostname.data
+        server.ip = form.ip.data
+        if form.ldap_password.data is not '**dummy**':
+            server.ldap_password = form.ldap_password.data
+        db.session.commit()
+        return redirect(url_for('index.home'))
+
+    form.gluu_server.data = server.gluu_server
+    form.hostname.data = server.hostname
+    form.ip.data = server.ip
+    form.ldap_password.data = server.ldap_password
+    return render_template('new_server.html', form=form,
+                           header="Update Server Details")
 
 
 @server.route('/remove/<int:server_id>/')

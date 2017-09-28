@@ -218,52 +218,6 @@ def getLdapConn(addr, dn, passwd):
     return ldp
 
 
-@index.route('/server/<server_id>/', methods=['GET', 'POST'])
-def edit_ldap_server(server_id):
-    data = {'title': 'Add New Ldap Server', 'button': 'Add Server'}
-
-    form = ServerForm()
-
-    if form.validate_on_submit():
-        ldp = Server().query.filter(
-            Server.hostname == form.hostname.data).first()
-        if ldp:
-            flash("{0} is already in LDAP servers List".format(
-                form.hostname.data), "warning")
-            return render_template('new_server.html', form=form, data=data)
-
-        if int(server_id) > 0:
-            ldps = Server.query.filter_by(id=server_id).first()
-        else:
-            ldps = Server()
-
-        ldps.gluu_server = True
-        ldps.hostname = form.hostname.data
-        ldps.ip = form.ip_address.data
-        ldps.ldap_password = form.ldap_password.data
-
-        if int(server_id) < 0:
-            db.session.add(ldps)
-
-        db.session.commit()
-        return redirect(url_for('index.home'))
-
-    # request.method == GET
-    ldpsi = Server.query.filter_by(id=server_id).first()
-    if ldpsi:
-        data['title'] = 'Edit Server ID: {}'.format(server_id)
-        data['button'] = 'Update Server'
-
-        form.hostname.data = ldpsi.hostname
-        form.ip_address.data = ldpsi.ip
-        form.ldap_password.data = ldpsi.ldap_password
-    else:
-        flash("There is no server with the id {0}".format(server_id),
-              "danger")
-
-    return render_template('new_server.html', data=data, form=form)
-
-
 @index.route('/installldapserver', methods=['GET', 'POST'])
 def install_ldap_server():
     if 'nongluuldapinfo' in session:
