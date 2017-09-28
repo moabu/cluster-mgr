@@ -26,8 +26,6 @@ index = Blueprint('index', __name__)
 def home():
     if 'nongluuldapinfo' in session:
         del session['nongluuldapinfo']
-    servers = []
-    config = {}
 
     ldaps = Server.query.all()
 
@@ -42,7 +40,7 @@ def home():
     pr_server = get_primary_server_id()
 
     data = {"ldapservers": ldaps, 'nongluu_server': nongluu_server,
-            'gluu_server': gluu_server, 'pr_server':pr_server}
+            'gluu_server': gluu_server, 'pr_server': pr_server}
 
     return render_template('dashboard.html', data=data)
 
@@ -51,6 +49,7 @@ def get_primary_server_id():
     pr_server = Server.query.filter_by(primary_server=True).first()
     if pr_server:
         return pr_server.id
+
 
 @index.route('/configuration/', methods=['GET', 'POST'])
 def app_configuration():
@@ -267,7 +266,7 @@ def make_multi_master_replicator():
         db.session.add(ldp)
         db.session.commit()
         flash("Ldap Server {0} is added as Master Server".format(
-            ldp.fqn_hostname), "success")
+            ldp.hostname), "success")
     else:
         flash("No such LDAP Server", "warning")
 
@@ -279,7 +278,7 @@ def get_mmr_list():
     mmrs = []
     for ldp in ldaps:
         if ldp.mmr:
-            mmrs.append(ldp.mmr_id)
+            mmrs.append(ldp.id)
     return mmrs
 
 
@@ -319,16 +318,16 @@ def multi_master_replication():
                 r = s.connect()
             except Exception as e:
                 flash("Connection to LDAPserver {0} at port 1636 was failed:"
-                      " {1}".format(ldp.fqn_hostname, e), "warning")
+                      " {1}".format(ldp.hostname, e), "warning")
 
             if not r:
                 flash("Connection to LDAPserver {0} at port 1636 has"
-                      "failed".format(ldp.fqn_hostname), "warning")
+                      "failed".format(ldp.hostname), "warning")
 
             if r:
                 sstat = s.getMMRStatus()
                 if sstat['server_id']:
-                    serverStats[ldp.fqn_hostname] = sstat
+                    serverStats[ldp.hostname] = sstat
 
     if not appConfigured:
         addServerButton = False
