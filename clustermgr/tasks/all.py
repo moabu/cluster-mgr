@@ -2,11 +2,11 @@ import json
 import requests
 
 from datetime import datetime
-from ldap3 import Connection, BASE, MODIFY_REPLACE
-from ldap3 import Server as Ldap3Server
+from ldap3 import Server, Connection, BASE, MODIFY_REPLACE
 
 from clustermgr.extensions import celery, db
-from clustermgr.models import Server, KeyRotation, OxelevenKeyID
+from clustermgr.models import Server, KeyRotation, \
+        OxelevenKeyID
 from clustermgr.core.utils import decrypt_text, random_chars
 from clustermgr.core.ox11 import generate_key, delete_key
 from clustermgr.core.keygen import generate_jks
@@ -23,7 +23,7 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass=""):
     if not pub_keys:
         return
 
-    s = Ldap3Server(host=server.ip, port=1636, use_ssl=True)
+    s = Server(host=server.ip_address, port=1636, use_ssl=True)
     conn = Connection(s, user="cn=directory manager,o=gluu",
                       password=server.ldap_password, auto_bind=True)
 
@@ -156,7 +156,7 @@ def _rotate_keys(kr, javalibs_dir, jks_path):
 
         if kr.type == "jks":
             from clustermgr.core.remote import RemoteClient
-            for server in Server.query:
+            for server in OxauthServer.query:
                 c = RemoteClient(server.hostname)
                 try:
                     c.startup()

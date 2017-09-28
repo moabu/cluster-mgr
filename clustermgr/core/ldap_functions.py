@@ -1,7 +1,7 @@
 from ldap3 import Server, Connection, SUBTREE, BASE, LEVEL, \
         MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
 
-from clustermgr.models import LdapServer
+from clustermgr.models import Server as ServerModel
 
 import re
 import time
@@ -25,14 +25,14 @@ def getHostPort(addr):
 
 
 def get_hostname_by_ip(ipaddr):
-    ldp = LdapServer.query.filter_by(ip_address=ipaddr).first()
+    ldp = ServerModel.query.filter_by(ip=ipaddr).first()
     if ldp:
-        return ldp.fqn_hostname
+        return ldp.hostname
 
 def get_ip_by_hostname(hostname):
-    ldp = LdapServer.query.filter_by(fqn_hostname=hostname).first()
+    ldp = ServerModel.query.filter_by(hostname=hostname).first()
     if ldp:
-        return ldp.ip_address
+        return ldp.ip
 
 class ldapOLC(object):
 

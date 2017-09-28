@@ -82,12 +82,13 @@ class LoggingServerForm(FlaskForm):
                                          URL(require_tld=False)])
 
 
-class LdapServerForm(FlaskForm):
+class ServerForm(FlaskForm):
     hostname = StringField('Hostname *', validators=[DataRequired()])
-    ip_address = StringField(
+    ip = StringField(
         'IP Address *', validators=[DataRequired(), IPAddress()])
     ldap_password = StringField(
         'LDAP Admin Password *', validators=[DataRequired()])
+    primary_server = BooleanField('This is primary LDAP Server')
 
 
 class TestUser(FlaskForm):
@@ -99,12 +100,11 @@ class TestUser(FlaskForm):
 
 class InstallServerForm(FlaskForm):
     hostname = StringField('Hostname *', validators=[DataRequired()])
-    ip_address = StringField(
+    ip = StringField(
         'IP Address *', validators=[DataRequired(), IPAddress()])
     ldap_password = StringField(
         'LDAP Admin Password *', validators=[DataRequired()])
-    replicator_password = StringField(
-        'Replicator User Password *', validators=[DataRequired()])
+
     countryCode = StringField(
         'Two Letter Country Code *', validators=[Length(min=2, max=2),
                                                  DataRequired()])

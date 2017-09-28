@@ -3,52 +3,53 @@
 {% block content %}
 <h2 class="page-header">App Configuration</h2>
 <div class="panel panel-default">
-    <div class="panel-heading">
-        <h3 class="panel-title">Replication</h3>
-    </div>
-    <div class="panel-body">
-        <form id="cform" action="{{ url_for('index.app_configuration', next=next) }}" method="POST">
-            {{ cform.csrf_token }}
+  <div class="panel-heading">
+    <h3 class="panel-title">Replication</h3>
+  </div>
+  <div class="panel-body">
+    <form id="cform" action="{{ url_for('index.app_configuration', next=next) }}" method="POST">
+        {{ cform.csrf_token }}
 
 
-            <div class="form-group {{ 'has-error' if cform.gluu_version.errors else '' }}">
-                {{ cform.gluu_version.label(class="control-label") }}
-                <p class="help-block">A cluster should contain Gluu servers of the same version. Select version of your servers.</p>
-                <div class="input-group">
-                    {{ cform.gluu_version(class="form-control") }}
-                </div>
-                {% for error in cform.gluu_version.errors %}
-                <p class="help-block">{{ error }}</p>
-                {% endfor %}
-            </div>
+      <div class="form-group {{ 'has-error' if cform.gluu_version.errors else '' }}">
+        {{ cform.gluu_version.label(class="control-label") }}
+        <p class="help-block">Same Gluu Server versions can be replicated. Select version of your servers.</p>
+        <div class="input-group">
+            {{ cform.gluu_version(class="form-control") }}
+        </div>
+      {% for error in cform.gluu_version.errors %}
+        <p class="help-block">{{ error }}</p>
+      {% endfor %}
+      </div>
+      
+
+      <div class="form-group">
+        {{ cform.use_ip.label(class="control-label") }}
+        <p class="help-block">Mark this field if you want to use IP address instead of hostname for replication.</p>
+        <div class="input-group">
+            {{ cform.use_ip(class="form-control") }}
+        </div>
+      </div>
+
+      <div class="form-group {{ 'has-error' if cform.replication_dn.errors else '' }}">
+        {{ cform.replication_dn.label(class="control-label") }}
+        <p class="help-block">This DN (e.g., cn=replicator,o=gluu) will be used by all consumers to authenticate with providers.</p>
+        <div class="input-group">
+            <span class="input-group-addon">cn=</span>
+            {{ cform.replication_dn(class="form-control", placeholder="replicator") }}
+            <span class="input-group-addon">,o=gluu</span>
+        </div>
+      {% for error in cform.replication_dn.errors %}
+        <p class="help-block">{{ error }}</p>
+      {% endfor %}
+      </div>
+
+    {{ render_field(cform.replication_pw) }}
 
 
-            <div class="form-group">
-                {{ cform.use_ip.label(class="control-label") }}
-                <p class="help-block">Mark this field if you want to use IP address instead of hostname for replication.</p>
-                <div class="input-group">
-                    {{ cform.use_ip(class="form-control") }}
-                </div>
-            </div>
-
-            <div class="form-group {{ 'has-error' if cform.replication_dn.errors else '' }}">
-                {{ cform.replication_dn.label(class="control-label") }}
-                <p class="help-block">This DN (e.g., cn=replicator,o=gluu) will be used by all consumers to authenticate with providers.</p>
-                <div class="input-group">
-                    <span class="input-group-addon">cn=</span>
-                    {{ cform.replication_dn(class="form-control", placeholder="replicator") }}
-                    <span class="input-group-addon">,o=gluu</span>
-                </div>
-                {% for error in cform.replication_dn.errors %}
-                <p class="help-block">{{ error }}</p>
-                {% endfor %}
-            </div>
-
-            {{ render_field(cform.replication_pw) }}
-
-            {{ cform.update(class="btn btn-primary")}}
-        </form>
-    </div>
+    {{ cform.update(class="btn btn-primary")}}
+    </form>
+  </div>
 </div>
 
 <div class="panel panel-default">
@@ -57,9 +58,9 @@
     </div>
     <div class="panel-body">
         <ul class="list-group">
-            {% for sf in schemafiles %}
+        {% for sf in schemafiles %}
             <li class="list-group-item">{{ sf }}</li>
-            {% endfor %}
+        {% endfor %}
         </ul>
         <form id="sform" action="" method="POST" enctype="multipart/form-data">
             {{ sform.csrf_token }}
@@ -72,9 +73,9 @@
                 </div>
             </div>
             {% if sform.schema.errors %}
-            {% for e in sform.schema.errors %}
-            <p class="text-danger">{{ e }}</p>
-            {% endfor %}
+                {% for e in sform.schema.errors %}
+                <p class="text-danger">{{ e }}</p>
+                {% endfor %}
             {% endif %}
         </form>
     </div>

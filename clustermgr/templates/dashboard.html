@@ -54,9 +54,6 @@
               </a>
           </div>
       </div>
- 
-
-
 
   {% if data.ldapservers %}
       <table id="servers" class="table table-bordered">
@@ -71,10 +68,10 @@
         </thead>
         <tbody>
           {% for server in data.ldapservers %}
-          <tr>
+          <tr {% if server.id == data.pr_server %} class="success" {% endif %}>
             <td>{{ server.id }}</td>
-            <td>{{ server.fqn_hostname }}</td>
-            <td>{{ server.ip_address }}</td>
+            <td>{{ server.hostname }}</td>
+            <td>{{ server.ip }}</td>
             <td>{% if server.gluu_server %} <span class="glyphicon glyphicon-ok"></span>{% endif %}</td>
             
             <td>

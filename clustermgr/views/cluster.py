@@ -12,6 +12,8 @@ from clustermgr.tasks.cluster import setupMmrServer, InstallLdapServer, \
 cluster = Blueprint('cluster', __name__, template_folder='templates')
 
 
+# MB
+
 @cluster.route('/deployconfig/<int:server_id>', methods=['GET', 'POST'])
 def deploy_config(server_id):
     s = Server.query.get(server_id)
@@ -27,33 +29,33 @@ def deploy_config(server_id):
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
 
-# FIXME Needs MMR cleanup
 @cluster.route('/removedeployment')
 def remove_deployment():
     server_id = int(request.values.get("server_id"))
-    masterServer = server = Server.query.get(server_id)
-    mmr = MultiMaster.query.all()
 
-    for m in mmr:
-        if not m.mmr_id == server_id:
-            server = Server.query.get(m.mmr_id)
-            ldp = ldapOLC('ldaps://{}:1636'.format(server.hostname),
-                          "cn=config", server.ldap_password)
-            r = None
-            try:
-                r = ldp.connect()
-            except Exception as e:
-                flash("Connection to LDAPserver {0} at port 1636 was failed:"
-                      " {1}".format(server.hostname, e), "danger")
+    thisServer = Server.query.get(server_id)
 
-            if r:
-                pd = ldp.getProviders()
+    servers = Server.query.all()
 
-                if masterServer.hostname in pd:
-                    flash("This server is a provider for Ldap Server {0}."
-                          " Please first remove this server as provider.".format(
-                              masterServer.hostname), "warning")
-                    return redirect(url_for('index.multi_master_replication'))
+    for server in servers:
+        if server.mmr:
+            if not server.id == server_id:
+                ldp = ldapOLC('ldaps://{}:1636'.format(server.hostname),
+                              "cn=config", server.ldap_password)
+                r = None
+                try:
+                    r = ldp.connect()
+                except Exception as e:
+                    flash("Connection to LDAPserver {0} at port 1636 was failed: {1}".format(
+                        server.hostname, e), "danger")
+
+                if r:
+                    pd = ldp.getProviders()
+
+                    if thisServer.hostname in pd:
+                        flash("This server is a provider for Ldap Server {0}. Please first remove this server as provider.".format(
+                            ldp.hostname), "warning")
+                        return redirect(url_for('index.multi_master_replication'))
 
     task = removeMultiMasterDeployement.delay(server_id)
     print "TASK STARTED", task.id
@@ -71,7 +73,7 @@ def install_ldap_server():
 
     print "TASK STARTED", task.id
     head = "Installing Symas Open-Ldap Server on " + \
-        session['nongluuldapinfo']['fqn_hostname']
+        session['nongluuldapinfo']['hostname']
     nextpage = "index.multi_master_replication"
     whatNext = "Multi Master Replication"
     return render_template("logger.html", heading=head, server="",
