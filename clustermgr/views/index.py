@@ -28,7 +28,6 @@ def home():
         del session['nongluuldapinfo']
     servers = []
     config = {}
-    print(config, servers)
 
     ldaps = Server.query.all()
 
@@ -40,11 +39,18 @@ def home():
         else:
             nongluu_server += 1
 
+    pr_server = get_primary_server_id()
+
     data = {"ldapservers": ldaps, 'nongluu_server': nongluu_server,
-            'gluu_server': gluu_server}
+            'gluu_server': gluu_server, 'pr_server':pr_server}
 
     return render_template('dashboard.html', data=data)
 
+
+def get_primary_server_id():
+    pr_server = Server.query.filter_by(primary_server=True).first()
+    if pr_server:
+        return pr_server.id
 
 @index.route('/configuration/', methods=['GET', 'POST'])
 def app_configuration():
