@@ -71,9 +71,7 @@ def app_configuration():
             conf_form.process()
 
     if conf_form.update.data and conf_form.validate_on_submit():
-        
         replication_dn = "cn={},o=gluu".format(conf_form.replication_dn.data)
-        
         if not config:
             config = AppConfiguration()
         else:
@@ -83,7 +81,6 @@ def app_configuration():
                       "This will break replication. Please re-deploy all LDAP Servers.",
                        "danger")
 
-            
         config.replication_dn = replication_dn
         config.replication_pw = conf_form.replication_pw.data
         config.gluu_version = conf_form.gluu_version.data

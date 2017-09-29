@@ -300,26 +300,26 @@ def setupMmrServer(self, server_id):
         return
 
     # 12. Make this server to listen to all other providers
-    wlogger.log(tid, "Adding Syncrepl config of other servers in the cluster")
-    providers = Server.query.filter(Server.id.isnot(server.id)).all()
+    providers = Server.query.filter(Server.id.isnot(server.id)).filter(
+        Server.mmr.is_(True)).all()
+    if providers:
+        wlogger.log(tid, "Adding Syncrepl to integrate the server in cluster")
     for p in providers:
-        if not p.mmr:
-            continue
         paddr = p.ip if app_config.use_ip else p.hostname
-
         status = ldp.addProvider(
             p.id, "ldaps://{0}:1636".format(paddr), app_config.replication_dn,
             app_config.replication_pw)
         if status:
-            wlogger.log(tid, 'Making LDAP of {0} listen to {1}'.format(
+            wlogger.log(tid, '>> Making LDAP of {0} listen to {1}'.format(
                 server.hostname, p.hostname), 'success')
         else:
-            wlogger.log(tid, 'Making {0} listen to {1} failed: {2}'.format(
+            wlogger.log(tid, '>> Making {0} listen to {1} failed: {2}'.format(
                 p.hostname, server.hostname, ldp.conn.result['description']),
                 "warning")
 
         # 13. Make the other server listen to this server
-        other = ldapOLC(p.hostname, "cn=config", p.ldap_password)
+        other = ldapOLC('ldaps://{}:1636'.format(paddr), "cn=config",
+                        p.ldap_password)
         try:
             other.connect()
         except Exception as e:
@@ -332,11 +332,11 @@ def setupMmrServer(self, server_id):
                                    app_config.replication_dn,
                                    app_config.replication_pw)
         if status:
-            wlogger.log(tid, 'Making LDAP of {0} listen to {1}'.format(
+            wlogger.log(tid, '<< Making LDAP of {0} listen to {1}'.format(
                 p.hostname, server.hostname), 'success')
         else:
-            wlogger.log(tid, 'Making {0} listen to {1} failed: {2}'.format(
-                server.hostname, p.hostname, ldp.conn.result['description']),
+            wlogger.log(tid, '<< Making {0} listen to {1} failed: {2}'.format(
+                p.hostname, server.hostname, ldp.conn.result['description']),
                 "warning")
         # Special case - if there are only two server enable mirror mode
         # in other server as well
@@ -368,14 +368,11 @@ def remove_provider(server_id):
     servers in the LDAP cluster.
     """
     appconfig = AppConfiguration.query.first()
-    server = Server.query.get(server_id)
     recievers = Server.query.filter(Server.id.isnot(server_id)).all()
     for reciever in recievers:
-        addr = reciever.hostname
-        if appconfig.use_ip:
-            addr = reciever.ip
+        addr = reciever.ip if appconfig.use_ip else reciever.hostanme
         c = CnManager(addr, 1636, True, 'cn=config', reciever.ldap_password)
-        c.remove_olcsyncrepl(server.id)
+        c.remove_olcsyncrepl(server_id)
         c.close()
         # TODO monitor for failures and report or log it somewhere
 

@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, \
     request
 
 from clustermgr.extensions import db
-from clustermgr.models import Server
+from clustermgr.models import Server, AppConfiguration
 
 from clustermgr.forms import ServerForm
 from clustermgr.views.index import get_primary_server_id
@@ -17,6 +17,11 @@ def index():
     """Route for URL /server/. GET returns ServerForm to add a server,
     POST accepts the ServerForm, validates and creates a new Server object
     """
+    appconfig = AppConfiguration.query.first()
+    if not appconfig:
+        flash("Kindly set default values for the application before adding"
+              " servers.", "info")
+        return redirect(url_for('index.app_configuration', next="/server/"))
     form = ServerForm()
 
     if form.validate_on_submit():
