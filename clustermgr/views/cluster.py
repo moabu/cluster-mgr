@@ -21,7 +21,6 @@ def deploy_config(server_id):
         flash("Server id {0} is not on database".format(server_id), 'warning')
         return redirect(url_for("index.multi_master_replication"))
     task = setupMmrServer.delay(server_id)
-    print "TASK STARTED", task.id
     head = "Setting up server: " + s.hostname
     return render_template("logger.html", heading=head, server=s,
                            task=task, nextpage=nextpage, whatNext=whatNext)

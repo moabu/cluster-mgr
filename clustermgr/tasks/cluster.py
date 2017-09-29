@@ -7,8 +7,9 @@ from flask import current_app as app
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import celery, wlogger, db
 from clustermgr.core.remote import RemoteClient
-from clustermgr.core.ldap_functions import ldapOLC, makeLdapPassword
+from clustermgr.core.ldap_functions import ldapOLC
 from clustermgr.core.olc import CnManager
+from clustermgr.core.utils import ldap_encode
 
 
 def run_command(tid, c, command, container=None):
@@ -123,8 +124,8 @@ def setupMmrServer(self, server_id):
     accesslog_dir = '/opt/gluu/data/accesslog'
     if not c.exists(chroot + accesslog_dir):
         run_command(tid, c, "mkdir -p {0}".format(accesslog_dir), chroot)
-
-    run_command(tid, c, "chown -R ldap:ldap {0}".format(accesslog_dir), chroot)
+        run_command(tid, c, "chown -R ldap:ldap {0}".format(accesslog_dir),
+                    chroot)
 
     # 4. Ensure Openldap is installed on the server - TODO
     # 5. Upload symas-openldap.conf with remote access and slapd.d enabled
@@ -186,7 +187,7 @@ def setupMmrServer(self, server_id):
 
     # 9. Set the server ID
     if ldp.setServerID(server.id):
-        wlogger.log(tid, 'Setting Server ID {0}'.format(server.id), 'success')
+        wlogger.log(tid, 'Setting Server ID: {0}'.format(server.id), 'success')
     else:
         wlogger.log(tid, "Stting Server ID failed: {0}".format(
             ldp.conn.result['description']), "error")
@@ -274,20 +275,20 @@ def setupMmrServer(self, server_id):
                     " user failed: {0}".format(ldp.conn.result['description']),
                     "warning")
 
+    # 11. Add replication user to the o=gluu
+    wlogger.log(tid, 'Creating replicator user: {0}'.format(
+        app_config.replication_dn))
+
     adminOlc = ldapOLC('ldaps://{}:1636'.format(conn_addr),
                        'cn=directory manager,o=gluu', server.ldap_password)
-    r = None
     try:
-        r = adminOlc.connect()
+        adminOlc.connect()
     except Exception as e:
         wlogger.log(
             tid, "Connection to LDAPserver as direcory manager at port 1636"
             " has failed: {0}".format(e), "error")
         wlogger.log(tid, "Ending server setup process.", "error")
         return
-
-    wlogger.log(tid, 'Creating replicator user: {0}'.format(
-        app_config.replication_dn))
 
     if adminOlc.addReplicatorUser(app_config.replication_dn,
                                   app_config.replication_pw):
@@ -298,57 +299,53 @@ def setupMmrServer(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
-    # Adding providers
+    # 12. Make this server to listen to all other providers
     wlogger.log(tid, "Adding Syncrepl config of other servers in the cluster")
-
-    providers = Server.query.filter(Server.id.isnot(server.id)).filter(
-        Server.mmr is True).all()
-
+    providers = Server.query.filter(Server.id.isnot(server.id)).all()
     for p in providers:
-        serverp = p
-        ldpp = ldapOLC('ldaps://{}:1636'.format(serverp.hostname),
-                       "cn=config", serverp.ldap_password)
-        r = None
-        try:
-            r = ldpp.connect()
-            wlogger.log(
-                tid, "Connecting to LDAP Server {0}".format(serverp.hostname),
-                "success")
-        except Exception as e:
-            wlogger.log(tid, "Conection failed", "warning")
-
-        if not r:
-            wlogger.log(tid, "LDAPserver {0} was not added as provider".format(
-                serverp.hostname), "warning")
+        if not p.mmr:
             continue
-
-        serverStatus = ldpp.getMMRStatus()
-
-        # checking only server_id and access log db, further checks may be
-        # required
-        if not serverStatus["server_id"] or not serverStatus["accesslogDB"]:
-            wlogger.log(tid, "LDAPserver {0} does not seem to be a valid"
-                        " provider, not added.".format(serverp.hostname),
-                        "warning")
-            continue
-
-        if app_config.use_ip:
-            p_addr = serverp.ip
-        else:
-            p_addr = serverp.hostname
+        paddr = p.ip if app_config.use_ip else p.hostname
 
         status = ldp.addProvider(
-            serverp.id, "ldaps://{0}:1636".format(p_addr),
-            app_config.replication_dn, app_config.replication_pw)
+            p.id, "ldaps://{0}:1636".format(paddr), app_config.replication_dn,
+            app_config.replication_pw)
         if status:
-            wlogger.log(tid, 'Adding provider {0}'.format(serverp.hostname),
-                        'success')
+            wlogger.log(tid, 'Making LDAP of {0} listen to {1}'.format(
+                server.hostname, p.hostname), 'success')
         else:
-            wlogger.log(tid, 'Adding provider {0} failed: {1}'.format(
-                serverp.hostname, ldp.conn.result['description']), "warning")
+            wlogger.log(tid, 'Making {0} listen to {1} failed: {2}'.format(
+                p.hostname, server.hostname, ldp.conn.result['description']),
+                "warning")
 
+        # 13. Make the other server listen to this server
+        other = ldapOLC(p.hostname, "cn=config", p.ldap_password)
+        try:
+            other.connect()
+        except Exception as e:
+            wlogger.log("Couldn't connect to {0}. It will not be listening"
+                        " to {1} for changes.".format(
+                            p.hostname, server.hostname), "warning")
+            continue
+        saddr = server.ip if app_config.use_ip else server.hostname
+        status = other.addProvider(server.id, "ldaps://{0}:1636".format(saddr),
+                                   app_config.replication_dn,
+                                   app_config.replication_pw)
+        if status:
+            wlogger.log(tid, 'Making LDAP of {0} listen to {1}'.format(
+                p.hostname, server.hostname), 'success')
+        else:
+            wlogger.log(tid, 'Making {0} listen to {1} failed: {2}'.format(
+                server.hostname, p.hostname, ldp.conn.result['description']),
+                "warning")
+        # Special case - if there are only two server enable mirror mode
+        # in other server as well
+        if len(providers) == 1:
+            other.makeMirroMode()
+        other.conn.unbind()
+
+    # 14. Enable Mirrormode in the server
     if providers:
-
         if not ldp.checkMirroMode():
             if ldp.makeMirroMode():
                 wlogger.log(tid, 'Enabling mirror mode', 'success')
@@ -357,13 +354,12 @@ def setupMmrServer(self, server_id):
                     ldp.conn.result['description']), "warning")
         else:
             wlogger.log(tid, 'LDAP Server is already in mirror mode', 'debug')
+
+    # 15. Set the mmr flag to True to indicate it has been configured
     server.mmr = True
     db.session.commit()
 
     wlogger.log(tid, "Deployment is successful")
-
-    # FIX ME: Add current ldap server as a provider to previously deployed
-    # servers.
 
 
 @celery.task
@@ -560,7 +556,7 @@ def InstallLdapServer(self, ldap_info):
         app.root_path, "templates", "slapd", "slapd.conf.gluu")
     gluu_slapd_conf_file_content = open(gluu_slapd_conf_file).read()
 
-    hashpw = makeLdapPassword(ldap_info["ldap_password"])
+    hashpw = ldap_encode(ldap_info["ldap_password"])
 
     gluu_slapd_conf_file_content = gluu_slapd_conf_file_content.replace(
         "{#ROOTPW#}", hashpw)

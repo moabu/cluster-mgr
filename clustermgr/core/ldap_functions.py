@@ -2,21 +2,10 @@ from ldap3 import Server, Connection, SUBTREE, BASE, LEVEL, \
     MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
 
 from clustermgr.models import Server as ServerModel
+from clustermgr.core.utils import ldap_encode
 
 import re
 import time
-import hashlib
-import os
-
-
-def makeLdapPassword(passwd):
-    salt = os.urandom(4)
-    sha = hashlib.sha1(passwd)
-    sha.update(salt)
-    digest = (sha.digest() + salt).encode('base64').strip()
-    ssha_passwd = '{SSHA}' + digest
-
-    return ssha_passwd
 
 
 def getHostPort(addr):
@@ -75,10 +64,9 @@ class ldapOLC(object):
         if addList:
 
             return self.conn.modify('cn=module{0},cn=config',
-                                {'olcModuleLoad': [MODIFY_ADD, addList]})
+                                    {'olcModuleLoad': [MODIFY_ADD, addList]})
 
         return -1
-
 
     def checkAccesslogDBEntry(self):
         return self.conn.search(search_base='cn=config',
@@ -93,7 +81,7 @@ class ldapOLC(object):
                       'OlcDbMaxSize': 1073741824,
                       'olcSuffix': 'cn=accesslog',
                       'olcRootDN': 'cn=admin, cn=accesslog',
-                      'olcRootPW': makeLdapPassword(self.passwd),
+                      'olcRootPW': ldap_encode(self.passwd),
                       'olcDbIndex': ['default eq', 'objectClass,entryCSN,entryUUID,reqEnd,reqResult,reqStart'],
                       'olcLimits': 'dn.exact="{0}" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited'.format(replicator_dn),
 
@@ -102,7 +90,6 @@ class ldapOLC(object):
         if not self.checkAccesslogDBEntry():
             return self.conn.add('olcDatabase={2}mdb,cn=config',
                                  attributes=attributes)
-
 
     def checkSyncprovOverlaysDB1(self):
         return self.conn.search(search_base='olcDatabase={1}mdb,cn=config',
@@ -122,7 +109,7 @@ class ldapOLC(object):
             self.conn.add(
                 'olcOverlay=syncprov,olcDatabase={1}mdb,cn=config',
                 attributes=attributes)
-            if self.conn.result['description']=='success':
+            if self.conn.result['description'] == 'success':
                 return True
 
     def checkSyncprovOverlaysDB2(self):
@@ -146,7 +133,7 @@ class ldapOLC(object):
                 'olcOverlay=syncprov,olcDatabase={2}mdb,cn=config',
                 attributes=attributes)
 
-            if self.conn.result['description']=='success':
+            if self.conn.result['description'] == 'success':
                 return True
 
     def checkServerID(self):
@@ -256,13 +243,11 @@ class ldapOLC(object):
                                 return r
 
     def addProvider(self, rid, raddr, rbinddn, rcredentials):
-        host = getHostPort(raddr)[0]
-        if host not in self.getProviders():
-            ridText = """rid={0} provider={1} bindmethod=simple binddn="{2}" tls_reqcert=never credentials={3} searchbase="o=gluu" logbase="cn=accesslog" logfilter="(&(objectClass=auditWriteObject)(reqResult=0))" schemachecking=on type=refreshAndPersist retry="60 +" syncdata=accesslog sizeLimit=unlimited timelimit=unlimited""".format(
-                rid, raddr, rbinddn, rcredentials)
+        ridText = """rid={0} provider={1} bindmethod=simple binddn="{2}" tls_reqcert=never credentials={3} searchbase="o=gluu" logbase="cn=accesslog" logfilter="(&(objectClass=auditWriteObject)(reqResult=0))" schemachecking=on type=refreshAndPersist retry="60 +" syncdata=accesslog sizeLimit=unlimited timelimit=unlimited""".format(
+            rid, raddr, rbinddn, rcredentials)
 
-            return self.conn.modify('olcDatabase={1}mdb,cn=config',
-                                    {"olcSyncRepl": [MODIFY_ADD, [ridText]]})
+        return self.conn.modify('olcDatabase={1}mdb,cn=config',
+                                {"olcSyncRepl": [MODIFY_ADD, [ridText]]})
 
     def checkAccesslogDB(self):
         return self.conn.search(search_base='cn=config',
@@ -358,7 +343,7 @@ class ldapOLC(object):
 
     def addReplicatorUser(self, replicator_dn, passwd):
         self.checkBaseDN()
-        enc_passwd = makeLdapPassword(passwd)
+        enc_passwd = ldap_encode(passwd)
         self.conn.search(replicator_dn, search_filter='(objectClass=*)',
                          search_scope=BASE)
 
