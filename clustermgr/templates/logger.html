@@ -11,11 +11,7 @@
 </ul>
 
 <button id="retry" class="btn btn-block btn-danger" style="display: none;">Retry</button>
-{% if nextpage == 'provider' %}
-    <a id="home" class="btn btn-block btn-success" style="display: none;" href="{{ url_for('cluster.new_server', stype='provider') }}">Add Mirror</a>
-{% else %}
-    <a id="home" class="btn btn-block btn-success" style="display: none;" href="{{ url_for(nextpage) }}">Go to {{whatNext}}</a>
-{% endif %}
+<a id="home" class="btn btn-block btn-success" style="display: none;" href="{{ url_for(nextpage) }}">Go to {{whatNext}}</a>
 
 {% endblock content %}
 {% block js %}

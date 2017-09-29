@@ -82,25 +82,23 @@ def download_file(tid, c, remote, local):
 
 @celery.task(bind=True)
 def setupMmrServer(self, server_id):
-
     tid = self.request.id
-    gluu = False
     server = Server.query.get(server_id)
     conn_addr = server.hostname
     app_config = AppConfiguration.query.first()
 
+    # 1. Ensure that the server id is valid
     if not server:
         wlogger.log(tid, "Server is not on database", "error")
         wlogger.log(tid, "Ending server setup process.", "error")
         return False
 
-    tid = self.request.id
     if not server.gluu_server:
         chroot = '/'
     else:
         chroot = '/opt/gluu-server-' + app_config.gluu_version
-        gluu = True
 
+    # 2. Make SSH Connection to the remote server
     wlogger.log(tid, "Making SSH connection to the server %s" %
                 server.hostname)
     c = RemoteClient(server.hostname, ip=server.ip)
@@ -112,8 +110,8 @@ def setupMmrServer(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
         return False
 
-    if gluu:
-        # check if remote is gluu server
+    # 3. For Gluu server, ensure that chroot directory is available
+    if server.gluu_server:
         if c.exists(chroot):
             wlogger.log(tid, 'Checking if remote is gluu server', 'success')
         else:
@@ -121,19 +119,18 @@ def setupMmrServer(self, server_id):
             wlogger.log(tid, "Ending server setup process.", "error")
             return False
 
-    # symas-openldap.conf file exists
-    if c.exists(os.path.join(chroot, 'opt/symas/etc/openldap/symas-openldap.conf')):
-        wlogger.log(tid, 'Checking symas-openldap.conf exists', 'success')
-    else:
-        wlogger.log(tid, 'Checking if symas-openldap.conf exists', 'fail')
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
+    # 3.1 Ensure the data directories are available
+    accesslog_dir = '/opt/gluu/data/accesslog'
+    if not c.exists(chroot + accesslog_dir):
+        run_command(tid, c, "mkdir -p {0}".format(accesslog_dir), chroot)
 
-    # uplodading symas-openldap.conf file to remote server: enable openldap
-    # remote access and make openldap sldapd.d
-    confile = os.path.join(app.root_path, "templates",
-                           "slapd", "symas-openldap.conf")
-    confile_content = open(confile).read()
+    run_command(tid, c, "chown -R ldap:ldap {0}".format(accesslog_dir), chroot)
+
+    # 4. Ensure Openldap is installed on the server - TODO
+    # 5. Upload symas-openldap.conf with remote access and slapd.d enabled
+    syconf = os.path.join(chroot, 'opt/symas/etc/openldap/symas-openldap.conf')
+    confile = os.path.join(app.root_path, "templates", "slapd",
+                           "symas-openldap.conf")
 
     HOST_LIST = 'HOST_LIST="ldaps://127.0.0.1:1636/ ldaps://{0}:1636/"'.format(
         conn_addr)
@@ -143,10 +140,10 @@ def setupMmrServer(self, server_id):
             'EXTRA_SLAPD_ARGS': EXTRA_SLAPD_ARGS,
             }
 
+    confile_content = open(confile).read()
     confile_content = confile_content.format(**vals)
 
-    r = c.put_file(os.path.join(
-        chroot, 'opt/symas/etc/openldap/symas-openldap.conf'), confile_content)
+    r = c.put_file(syconf, confile_content)
 
     if r[0]:
         wlogger.log(tid, 'symas-openldap.conf file uploaded', 'success')
@@ -156,48 +153,38 @@ def setupMmrServer(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
-    accesslog_dir = '/opt/gluu/data/accesslog'
-
-    # Generate OLC slapd.d
+    # 6. Generate OLC slapd.d
     wlogger.log(tid, "Convert slapd.conf to slapd.d OLC")
     run_command(tid, c, 'service solserver stop', chroot)
     run_command(tid, c, "rm -rf /opt/symas/etc/openldap/slapd.d", chroot)
     run_command(tid, c, "mkdir -p /opt/symas/etc/openldap/slapd.d", chroot)
     run_command(tid, c, "/opt/symas/bin/slaptest -f /opt/symas/etc/openldap/"
                 "slapd.conf -F /opt/symas/etc/openldap/slapd.d", chroot)
-    run_command(
-        tid, c, "chown -R ldap:ldap /opt/symas/etc/openldap/slapd.d", chroot)
+    run_command(tid, c,
+                "chown -R ldap:ldap /opt/symas/etc/openldap/slapd.d", chroot)
 
-    if not c.exists(chroot + accesslog_dir):
-        run_command(tid, c, "mkdir -p {0}".format(accesslog_dir), chroot)
-
-    run_command(tid, c, "chown -R ldap:ldap {0}".format(accesslog_dir), chroot)
-
-    # Restart the solserver with the new OLC configuration
+    # 7. Restart the solserver with the new OLC configuration
     wlogger.log(tid, "Restarting LDAP server with OLC configuration")
     log = run_command(tid, c, "service solserver start", chroot)
     if 'failed' in log:
         wlogger.log(tid, "Couldn't restart solserver.", "error")
         wlogger.log(tid, "Ending server setup process.", "error")
+        run_command(tid, c, "service solserver start -d 1", chroot)
         return
 
-        # fix later !!!
-        #            "Running LDAP server in debug mode for troubleshooting")
-        # run_command(tid, c, "service solserver start -d 1", chdir)
-
-    ldp = ldapOLC('ldaps://{}:1636'.format(conn_addr),
-                  'cn=config', server.ldap_password)
-    r = None
+    # 8. Connect to the OLC config
+    ldp = ldapOLC('ldaps://{}:1636'.format(conn_addr), 'cn=config',
+                  server.ldap_password)
     try:
-        r = ldp.connect()
+        ldp.connect()
+        wlogger.log(tid, 'Successfully connected to LDAPServer ', 'success')
     except Exception as e:
         wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed:"
                     " {0}".format(e), "error")
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
-    wlogger.log(tid, 'Successfully connected to LDAPServer ', 'success')
-
+    # 9. Set the server ID
     if ldp.setServerID(server.id):
         wlogger.log(tid, 'Setting Server ID {0}'.format(server.id), 'success')
     else:
@@ -206,23 +193,22 @@ def setupMmrServer(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
-
-    r = ldp.loadModules("syncprov", "accesslog") 
-
+    # 10. Enable the syncprov and accesslog modules
+    r = ldp.loadModules("syncprov", "accesslog")
     if r == -1:
-        wlogger.log(tid, 'Syncprov and accesslog modlues already exist', 'debug')
+        wlogger.log(
+            tid, 'Syncprov and accesslog modlues already exist', 'debug')
     else:
         if r:
-            wlogger.log(tid, 'Syncprov and accesslog modlues were loaded', 'success')
+            wlogger.log(
+                tid, 'Syncprov and accesslog modlues were loaded', 'success')
         else:
             wlogger.log(tid, "Loading syncprov and accesslog failed: {0}".format(
                 ldp.conn.result['description']), "error")
             wlogger.log(tid, "Ending server setup process.", "error")
             return
 
-
     if not ldp.checkAccesslogDBEntry():
-
         if ldp.accesslogDBEntry(app_config.replication_dn, accesslog_dir):
             wlogger.log(tid, 'Creating accesslog entry', 'success')
         else:
@@ -239,39 +225,43 @@ def setupMmrServer(self, server_id):
 
     if not ldp.checkSyncprovOverlaysDB1():
         if ldp.syncprovOverlaysDB1():
-            wlogger.log(tid, 'SyncprovOverlays entry on main database was created', 'success')
+            wlogger.log(
+                tid, 'SyncprovOverlays entry on main database was created',
+                'success')
         else:
             wlogger.log(
-                tid, "Creating SyncprovOverlays entry on main database failed: {0}".format(
-                ldp.conn.result['description']), "error")
+                tid, "Creating SyncprovOverlays entry on main database failed:"
+                " {0}".format(ldp.conn.result['description']), "error")
             wlogger.log(tid, "Ending server setup process.", "error")
             return
     else:
-        wlogger.log(tid, 'SyncprovOverlays entry on main database already exists.', 'debug')
+        wlogger.log(
+            tid, 'SyncprovOverlays entry on main database already exists.',
+            'debug')
 
-    
     if not ldp.checkSyncprovOverlaysDB2():
-
         if ldp.syncprovOverlaysDB2():
-            wlogger.log(tid, 'SyncprovOverlays entry on accasslog database was created', 'success')
+            wlogger.log(
+                tid, 'SyncprovOverlay entry on accasslog database was created',
+                'success')
         else:
             wlogger.log(
-                tid, "Creating SyncprovOverlays entry on accasslog database failed: {0}".format(
-                ldp.conn.result['description']), "error")
+                tid, "Creating SyncprovOverlays entry on accasslog database"
+                " failed: {0}".format(ldp.conn.result['description']), "error")
             wlogger.log(tid, "Ending server setup process.", "error")
             return
     else:
-        wlogger.log(tid, 'SyncprovOverlays entry on accasslog database already exists.', 'debug')
-    
-    
+        wlogger.log(
+            tid, 'SyncprovOverlay entry on accasslog database already exists.',
+            'debug')
+
     if not ldp.checkAccesslogPurge():
-    
         if ldp.accesslogPurge():
             wlogger.log(tid, 'Creating accesslog purge entry', 'success')
         else:
             wlogger.log(tid, "Creating accesslog purge entry failed: {0}".format(
                 ldp.conn.result['description']), "warning")
-                
+
     else:
         wlogger.log(tid, 'Accesslog purge entry already exists.', 'debug')
 
@@ -299,26 +289,14 @@ def setupMmrServer(self, server_id):
     wlogger.log(tid, 'Creating replicator user: {0}'.format(
         app_config.replication_dn))
 
-
-    if not adminOlc.checkReplicationUser(app_config.replication_dn):
-
-        if adminOlc.addReplicatorUser(app_config.replication_dn,
-                                      app_config.replication_pw):
-            wlogger.log(tid, 'Replicator user created.', 'success')
-        else:
-            wlogger.log(tid, "Creating replicator user failed: {0}".format(
-                adminOlc.conn.result), "warning")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return
+    if adminOlc.addReplicatorUser(app_config.replication_dn,
+                                  app_config.replication_pw):
+        wlogger.log(tid, 'Replicator user created.', 'success')
     else:
-        wlogger.log(tid, 'Replicator user already exists.', 'debug')
-        if adminOlc.changeReplicationUserPassword(app_config.replication_dn,
-                                                  app_config.replication_pw):
-            wlogger.log(tid, 'Replicator password changed', 'success')
-        else:
-            wlogger.log(tid, 'Chaning replicator password failed', 'warning')
-
-
+        wlogger.log(tid, "Creating replicator user failed: {0}".format(
+            adminOlc.conn.result), "warning")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
 
     # Adding providers
     wlogger.log(tid, "Adding Syncrepl config of other servers in the cluster")
@@ -370,7 +348,7 @@ def setupMmrServer(self, server_id):
                 serverp.hostname, ldp.conn.result['description']), "warning")
 
     if providers:
-        
+
         if not ldp.checkMirroMode():
             if ldp.makeMirroMode():
                 wlogger.log(tid, 'Enabling mirror mode', 'success')
@@ -395,13 +373,12 @@ def remove_provider(server_id):
     """
     appconfig = AppConfiguration.query.first()
     server = Server.query.get(server_id)
-    recievers = Server.query.filter_by(id != server_id).all()
+    recievers = Server.query.filter(Server.id.isnot(server_id)).all()
     for reciever in recievers:
         addr = reciever.hostname
         if appconfig.use_ip:
             addr = reciever.ip
-        c = CnManager(addr, 1636, True, 'cn=admin,cn=config',
-                      reciever.ldap_password)
+        c = CnManager(addr, 1636, True, 'cn=config', reciever.ldap_password)
         c.remove_olcsyncrepl(server.id)
         c.close()
         # TODO monitor for failures and report or log it somewhere

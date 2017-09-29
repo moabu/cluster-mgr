@@ -16,7 +16,7 @@ cluster = Blueprint('cluster', __name__, template_folder='templates')
 def deploy_config(server_id):
     s = Server.query.get(server_id)
     nextpage = 'index.multi_master_replication'
-    whatNext = "Multi Master Replication"
+    whatNext = "LDAP Replication"
     if not s:
         flash("Server id {0} is not on database".format(server_id), 'warning')
         return redirect(url_for("index.multi_master_replication"))

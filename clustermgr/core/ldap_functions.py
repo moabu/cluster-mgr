@@ -55,8 +55,6 @@ class ldapOLC(object):
 
     def loadModules(self, *modules):
         """If modules are loaded, returns status, If modules are already loaded returns -1"""
-        
-        
         self.conn.search(search_base='cn=module{0},cn=config',
                          search_filter='(objectClass=*)', search_scope=BASE,
                          attributes=["olcModuleLoad"])

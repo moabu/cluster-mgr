@@ -1,16 +1,13 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, render_template, redirect, url_for, flash, \
-    request, jsonify, session
-from flask import current_app as app
-from celery.result import AsyncResult
+    request
 
-from clustermgr.extensions import db, wlogger, celery
-from clustermgr.models import AppConfiguration, Server
+from clustermgr.extensions import db
+from clustermgr.models import Server
 
 from clustermgr.forms import ServerForm
 from clustermgr.views.index import get_primary_server_id
-
-# from clustermgr.core.ldap_functions import ldapOLC
+from clustermgr.tasks.cluster import remove_provider
 
 server = Blueprint('server', __name__)
 
@@ -49,13 +46,11 @@ def edit(server_id):
 
     form = ServerForm()
 
-
     pr_server = get_primary_server_id()
 
     if pr_server:
         if not get_primary_server_id() == server_id:
             form.primary_server.render_kw = {'disabled': 'disabled'}
-
 
     if request.method == 'POST' and not form.ldap_password.data:
         form.ldap_password.data = '**dummy**'
@@ -82,21 +77,12 @@ def edit(server_id):
 @server.route('/remove/<int:server_id>/')
 def remove(server_id):
     server = Server.query.filter_by(id=server_id).first()
-
+    # remove its corresponding syncrepl configs from other servers
     if server.mmr:
-        # OLC don't allw this!!! - MB
-        # TODO remove its corresponding syncrepl configs from other servers
-        # TODO LATER perform checks on ther flags and add their cleanup tasks
-        
-        flash("Server {0} is a member of multi master replication, "
-              "can't remove. You should remove deployement to remove.".format(server.hostname),
-              "warning")
-    elif server.primary_server:
-        flash("Server {0} is Primary Server, can't remove.".format(server.hostname),
-              "warning")
-    else:
-        db.session.delete(server)
-        db.session.commit()
+        remove_provider.delay(server.id)
+    # TODO LATER perform checks on ther flags and add their cleanup tasks
+    db.session.delete(server)
+    db.session.commit()
 
-        flash("Server {0} is removed.".format(server.hostname), "success")
+    flash("Server {0} is removed.".format(server.hostname), "success")
     return redirect(url_for('index.home'))
