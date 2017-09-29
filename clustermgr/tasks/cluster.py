@@ -681,3 +681,52 @@ def InstallLdapServer(self, ldap_info):
     ldps.ldap_password = ldap_info["ldap_password"]
     db.session.add(ldps)
     db.session.commit()
+
+
+@celery.task
+def collect_server_details(server_id):
+    server = Server.query.get(server_id)
+    appconf = AppConfiguration.get.first()
+    c = RemoteClient(server.hostname, ip=server.ip)
+    try:
+        c.startup()
+    except:
+        return
+
+    # 0. Make sure it is a Gluu Server
+    chdir = "/opt/gluu-server-" + appconf.gluu_version
+    if not c.exists(chdir):
+        server.gluu_server = False
+
+    # 1. The components installed in the server
+    components = {
+        'oxAuth': '/opt/gluu/jetty/oxauth',
+        'oxTrust': '/opt/gluu/jetty/identity',
+        'OpenLDAP': '/opt/symas/etc/openldap',
+        'Shibboleth': '/opt/shibboleth-idp',
+        'oxAuthRP': '/opt/gluu/jetty/oxauth-rp',
+        'Asimba': '/opt/gluu/jetty/asimba',
+        'Passport': '/opt/gluu/node/passport',
+    }
+    installed = []
+    for component, marker in components.iteritems():
+        if server.gluu_server:
+            marker = os.path.join(chdir, marker)
+        if c.exists(marker):
+            installed.append(component)
+    server.components = ",".join(installed)
+
+    # 2. Linux Distribution of the server
+    cin, cout, cerr = c.run("ls /etc/*release")
+    files = cout.split()
+    cin, cout, cerr = c.run("cat "+files[0])
+    if "Ubuntu" in cout and "14.04" in cout:
+        server.os = "Ubuntu 14"
+    if "Ubuntu" in cout and "16.04" in cout:
+        server.os = "Ubuntu 16"
+    if "CentOS" in cout and "release 6." in cout:
+        server.os = "CentOS 6"
+    if "CentOS" in cout and "release 7." in cout:
+        server.os = "CentOS 7"
+
+    db.session.commit()

@@ -7,7 +7,7 @@ from clustermgr.models import Server, AppConfiguration
 
 from clustermgr.forms import ServerForm
 from clustermgr.views.index import get_primary_server_id
-from clustermgr.tasks.cluster import remove_provider
+from clustermgr.tasks.cluster import remove_provider, collect_server_details
 
 server = Blueprint('server', __name__)
 
@@ -34,8 +34,11 @@ def index():
 
         db.session.add(server)
         db.session.commit()
-        # TODO start the background job to get system details
+
+        # start the background job to get system details
+        collect_server_details.delay(server.id)
         return redirect(url_for('index.home'))
+
     flash('Cluster Manager will connect to this server via SSH to perform its'
           ' tasks. Ensure the server running Cluster Manager has'
           '"Password-less" SSH access via shared keys to the server.', 'info')
