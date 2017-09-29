@@ -370,3 +370,42 @@ class ldapOLC(object):
                 'o': 'gluu',
             }
             )
+
+
+class DBManager(object):
+    """A wrapper class to operate on the o=gluu DIT of the LDAP.
+
+    Args:
+        hostname (string): hostname of the server running the LDAP server
+        port (int): port in which the LDAP server is listening
+        password (string): the password of admin `cn=directoy manager,o=gluu`
+        ssl (boolean): if connection should be made over ssl or not
+        ip (string, optional): ip address of the server for connection fallback
+    """
+    def __init__(self, hostname, port, password, ssl=True, ip=None):
+        self.server = Server(hostname, port=port, use_ssl=ssl)
+        self.conn = Connection(self.server, user="cn=directory manager,o=gluu",
+                               password=password, auto_bind=True)
+
+        if not self.conn.bound and ip:
+            self.server = Server(ip, port=port, use_ssl=ssl)
+            self.conn = Connection(
+                self.server, user="cn=directory manager,o=gluu",
+                password=password, auto_bind=True)
+
+    def get_appliance_attributes(self, *args):
+        """Returns the value of the attribute under the gluuAppliance entry
+
+        Args:
+            *args: the names of attributes whose value is required as string
+
+        Returns:
+            the ldap entry
+        """
+        self.conn.search(search_base="o=gluu",
+                         search_filter='(objectclass=gluuAppliance)',
+                         search_scope=SUBTREE, attributes=list(args))
+        return self.conn.entries[0]
+
+
+
