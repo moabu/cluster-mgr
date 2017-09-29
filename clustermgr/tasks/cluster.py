@@ -3,10 +3,12 @@
 import os
 
 from flask import current_app as app
+
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import celery, wlogger, db
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import ldapOLC, makeLdapPassword
+from clustermgr.core.olc import CnManager
 
 
 def run_command(tid, c, command, container=None):
@@ -110,8 +112,6 @@ def setupMmrServer(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
         return False
 
-    # FIXME This check is bogus. If chroot was set to '/' in 96 this check
-    # would pass. But the server will not be a gluu server
     if gluu:
         # check if remote is gluu server
         if c.exists(chroot):
@@ -162,14 +162,14 @@ def setupMmrServer(self, server_id):
     wlogger.log(tid, "Convert slapd.conf to slapd.d OLC")
     run_command(tid, c, 'service solserver stop', chroot)
     run_command(tid, c, "rm -rf /opt/symas/etc/openldap/slapd.d", chroot)
-    run_command(tid, c, "mkdir /opt/symas/etc/openldap/slapd.d", chroot)
+    run_command(tid, c, "mkdir -p /opt/symas/etc/openldap/slapd.d", chroot)
     run_command(tid, c, "/opt/symas/bin/slaptest -f /opt/symas/etc/openldap/"
                 "slapd.conf -F /opt/symas/etc/openldap/slapd.d", chroot)
     run_command(
         tid, c, "chown -R ldap:ldap /opt/symas/etc/openldap/slapd.d", chroot)
 
     if not c.exists(chroot + accesslog_dir):
-        run_command(tid, c, "mkdir {0}".format(accesslog_dir), chroot)
+        run_command(tid, c, "mkdir -p {0}".format(accesslog_dir), chroot)
 
     run_command(tid, c, "chown -R ldap:ldap {0}".format(accesslog_dir), chroot)
 
@@ -193,15 +193,6 @@ def setupMmrServer(self, server_id):
     except Exception as e:
         wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed:"
                     " {0}".format(e), "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    if not r:
-        try:
-            wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed"
-                        ":{0}".format(ldp.conn.result['description']), "error")
-        except:
-            pass
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
@@ -314,10 +305,9 @@ def setupMmrServer(self, server_id):
         if adminOlc.addReplicatorUser(app_config.replication_dn,
                                       app_config.replication_pw):
             wlogger.log(tid, 'Replicator user created.', 'success')
-
         else:
             wlogger.log(tid, "Creating replicator user failed: {0}".format(
-                    adminOlc.conn.result['description']), "warning")
+                adminOlc.conn.result), "warning")
             wlogger.log(tid, "Ending server setup process.", "error")
             return
     else:
@@ -331,10 +321,13 @@ def setupMmrServer(self, server_id):
 
 
     # Adding providers
-    providers = Server.query.filter(Server.id != server.id).all()
+    wlogger.log(tid, "Adding Syncrepl config of other servers in the cluster")
+
+    providers = Server.query.filter(Server.id.isnot(server.id)).filter(
+        Server.mmr is True).all()
 
     for p in providers:
-        serverp = Server.query.get(p.id)
+        serverp = p
         ldpp = ldapOLC('ldaps://{}:1636'.format(serverp.hostname),
                        "cn=config", serverp.ldap_password)
         r = None
@@ -386,10 +379,32 @@ def setupMmrServer(self, server_id):
                     ldp.conn.result['description']), "warning")
         else:
             wlogger.log(tid, 'LDAP Server is already in mirror mode', 'debug')
+    server.mmr = True
+    db.session.commit()
+
     wlogger.log(tid, "Deployment is successful")
 
     # FIX ME: Add current ldap server as a provider to previously deployed
     # servers.
+
+
+@celery.task
+def remove_provider(server_id):
+    """Task to remove the syncrepl config of the given server from all other
+    servers in the LDAP cluster.
+    """
+    appconfig = AppConfiguration.query.first()
+    server = Server.query.get(server_id)
+    recievers = Server.query.filter_by(id != server_id).all()
+    for reciever in recievers:
+        addr = reciever.hostname
+        if appconfig.use_ip:
+            addr = reciever.ip
+        c = CnManager(addr, 1636, True, 'cn=admin,cn=config',
+                      reciever.ldap_password)
+        c.remove_olcsyncrepl(server.id)
+        c.close()
+        # TODO monitor for failures and report or log it somewhere
 
 
 @celery.task(bind=True)

@@ -3,7 +3,8 @@
 
 <div class="jumbotron">
     <h1>Replication Manager</h1>
-    <p>Gluu Replication Manager lets an admin to create, test and maintain a server cluster using OpenLDAP replication.</p>
-        <p><a class="btn btn-primary btn-lg" href="{{ url_for('cluster.setup_cluster') }}" role="button">Setup Cluster</a></p>
+    <p>Gluu Replication Manager lets an admin to create, test and maintain LDAP replication, Cache Management, Key Rotation .etc., in a cluster of Gluu Servers.</p>
+    <p>Start setting up your cluster by adding the servers.</p>
+        <p><a class="btn btn-primary btn-lg" href="{{ url_for('server.index') }}" role="button">Add Server</a></p>
 </div>
 {% endblock %}

@@ -358,26 +358,26 @@ class ldapOLC(object):
         main_db_dn = self.getMainDbDN()
         return self.conn.modify(main_db_dn, {'olcLimits': [MODIFY_ADD, 'dn.exact="{0}" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited'.format(replicator_dn)]})
 
-    def checkReplicationUser(self, replicator_dn):
-        return self.conn.search(replicator_dn, search_filter='(objectClass=*)', search_scope=BASE)
-
     def addReplicatorUser(self, replicator_dn, passwd):
         self.checkBaseDN()
         enc_passwd = makeLdapPassword(passwd)
-        m = re.search('cn=(?P<cn>\w+),o=gluu', 'cn=replicator,o=gluu')
-        cn = m.group('cn')
-        return self.conn.add(replicator_dn,
-                             attributes={'objectClass': ['top', 'inetOrgPerson'],
-                                         'cn': cn,
-                                         'sn': 'replicator',
-                                         'uid': 'replicator',
-                                         'userpassword': enc_passwd,
-                                         }
-                             )
+        self.conn.search(replicator_dn, search_filter='(objectClass=*)',
+                         search_scope=BASE)
 
-    def changeReplicationUserPassword(self, replicator_dn, passwd):
-        enc_passwd = makeLdapPassword(passwd)
-        return self.conn.modify(replicator_dn, {"userPassword": [MODIFY_REPLACE, enc_passwd]})
+        if len(self.conn.response):  # user dn already exists
+            return self.conn.modify(
+                replicator_dn, {"userPassword": [MODIFY_REPLACE, enc_passwd]})
+        else:
+            m = re.search('cn=(?P<cn>[a-zA-Z][a-zA-Z ]*[a-zA-Z]),o=gluu',
+                          replicator_dn)
+            cn = m.group('cn')
+            attributes = {'objectClass': ['top', 'inetOrgPerson'],
+                          'cn': cn,
+                          'sn': 'replicator',
+                          'uid': 'replicator',
+                          'userpassword': enc_passwd,
+                          }
+            return self.conn.add(replicator_dn, attributes=attributes)
 
     def checkBaseDN(self):
         if not self.conn.search(search_base="o=gluu", search_filter='(objectClass=top)', search_scope=BASE):

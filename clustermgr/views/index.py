@@ -8,13 +8,12 @@ from celery.result import AsyncResult
 
 from clustermgr.extensions import db, wlogger, celery
 from clustermgr.models import AppConfiguration, KeyRotation, Server
-
 from clustermgr.forms import AppConfigForm, KeyRotationForm, SchemaForm, \
-    ServerForm, TestUser, InstallServerForm
+    TestUser, InstallServerForm
 
 from clustermgr.core.ldap_functions import ldapOLC
-
 from clustermgr.tasks.all import rotate_pub_keys
+from clustermgr.tasks.cluster import remove_provider
 from clustermgr.core.utils import encrypt_text
 from clustermgr.core.utils import generate_random_key
 from clustermgr.core.utils import generate_random_iv
@@ -28,6 +27,8 @@ def home():
         del session['nongluuldapinfo']
 
     ldaps = Server.query.all()
+    if not len(ldaps):
+        return render_template('intro.html')
 
     gluu_server = 0
     nongluu_server = 0
@@ -266,40 +267,10 @@ def install_ldap_server():
     return render_template('new_server.html', form=form,  data=data)
 
 
-@index.route('/makemmrreplicator/')
-def make_multi_master_replicator():
-    server_id = int(request.values.get("server_id"))
-
-    ldp = Server.query.filter_by(id=server_id).first()
-    if ldp:
-        ldp.mmr = True
-        db.session.add(ldp)
-        db.session.commit()
-        flash("Ldap Server {0} is added as Master Server".format(
-            ldp.hostname), "success")
-    else:
-        flash("No such LDAP Server", "warning")
-
-    return redirect(url_for('index.multi_master_replication'))
-
-
-def get_mmr_list():
-    ldaps = Server.query.all()
-    mmrs = []
-    for ldp in ldaps:
-        if ldp.mmr:
-            mmrs.append(ldp.id)
-    return mmrs
-
-
 @index.route('/mmr/')
 def multi_master_replication():
     app_config = AppConfiguration.query.first()
-    appConfigured = False
     pr_server = get_primary_server_id()
-    if app_config:
-        if app_config.replication_dn and app_config.replication_pw:
-            appConfigured = True
     if not app_config:
         flash("Repication user and/or password has not been defined."
               " Please go to 'Configuration' and set these before proceed.",
@@ -308,18 +279,11 @@ def multi_master_replication():
     if 'nongluuldapinfo' in session:
         del session['nongluuldapinfo']
 
-    mmrs = get_mmr_list()
     ldaps = Server.query.all()
-    id_host_dict = {}
-
-    addServerButton = False
-    if not len(ldaps) == len(mmrs):
-        addServerButton = True
-
     serverStats = {}
 
     for ldp in ldaps:
-        if ldp.id in mmrs:
+        if ldp.mmr:
             s = ldapOLC(
                 "ldaps://{0}:1636".format(ldp.hostname), "cn=config",
                 ldp.ldap_password)
@@ -339,27 +303,10 @@ def multi_master_replication():
                 if sstat['server_id']:
                     serverStats[ldp.hostname] = sstat
 
-    if not appConfigured:
-        addServerButton = False
-
-    return render_template('multi_master.html', ldapservers=ldaps, mmrs=mmrs,
-                           id_host_dict=id_host_dict,
-                           addServerButton=addServerButton,
+    return render_template('multi_master.html', ldapservers=ldaps,
                            serverStats=serverStats,
                            pr_server=pr_server,
                            )
-
-
-@index.route('/removemaster/')
-def remove_multi_master_replicator():
-    server_id = int(request.values.get("server_id"))
-
-    mmr = Server.query.filter(Server.id == server_id).first()
-    db.session.delete(mmr)
-    db.session.commit()
-    flash("Master server is removed", "success")
-
-    return redirect(url_for('index.multi_master_replication'))
 
 
 @index.route('/addtestuser/<int:server_id>', methods=['GET', 'POST'])

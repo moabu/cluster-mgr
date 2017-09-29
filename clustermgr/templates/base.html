@@ -58,6 +58,15 @@
               {% for category, message in messages %}
                 <div class="alert alert-{{ category }} alert-dismissible" role="alert">
                   <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                  {% if category == 'info' %}
+                    <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+                  {% elif category == 'successs'%}
+                    <span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span>
+                  {% elif category == 'warning'%}
+                    <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
+                  {% elif category == 'danger'%}
+                    <span class="glyphicon glyphicon-remove-sign" aria-hidden="true"></span>
+                  {% endif %}
                   {{ message }}
                 </div>
               {% endfor %}

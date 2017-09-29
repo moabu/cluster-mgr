@@ -28,11 +28,15 @@ def index():
         server.hostname = form.hostname.data
         server.ip = form.ip.data
         server.ldap_password = form.ldap_password.data
+        server.mmr = False
 
         db.session.add(server)
         db.session.commit()
         # TODO start the background job to get system details
         return redirect(url_for('index.home'))
+    flash('Cluster Manager will connect to this server via SSH to perform its'
+          ' tasks. Ensure the server running Cluster Manager has'
+          '"Password-less" SSH access via shared keys to the server.', 'info')
     return render_template('new_server.html', form=form, header="New Server")
 
 
