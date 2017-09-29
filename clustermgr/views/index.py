@@ -70,10 +70,20 @@ def app_configuration():
             conf_form.process()
 
     if conf_form.update.data and conf_form.validate_on_submit():
+        
+        replication_dn = "cn={},o=gluu".format(conf_form.replication_dn.data)
+        
         if not config:
             config = AppConfiguration()
-        config.replication_dn = "cn={},o=gluu".format(
-            conf_form.replication_dn.data)
+        else:
+            if config.replication_dn != replication_dn or \
+                config.replication_pw != conf_form.replication_pw.data:
+                flash("You changed Replication Manager information. "
+                      "This will break replication. Please re-deploy all LDAP Servers.",
+                       "danger")
+
+            
+        config.replication_dn = replication_dn
         config.replication_pw = conf_form.replication_pw.data
         config.gluu_version = conf_form.gluu_version.data
         config.use_ip = conf_form.use_ip.data
@@ -286,7 +296,7 @@ def get_mmr_list():
 def multi_master_replication():
     app_config = AppConfiguration.query.first()
     appConfigured = False
-
+    pr_server = get_primary_server_id()
     if app_config:
         if app_config.replication_dn and app_config.replication_pw:
             appConfigured = True
@@ -336,6 +346,7 @@ def multi_master_replication():
                            id_host_dict=id_host_dict,
                            addServerButton=addServerButton,
                            serverStats=serverStats,
+                           pr_server=pr_server,
                            )
 
 

@@ -17,9 +17,9 @@
     <tbody>
         {% for server in ldapservers %}
 
-        {% if server.id in mmrs %}
+        {% if server.mmr %}
 
-        <tr>
+        <tr {% if server.id == pr_server %} class="success" {% endif %}>
             <td>{{ server.id }}</td>
             <td>{{ server.hostname }}</td>
             <td>{{ server.ip }}</td>

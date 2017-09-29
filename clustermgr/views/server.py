@@ -8,6 +8,7 @@ from clustermgr.extensions import db, wlogger, celery
 from clustermgr.models import AppConfiguration, Server
 
 from clustermgr.forms import ServerForm
+from clustermgr.views.index import get_primary_server_id
 
 # from clustermgr.core.ldap_functions import ldapOLC
 
@@ -44,6 +45,14 @@ def edit(server_id):
 
     form = ServerForm()
 
+
+    pr_server = get_primary_server_id()
+
+    if pr_server:
+        if not get_primary_server_id() == server_id:
+            form.primary_server.render_kw = {'disabled': 'disabled'}
+
+
     if request.method == 'POST' and not form.ldap_password.data:
         form.ldap_password.data = '**dummy**'
 
@@ -51,6 +60,7 @@ def edit(server_id):
         server.gluu_server = form.gluu_server.data
         server.hostname = form.hostname.data
         server.ip = form.ip.data
+        server.primary_server = form.primary_server.data
         if form.ldap_password.data is not '**dummy**':
             server.ldap_password = form.ldap_password.data
         db.session.commit()
@@ -60,6 +70,7 @@ def edit(server_id):
     form.hostname.data = server.hostname
     form.ip.data = server.ip
     form.ldap_password.data = server.ldap_password
+    form.primary_server.data = server.primary_server
     return render_template('new_server.html', form=form,
                            header="Update Server Details")
 
@@ -69,12 +80,19 @@ def remove(server_id):
     server = Server.query.filter_by(id=server_id).first()
 
     if server.mmr:
+        # OLC don't allw this!!! - MB
         # TODO remove its corresponding syncrepl configs from other servers
         # TODO LATER perform checks on ther flags and add their cleanup tasks
-        pass
+        
+        flash("Server {0} is a member of multi master replication, "
+              "can't remove. You should remove deployement to remove.".format(server.hostname),
+              "warning")
+    elif server.primary_server:
+        flash("Server {0} is Primary Server, can't remove.".format(server.hostname),
+              "warning")
+    else:
+        db.session.delete(server)
+        db.session.commit()
 
-    db.session.delete(server)
-    db.session.commit()
-
-    flash("Server {0} is removed.".format(server.hostname), "success")
+        flash("Server {0} is removed.".format(server.hostname), "success")
     return redirect(url_for('index.home'))
