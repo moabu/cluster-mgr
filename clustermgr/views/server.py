@@ -50,7 +50,7 @@ def index():
     return render_template('new_server.html', form=form, header="New Server")
 
 
-@server.route('/edit/<int:server_id>', methods=['GET', 'POST'])
+@server.route('/edit/<int:server_id>/', methods=['GET', 'POST'])
 def edit(server_id):
     server = Server.query.get(server_id)
     if not server:
@@ -163,24 +163,22 @@ def install_gluu(server_id):
     setup_prop['ldapPass']  = server.ldap_password
 
 
-    if request.method == 'POST':
-        if form.validate_on_submit():
+    if form.validate_on_submit():
+         setup_prop['countryCode'] = form.countryCode.data
+         setup_prop['state']       = form.state.data
+         setup_prop['city']        = form.city.data
+         setup_prop['orgName']     = form.orgName.data
+         setup_prop['admin_email'] = form.admin_email.data
 
-            setup_prop['countryCode'] = form.countryCode.data
-            setup_prop['state']       = form.state.data
-            setup_prop['city']        = form.city.data
-            setup_prop['orgName']     = form.orgName.data
-            setup_prop['admin_email'] = form.admin_email.data
+         setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
 
-            setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
-
-            with open(setup_properties_file,'w') as f:
-                for k,v in setup_prop.items():
+         with open(setup_properties_file,'w') as f:
+             for k,v in setup_prop.items():
                     f.write('{0}={1}\n'.format(k,v))
 
-            return redirect(url_for('cluster.install_gluu_server',server_id=server_id))
+         return redirect(url_for('cluster.install_gluu_server',server_id=server_id))
         
-    else:
+    if request.method == 'GET':
         form.countryCode.data = setup_prop['countryCode']
         form.state.data       = setup_prop['state']
         form.city.data        = setup_prop['city']

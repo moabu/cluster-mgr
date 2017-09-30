@@ -109,10 +109,5 @@ class IndexViewTestCase(unittest.TestCase):
         self.assertEqual(json.loads(rv.data)['result'], 'TASK RESULT')
 
 
-
-
-
 if __name__ == '__main__':
     unittest.main()
-
-
