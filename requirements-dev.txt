@@ -1,3 +1,5 @@
 Sphinx
 selenium
 pytest
+pytest-cov
+mock

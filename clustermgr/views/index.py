@@ -13,7 +13,6 @@ from clustermgr.forms import AppConfigForm, KeyRotationForm, SchemaForm, \
 
 from clustermgr.core.ldap_functions import ldapOLC
 from clustermgr.tasks.all import rotate_pub_keys
-from clustermgr.tasks.cluster import remove_provider
 from clustermgr.core.utils import encrypt_text
 from clustermgr.core.utils import generate_random_key
 from clustermgr.core.utils import generate_random_iv
@@ -59,17 +58,6 @@ def app_configuration():
     config = AppConfiguration.query.first()
     schemafiles = os.listdir(app.config['SCHEMA_DIR'])
 
-    if request.method == "GET":
-        if config:
-
-            if config.gluu_version:
-                conf_form.gluu_version.default = config.gluu_version
-
-            if config.use_ip:
-                conf_form.use_ip.default = config.use_ip
-
-            conf_form.process()
-
     if conf_form.update.data and conf_form.validate_on_submit():
         replication_dn = "cn={},o=gluu".format(conf_form.replication_dn.data)
         if not config:
@@ -106,10 +94,15 @@ def app_configuration():
         flash("Schema: {0} has been uploaded sucessfully.".format(filename),
               "success")
 
+    # request.method == GET gets processed here
     if config and config.replication_dn:
         conf_form.replication_dn.data = config.replication_dn.replace(
             "cn=", "").replace(",o=gluu", "")
         conf_form.replication_pw.data = config.replication_pw
+        conf_form.nginx_host.data = config.nginx_host
+        conf_form.use_ip.data = config.use_ip
+        if config.gluu_version:
+            conf_form.gluu_version.data = config.gluu_version
 
     return render_template('app_config.html', cform=conf_form, sform=sch_form,
                            config=config, schemafiles=schemafiles,

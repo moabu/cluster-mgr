@@ -102,3 +102,6 @@ celerybeat.pid
 *.db
 celeryd.*
 tmp
+
+# PyCharm folder
+.idea
