@@ -204,9 +204,12 @@ def delete_oxauth_server(id):
 def get_log(task_id):
     msgs = wlogger.get_messages(task_id)
     result = AsyncResult(id=task_id, app=celery)
+    value = 0
     if result.state == 'SUCCESS' or result.state == 'FAILED':
+        value = result.result
         wlogger.clean(task_id)
-    log = {'task_id': task_id, 'state': result.state, 'messages': msgs}
+    log = {'task_id': task_id, 'state': result.state, 'messages': msgs,
+           'result': value}
     return jsonify(log)
 
 

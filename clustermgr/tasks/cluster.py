@@ -687,7 +687,7 @@ def InstallLdapServer(self, ldap_info):
 @celery.task
 def collect_server_details(server_id):
     server = Server.query.get(server_id)
-    appconf = AppConfiguration.get.first()
+    appconf = AppConfiguration.query.first()
     c = RemoteClient(server.hostname, ip=server.ip)
     try:
         c.startup()

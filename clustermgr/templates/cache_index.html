@@ -1,6 +1,58 @@
 {% extends "base.html" %}
 {% block content %}
-    <h2>Cache Management</h2>
+    <h2 class="page-header">Cache Management</h2>
+    {% if servers %}
+    <table class="table table-bordered table-condensed table-hover">
+        <thead>
+            <tr>
+                <th>Server ID</th>
+                <th>Hostname</th>
+                <th>IP Address</th>
+                <th>
+                    Cache Method
+                    <button class="btn btn-info btn-xs" onclick="updateCacheMethods()"><span class="glyphicon glyphicon-refresh"></span> Refresh</button>
+                    <button class="btn btn-success btn-xs" onclick="alert('Yet to implement');">
+                        <span class="glyphicon glyphicon-edit"></span> Change</button>
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for server in servers %}
+            <tr id="server_{{server.id}}">
+                <td class="id">{{server.id}}</td>
+                <td class="hostname">{{server.hostname}}</td>
+                <td class="ip">{{server.ip}}</td>
+                <td class="cache_method">{{server.cache_method}}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
 {% endblock %}
 {% block js %}
+<script>
+    var task_id;
+    var timer;
+    function updateCacheMethods(){
+        var url = '{{ url_for("cache_mgr.refresh_methods") }}';
+        $.get(url, function(data){
+            task_id = data.task_id;
+            timer = setInterval(fetchResult, 2000);
+        });
+    }
+    function fetchResult(){
+        var url = '{{ url_for("index.get_log", task_id="dummyid")}}';
+        url = url.replace("dummyid", task_id);
+
+        $.get(url, function(data){
+            if(data.state == "SUCCESS" || data.state == "FAILURE"){
+                clearInterval(timer);
+                var methods = data.result;
+                for(var i=0; i < methods.length; i++){
+                    $("tr#server_"+methods[i].id+"> td.cache_method").text(methods[i].method);
+                }
+            }
+        });
+    }
+</script>
 {% endblock %}
