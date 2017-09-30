@@ -157,6 +157,13 @@ class RemoteClient(object):
         except Exception as err:
             return False, err
 
+    def listdir(self, dirname):
+        try:
+            r = self.sftpclient.listdir(dirname)
+            return True, r
+        except Exception as err:
+            return False, err
+
     def close(self):
         """Close the SSH Connection
         """

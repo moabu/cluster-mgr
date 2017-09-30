@@ -20,6 +20,9 @@ class AppConfigForm(FlaskForm):
             message="Only alphabets and space allowed; cannot end with space.")])  # noqa
     replication_pw = StringField('Replication Manager Password',
                                  validators=[DataRequired()])
+                                 
+    nginx_host = StringField('NGINX Host', validators=[DataRequired()])
+    
     update = SubmitField("Update Configuration")
 
 
@@ -104,8 +107,6 @@ class InstallServerForm(FlaskForm):
         'IP Address *', validators=[DataRequired(), IPAddress()])
     ldap_password = StringField(
         'LDAP Admin Password *', validators=[DataRequired()])
-    replicator_password = StringField(
-        'Replicator User Password *', validators=[DataRequired()])
     countryCode = StringField(
         'Two Letter Country Code *', validators=[Length(min=2, max=2),
                                                  DataRequired()])
@@ -114,3 +115,5 @@ class InstallServerForm(FlaskForm):
     city = StringField('City *', validators=[DataRequired()])
     orgName = StringField('Organization Name *', validators=[DataRequired()])
     admin_email = StringField('Admin E-mail *', validators=[DataRequired()])
+
+    

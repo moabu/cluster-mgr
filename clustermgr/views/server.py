@@ -1,13 +1,18 @@
 # -*- coding: utf-8 -*-
+
+import os
+import uuid
+
 from flask import Blueprint, render_template, redirect, url_for, flash, \
-    request
+    request, session
 
 from clustermgr.extensions import db
 from clustermgr.models import Server, AppConfiguration
 
-from clustermgr.forms import ServerForm
+from clustermgr.forms import ServerForm, InstallServerForm
 from clustermgr.views.index import get_primary_server_id
 from clustermgr.tasks.cluster import remove_provider, collect_server_details
+from clustermgr.config import Config
 
 server = Blueprint('server', __name__)
 
@@ -94,3 +99,92 @@ def remove(server_id):
 
     flash("Server {0} is removed.".format(server.hostname), "success")
     return redirect(url_for('index.home'))
+
+def getQuad():
+    return str(uuid.uuid4())[:4].upper()
+
+def getInums():
+
+    baseInum = '@!%s.%s.%s.%s' % tuple([getQuad() for i in xrange(4)])
+    orgTwoQuads = '%s.%s' % tuple([getQuad() for i in xrange(2)])
+    inumOrg = '%s!0001!%s' % (baseInum, orgTwoQuads)
+    applianceTwoQuads = '%s.%s' % tuple([getQuad() for i in xrange(2)])
+    inumAppliance = '%s!0002!%s' % (baseInum, applianceTwoQuads)
+
+    return inumOrg, inumAppliance
+
+
+def getSetupProperties():
+    setupProp={
+                'hostname':'',
+                'orgName':'',
+                'countryCode':'',
+                'city':'',
+                'state':'',
+                'jksPass':'',
+                'inumOrg':'',
+                'inumAppliance':'',
+                'admin_email':'',
+                'ip':'',
+            }
+
+    setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
+    if os.path.exists(setup_properties_file):
+        for l in open(setup_properties_file):
+            ls = l.strip().split('=')
+            if ls:
+                setupProp[ls[0]]=ls[1]
+    
+    if not setupProp['inumOrg']:
+        inumOrg, inumAppliance = getInums()
+        setupProp['inumOrg'] = inumOrg
+        setupProp['inumAppliance'] = inumAppliance
+
+    return setupProp
+
+
+
+@server.route('/installgluu/<int:server_id>/', methods=['GET','POST'])
+def install_gluu(server_id):
+
+    server = Server.query.get(server_id)
+    appconf = AppConfiguration.query.first()
+    form = InstallServerForm()
+
+    del form.hostname
+    del form.ip_address
+    del form.ldap_password
+    header =  'Install Gluu Server on {0}'.format(server.hostname)
+
+    setup_prop = getSetupProperties()
+
+    setup_prop['hostname']  = appconf.nginx_host
+    setup_prop['ip']        = server.ip
+    setup_prop['ldapPass']  = server.ldap_password
+
+
+    if request.method == 'POST':
+        if form.validate_on_submit():
+
+            setup_prop['countryCode'] = form.countryCode.data
+            setup_prop['state']       = form.state.data
+            setup_prop['city']        = form.city.data
+            setup_prop['orgName']     = form.orgName.data
+            setup_prop['admin_email'] = form.admin_email.data
+
+            setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
+
+            with open(setup_properties_file,'w') as f:
+                for k,v in setup_prop.items():
+                    f.write('{0}={1}\n'.format(k,v))
+
+            return redirect(url_for('cluster.install_gluu_server',server_id=server_id))
+        
+    else:
+        form.countryCode.data = setup_prop['countryCode']
+        form.state.data       = setup_prop['state']
+        form.city.data        = setup_prop['city']
+        form.orgName.data     = setup_prop['orgName']
+        form.admin_email.data = setup_prop['admin_email']
+
+    return render_template('new_server.html', form=form,  header=header)

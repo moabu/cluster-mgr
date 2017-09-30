@@ -76,7 +76,10 @@
                 <a class="btn btn-default btn-xs" href="{{ url_for('server.edit', server_id=server.id) }}">Edit</a>
                 <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal" data-serverid="{{server.id}}"
                 data-hostname="{{ server.hostname }}">Remove</a>
-
+                <a class="btn btn-default btn-xs" href="{{ url_for('server.install_gluu', server_id=server.id) }}">Install Gluu</a>
+                
+                
+                
             </td>
         </tr>
         {% endfor %}

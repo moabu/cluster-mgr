@@ -5,9 +5,11 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
     request, session
 
 from clustermgr.core.ldap_functions import ldapOLC
-from clustermgr.models import Server
+from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cluster import setupMmrServer, InstallLdapServer, \
-    removeMultiMasterDeployement
+    removeMultiMasterDeployement, installGluuServer
+
+import clustermgr.tasks.cluster
 
 cluster = Blueprint('cluster', __name__, template_folder='templates')
 
@@ -74,4 +76,19 @@ def install_ldap_server():
     nextpage = "index.multi_master_replication"
     whatNext = "Multi Master Replication"
     return render_template("logger.html", heading=head, server="",
+                           task=task, nextpage=nextpage, whatNext=whatNext)
+
+
+@cluster.route('/installgluuserver/<int:server_id>/')
+def install_gluu_server(server_id):
+    server = Server.query.get(server_id)
+    appconf = AppConfiguration.query.first()
+
+    task = installGluuServer.delay(server_id)
+
+    print "Install Gluu Server TASK STARTED", task.id
+    head = "Installing Gluu Server ({0}) on {1}".format(appconf.gluu_version, server.hostname)
+    nextpage = "index.home"
+    whatNext = "Dashboard"
+    return render_template("logger.html", heading=head, server=server.hostname,
                            task=task, nextpage=nextpage, whatNext=whatNext)

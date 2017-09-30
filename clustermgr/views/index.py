@@ -85,7 +85,8 @@ def app_configuration():
         config.replication_pw = conf_form.replication_pw.data
         config.gluu_version = conf_form.gluu_version.data
         config.use_ip = conf_form.use_ip.data
-
+        config.nginx_host = conf_form.nginx_host.data
+        
         db.session.add(config)
         db.session.commit()
         flash("Gluu Replication Manager application configuration has been "

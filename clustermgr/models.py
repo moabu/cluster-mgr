@@ -59,6 +59,8 @@ class AppConfiguration(db.Model):
 
     # use ip for replication
     use_ip = db.Column(db.Boolean())
+    
+    nginx_host = db.Column(db.String(250))
 
 
 class KeyRotation(db.Model):

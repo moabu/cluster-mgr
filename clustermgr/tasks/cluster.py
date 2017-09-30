@@ -10,6 +10,7 @@ from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import ldapOLC
 from clustermgr.core.olc import CnManager
 from clustermgr.core.utils import ldap_encode
+from clustermgr.config import Config
 
 
 def run_command(tid, c, command, container=None):
@@ -730,3 +731,61 @@ def collect_server_details(server_id):
         server.os = "CentOS 7"
 
     db.session.commit()
+
+
+@celery.task(bind=True)
+def installGluuServer(self, server_id):
+    tid = self.request.id
+    server = Server.query.get(server_id)
+    appconf = AppConfiguration.query.first()
+    c = RemoteClient(server.hostname, ip=server.ip)
+
+    setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
+
+    gluu_server = 'gluu-server-' + appconf.gluu_version
+
+    try:
+        c.startup()
+    except:
+        return
+
+    # FIXME : After collect_server_details completed get os form database
+    os_version = 'Ubuntu 14'
+    
+    if 'Ubuntu' in os_version:
+        install_command = 'apt-get '
+        service_command = 'service {0} {1}'
+    elif 'CentOS' in os_version:
+        install_command = 'yum'
+        service_command = 'service {0} {1}'
+    
+    wlogger.log(tid, "Check if Gluu Server was installed")
+    
+    r = c.listdir("/opt")
+    if r[0]:
+        for s in r[1]:
+            if s.startswith('gluu-server-') and not s.endswith('.save'):
+                #FIXME : Modify stop command for OS versions
+                run_command(tid, c, service_command.format(s, 'stop'))
+                run_command(tid, c, install_command + "remove -y "+s)
+    
+    if not r[1]:
+        wlogger.log(tid, "Gluu Server was not previously installed", "debug")
+    wlogger.log(tid, "Installing Gluu Server: " + gluu_server)
+
+    #FIXME : check cerr for possible issues on installing package
+    cin, cout, cerr = c.run(install_command + 'install -y ' + gluu_server)
+    wlogger.log(tid, cout, "debug")
+
+    run_command(tid, c, service_command.format(gluu_server, 'start'))
+
+    wlogger.log(tid, "Uploading setup.properties")
+    r = c.upload(setup_properties_file, '/opt/{}/install/community-edition-setup/setup.properties'.format(gluu_server))
+    
+    if r.startswith('Error:'):
+        wlogger.log(tid, r, 'fail')
+        wlogger.log(tid, "Ending server setup process.", "error")
+    
+    wlogger.log(tid, "Runnin setup.py - Be patient this process will take a while")
+    run_command(tid, c, 'cd install/community-edition-setup/ && ./setup.py -n', '/opt/'+ format(gluu_server)+'/')
+    
