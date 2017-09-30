@@ -75,36 +75,40 @@ class IndexViewTestCase(unittest.TestCase):
         self.assertIn('replication manager', rv.data)
         self.assertIn('nginx.example.com', rv.data)
 
-    def test_get_log_returns_the_messages_as_json(self):
-        tid = 'dummy-id'
-        wlogger.log(tid, "Message 1")
-        wlogger.log(tid, "Message 2", "debug")
+    @patch('clustermgr.views.index.wlogger')
+    @patch('clustermgr.views.index.AsyncResult')
+    def test_get_log_returns_the_messages_as_json(self, mockresult, mocklogger):
+        instance = mockresult.return_value
+        instance.state = 'PENDING'
+        mocklogger.get_messages.return_value = [{'level': 'info', 'msg': 'Message 1'},
+                                                {'level': 'debug', 'msg': 'Message 2'}]
         rv = self.client.get('/log/dummy-id')
         self.assertIn("Message 1", rv.data)
         self.assertIn("Message 2", rv.data)
 
+    @patch('clustermgr.views.index.wlogger')
     @patch('clustermgr.views.index.AsyncResult')
-    def test_get_log_cleans_messages_when_task_completes(self, mockresult):
-        tid = 'test-id'
+    def test_get_log_cleans_messages_when_task_completes(self, mockresult, mocklogger):
         instance = mockresult.return_value
         instance.state = 'SUCCESS'
         instance.result = 5
-        wlogger.log(tid, 'Message 1')
-        wlogger.log(tid, 'Message 2')
+        mocklogger.get_messages.return_value = [{'level': 'info', 'msg': 'message 1'}]
         self.client.get('/log/test-id')
-        assert wlogger.get_messages(tid) == []
+        mocklogger.clean.assert_called_once()
 
+
+    @patch('clustermgr.views.index.wlogger')
     @patch('clustermgr.views.index.AsyncResult')
-    def test_get_log_returns_the_task_result_when_task_ends(self, mockresult):
-        tid = 'test-id'
+    def test_get_log_returns_the_task_result_when_task_ends(self, mockresult, mocklogger):
         instance = mockresult.return_value
         instance.state = 'PENDING'
-        wlogger.log(tid, 'Message 1')
+        mocklogger.get_messages.return_value = [{'level': 'info', 'msg': 'message 1'}]
         rv = self.client.get('/log/test-id')
         assert json.loads(rv.data)['result'] == 0
 
         instance.state = 'SUCCESS'
         instance.result = 'TASK RESULT'
+        mocklogger.get_messages.return_value = [{'level': 'info', 'msg': 'message 1'}]
         rv = self.client.get('/log/test-id')
         self.assertEqual(json.loads(rv.data)['result'], 'TASK RESULT')
 
