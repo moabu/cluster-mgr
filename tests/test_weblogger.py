@@ -39,6 +39,12 @@ class WebLoggerTestCase(unittest.TestCase):
         self.r.lrange.return_value = None
         assert self.wlog.get_messages('non existent id') == []
 
+    def test_get_message_returns_list_of_messages(self):
+        message = [json.dumps(dict(level="info", msg="test message"))]
+        self.r.lrange.return_value = message
+        assert len(self.wlog.get_messages('test id')) == 1
+        assert self.wlog.get_messages('test id') == [dict(level="info", msg="test message")]
+
     def test_clean_deletes_all_messages(self):
         self.wlog.clean('test-id')
         self.r.delete.assert_called_with('weblogger:test-id')
