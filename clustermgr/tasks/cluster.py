@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import StringIO
 
 from flask import current_app as app
 
@@ -129,7 +130,7 @@ def setup_ldap_replication(self, server_id):
                     chroot)
 
     # 4. Ensure Openldap is installed on the server
-    if c.exists(os.path.join(chroot, '/opt/symas/bin/slaptest')):
+    if c.exists(os.path.join(chroot, 'opt/symas/bin/slaptest')):
         wlogger.log(tid, "Checking OpenLDAP is installed", "success")
     else:
         wlogger.log(tid, "Cannot find directory /opt/symas/bin. OpenLDAP is "
@@ -303,6 +304,9 @@ def setup_ldap_replication(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
+    saddr = server.ip if app_config.use_ip else server.hostname
+    replicators=[ saddr + ':1636' ]
+
     # 12. Make this server to listen to all other providers
     providers = Server.query.filter(Server.id.isnot(server.id)).filter(
         Server.mmr.is_(True)).all()
@@ -310,6 +314,7 @@ def setup_ldap_replication(self, server_id):
         wlogger.log(tid, "Adding Syncrepl to integrate the server in cluster")
     for p in providers:
         paddr = p.ip if app_config.use_ip else p.hostname
+        replicators.append(paddr+':1636')
         status = ldp.add_provider(
             p.id, "ldaps://{0}:1636".format(paddr), app_config.replication_dn,
             app_config.replication_pw)
@@ -331,7 +336,6 @@ def setup_ldap_replication(self, server_id):
                         " to {1} for changes.".format(
                             p.hostname, server.hostname), "warning")
             continue
-        saddr = server.ip if app_config.use_ip else server.hostname
         status = other.add_provider(server.id,
                                     "ldaps://{0}:1636".format(saddr),
                                     app_config.replication_dn,
@@ -349,7 +353,27 @@ def setup_ldap_replication(self, server_id):
             other.makeMirroMode()
         other.conn.unbind()
 
-    # 14. Enable Mirrormode in the server
+
+    # 14 Add all repilcators to ox-ldap.properties file.
+    # FIXME : This requires restarting some servers. Ask Arun or Chris.
+    ox_ldap=c.get_file(os.path.join(chroot, "etc/gluu/conf/ox-ldap.properties"))
+    servers_str = ','.join(replicators)
+    if ox_ldap[0]:
+        servers_str = ','.join(replicators)
+        fc = ''
+        for l in ox_ldap[1]:
+            if l.startswith('servers:'):
+                l='servers: {0}\n'.format(servers_str)
+            fc += l
+        c.put_file(os.path.join(chroot, "etc/gluu/conf/ox-ldap.properties"),fc)
+        wlogger.log(tid, "ox-ldap.properties file was modified to include all multi master ldap servers",
+            "success")
+    else:
+        wlogger.log(tid, "Error getting ox-ldap.properties file: {0}".format(ox_ldap[1]),
+            "error")
+
+
+    # 15. Enable Mirrormode in the server
     if providers:
         if not ldp.checkMirroMode():
             if ldp.makeMirroMode():
@@ -360,7 +384,7 @@ def setup_ldap_replication(self, server_id):
         else:
             wlogger.log(tid, 'LDAP Server is already in mirror mode', 'debug')
 
-    # 15. Set the mmr flag to True to indicate it has been configured
+    # 16. Set the mmr flag to True to indicate it has been configured
     server.mmr = True
     db.session.commit()
 
@@ -725,3 +749,5 @@ def installGluuServer(self, server_id):
     wlogger.log(tid, "Runnin setup.py - Be patient this process will take a while")
     run_command(tid, c, 'cd install/community-edition-setup/ && ./setup.py -n', '/opt/'+ format(gluu_server)+'/')
     
+    server.gluu_server = True
+    db.session.commit()

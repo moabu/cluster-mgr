@@ -129,6 +129,25 @@ class RemoteClient(object):
 
         return tuple(output)
 
+    def get_file(self, filename):
+        """Reads content of filename on remote server
+
+        Args:
+            filename (string): name of file to be read from remote server
+
+        Returns:
+            tuple: True/False, file like object / error
+
+        """
+        
+        f = StringIO.StringIO()
+        try:
+            r=self.sftpclient.getfo(filename,f)
+            f.seek(0)
+            return r, f
+        except Exception as err:
+            return False, err
+    
     def put_file(self,  filename, filecontent):
         """Puts content to a file on remote server
 
