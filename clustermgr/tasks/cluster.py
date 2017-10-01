@@ -368,6 +368,10 @@ def setup_ldap_replication(self, server_id):
         c.put_file(os.path.join(chroot, "etc/gluu/conf/ox-ldap.properties"),fc)
         wlogger.log(tid, "ox-ldap.properties file was modified to include all multi master ldap servers",
             "success")
+        
+        run_command(tid, c, 'service oxauth restart', chroot)
+
+
     else:
         wlogger.log(tid, "Error getting ox-ldap.properties file: {0}".format(ox_ldap[1]),
             "error")
