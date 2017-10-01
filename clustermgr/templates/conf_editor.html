@@ -3,13 +3,13 @@
 <form action="" method="post">
 <div class="panel panel-default" id="editor-panel">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-  <div class="panel-heading">Edit slapd.conf to suite any custom requirements</div>
+  <div class="panel-heading">Edit slapd.conf to suite any custom requirements [{{hostname}}]</div>
   <div class="panel-body" style="padding:0;">
       <textarea name="conf" style="display: none;">{{ config }}</textarea>
       <div id="editor" style="height: 600px;">{{ config }}</div>
   </div>
 </div>
-<input type="submit" class="btn btn-primary" value="Setup Server" />
+<input type="submit" class="btn btn-primary" value="Save to Server" />
 </form>
 {% endblock content %}
 {% block js %}

@@ -13,6 +13,7 @@ from clustermgr.forms import ServerForm, InstallServerForm
 from clustermgr.views.index import get_primary_server_id
 from clustermgr.tasks.cluster import remove_provider, collect_server_details
 from clustermgr.config import Config
+from clustermgr.core.remote import RemoteClient
 
 server = Blueprint('server', __name__)
 
@@ -104,13 +105,11 @@ def getQuad():
     return str(uuid.uuid4())[:4].upper()
 
 def getInums():
-
     baseInum = '@!%s.%s.%s.%s' % tuple([getQuad() for i in xrange(4)])
     orgTwoQuads = '%s.%s' % tuple([getQuad() for i in xrange(2)])
     inumOrg = '%s!0001!%s' % (baseInum, orgTwoQuads)
     applianceTwoQuads = '%s.%s' % tuple([getQuad() for i in xrange(2)])
     inumAppliance = '%s!0002!%s' % (baseInum, applianceTwoQuads)
-
     return inumOrg, inumAppliance
 
 
@@ -186,3 +185,49 @@ def install_gluu(server_id):
         form.admin_email.data = setup_prop['admin_email']
 
     return render_template('new_server.html', form=form,  header=header)
+
+@server.route('/editslapdconf/<int:server_id>/', methods=['GET','POST'])
+def edit_slapd_conf(server_id):
+    server = Server.query.get(server_id)
+    appconf = AppConfiguration.query.first()
+    
+    if not server:
+        print "Yoook"
+        flash("No such server.", "warning")
+        return redirect(url_for('index.home'))
+
+    if not server.gluu_server:
+        chroot = '/'
+    else:
+        chroot = '/opt/gluu-server-' + appconf.gluu_version
+        
+    c = RemoteClient(server.hostname, ip=server.ip)
+    try:
+        c.startup()
+    except Exception as e:
+        flash("Can't establing SSH connection.", "danger")
+        return redirect(url_for('index.home'))
+
+    slapd_conf_file = os.path.join(chroot, 'opt/symas/etc/openldap/slapd.conf')
+    
+    if request.method == 'POST':
+    
+        config = request.form.get('conf')
+        r = c.put_file(slapd_conf_file, config)
+        if not r[0]:
+            flash("Cant' saved to server: {0}".format(r[1]), "danger")
+        else:
+            flash('File {0} was saved on {1}'.format(slapd_conf_file, server.hostname))
+            return redirect(url_for('index.home'))
+            
+    r = c.get_file(slapd_conf_file)
+    
+    if not r[0]:
+        flash("Cant't get file {0}: {1}".format(slapd_conf_file, r[1]), "success")
+        return redirect(url_for('index.home'))
+    
+    config = r[1].read()
+    
+
+    return render_template('conf_editor.html', config=config,
+                            hostname=server.hostname)
