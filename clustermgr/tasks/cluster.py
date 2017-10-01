@@ -7,7 +7,7 @@ from flask import current_app as app
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import celery, wlogger, db
 from clustermgr.core.remote import RemoteClient
-from clustermgr.core.ldap_functions import ldapOLC
+from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.core.olc import CnManager
 from clustermgr.core.utils import ldap_encode
 from clustermgr.config import Config
@@ -178,7 +178,7 @@ def setup_ldap_replication(self, server_id):
         return
 
     # 8. Connect to the OLC config
-    ldp = ldapOLC('ldaps://{}:1636'.format(conn_addr), 'cn=config',
+    ldp = LdapOLC('ldaps://{}:1636'.format(conn_addr), 'cn=config',
                   server.ldap_password)
     try:
         ldp.connect()
@@ -283,7 +283,7 @@ def setup_ldap_replication(self, server_id):
     wlogger.log(tid, 'Creating replicator user: {0}'.format(
         app_config.replication_dn))
 
-    adminOlc = ldapOLC('ldaps://{}:1636'.format(conn_addr),
+    adminOlc = LdapOLC('ldaps://{}:1636'.format(conn_addr),
                        'cn=directory manager,o=gluu', server.ldap_password)
     try:
         adminOlc.connect()
@@ -310,7 +310,7 @@ def setup_ldap_replication(self, server_id):
         wlogger.log(tid, "Adding Syncrepl to integrate the server in cluster")
     for p in providers:
         paddr = p.ip if app_config.use_ip else p.hostname
-        status = ldp.addProvider(
+        status = ldp.add_provider(
             p.id, "ldaps://{0}:1636".format(paddr), app_config.replication_dn,
             app_config.replication_pw)
         if status:
@@ -322,7 +322,7 @@ def setup_ldap_replication(self, server_id):
                 "warning")
 
         # 13. Make the other server listen to this server
-        other = ldapOLC('ldaps://{}:1636'.format(paddr), "cn=config",
+        other = LdapOLC('ldaps://{}:1636'.format(paddr), "cn=config",
                         p.ldap_password)
         try:
             other.connect()
@@ -332,9 +332,10 @@ def setup_ldap_replication(self, server_id):
                             p.hostname, server.hostname), "warning")
             continue
         saddr = server.ip if app_config.use_ip else server.hostname
-        status = other.addProvider(server.id, "ldaps://{0}:1636".format(saddr),
-                                   app_config.replication_dn,
-                                   app_config.replication_pw)
+        status = other.add_provider(server.id,
+                                    "ldaps://{0}:1636".format(saddr),
+                                    app_config.replication_dn,
+                                    app_config.replication_pw)
         if status:
             wlogger.log(tid, '<< Making LDAP of {0} listen to {1}'.format(
                 p.hostname, server.hostname), 'success')

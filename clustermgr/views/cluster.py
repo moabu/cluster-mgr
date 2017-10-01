@@ -4,7 +4,7 @@ the servers managed in the cluster-manager
 from flask import Blueprint, render_template, url_for, flash, redirect, \
     request, session
 
-from clustermgr.core.ldap_functions import ldapOLC
+from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cluster import setup_ldap_replication, InstallLdapServer, \
     installGluuServer, remove_provider

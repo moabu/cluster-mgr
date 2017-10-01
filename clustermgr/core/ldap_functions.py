@@ -1,14 +1,17 @@
+import re
+import time
+import logging
+
 from ldap3 import Server, Connection, SUBTREE, BASE, LEVEL, \
     MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
 
 from clustermgr.models import Server as ServerModel
 from clustermgr.core.utils import ldap_encode
 
-import re
-import time
+logger = logging.getLogger(__name__)
 
 
-def getHostPort(addr):
+def get_host_port(addr):
     m = re.search('(?:ldap.*://)?(?P<host>[^:/ ]+).?(?P<port>[0-9]*).*',  addr)
     return m.group('host'), m.group('port')
 
@@ -25,7 +28,7 @@ def get_ip_by_hostname(hostname):
         return ldp.ip
 
 
-class ldapOLC(object):
+class LdapOLC(object):
 
     def __init__(self, addr, binddn, passwd):
         self.addr = addr
@@ -33,10 +36,10 @@ class ldapOLC(object):
         self.passwd = passwd
         self.server = None
         self.conn = None
-        self.hostname = getHostPort(addr)[0]
+        self.hostname = get_host_port(addr)[0]
 
     def connect(self):
-        print ("Making Ldap Connection")
+        logger.debug("Making Ldap Connection")
         self.server = Server(self.addr, use_ssl=True)
         self.conn = Connection(
             self.server, user=self.binddn, password=self.passwd)
@@ -242,12 +245,24 @@ class ldapOLC(object):
                                         self.removeMirrorMode()
                                 return r
 
-    def addProvider(self, rid, raddr, rbinddn, rcredentials):
+    def add_provider(self, rid, raddr, rbinddn, rcredentials):
         ridText = """rid={0} provider={1} bindmethod=simple binddn="{2}" tls_reqcert=never credentials={3} searchbase="o=gluu" logbase="cn=accesslog" logfilter="(&(objectClass=auditWriteObject)(reqResult=0))" schemachecking=on type=refreshAndPersist retry="60 +" syncdata=accesslog sizeLimit=unlimited timelimit=unlimited""".format(
             rid, raddr, rbinddn, rcredentials)
 
-        return self.conn.modify('olcDatabase={1}mdb,cn=config',
-                                {"olcSyncRepl": [MODIFY_ADD, [ridText]]})
+        self.conn.search(search_base='olcDatabase={1}mdb,cn=config',
+                         search_filter='(objectClass=*)',
+                         search_scope=BASE, attributes=["olcSyncRepl"])
+
+        # delete the entry if a syncrepl config exists for the same rid
+        entry = self.conn.entries[0]
+        for rep in entry["olcSyncRepl"]:
+            if 'rid={0}'.format(rid) in rep:
+                lmod = {"olcSyncRepl": [(MODIFY_DELETE, [rep])]}
+                self.conn.modify('olcDatabase={1}mdb,cn=config', lmod)
+                break
+
+        mod = {"olcSyncRepl": [(MODIFY_ADD, [ridText])]}
+        return self.conn.modify('olcDatabase={1}mdb,cn=config', mod)
 
     def checkAccesslogDB(self):
         return self.conn.search(search_base='cn=config',
@@ -305,7 +320,7 @@ class ldapOLC(object):
                     if re.search('(\{\d*\})*rid',  es[0]):
                         pid = es[1]
                     elif es[0] == 'provider':
-                        host, port = getHostPort(es[1])
+                        host, port = get_host_port(es[1])
                         dkey = host
                         if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", host):
                             dkey = get_hostname_by_ip(host)
@@ -364,7 +379,7 @@ class ldapOLC(object):
 
     def checkBaseDN(self):
         if not self.conn.search(search_base="o=gluu", search_filter='(objectClass=top)', search_scope=BASE):
-            print "Adding base DN"
+            logger.info("Adding base DN")
             self.conn.add('o=gluu', attributes={
                 'objectClass': ['top', 'organization'],
                 'o': 'gluu',

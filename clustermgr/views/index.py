@@ -11,7 +11,7 @@ from clustermgr.models import AppConfiguration, KeyRotation, Server
 from clustermgr.forms import AppConfigForm, KeyRotationForm, SchemaForm, \
     TestUser, InstallServerForm
 
-from clustermgr.core.ldap_functions import ldapOLC
+from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.tasks.all import rotate_pub_keys
 from clustermgr.core.utils import encrypt_text
 from clustermgr.core.utils import generate_random_key
@@ -207,7 +207,7 @@ def get_log(task_id):
 
 
 def getLdapConn(addr, dn, passwd):
-    ldp = ldapOLC('ldaps://{}:1636'.format(addr), dn, passwd)
+    ldp = LdapOLC('ldaps://{}:1636'.format(addr), dn, passwd)
     r = None
     try:
         r = ldp.connect()
@@ -222,7 +222,7 @@ def getLdapConn(addr, dn, passwd):
     return ldp
 
 
-@index.route('/installldapserver', methods=['GET', 'POST'])
+@index.route('/install_ldapserver', methods=['GET', 'POST'])
 def install_ldap_server():
     if 'nongluuldapinfo' in session:
         del session['nongluuldapinfo']
@@ -253,7 +253,6 @@ def install_ldap_server():
                 'city': form.city.data,
                 'orgName': form.orgName.data,
                 'admin_email': form.admin_email.data,
-                'replicator_password': form.replicator_password.data,
             }
 
             return redirect(url_for('cluster.install_ldap_server'))
@@ -278,7 +277,7 @@ def multi_master_replication():
 
     for ldp in ldaps:
         if ldp.mmr:
-            s = ldapOLC(
+            s = LdapOLC(
                 "ldaps://{0}:1636".format(ldp.hostname), "cn=config",
                 ldp.ldap_password)
             r = None
@@ -413,7 +412,7 @@ def add_provider_to_consumer(consumer_id, provider_id):
         else:
             p_addr = provider.hostname
 
-        status = ldp.addProvider(
+        status = ldp.add_provider(
             provider.id, "ldaps://{0}:1636".format(p_addr),
             app_config.replication_dn, app_config.replication_pw)
 
