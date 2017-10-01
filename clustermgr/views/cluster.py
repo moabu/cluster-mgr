@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
 
 from clustermgr.core.ldap_functions import ldapOLC
 from clustermgr.models import Server, AppConfiguration
-from clustermgr.tasks.cluster import setupMmrServer, InstallLdapServer, \
+from clustermgr.tasks.cluster import setup_ldap_replication, InstallLdapServer, \
     installGluuServer, remove_provider
 
 cluster = Blueprint('cluster', __name__, template_folder='templates')
@@ -20,7 +20,7 @@ def deploy_config(server_id):
     if not s:
         flash("Server id {0} is not on database".format(server_id), 'warning')
         return redirect(url_for("index.multi_master_replication"))
-    task = setupMmrServer.delay(server_id)
+    task = setup_ldap_replication.delay(server_id)
     head = "Setting up server: " + s.hostname
     return render_template("logger.html", heading=head, server=s,
                            task=task, nextpage=nextpage, whatNext=whatNext)

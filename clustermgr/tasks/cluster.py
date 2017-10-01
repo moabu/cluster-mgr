@@ -83,7 +83,7 @@ def download_file(tid, c, remote, local):
 
 
 @celery.task(bind=True)
-def setupMmrServer(self, server_id):
+def setup_ldap_replication(self, server_id):
     tid = self.request.id
     server = Server.query.get(server_id)
     conn_addr = server.hostname
@@ -128,7 +128,14 @@ def setupMmrServer(self, server_id):
         run_command(tid, c, "chown -R ldap:ldap {0}".format(accesslog_dir),
                     chroot)
 
-    # 4. Ensure Openldap is installed on the server - TODO
+    # 4. Ensure Openldap is installed on the server
+    if c.exists(os.path.join(chroot, '/opt/symas/bin/slaptest')):
+        wlogger.log(tid, "Checking OpenLDAP is installed", "success")
+    else:
+        wlogger.log(tid, "Cannot find directory /opt/symas/bin. OpenLDAP is "
+                         "not installed. Cannot setup replication.", "error")
+        return False
+
     # 5. Upload symas-openldap.conf with remote access and slapd.d enabled
     syconf = os.path.join(chroot, 'opt/symas/etc/openldap/symas-openldap.conf')
     confile = os.path.join(app.root_path, "templates", "slapd",
@@ -201,7 +208,7 @@ def setupMmrServer(self, server_id):
             wlogger.log(
                 tid, 'Syncprov and accesslog modlues were loaded', 'success')
         else:
-            wlogger.log(tid, "Loading syncprov and accesslog failed: {0}".format(
+            wlogger.log(tid, "Loading syncprov & accesslog failed: {0}".format(
                 ldp.conn.result['description']), "error")
             wlogger.log(tid, "Ending server setup process.", "error")
             return
