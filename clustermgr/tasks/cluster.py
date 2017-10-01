@@ -369,99 +369,14 @@ def remove_provider(server_id):
     servers in the LDAP cluster.
     """
     appconfig = AppConfiguration.query.first()
-    recievers = Server.query.filter(Server.id.isnot(server_id)).all()
-    for reciever in recievers:
-        addr = reciever.ip if appconfig.use_ip else reciever.hostanme
-        c = CnManager(addr, 1636, True, 'cn=config', reciever.ldap_password)
+    receivers = Server.query.filter(Server.id.isnot(server_id)).all()
+    for receiver in receivers:
+        addr = receiver.ip if appconfig.use_ip else receiver.hostanme
+        c = CnManager(addr, 1636, True, 'cn=config', receiver.ldap_password)
         c.remove_olcsyncrepl(server_id)
         c.close()
         # TODO monitor for failures and report or log it somewhere
-
-
-@celery.task(bind=True)
-def removeMultiMasterDeployement(self, server_id):
-    app_config = AppConfiguration.query.first()
-    server = Server.query.get(server_id)
-    tid = self.request.id
-    app_config = AppConfiguration.query.first()
-    if not server.gluu_server:
-        chroot = '/'
-    else:
-        chroot = '/opt/gluu-server-' + app_config.gluu_version
-
-    wlogger.log(tid, "Making SSH connection to the server %s" %
-                server.hostname)
-    c = RemoteClient(server.hostname, ip=server.ip)
-
-    try:
-        c.startup()
-    except Exception as e:
-        wlogger.log(
-            tid, "Cannot establish SSH connection {0}".format(e), "warning")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return False
-
-    if server.gluu_server:
-        # check if remote is gluu server
-        if c.exists(chroot):
-            wlogger.log(tid, 'Checking if remote is gluu server', 'success')
-        else:
-            wlogger.log(tid, "Remote is not a gluu server.", "error")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return False
-
-    # symas-openldap.conf file exists
-    if c.exists(os.path.join(chroot, 'opt/symas/etc/openldap/symas-openldap.conf')):
-        wlogger.log(tid, 'Checking symas-openldap.conf exists', 'success')
-    else:
-        wlogger.log(tid, 'Checking if symas-openldap.conf exists', 'fail')
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    # sldapd.conf file exists
-    if c.exists(os.path.join(chroot, 'opt/symas/etc/openldap/slapd.conf')):
-        wlogger.log(tid, 'Checking slapd.conf exists', 'success')
-    else:
-        wlogger.log(tid, 'Checking if slapd.conf exists', 'fail')
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    # uplodading symas-openldap.conf file
-    confile = os.path.join(app.root_path, "templates",
-                           "slapd", "symas-openldap.conf")
-    confile_content = open(confile).read()
-
-    vals = {
-        'HOST_LIST': 'HOST_LIST="ldaps://127.0.0.1:1636/"',
-        'EXTRA_SLAPD_ARGS': 'EXTRA_SLAPD_ARGS=""',
-    }
-
-    confile_content = confile_content.format(**vals)
-
-    r = c.put_file(os.path.join(
-        chroot, 'opt/symas/etc/openldap/symas-openldap.conf'), confile_content)
-
-    if r[0]:
-        wlogger.log(tid, 'symas-openldap.conf file uploaded', 'success')
-    else:
-        wlogger.log(tid, 'An error occured while uploading symas-openldap.conf'
-                    ': {0}'.format(r[1]), "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    run_command(tid, c, "chown -R ldap:ldap /opt/symas/etc/openldap", chroot)
-
-    # Restart the solserver with slapd.conf configuration
-    wlogger.log(tid, "Restarting LDAP server with slapd.conf configuration")
-    log = run_command(tid, c, "service solserver restart", chroot)
-    if 'failed' in log:
-        wlogger.log(tid,
-                    "There seems to be some issue in restarting the server.",
-                    "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-    wlogger.log(tid, 'Deployment of Ldap Server was successfully removed')
-    return True
+        # TODO rewrite the symas-openldap.conf to make it listen localhost only
 
 
 @celery.task(bind=True)
