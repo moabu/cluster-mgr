@@ -749,5 +749,22 @@ def installGluuServer(self, server_id):
     wlogger.log(tid, "Runnin setup.py - Be patient this process will take a while")
     run_command(tid, c, 'cd install/community-edition-setup/ && ./setup.py -n', '/opt/'+ format(gluu_server)+'/')
     
+    custom_schema_dir = os.path.join(Config.DATA_DIR, 'schema')
+    custom_schemas = os.listdir(custom_schema_dir)
+    
+    if custom_schemas:
+        for sf in custom_schemas:
+            local = os.path.join(custom_schema_dir, sf)
+            remote = '/opt/{0}/opt/gluu/schema/openldap/{1}'.format(gluu_server, sf)
+            print "local", local, "--"
+            print "remote", "file", remote, "--"
+            r = c.upload(local, remote)
+            print r
+            if r[0]:
+                wlogger.log(tid, 'Custom schame file {0} uploaded'.format(sf), 'success')
+            else:
+                wlogger.log(tid, "Can't upload custom schame file {0}: ".format(sf, r[1]), 'error')
+
+        
     server.gluu_server = True
     db.session.commit()
