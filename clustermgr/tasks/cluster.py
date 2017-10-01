@@ -371,7 +371,6 @@ def setup_ldap_replication(self, server_id):
         
         run_command(tid, c, 'service oxauth restart', chroot)
 
-
     else:
         wlogger.log(tid, "Error getting ox-ldap.properties file: {0}".format(ox_ldap[1]),
             "error")
@@ -701,6 +700,8 @@ def collect_server_details(server_id):
 def installGluuServer(self, server_id):
     tid = self.request.id
     server = Server.query.get(server_id)
+    pserver = Server.query.filter_by(primary_server=True).first()
+    
     appconf = AppConfiguration.query.first()
     c = RemoteClient(server.hostname, ip=server.ip)
 
@@ -773,7 +774,7 @@ def installGluuServer(self, server_id):
     
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
-        pserver = Server.query.filter_by(primary_server=True).first()
+        
         pc = RemoteClient(pserver.hostname, ip=pserver.ip)
 
         try:

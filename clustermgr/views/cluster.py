@@ -50,6 +50,7 @@ def install_ldap_server():
 
 @cluster.route('/install_gluu_server/<int:server_id>/')
 def install_gluu_server(server_id):
+    
     server = Server.query.get(server_id)
     appconf = AppConfiguration.query.first()
 

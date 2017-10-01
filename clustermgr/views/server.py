@@ -146,6 +146,11 @@ def getSetupProperties():
 @server.route('/installgluu/<int:server_id>/', methods=['GET','POST'])
 def install_gluu(server_id):
 
+    pserver = Server.query.filter_by(primary_server=True).first()
+    if not pserver:
+        flash("Please identify primary server before starting to install Gluu Server.","warning")
+        return redirect(url_for('index.home')) 
+
     server = Server.query.get(server_id)
     appconf = AppConfiguration.query.first()
     form = InstallServerForm()
