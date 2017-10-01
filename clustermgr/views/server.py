@@ -152,6 +152,11 @@ def install_gluu(server_id):
         return redirect(url_for('index.home')) 
 
     server = Server.query.get(server_id)
+    
+    if not server.os:
+        flash("Server OS version has not been idetified yet. Please try later.","warning")
+        return redirect(url_for('index.home'))
+    
     appconf = AppConfiguration.query.first()
     form = InstallServerForm()
 

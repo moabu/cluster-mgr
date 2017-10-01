@@ -715,18 +715,16 @@ def installGluuServer(self, server_id):
         return
 
 
-    # FIXME : After collect_server_details completed get os form database
-    os_version = 'Ubuntu 14'
-    
-    if 'Ubuntu' in os_version:
+
+    if 'Ubuntu' in server.os:
         install_command = 'apt-get '
         service_command = 'service {0} {1}'
-    elif 'CentOS' in os_version:
+    elif 'CentOS' in server.os:
         install_command = 'yum'
         service_command = 'service {0} {1}'
     
     wlogger.log(tid, "Check if Gluu Server was installed")
-    
+
     r = c.listdir("/opt")
     if r[0]:
         for s in r[1]:
@@ -771,9 +769,12 @@ def installGluuServer(self, server_id):
             else:
                 wlogger.log(tid, "Can't upload custom schame file {0}: ".format(sf, r[1]), 'error')
 
-    
+
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
+
+        cmd = 'rm /opt/gluu/data/main_db/*.mdb'
+        run_command(tid, c, cmd, '/opt/'+gluu_server)
         
         pc = RemoteClient(pserver.hostname, ip=pserver.ip)
 
@@ -793,7 +794,8 @@ def installGluuServer(self, server_id):
                 wlogger.log(tid, "slapd.conf was downloaded from primary server and uploaded to this server", 'success')
         else:
             wlogger.log(tid, "Can't get slapd.conf from primary server: ".format(r[1]), 'error')
-    
-    
+            
+
+
     server.gluu_server = True
     db.session.commit()
