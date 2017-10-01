@@ -709,6 +709,7 @@ def installGluuServer(self, server_id):
     except:
         return
 
+
     # FIXME : After collect_server_details completed get os form database
     os_version = 'Ubuntu 14'
     
@@ -765,6 +766,29 @@ def installGluuServer(self, server_id):
             else:
                 wlogger.log(tid, "Can't upload custom schame file {0}: ".format(sf, r[1]), 'error')
 
-        
+    
+    # Get slapd.conf from primary server and upload this server
+    if not server.primary_server:
+        pserver = Server.query.filter_by(primary_server=True).first()
+        pc = RemoteClient(pserver.hostname, ip=pserver.ip)
+
+        try:
+            pc.startup()
+        except:
+            wlogger.log(tid, "Can't make SSH connection to primary server: ".format(pserver.hostname), 'error')
+
+        slapd_conf_file = '/opt/{0}/opt/symas/etc/openldap/slapd.conf'.format(gluu_server)
+        r = pc.get_file(slapd_conf_file)
+        if r[0]:
+            fc = r[1].read()
+            r2 = c.put_file(slapd_conf_file, fc)
+            if not r2[0]:
+                wlogger.log(tid, "Can't put slapd.conf to this server: ".format(r[1]), 'error')
+            else:
+                wlogger.log(tid, "slapd.conf was downloaded from primary server and uploaded to this server", 'success')
+        else:
+            wlogger.log(tid, "Can't get slapd.conf from primary server: ".format(r[1]), 'error')
+    
+    
     server.gluu_server = True
     db.session.commit()
