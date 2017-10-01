@@ -68,8 +68,8 @@ def upload_file(tid, c, local, remote):
 
 
 def download_file(tid, c, remote, local):
-    """Shorthand for RemoteClient.download(). This function automatically handles
-    the logging of events to the WebLogger
+    """Shorthand for RemoteClient.download(). This function automatically
+     handles the logging of events to the WebLogger
 
     Args:
         tid (string): id of the task running the command
@@ -133,17 +133,13 @@ def setupMmrServer(self, server_id):
     syconf = os.path.join(chroot, 'opt/symas/etc/openldap/symas-openldap.conf')
     confile = os.path.join(app.root_path, "templates", "slapd",
                            "symas-openldap.conf")
-
-    HOST_LIST = 'HOST_LIST="ldaps://127.0.0.1:1636/ ldaps://{0}:1636/"'.format(
-        conn_addr)
-    EXTRA_SLAPD_ARGS = 'EXTRA_SLAPD_ARGS="-F /opt/symas/etc/openldap/slapd.d"'
-
-    vals = {'HOST_LIST': HOST_LIST,
-            'EXTRA_SLAPD_ARGS': EXTRA_SLAPD_ARGS,
-            }
+    values = dict(
+        hosts="ldaps://127.0.0.1:1636/ ldaps://{0}:1636/".format(server.ip),
+        extra_args="-F /opt/symas/etc/openldap/slapd.d"
+    )
 
     confile_content = open(confile).read()
-    confile_content = confile_content.format(**vals)
+    confile_content = confile_content.format(**values)
 
     r = c.put_file(syconf, confile_content)
 
@@ -369,6 +365,7 @@ def remove_provider(server_id):
     servers in the LDAP cluster.
     """
     appconfig = AppConfiguration.query.first()
+    server = Server.query.get(server_id)
     receivers = Server.query.filter(Server.id.isnot(server_id)).all()
     for receiver in receivers:
         addr = receiver.ip if appconfig.use_ip else receiver.hostanme
@@ -376,7 +373,27 @@ def remove_provider(server_id):
         c.remove_olcsyncrepl(server_id)
         c.close()
         # TODO monitor for failures and report or log it somewhere
-        # TODO rewrite the symas-openldap.conf to make it listen localhost only
+
+    # rewrite the symas-openldap.conf to make it listen localhost only
+    c = RemoteClient(server.hostname, ip=server.ip)
+    c.startup()
+    values = dict(
+        hosts="ldaps://127.0.0.1:1636/ ldaps://{0}:1636/".format(server.ip),
+        extra_args="-F /opt/symas/etc/openldap/slapd.d"
+    )
+
+    chroot = "/opt/gluu-server-" + appconfig.gluu_version if server.gluu_server \
+        else None
+    syconf = os.path.join(chroot,
+                          '/opt/symas/etc/openldap/symas-openldap.conf')
+    confile = os.path.join(app.root_path, "templates", "slapd",
+                           "symas-openldap.conf")
+    confile_content = open(confile).read()
+    confile_content = confile_content.format(**values)
+    c.put_file(syconf, confile_content)
+    c.close()
+
+
 
 
 @celery.task(bind=True)
@@ -557,19 +574,15 @@ def InstallLdapServer(self, ldap_info):
     run_command(tid, c, "chown -R {0}.{1} /etc/certs".format(
         ldap_info["ldap_user"], ldap_info["ldap_group"]))
 
+    values = dict(
+        hosts="ldaps://127.0.0.1:1636/",
+        extra_args=""
+    )
     # uplodading symas-openldap.conf file
     confile = os.path.join(app.root_path, "templates",
                            "slapd", "symas-openldap.conf")
     confile_content = open(confile).read()
-
-    vals = {
-        'HOST_LIST': 'HOST_LIST="ldaps://127.0.0.1:1636/"',
-        'EXTRA_SLAPD_ARGS': 'EXTRA_SLAPD_ARGS=""',
-        'SLAPD_GROUP': ldap_info["ldap_user"],
-        'SLAPD_USER': ldap_info["ldap_group"],
-    }
-
-    confile_content = confile_content.format(**vals)
+    confile_content = confile_content.format(**values)
 
     r = c.put_file('/opt/symas/etc/openldap/symas-openldap.conf',
                    confile_content)
