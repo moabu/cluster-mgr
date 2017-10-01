@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import re
 import StringIO
 
 from flask import current_app as app
@@ -161,7 +162,11 @@ def setup_ldap_replication(self, server_id):
 
     # 6. Generate OLC slapd.d
     wlogger.log(tid, "Convert slapd.conf to slapd.d OLC")
-    run_command(tid, c, 'service solserver stop', chroot)
+    
+    if 'CentOS' in server.os:
+        run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver stop'")
+    else:
+        run_command(tid, c, 'service solserver stop', chroot)
     run_command(tid, c, "rm -rf /opt/symas/etc/openldap/slapd.d", chroot)
     run_command(tid, c, "mkdir -p /opt/symas/etc/openldap/slapd.d", chroot)
     run_command(tid, c, "/opt/symas/bin/slaptest -f /opt/symas/etc/openldap/"
@@ -171,11 +176,19 @@ def setup_ldap_replication(self, server_id):
 
     # 7. Restart the solserver with the new OLC configuration
     wlogger.log(tid, "Restarting LDAP server with OLC configuration")
-    log = run_command(tid, c, "service solserver start", chroot)
+
+    if 'CentOS' in server.os:
+        log= run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start'")
+    else:
+        log = run_command(tid, c, "service solserver start", chroot)
     if 'failed' in log:
         wlogger.log(tid, "Couldn't restart solserver.", "error")
         wlogger.log(tid, "Ending server setup process.", "error")
-        run_command(tid, c, "service solserver start -d 1", chroot)
+        
+        if 'CentOS' in server.os:
+            run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start -d 1'")
+        else:
+            run_command(tid, c, "service solserver start -d 1", chroot)
         return
 
     # 8. Connect to the OLC config
@@ -369,7 +382,10 @@ def setup_ldap_replication(self, server_id):
         wlogger.log(tid, "ox-ldap.properties file was modified to include all multi master ldap servers",
             "success")
         
-        run_command(tid, c, 'service oxauth restart', chroot)
+        if 'CentOS' in server.os:
+            run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service oxauth restart'")
+        else:
+            run_command(tid, c, 'service oxauth restart', chroot)
 
     else:
         wlogger.log(tid, "Error getting ox-ldap.properties file: {0}".format(ox_ldap[1]),
@@ -714,34 +730,46 @@ def installGluuServer(self, server_id):
     except:
         return
 
-
-
     if 'Ubuntu' in server.os:
         install_command = 'apt-get '
-        service_command = 'service {0} {1}'
+        enable_command = None
+        start_command  = 'service gluu-server-{0} start'
+        stop_command   = 'service gluu-server-{0} stop'
+        
     elif 'CentOS' in server.os:
-        install_command = 'yum'
-        service_command = 'service {0} {1}'
-    
+        install_command = 'yum '
+        enable_command  = '/sbin/gluu-serverd-{0} enable'
+        stop_command    = '/sbin/gluu-serverd-{0} stop'
+        start_command   = '/sbin/gluu-serverd-{0} start'
+        qury_package    = 'yum list installed | grep gluu-server-'
+        
     wlogger.log(tid, "Check if Gluu Server was installed")
 
     r = c.listdir("/opt")
     if r[0]:
         for s in r[1]:
-            if s.startswith('gluu-server-') and not s.endswith('.save'):
+            m=re.search("gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+))$",s)
+            if m:
+                gluu_version = m.group("gluu_version")
                 #FIXME : Modify stop command for OS versions
-                run_command(tid, c, service_command.format(s, 'stop'))
+                run_command(tid, c, stop_command.format(gluu_version))
                 run_command(tid, c, install_command + "remove -y "+s)
     
     if not r[1]:
         wlogger.log(tid, "Gluu Server was not previously installed", "debug")
+        
+        
+    
     wlogger.log(tid, "Installing Gluu Server: " + gluu_server)
 
     #FIXME : check cerr for possible issues on installing package
     cin, cout, cerr = c.run(install_command + 'install -y ' + gluu_server)
     wlogger.log(tid, cout, "debug")
 
-    run_command(tid, c, service_command.format(gluu_server, 'start'))
+    if enable_command:
+        run_command(tid, c, enable_command.format(appconf.gluu_version))
+        
+    run_command(tid, c, start_command.format(appconf.gluu_version))
 
     wlogger.log(tid, "Uploading setup.properties")
     r = c.upload(setup_properties_file, '/opt/{}/install/community-edition-setup/setup.properties'.format(gluu_server))
@@ -751,7 +779,11 @@ def installGluuServer(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
     
     wlogger.log(tid, "Runnin setup.py - Be patient this process will take a while")
-    run_command(tid, c, 'cd install/community-edition-setup/ && ./setup.py -n', '/opt/'+ format(gluu_server)+'/')
+    
+    if 'CentOS' in server.os:
+        run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'cd /install/community-edition-setup/ && ./setup.py -n'")
+    else:
+        run_command(tid, c, 'cd /install/community-edition-setup/ && ./setup.py -n', '/opt/'+ format(gluu_server)+'/')
     
     custom_schema_dir = os.path.join(Config.DATA_DIR, 'schema')
     custom_schemas = os.listdir(custom_schema_dir)
@@ -760,10 +792,7 @@ def installGluuServer(self, server_id):
         for sf in custom_schemas:
             local = os.path.join(custom_schema_dir, sf)
             remote = '/opt/{0}/opt/gluu/schema/openldap/{1}'.format(gluu_server, sf)
-            print "local", local, "--"
-            print "remote", "file", remote, "--"
             r = c.upload(local, remote)
-            print r
             if r[0]:
                 wlogger.log(tid, 'Custom schame file {0} uploaded'.format(sf), 'success')
             else:
@@ -773,8 +802,9 @@ def installGluuServer(self, server_id):
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
 
-        cmd = 'rm /opt/gluu/data/main_db/*.mdb'
-        run_command(tid, c, cmd, '/opt/'+gluu_server)
+        # FIXME: move this to ldap deployment
+        #cmd = 'rm /opt/gluu/data/main_db/*.mdb'
+        #run_command(tid, c, cmd, '/opt/'+gluu_server)
         
         pc = RemoteClient(pserver.hostname, ip=pserver.ip)
 
