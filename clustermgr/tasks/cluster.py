@@ -456,7 +456,8 @@ def setup_ldap_replication(self, server_id):
     server.mmr = True
     db.session.commit()
 
-    modifyOxLdapProperties(server, c, tid)
+    # FIXME: change order, first entry should be current server
+    #modifyOxLdapProperties(server, c, tid)
 
     wlogger.log(tid, "Deployment is successful")
 
@@ -861,6 +862,10 @@ def installGluuServer(self, server_id):
         except:
             wlogger.log(tid, "Can't make SSH connection to primary server: ".format(pserver.hostname), 'error')
 
+        #FIXME: Check this later
+        #cmd = 'rm /opt/gluu/data/main_db/*.mdb'
+        #run_command(tid, c, cmd, '/opt/'+gluu_server)
+
         slapd_conf_file = '/opt/{0}/opt/symas/etc/openldap/slapd.conf'.format(gluu_server)
         r = pc.get_file(slapd_conf_file)
         if r[0]:
@@ -891,8 +896,6 @@ def installGluuServer(self, server_id):
                 run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver stop'")
             else:
                 run_command(tid, c, 'service solserver stop', '/opt/'+gluu_server)
-                cmd = 'rm /opt/gluu/data/main_db/*.mdb'
-                run_command(tid, c, cmd, '/opt/'+gluu_server)
             
             if 'CentOS' in server.os:
                 run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start'")
@@ -994,7 +997,7 @@ def removeMultiMasterDeployement(self, server_id):
     server.mmr = False
     db.session.commit()
     
-    modifyOxLdapProperties(server, c, tid)
+    #modifyOxLdapProperties(server, c, tid)
 
 
     # Restart the solserver with slapd.conf configuration
