@@ -724,6 +724,8 @@ def installGluuServer(self, server_id):
 
     gluu_server = 'gluu-server-' + appconf.gluu_version
 
+    # FIXME: add gluu repo and GPG Key before starting to install
+
     try:
         c.startup()
     except:
@@ -826,8 +828,6 @@ def installGluuServer(self, server_id):
             run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver stop'")
         else:
             run_command(tid, c, stop_command.format('solserver'))
-
-            # FIXME: move this to ldap deployment
             cmd = 'rm /opt/gluu/data/main_db/*.mdb'
             run_command(tid, c, cmd, '/opt/'+gluu_server)
         
