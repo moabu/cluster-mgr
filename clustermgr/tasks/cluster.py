@@ -382,7 +382,15 @@ def setup_ldap_replication(self, server_id):
             "success")
         
         if 'CentOS' in server.os:
-            run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service oxauth restart'")
+            cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service oxauth restart'"
+            wlogger.log(tid, cmd, 'debug')
+            cin, cout, cerr = c.run(cmd)
+            wlogger.log(tid, cout, 'debug')
+            for l in cout.split('\n'):
+                if l.startswith('Starting Jetty'):
+                    if not 'OK' in l:
+                        wlogger.log(tid, cerr, 'error')
+            
         else:
             run_command(tid, c, 'service oxauth restart', chroot)
 
@@ -812,8 +820,6 @@ def installGluuServer(self, server_id):
         else:
             wlogger.log(tid, "Can't get slapd.conf from primary server: ".format(r[1]), 'error')
 
-
-        # FIXME : Copy custom schema files from primary server
 
         wlogger.log(tid, 'Downloading custom schema files from primary server and upload to this server')
         custom_schema_files = pc.listdir("/opt/{0}/opt/gluu/schema/openldap/".format(gluu_server))
