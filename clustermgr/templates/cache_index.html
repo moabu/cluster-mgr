@@ -1,33 +1,41 @@
 {% extends "base.html" %}
 {% block content %}
-    <h2 class="page-header">Cache Management</h2>
-    {% if servers %}
-    <table class="table table-bordered table-condensed table-hover">
-        <thead>
-            <tr>
-                <th>Server ID</th>
-                <th>Hostname</th>
-                <th>IP Address</th>
-                <th>
-                    Cache Method
-                    <button class="btn btn-info btn-xs" onclick="updateCacheMethods()"><span class="glyphicon glyphicon-refresh"></span> Refresh</button>
-                    <button class="btn btn-success btn-xs" onclick="alert('Yet to implement');">
-                        <span class="glyphicon glyphicon-edit"></span> Change</button>
-                </th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for server in servers %}
-            <tr id="server_{{server.id}}">
-                <td class="id">{{server.id}}</td>
-                <td class="hostname">{{server.hostname}}</td>
-                <td class="ip">{{server.ip}}</td>
-                <td class="cache_method">{{server.cache_method}}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% endif %}
+    {% if version < 311 %} {# Notice for the clusters which doesn't support different caches #}
+        <div class="jumbotron">
+            <h1>Module not available</h1>
+            <p>Cache Management is available only for clusters configured with Gluu Server version 3.1.1 and above.</p>
+            <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more</a></p>
+        </div>
+    {% else %}
+        <h2 class="page-header">Cache Management</h2>
+        {% if servers %}
+        <table class="table table-bordered table-condensed table-hover">
+            <thead>
+                <tr>
+                    <th>Server ID</th>
+                    <th>Hostname</th>
+                    <th>IP Address</th>
+                    <th>
+                        Cache Method
+                        <button class="btn btn-info btn-xs" onclick="updateCacheMethods()"><span class="glyphicon glyphicon-refresh"></span> Refresh</button>
+                        <button class="btn btn-success btn-xs" onclick="alert('Yet to implement');">
+                            <span class="glyphicon glyphicon-edit"></span> Change</button>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for server in servers %}
+                <tr id="server_{{server.id}}">
+                    <td class="id">{{server.id}}</td>
+                    <td class="hostname">{{server.hostname}}</td>
+                    <td class="ip">{{server.ip}}</td>
+                    <td class="cache_method">{{server.cache_method}}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %} {# end for "if servers" #}
+    {% endif %} {# end for "if version < 311" #}
 {% endblock %}
 {% block js %}
 <script>
