@@ -155,8 +155,11 @@ def install_gluu(server_id):
     server = Server.query.get(server_id)
     
     if not server.os:
-        flash("Server OS version hasn't been identified yet. Please try later",
+        flash("Server OS version hasn't been identified yet. Checking Now",
               "warning")
+        
+        collect_server_details(server_id, True)
+        
         return redirect(url_for('index.home'))
     
     appconf = AppConfiguration.query.first()

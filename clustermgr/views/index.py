@@ -216,7 +216,7 @@ def getLdapConn(addr, dn, passwd):
             addr, e), "danger")
         return
     if not r:
-        flash("Connection to LDAPserver  {0} at port 1636 failed: {1}".format(
+        flash("Connection to LDAPserver {0} at port 1636 failed: {1}".format(
             addr, ldp.conn.result['description']), "danger")
         return
     return ldp

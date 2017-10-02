@@ -5,6 +5,7 @@ import re
 import StringIO
 
 from flask import current_app as app
+from flask import flash
 
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import celery, wlogger, db
@@ -479,24 +480,25 @@ def remove_provider(server_id):
         c.close()
         # TODO monitor for failures and report or log it somewhere
 
+    # may have more than one provider - MB
     # rewrite the symas-openldap.conf to make it listen localhost only
-    c = RemoteClient(server.hostname, ip=server.ip)
-    c.startup()
-    values = dict(
-        hosts="ldaps://127.0.0.1:1636/ ldaps://{0}:1636/".format(server.ip),
-        extra_args="-F /opt/symas/etc/openldap/slapd.d"
-    )
+    #c = RemoteClient(server.hostname, ip=server.ip)
+    #c.startup()
+    #values = dict(
+    #    hosts="ldaps://127.0.0.1:1636/ ldaps://{0}:1636/".format(server.ip),
+    #    extra_args="-F /opt/symas/etc/openldap/slapd.d"
+    #)
 
-    chroot = "/opt/gluu-server-" + appconfig.gluu_version if server.gluu_server \
-        else None
-    syconf = os.path.join(chroot,
-                          '/opt/symas/etc/openldap/symas-openldap.conf')
-    confile = os.path.join(app.root_path, "templates", "slapd",
-                           "symas-openldap.conf")
-    confile_content = open(confile).read()
-    confile_content = confile_content.format(**values)
-    c.put_file(syconf, confile_content)
-    c.close()
+    #chroot = "/opt/gluu-server-" + appconfig.gluu_version if server.gluu_server \
+    #    else None
+    #syconf = os.path.join(chroot,
+    #                      '/opt/symas/etc/openldap/symas-openldap.conf')
+    #confile = os.path.join(app.root_path, "templates", "slapd",
+    #                       "symas-openldap.conf")
+    #confile_content = open(confile).read()
+    #confile_content = confile_content.format(**values)
+    #c.put_file(syconf, confile_content)
+    #c.close()
 
 
 
@@ -718,13 +720,17 @@ def InstallLdapServer(self, ldap_info):
 
 
 @celery.task
-def collect_server_details(server_id):
+def collect_server_details(server_id, manual=False):
     server = Server.query.get(server_id)
     appconf = AppConfiguration.query.first()
     c = RemoteClient(server.hostname, ip=server.ip)
     try:
         c.startup()
     except:
+        if manual:
+            flash("Can't make SSH connection to {0}. "
+                  "Please check your public keys.".format(server.hostname),
+                    "danger")
         return
 
     # 0. Make sure it is a Gluu Server
@@ -762,6 +768,10 @@ def collect_server_details(server_id):
         server.os = "CentOS 6"
     if "CentOS" in cout and "release 7." in cout:
         server.os = "CentOS 7"
+
+    if manual:
+        flash("This server is identifed as {0}.".format(server.os),
+                "success")
 
     db.session.commit()
 
