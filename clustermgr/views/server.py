@@ -77,6 +77,8 @@ def edit(server_id):
         if form.ldap_password.data is not '**dummy**':
             server.ldap_password = form.ldap_password.data
         db.session.commit()
+        # start the background job to get system details
+        collect_server_details.delay(server.id)
         return redirect(url_for('index.home'))
 
     form.gluu_server.data = server.gluu_server
