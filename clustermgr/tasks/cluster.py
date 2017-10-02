@@ -724,6 +724,8 @@ def installGluuServer(self, server_id):
 
     gluu_server = 'gluu-server-' + appconf.gluu_version
 
+
+
     # FIXME: add gluu repo and GPG Key before starting to install
 
     try:
@@ -745,7 +747,6 @@ def installGluuServer(self, server_id):
         qury_package    = 'yum list installed | grep gluu-server-'
         
     wlogger.log(tid, "Check if Gluu Server was installed")
-
 
     r = c.listdir("/opt")
     if r[0]:
@@ -804,7 +805,6 @@ def installGluuServer(self, server_id):
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
 
-
         pc = RemoteClient(pserver.hostname, ip=pserver.ip)
 
         try:
@@ -824,17 +824,33 @@ def installGluuServer(self, server_id):
         else:
             wlogger.log(tid, "Can't get slapd.conf from primary server: ".format(r[1]), 'error')
 
-        if 'CentOS' in server.os:
-            run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver stop'")
-        else:
-            run_command(tid, c, stop_command.format('solserver'))
-            cmd = 'rm /opt/gluu/data/main_db/*.mdb'
-            run_command(tid, c, cmd, '/opt/'+gluu_server)
+
+        # FIXME : Copy custom schema files from primary server
+
+        wlogger.log(tid, 'Downloading custom schema files from primary server and upload to this server')
+        custom_schema_files = pc.listdir("/opt/{0}/opt/gluu/schema/openldap/".format(gluu_server))
         
-        if 'CentOS' in server.os:
-            run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start'")
-        else:
-            run_command(tid, c, stert_command.format('solserver'))
+        if custom_schema_files[0]:
+            for csf in custom_schema_files[1]:
+                local = '/tmp/'+csf
+                remote = '/opt/{0}/opt/gluu/schema/openldap/{1}'.format(gluu_server, csf)
+                
+                pc.download(remote, local)
+                c.upload(local, remote)
+                os.remove(local)
+                wlogger.log(tid, '{0} dowloaded from from primary and uploaded'.format(csf), 'debug')
+
+            if 'CentOS' in server.os:
+                run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver stop'")
+            else:
+                run_command(tid, c, stop_command.format('solserver'))
+                cmd = 'rm /opt/gluu/data/main_db/*.mdb'
+                run_command(tid, c, cmd, '/opt/'+gluu_server)
+            
+            if 'CentOS' in server.os:
+                run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start'")
+            else:
+                run_command(tid, c, stert_command.format('solserver'))
         
     server.gluu_server = True
     db.session.commit()
