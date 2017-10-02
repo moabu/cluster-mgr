@@ -60,12 +60,12 @@ def create_app():
 
     # register blueprints
     from clustermgr.views.index import index
-    from clustermgr.views.server import server
+    from clustermgr.views.server import server_view
     from clustermgr.views.cluster import cluster
     from clustermgr.views.logserver import logserver
     from clustermgr.views.cache import cache_mgr
     app.register_blueprint(index, url_prefix="")
-    app.register_blueprint(server, url_prefix="/server")
+    app.register_blueprint(server_view, url_prefix="/server")
     app.register_blueprint(cluster, url_prefix="/cluster")
     app.register_blueprint(logserver, url_prefix="/logging_server")
     app.register_blueprint(cache_mgr, url_prefix="/cache")

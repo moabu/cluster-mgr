@@ -4,7 +4,7 @@ import os
 import uuid
 
 from flask import Blueprint, render_template, redirect, url_for, flash, \
-    request, session
+    request
 
 from clustermgr.extensions import db
 from clustermgr.models import Server, AppConfiguration
@@ -13,12 +13,12 @@ from clustermgr.forms import ServerForm, InstallServerForm
 from clustermgr.views.index import get_primary_server_id
 from clustermgr.tasks.cluster import remove_provider, collect_server_details
 from clustermgr.config import Config
-from clustermgr.core.remote import RemoteClient
+from clustermgr.core.remote import RemoteClient, ClientNotSetupException
 
-server = Blueprint('server', __name__)
+server_view = Blueprint('server', __name__)
 
 
-@server.route('/', methods=['GET', 'POST'])
+@server_view.route('/', methods=['GET', 'POST'])
 def index():
     """Route for URL /server/. GET returns ServerForm to add a server,
     POST accepts the ServerForm, validates and creates a new Server object
@@ -51,7 +51,7 @@ def index():
     return render_template('new_server.html', form=form, header="New Server")
 
 
-@server.route('/edit/<int:server_id>/', methods=['GET', 'POST'])
+@server_view.route('/edit/<int:server_id>/', methods=['GET', 'POST'])
 def edit(server_id):
     server = Server.query.get(server_id)
     if not server:
@@ -88,7 +88,7 @@ def edit(server_id):
                            header="Update Server Details")
 
 
-@server.route('/remove/<int:server_id>/')
+@server_view.route('/remove/<int:server_id>/')
 def remove(server_id):
     server = Server.query.filter_by(id=server_id).first()
     # remove its corresponding syncrepl configs from other servers
@@ -101,60 +101,62 @@ def remove(server_id):
     flash("Server {0} is removed.".format(server.hostname), "success")
     return redirect(url_for('index.home'))
 
-def getQuad():
+
+def get_quad():
     return str(uuid.uuid4())[:4].upper()
 
-def getInums():
-    baseInum = '@!%s.%s.%s.%s' % tuple([getQuad() for i in xrange(4)])
-    orgTwoQuads = '%s.%s' % tuple([getQuad() for i in xrange(2)])
-    inumOrg = '%s!0001!%s' % (baseInum, orgTwoQuads)
-    applianceTwoQuads = '%s.%s' % tuple([getQuad() for i in xrange(2)])
-    inumAppliance = '%s!0002!%s' % (baseInum, applianceTwoQuads)
-    return inumOrg, inumAppliance
+
+def get_inums():
+    base_inum = '@!%s.%s.%s.%s' % tuple([get_quad() for _ in xrange(4)])
+    org_two_quads = '%s.%s' % tuple([get_quad() for _ in xrange(2)])
+    inum_org = '%s!0001!%s' % (base_inum, org_two_quads)
+    appliance_two_quads = '%s.%s' % tuple([get_quad() for _ in xrange(2)])
+    inum_appliance = '%s!0002!%s' % (base_inum, appliance_two_quads)
+    return inum_org, inum_appliance
 
 
-def getSetupProperties():
-    setupProp={
-                'hostname':'',
-                'orgName':'',
-                'countryCode':'',
-                'city':'',
-                'state':'',
-                'jksPass':'',
-                'inumOrg':'',
-                'inumAppliance':'',
-                'admin_email':'',
-                'ip':'',
-            }
+def get_setup_properties():
+    setup_prop = {
+        'hostname': '',
+        'orgName': '',
+        'countryCode': '',
+        'city': '',
+        'state': '',
+        'jksPass': '',
+        'inumOrg': '',
+        'inumAppliance': '',
+        'admin_email': '',
+        'ip': '',
+        }
 
     setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
     if os.path.exists(setup_properties_file):
         for l in open(setup_properties_file):
             ls = l.strip().split('=')
             if ls:
-                setupProp[ls[0]]=ls[1]
+                setup_prop[ls[0]] = ls[1]
     
-    if not setupProp['inumOrg']:
-        inumOrg, inumAppliance = getInums()
-        setupProp['inumOrg'] = inumOrg
-        setupProp['inumAppliance'] = inumAppliance
+    if not setup_prop['inumOrg']:
+        inum_org, inum_appliance = get_inums()
+        setup_prop['inumOrg'] = inum_org
+        setup_prop['inumAppliance'] = inum_appliance
 
-    return setupProp
+    return setup_prop
 
 
-
-@server.route('/installgluu/<int:server_id>/', methods=['GET','POST'])
+@server_view.route('/installgluu/<int:server_id>/', methods=['GET', 'POST'])
 def install_gluu(server_id):
-
     pserver = Server.query.filter_by(primary_server=True).first()
     if not pserver:
-        flash("Please identify primary server before starting to install Gluu Server.","warning")
+        flash("Please identify primary server before starting to install Gluu "
+              "Server.", "warning")
         return redirect(url_for('index.home')) 
 
     server = Server.query.get(server_id)
     
     if not server.os:
-        flash("Server OS version has not been idetified yet. Please try later.","warning")
+        flash("Server OS version hasn't been identified yet. Please try later",
+              "warning")
         return redirect(url_for('index.home'))
     
     appconf = AppConfiguration.query.first()
@@ -163,40 +165,42 @@ def install_gluu(server_id):
     del form.hostname
     del form.ip_address
     del form.ldap_password
-    header =  'Install Gluu Server on {0}'.format(server.hostname)
+    header = 'Install Gluu Server on {0}'.format(server.hostname)
 
-    setup_prop = getSetupProperties()
+    setup_prop = get_setup_properties()
 
-    setup_prop['hostname']  = appconf.nginx_host
-    setup_prop['ip']        = server.ip
-    setup_prop['ldapPass']  = server.ldap_password
-
+    setup_prop['hostname'] = appconf.nginx_host
+    setup_prop['ip'] = server.ip
+    setup_prop['ldapPass'] = server.ldap_password
 
     if form.validate_on_submit():
-         setup_prop['countryCode'] = form.countryCode.data
-         setup_prop['state']       = form.state.data
-         setup_prop['city']        = form.city.data
-         setup_prop['orgName']     = form.orgName.data
-         setup_prop['admin_email'] = form.admin_email.data
+        setup_prop['countryCode'] = form.countryCode.data
+        setup_prop['state'] = form.state.data
+        setup_prop['city'] = form.city.data
+        setup_prop['orgName'] = form.orgName.data
+        setup_prop['admin_email'] = form.admin_email.data
 
-         setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
+        setup_properties_file = os.path.join(Config.DATA_DIR,
+                                             'setup.properties')
 
-         with open(setup_properties_file,'w') as f:
-             for k,v in setup_prop.items():
-                    f.write('{0}={1}\n'.format(k,v))
+        with open(setup_properties_file, 'w') as f:
+            for k, v in setup_prop.items():
+                f.write('{0}={1}\n'.format(k, v))
 
-         return redirect(url_for('cluster.install_gluu_server',server_id=server_id))
+        return redirect(url_for('cluster.install_gluu_server',
+                                server_id=server_id))
         
     if request.method == 'GET':
         form.countryCode.data = setup_prop['countryCode']
-        form.state.data       = setup_prop['state']
-        form.city.data        = setup_prop['city']
-        form.orgName.data     = setup_prop['orgName']
+        form.state.data = setup_prop['state']
+        form.city.data = setup_prop['city']
+        form.orgName.data = setup_prop['orgName']
         form.admin_email.data = setup_prop['admin_email']
 
     return render_template('new_server.html', form=form,  header=header)
 
-@server.route('/editslapdconf/<int:server_id>/', methods=['GET','POST'])
+
+@server_view.route('/editslapdconf/<int:server_id>/', methods=['GET', 'POST'])
 def edit_slapd_conf(server_id):
     server = Server.query.get(server_id)
     appconf = AppConfiguration.query.first()
@@ -214,8 +218,8 @@ def edit_slapd_conf(server_id):
     c = RemoteClient(server.hostname, ip=server.ip)
     try:
         c.startup()
-    except Exception as e:
-        flash("Can't establing SSH connection.", "danger")
+    except ClientNotSetupException as e:
+        flash(str(e), "danger")
         return redirect(url_for('index.home'))
 
     slapd_conf_file = os.path.join(chroot, 'opt/symas/etc/openldap/slapd.conf')
@@ -227,17 +231,18 @@ def edit_slapd_conf(server_id):
         if not r[0]:
             flash("Cant' saved to server: {0}".format(r[1]), "danger")
         else:
-            flash('File {0} was saved on {1}'.format(slapd_conf_file, server.hostname))
+            flash('File {0} was saved on {1}'.format(slapd_conf_file,
+                                                     server.hostname))
             return redirect(url_for('index.home'))
             
     r = c.get_file(slapd_conf_file)
     
     if not r[0]:
-        flash("Cant't get file {0}: {1}".format(slapd_conf_file, r[1]), "success")
+        flash("Cant't get file {0}: {1}".format(slapd_conf_file, r[1]),
+              "success")
         return redirect(url_for('index.home'))
     
     config = r[1].read()
-    
 
     return render_template('conf_editor.html', config=config,
-                            hostname=server.hostname)
+                           hostname=server.hostname)
