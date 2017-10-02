@@ -1004,13 +1004,13 @@ def removeMultiMasterDeployement(self, server_id):
         run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver restart'")
     else:
         log = run_command(tid, c, "service solserver restart", chroot)
-        
+                
         if 'failed' in log:
             wlogger.log(tid,
                         "There seems to be some issue in restarting the server.",
                         "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return
     
     wlogger.log(tid, 'Deployment of Ldap Server was successfully removed')
     

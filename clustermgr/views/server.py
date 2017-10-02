@@ -30,6 +30,11 @@ def index():
         return redirect(url_for('index.app_configuration', next="/server/"))
     form = ServerForm()
 
+    pr_server = get_primary_server_id()
+    if pr_server:
+        form.primary_server.render_kw = {'disabled': 'disabled'}
+
+
     if form.validate_on_submit():
         server = Server()
         server.gluu_server = form.gluu_server.data
@@ -37,7 +42,7 @@ def index():
         server.ip = form.ip.data
         server.ldap_password = form.ldap_password.data
         server.mmr = False
-
+        server.primary_server = form.primary_server.data
         db.session.add(server)
         db.session.commit()
 
@@ -153,6 +158,11 @@ def install_gluu(server_id):
         flash("Please identify primary server before starting to install Gluu "
               "Server.", "warning")
         return redirect(url_for('index.home')) 
+
+    if not (server_id == pserver.id or pserver.gluu_server):
+        flash("Please first install primary server.", "warning")
+        return redirect(url_for('index.home')) 
+
 
     server = Server.query.get(server_id)
     
