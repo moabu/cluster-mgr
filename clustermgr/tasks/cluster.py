@@ -368,7 +368,6 @@ def setup_ldap_replication(self, server_id):
 
 
     # 14 Add all repilcators to ox-ldap.properties file.
-    # FIXME : This requires restarting some servers. Ask Arun or Chris.
     ox_ldap=c.get_file(os.path.join(chroot, "etc/gluu/conf/ox-ldap.properties"))
     servers_str = ','.join(replicators)
     if ox_ldap[0]:
@@ -745,6 +744,7 @@ def installGluuServer(self, server_id):
         
     wlogger.log(tid, "Check if Gluu Server was installed")
 
+
     r = c.listdir("/opt")
     if r[0]:
         for s in r[1]:
@@ -783,7 +783,7 @@ def installGluuServer(self, server_id):
     if 'CentOS' in server.os:
         run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'cd /install/community-edition-setup/ && ./setup.py -n'")
     else:
-        run_command(tid, c, 'cd /install/community-edition-setup/ && ./setup.py -n', '/opt/'+ format(gluu_server)+'/')
+        run_command(tid, c, 'cd /install/community-edition-setup/ && ./setup.py -n', '/opt/'+gluu_server+'/')
     
     custom_schema_dir = os.path.join(Config.DATA_DIR, 'schema')
     custom_schemas = os.listdir(custom_schema_dir)
@@ -802,10 +802,7 @@ def installGluuServer(self, server_id):
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
 
-        # FIXME: move this to ldap deployment
-        #cmd = 'rm /opt/gluu/data/main_db/*.mdb'
-        #run_command(tid, c, cmd, '/opt/'+gluu_server)
-        
+
         pc = RemoteClient(pserver.hostname, ip=pserver.ip)
 
         try:
@@ -824,8 +821,20 @@ def installGluuServer(self, server_id):
                 wlogger.log(tid, "slapd.conf was downloaded from primary server and uploaded to this server", 'success')
         else:
             wlogger.log(tid, "Can't get slapd.conf from primary server: ".format(r[1]), 'error')
-            
 
+        if 'CentOS' in server.os:
+            run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver stop'")
+        else:
+            run_command(tid, c, stop_command.format('solserver'))
 
+            # FIXME: move this to ldap deployment
+            cmd = 'rm /opt/gluu/data/main_db/*.mdb'
+            run_command(tid, c, cmd, '/opt/'+gluu_server)
+        
+        if 'CentOS' in server.os:
+            run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start'")
+        else:
+            run_command(tid, c, stert_command.format('solserver'))
+        
     server.gluu_server = True
     db.session.commit()
