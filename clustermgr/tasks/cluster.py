@@ -89,7 +89,7 @@ def download_file(tid, c, remote, local):
 def modifyOxLdapProperties(server, c, tid):
     app_config = AppConfiguration.query.first()
     replicators=[]
-    allservers = Server.query.all()
+    allservers = Server.query.filter_by(mmr=True).all()
 
     if not server.gluu_server:
         chroot = '/'
@@ -102,10 +102,6 @@ def modifyOxLdapProperties(server, c, tid):
             replicators.append( aladdr + ':1636' )
     
     servers_str = ','.join(replicators)
-    
-    
-    print replicators, servers_str
-    
     
     for al in allservers:
         if al.id == server.id:
@@ -894,14 +890,14 @@ def installGluuServer(self, server_id):
             if 'CentOS' in server.os:
                 run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver stop'")
             else:
-                run_command(tid, c, 'service solserver stop', chroot)
+                run_command(tid, c, 'service solserver stop', '/opt/'+gluu_server)
                 cmd = 'rm /opt/gluu/data/main_db/*.mdb'
                 run_command(tid, c, cmd, '/opt/'+gluu_server)
             
             if 'CentOS' in server.os:
                 run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start'")
             else:
-                run_command(tid, c, stert_command.format('solserver'))
+                run_command(tid, c, 'service solserver start', '/opt/'+gluu_server)
     else:
         custom_schema_dir = os.path.join(Config.DATA_DIR, 'schema')
         custom_schemas = os.listdir(custom_schema_dir)

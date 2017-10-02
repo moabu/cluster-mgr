@@ -295,8 +295,8 @@ def multi_master_replication():
                 sstat = s.getMMRStatus()
                 if sstat['server_id']:
                     serverStats[ldp.hostname] = sstat
-    if not ldaps:
-        flash("Please add servers.", "warning")
+    if len(ldaps) < 2:
+        flash("Requires at least two servers added.", "warning")
         return redirect(url_for('index.home'))
         
     return render_template('multi_master.html', ldapservers=ldaps,
