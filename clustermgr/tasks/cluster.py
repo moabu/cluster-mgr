@@ -788,18 +788,6 @@ def installGluuServer(self, server_id):
     else:
         run_command(tid, c, 'cd /install/community-edition-setup/ && ./setup.py -n', '/opt/'+gluu_server+'/')
     
-    custom_schema_dir = os.path.join(Config.DATA_DIR, 'schema')
-    custom_schemas = os.listdir(custom_schema_dir)
-    
-    if custom_schemas:
-        for sf in custom_schemas:
-            local = os.path.join(custom_schema_dir, sf)
-            remote = '/opt/{0}/opt/gluu/schema/openldap/{1}'.format(gluu_server, sf)
-            r = c.upload(local, remote)
-            if r[0]:
-                wlogger.log(tid, 'Custom schame file {0} uploaded'.format(sf), 'success')
-            else:
-                wlogger.log(tid, "Can't upload custom schame file {0}: ".format(sf, r[1]), 'error')
 
 
     # Get slapd.conf from primary server and upload this server
@@ -851,6 +839,19 @@ def installGluuServer(self, server_id):
                 run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start'")
             else:
                 run_command(tid, c, stert_command.format('solserver'))
+    else:
+        custom_schema_dir = os.path.join(Config.DATA_DIR, 'schema')
+        custom_schemas = os.listdir(custom_schema_dir)
         
+        if custom_schemas:
+            for sf in custom_schemas:
+                local = os.path.join(custom_schema_dir, sf)
+                remote = '/opt/{0}/opt/gluu/schema/openldap/{1}'.format(gluu_server, sf)
+                r = c.upload(local, remote)
+                if r[0]:
+                    wlogger.log(tid, 'Custom schame file {0} uploaded'.format(sf), 'success')
+                else:
+                    wlogger.log(tid, "Can't upload custom schame file {0}: ".format(sf, r[1]), 'error')
+    
     server.gluu_server = True
     db.session.commit()
