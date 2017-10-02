@@ -1,5 +1,8 @@
-from paramiko.client import SSHClient, AutoAddPolicy
 import StringIO
+import socket
+
+from paramiko import SSHException
+from paramiko.client import SSHClient, AutoAddPolicy
 
 
 class ClientNotSetupException(Exception):
@@ -43,10 +46,15 @@ class RemoteClient(object):
         try:
             self.client.connect(self.host, port=22, username=self.user)
             self.sftpclient = self.client.open_sftp()
-        except:
-            if self.ip:
-                self.client.connect(self.ip, port=22, username=self.user)
-                self.sftpclient = self.client.open_sftp()
+        except (SSHException, socket.error):
+            self._try_with_ip()
+
+    def _try_with_ip(self):
+        try:
+            self.client.connect(self.ip, port=22, username=self.user)
+            self.sftpclient = self.client.open_sftp()
+        except (SSHException, socket.error):
+            raise ClientNotSetupException('Could not connect to the host.')
 
     def download(self, remote, local):
         """Downloads a file from remote server to the local system.
@@ -61,12 +69,11 @@ class RemoteClient(object):
 
         try:
             self.sftpclient.get(remote, local)
+            return "Download successful. File at: {0}".format(local)
         except OSError:
             return "Error: Local file %s doesn't exist." % local
         except IOError:
             return "Error: Remote location %s doesn't exist." % remote
-        finally:
-            return "Download successful. File at: {0}".format(local)
 
     def upload(self, local, remote):
         """Uploads the file from local location to remote server.
@@ -81,12 +88,11 @@ class RemoteClient(object):
 
         try:
             self.sftpclient.put(local, remote)
+            return "Upload successful. File at: {0}".format(remote)
         except OSError:
             return "Error: Local file %s doesn't exist." % local
         except IOError:
             return "Error: Remote location %s doesn't exist." % remote
-        finally:
-            return "Upload successful. File at: {0}".format(remote)
 
     def exists(self, filepath):
         """Returns whether a file exists or not in the remote server.
@@ -137,12 +143,10 @@ class RemoteClient(object):
 
         Returns:
             tuple: True/False, file like object / error
-
         """
-        
         f = StringIO.StringIO()
         try:
-            r=self.sftpclient.getfo(filename,f)
+            r = self.sftpclient.getfo(filename, f)
             f.seek(0)
             return r, f
         except Exception as err:
@@ -157,7 +161,6 @@ class RemoteClient(object):
 
         Returns:
             tuple: True/False, file size / error
-
         """
         f = StringIO.StringIO()
         f.write(filecontent)
@@ -170,6 +173,16 @@ class RemoteClient(object):
             return False, err
 
     def mkdir(self,  dirname):
+        """Creates a new directory.
+
+        Args:
+            dirname (string): the full path of the directory that needs to be
+                created
+
+        Returns:
+            a tuple containing the success or failure of operation and dirname
+                on success and error on failure
+        """
         try:
             self.sftpclient.mkdir(dirname)
             return True, dirname
@@ -177,6 +190,15 @@ class RemoteClient(object):
             return False, err
 
     def listdir(self, dirname):
+        """Lists all the files and folders in a directory.
+
+        Args:
+            dirname (string): the full path of the directory that needs to be
+                listed
+
+        Returns:
+            a list of the files and folders in the directory
+        """
         try:
             r = self.sftpclient.listdir(dirname)
             return True, r
