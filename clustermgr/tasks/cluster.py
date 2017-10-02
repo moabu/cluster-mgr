@@ -84,6 +84,82 @@ def download_file(tid, c, remote, local):
     wlogger.log(tid, out, 'error' if 'Error' in out else 'success')
 
 
+
+def modifyOxLdapProperties(server, c, tid):
+    app_config = AppConfiguration.query.first()
+    replicators=[]
+    allservers = Server.query.all()
+
+    if not server.gluu_server:
+        chroot = '/'
+    else:
+        chroot = '/opt/gluu-server-' + app_config.gluu_version
+
+    for al in allservers:
+        if al.mmr:
+            aladdr = al.ip if app_config.use_ip else al.hostname
+            replicators.append( aladdr + ':1636' )
+    
+    servers_str = ','.join(replicators)
+    
+    
+    print replicators, servers_str
+    
+    
+    for al in allservers:
+        if al.id == server.id:
+            alc = c
+        else:
+            
+            # Make SSH Connection to the remote server
+            wlogger.log(tid, "Making SSH connection to the server %s" %
+                        al.hostname)
+            alc = RemoteClient(al.hostname, ip=al.ip)
+            try:
+                alc.startup()
+            except Exception as e:
+                alc = None
+                wlogger.log(
+                    tid, "Cannot establish SSH connection {0}".format(e), "warning")
+                
+        if alc:
+            wlogger.log(tid, "ox-ldap.properties file on {0} was modified to include all "
+                                 "multi master ldap servers".format(al.hostname), "success")
+            ox_ldap=alc.get_file(os.path.join(chroot, "etc/gluu/conf/ox-ldap.properties"))
+            
+            if ox_ldap[0]:
+                fc = ''
+                for l in ox_ldap[1]:
+                    if l.startswith('servers:'):
+                        if al.mmr:
+                            l='servers: {0}\n'.format(servers_str)
+                        else:
+                            l='servers: 127.0.0.1:1636\n'
+                    fc += l
+                alc.put_file(os.path.join(chroot, "etc/gluu/conf/ox-ldap.properties"),fc)
+
+                
+                if 'CentOS' in al.os:
+                    cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service oxauth restart'"
+                    wlogger.log(tid, cmd, 'debug')
+                    cin, cout, cerr = alc.run(cmd)
+                    wlogger.log(tid, cout, 'debug')
+                    for l in cout.split('\n'):
+                        if l.startswith('Starting Jetty'):
+                            if not 'OK' in l:
+                                wlogger.log(tid, cerr, 'error')
+                    
+                else:
+                    run_command(tid, alc, 'service oxauth restart', chroot)
+
+            else:
+                wlogger.log(tid, "Error getting ox-ldap.properties file: {0}".format(ox_ldap[1]),
+                                    "error")
+            alc.close()
+
+
+
+
 @celery.task(bind=True)
 def setup_ldap_replication(self, server_id):
     tid = self.request.id
@@ -366,69 +442,7 @@ def setup_ldap_replication(self, server_id):
             other.makeMirroMode()
         other.conn.unbind()
 
-
-
-    replicators=[]
-
-    allservers = Server.query.filter(Server.mmr.is_(True)).all()
     
-    for al in allservers:
-        aladdr = al.ip if app_config.use_ip else al.hostname
-        replicators=[ aladdr + ':1636' ]
-    
-    servers_str = ','.join(replicators)
-
-    # 14 Add all repilcators to ox-ldap.properties file.
-    
-    for al in allservers:
-        if al.id == server.id:
-            alc = c
-        else:
-            
-            # Make SSH Connection to the remote server
-            wlogger.log(tid, "Making SSH connection to the server %s" %
-                        al.hostname)
-            alc = RemoteClient(al.hostname, ip=al.ip)
-            try:
-                alc.startup()
-            except Exception as e:
-                alc = None
-                wlogger.log(
-                    tid, "Cannot establish SSH connection {0}".format(e), "warning")
-                
-        if alc:
-            wlogger.log(tid, "ox-ldap.properties file on {0} was modified to include all "
-                                 "multi master ldap servers".format(al.hostname), "success")
-            ox_ldap=alc.get_file(os.path.join(chroot, "etc/gluu/conf/ox-ldap.properties"))
-            
-            if ox_ldap[0]:
-                fc = ''
-                for l in ox_ldap[1]:
-                    if l.startswith('servers:'):
-                        l='servers: {0}\n'.format(servers_str)
-                    fc += l
-                alc.put_file(os.path.join(chroot, "etc/gluu/conf/ox-ldap.properties"),fc)
-
-                
-                if 'CentOS' in al.os:
-                    cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service oxauth restart'"
-                    wlogger.log(tid, cmd, 'debug')
-                    cin, cout, cerr = alc.run(cmd)
-                    wlogger.log(tid, cout, 'debug')
-                    for l in cout.split('\n'):
-                        if l.startswith('Starting Jetty'):
-                            if not 'OK' in l:
-                                wlogger.log(tid, cerr, 'error')
-                    
-                else:
-                    run_command(tid, alc, 'service oxauth restart', chroot)
-                    
-            
-
-            else:
-                wlogger.log(tid, "Error getting ox-ldap.properties file: {0}".format(ox_ldap[1]),
-                                    "error")
-            alc.close()
 
     # 15. Enable Mirrormode in the server
     if providers:
@@ -444,6 +458,8 @@ def setup_ldap_replication(self, server_id):
     # 16. Set the mmr flag to True to indicate it has been configured
     server.mmr = True
     db.session.commit()
+
+    modifyOxLdapProperties(server, c, tid)
 
     wlogger.log(tid, "Deployment is successful")
 
@@ -868,7 +884,7 @@ def installGluuServer(self, server_id):
             if 'CentOS' in server.os:
                 run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver stop'")
             else:
-                run_command(tid, c, stop_command.format('solserver'))
+                run_command(tid, c, 'service solserver stop', chroot)
                 cmd = 'rm /opt/gluu/data/main_db/*.mdb'
                 run_command(tid, c, cmd, '/opt/'+gluu_server)
             
@@ -892,3 +908,108 @@ def installGluuServer(self, server_id):
     
     server.gluu_server = True
     db.session.commit()
+
+
+
+@celery.task(bind=True)
+def removeMultiMasterDeployement(self, server_id):
+    app_config = AppConfiguration.query.first()
+    server = Server.query.get(server_id)
+    tid = self.request.id
+    app_config = AppConfiguration.query.first()
+    if not server.gluu_server:
+        chroot = '/'
+    else:
+        chroot = '/opt/gluu-server-' + app_config.gluu_version
+
+    wlogger.log(tid, "Making SSH connection to the server %s" %
+                server.hostname)
+    c = RemoteClient(server.hostname, ip=server.ip)
+
+    try:
+        c.startup()
+    except Exception as e:
+        wlogger.log(
+            tid, "Cannot establish SSH connection {0}".format(e), "warning")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return False
+
+    if server.gluu_server:
+        # check if remote is gluu server
+        if c.exists(chroot):
+            wlogger.log(tid, 'Checking if remote is gluu server', 'success')
+        else:
+            wlogger.log(tid, "Remote is not a gluu server.", "error")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return False
+
+    # symas-openldap.conf file exists
+    if c.exists(os.path.join(chroot, 'opt/symas/etc/openldap/symas-openldap.conf')):
+        wlogger.log(tid, 'Checking symas-openldap.conf exists', 'success')
+    else:
+        wlogger.log(tid, 'Checking if symas-openldap.conf exists', 'fail')
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+
+    # sldapd.conf file exists
+    if c.exists(os.path.join(chroot, 'opt/symas/etc/openldap/slapd.conf')):
+        wlogger.log(tid, 'Checking slapd.conf exists', 'success')
+    else:
+        wlogger.log(tid, 'Checking if slapd.conf exists', 'fail')
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+
+    # uplodading symas-openldap.conf file
+    confile = os.path.join(app.root_path, "templates",
+                           "slapd", "symas-openldap.conf")
+    confile_content = open(confile).read()
+
+    vals = dict(
+        hosts='"ldaps://127.0.0.1:1636/"',
+        extra_args='""',
+    )
+
+    confile_content = confile_content.format(**vals)
+
+    r = c.put_file(os.path.join(
+        chroot, 'opt/symas/etc/openldap/symas-openldap.conf'), confile_content)
+
+    if r[0]:
+        wlogger.log(tid, 'symas-openldap.conf file uploaded', 'success')
+    else:
+        wlogger.log(tid, 'An error occured while uploading symas-openldap.conf'
+                    ': {0}'.format(r[1]), "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+
+    run_command(tid, c, "chown -R ldap:ldap /opt/symas/etc/openldap", chroot)
+
+
+    server.mmr = False
+    db.session.commit()
+    
+    modifyOxLdapProperties(server, c, tid)
+
+
+    # Restart the solserver with slapd.conf configuration
+    wlogger.log(tid, "Restarting LDAP server with slapd.conf configuration")
+    
+    if 'CentOS' in server.os:
+        run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver restart'")
+    else:
+        log = run_command(tid, c, "service solserver restart", chroot)
+        
+        if 'failed' in log:
+            wlogger.log(tid,
+                        "There seems to be some issue in restarting the server.",
+                        "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+    
+    wlogger.log(tid, 'Deployment of Ldap Server was successfully removed')
+    
+
+    
+    return True
+
+
