@@ -33,7 +33,7 @@ Multi-master replication with OpenLDAP through delta-syncrepl by creating an acc
 
 With:
 
-`servers: localhost:1636,{insert server1 FQDN here},{inster server2 FQDN here},...`
+`servers: localhost:1636,{insert server1 FQDN here},{insert server2 FQDN here},...`
 
 Placing all servers in your cluster topology in this config portion.
 
@@ -61,6 +61,7 @@ Gluu.Root # tar -xvf gluu.gz
 - So choose one server as a base and then on every other server:
 
 ```
+Gluu.Root # service solserver stop
 Gluu.Root # rm /opt/gluu/data/main_db/*.mdb
 Gluu.Root # rm /opt/gluu/data/site_db/*.mdb
 ```
@@ -132,7 +133,7 @@ Gluu.Root #  ls
 - Move each .conf file to their respective server replacing the slapd.conf:
 
 ```
-Gluu.Root # /opt/symas/etc/openldap/slapd.conf
+Gluu.Root # mv server1_com.conf /opt/symas/etc/openldap/slapd.conf
 ```
 
 - and for the other servers
