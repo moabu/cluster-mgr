@@ -21,7 +21,7 @@ def deploy_config(server_id):
         flash("Server id {0} is not on database".format(server_id), 'warning')
         return redirect(url_for("index.multi_master_replication"))
     task = setup_ldap_replication.delay(server_id)
-    head = "Setting up server: " + s.hostname
+    head = "Setting up Replication on Server: " + s.hostname
     return render_template("logger.html", heading=head, server=s,
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
@@ -37,7 +37,6 @@ def remove_deployment(server_id):
     thisServer = Server.query.get(server_id)
     servers = Server.query.filter(Server.id.isnot(server_id)).filter(
                                     Server.mmr.is_(True)).all()
-
 
     for m in servers:
         ldp = LdapOLC('ldaps://{}:1636'.format(m.hostname),

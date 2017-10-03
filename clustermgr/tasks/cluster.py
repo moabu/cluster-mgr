@@ -86,77 +86,38 @@ def download_file(tid, c, remote, local):
 
 
 
-def modifyOxLdapProperties(server, c, tid):
-    app_config = AppConfiguration.query.first()
-    replicators=[]
-    allservers = Server.query.filter_by(mmr=True).all()
-
-    if not server.gluu_server:
-        chroot = '/'
-    else:
-        chroot = '/opt/gluu-server-' + app_config.gluu_version
-
-    for al in allservers:
-        if al.mmr:
-            aladdr = al.ip if app_config.use_ip else al.hostname
-            replicators.append( aladdr + ':1636' )
+def modifyOxLdapProperties(server, c, tid, pDict, chroot):
     
-    servers_str = ','.join(replicators)
+    remote_file = os.path.join(chroot, 'etc/gluu/conf/ox-ldap.properties')
+
+    ox_ldap=c.get_file(remote_file)
     
-    for al in allservers:
-        if al.id == server.id:
-            alc = c
+    temp = None
+    
+    if ox_ldap[0]:
+        fc = ''
+        for l in ox_ldap[1]:
+            if l.startswith('servers:'):
+                l='servers: {0}\n'.format( pDict[server.hostname] )
+            fc += l
+
+        r = c.put_file(remote_file,fc)
+
+        if r[0]:
+            wlogger.log(tid, 
+                'ox-ldap.properties file on {0} modified to include all providers'.format(server.hostname), 
+                'success')
         else:
-            
-            # Make SSH Connection to the remote server
-            wlogger.log(tid, "Making SSH connection to the server %s" %
-                        al.hostname)
-            alc = RemoteClient(al.hostname, ip=al.ip)
-            try:
-                alc.startup()
-            except Exception as e:
-                alc = None
-                wlogger.log(
-                    tid, "Cannot establish SSH connection {0}".format(e), "warning")
-                
-        if alc:
-            wlogger.log(tid, "ox-ldap.properties file on {0} was modified to include all "
-                                 "multi master ldap servers".format(al.hostname), "success")
-            ox_ldap=alc.get_file(os.path.join(chroot, "etc/gluu/conf/ox-ldap.properties"))
-            
-            if ox_ldap[0]:
-                fc = ''
-                for l in ox_ldap[1]:
-                    if l.startswith('servers:'):
-                        if al.mmr:
-                            l='servers: {0}\n'.format(servers_str)
-                        else:
-                            l='servers: 127.0.0.1:1636\n'
-                    fc += l
-                alc.put_file(os.path.join(chroot, "etc/gluu/conf/ox-ldap.properties"),fc)
-
-                
-                if 'CentOS' in al.os:
-                    cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service oxauth restart'"
-                    wlogger.log(tid, cmd, 'debug')
-                    cin, cout, cerr = alc.run(cmd)
-                    wlogger.log(tid, cout, 'debug')
-                    for l in cout.split('\n'):
-                        if l.startswith('Starting Jetty'):
-                            if not 'OK' in l:
-                                wlogger.log(tid, cerr, 'error')
-                    
-                else:
-                    run_command(tid, alc, 'service oxauth restart', chroot)
-
-            else:
-                wlogger.log(tid, "Error getting ox-ldap.properties file: {0}".format(ox_ldap[1]),
-                                    "error")
-            alc.close()
-
-
-
-
+            temp = r[1]
+    else:
+        temp = ox_ldap[1]
+        
+    if temp:
+        wlogger.log(tid, 
+                'ox-ldap.properties file on {0} was not modified to '
+                'include all providers: {1}'.format(server.hostname, temp), 
+                'warning')
+        
 @celery.task(bind=True)
 def setup_ldap_replication(self, server_id):
     tid = self.request.id
@@ -164,6 +125,7 @@ def setup_ldap_replication(self, server_id):
     conn_addr = server.hostname
     app_config = AppConfiguration.query.first()
 
+    
     # 1. Ensure that the server id is valid
     if not server:
         wlogger.log(tid, "Server is not on database", "error")
@@ -174,7 +136,7 @@ def setup_ldap_replication(self, server_id):
         chroot = '/'
     else:
         chroot = '/opt/gluu-server-' + app_config.gluu_version
-
+    
     # 2. Make SSH Connection to the remote server
     wlogger.log(tid, "Making SSH connection to the server %s" %
                 server.hostname)
@@ -392,6 +354,23 @@ def setup_ldap_replication(self, server_id):
         return
 
     saddr = server.ip if app_config.use_ip else server.hostname
+
+
+    # Prepare pDict for modifying ox-ldap.properties file.
+    allproviders = Server.query.filter(Server.mmr.is_(True)).all()
+    pDict = {}
+    for ri in allproviders:
+        laddr = ri.ip if app_config.use_ip else ri.hostname
+        ox_auth = [ laddr+':1636' ]
+
+        for rj in  allproviders:
+            if not ri == rj:
+                laddr = rj.ip if app_config.use_ip else rj.hostname
+                ox_auth.append(laddr+':1636')
+
+        pDict[ri.hostname]= ','.join(ox_auth)
+    modifyOxLdapProperties(server, c, tid, pDict, chroot)
+    
     
 
     # 12. Make this server to listen to all other providers
@@ -400,6 +379,7 @@ def setup_ldap_replication(self, server_id):
     if providers:
         wlogger.log(tid, "Adding Syncrepl to integrate the server in cluster")
     for p in providers:
+
         paddr = p.ip if app_config.use_ip else p.hostname
         status = ldp.add_provider(
             p.id, "ldaps://{0}:1636".format(paddr), app_config.replication_dn,
@@ -439,7 +419,47 @@ def setup_ldap_replication(self, server_id):
             other.makeMirroMode()
         other.conn.unbind()
 
-    
+        pc = RemoteClient(p.hostname, ip=p.ip)
+        try:
+            pc.startup()
+        except:
+            pc = None
+            wlogger.log(tid, "Can't establish SSH connection to provider server: ".format(p.hostname), 'fail')
+            #wlogger.log(tid, "Ending server installation process.", "error")
+
+            return
+        
+        modifyOxLdapProperties(p, pc, tid, pDict, chroot)
+        
+
+        wlogger.log(tid, 'Restarting oxauth and identity on provider {0}'.format(p.hostname))
+        wlogger.log(tid, "SSH connection to provider server: {0}".format(p.hostname), 'success')
+        
+        if pc:
+
+            if 'CentOS' in server.os:
+                cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service oxauth restart'"
+                wlogger.log(tid, cmd, 'debug')
+                cin, cout, cerr = pc.run(cmd)
+                wlogger.log(tid, cout, 'debug')
+                for l in cout.split('\n'):
+                    if l.startswith('Starting Jetty'):
+                        if not 'OK' in l:
+                            wlogger.log(tid, cerr, 'error')
+                
+                cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service identity restart'"
+                wlogger.log(tid, cmd, 'debug')
+                cin, cout, cerr = pc.run(cmd)
+                wlogger.log(tid, cout, 'debug')
+                for l in cout.split('\n'):
+                    if l.startswith('Starting Jetty'):
+                        if not 'OK' in l:
+                            wlogger.log(tid, cerr, 'error')        
+                
+            else:
+                run_command(tid, pc, 'service oxauth restart', chroot)
+                run_command(tid, pc, 'service identity restart', chroot)
+
 
     # 15. Enable Mirrormode in the server
     if providers:
@@ -455,24 +475,6 @@ def setup_ldap_replication(self, server_id):
     # 16. Set the mmr flag to True to indicate it has been configured
     server.mmr = True
     db.session.commit()
-
-    # FIXME: change order, first entry should be current server
-    #modifyOxLdapProperties(server, c, tid)
-
-
-    if 'CentOS' in server.os:
-        cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service oxauth restart'"
-        wlogger.log(tid, cmd, 'debug')
-        cin, cout, cerr = c.run(cmd)
-        wlogger.log(tid, cout, 'debug')
-        for l in cout.split('\n'):
-            if l.startswith('Starting Jetty'):
-                if not 'OK' in l:
-                    wlogger.log(tid, cerr, 'error')
-        
-    else:
-        run_command(tid, c, 'service oxauth restart', chroot)
-
 
     wlogger.log(tid, "Deployment is successful")
 
@@ -921,8 +923,8 @@ def installGluuServer(self, server_id):
             wlogger.log(tid, "Can't make SSH connection to primary server: ".format(pserver.hostname), 'error')
 
         #FIXME: Check this later
-        cmd = 'rm /opt/gluu/data/main_db/*.mdb'
-        run_command(tid, c, cmd, '/opt/'+gluu_server)
+        #cmd = 'rm /opt/gluu/data/main_db/*.mdb'
+        #run_command(tid, c, cmd, '/opt/'+gluu_server)
 
         slapd_conf_file = '/opt/{0}/opt/symas/etc/openldap/slapd.conf'.format(gluu_server)
         r = pc.get_file(slapd_conf_file)
