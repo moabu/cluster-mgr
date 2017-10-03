@@ -132,7 +132,7 @@ Gluu.Root #  ls
 - Move each .conf file to their respective server replacing the slapd.conf:
 
 ```
-Gluu.Root # /opt/symas/etc/openldap/slapd.conf
+Gluu.Root # mv server1_com.conf /opt/symas/etc/openldap/slapd.conf
 ```
 
 - and for the other servers
