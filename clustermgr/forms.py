@@ -115,5 +115,6 @@ class InstallServerForm(FlaskForm):
     city = StringField('City *', validators=[DataRequired()])
     orgName = StringField('Organization Name *', validators=[DataRequired()])
     admin_email = StringField('Admin E-mail *', validators=[DataRequired()])
-
-    
+    admin_email = StringField('Admin E-mail *', validators=[DataRequired()])
+    inumOrg = StringField("inumOrg * (Please don't change this unless you know what you do)", validators=[DataRequired()])
+    inumAppliance = StringField("inumAppliance * (Please don't change this unless you know what you do)", validators=[DataRequired()])

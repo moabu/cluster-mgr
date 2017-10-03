@@ -793,6 +793,8 @@ def installGluuServer(self, server_id):
     try:
         c.startup()
     except:
+        wlogger.log(tid, "Can't establish SSH connection",'fail')
+        wlogger.log(tid, "Ending server installation process.", "error")
         return
 
     if 'Ubuntu' in server.os:
@@ -810,6 +812,7 @@ def installGluuServer(self, server_id):
         
     wlogger.log(tid, "Check if Gluu Server was installed")
 
+    """
     r = c.listdir("/opt")
     if r[0]:
         for s in r[1]:
@@ -836,12 +839,52 @@ def installGluuServer(self, server_id):
         
     run_command(tid, c, start_command.format(appconf.gluu_version))
 
-    wlogger.log(tid, "Uploading setup.properties")
-    r = c.upload(setup_properties_file, '/opt/{}/install/community-edition-setup/setup.properties'.format(gluu_server))
+    """
     
-    if r.startswith('Error:'):
-        wlogger.log(tid, r, 'fail')
-        wlogger.log(tid, "Ending server setup process.", "error")
+    # If this server is primary, upload local setup.properties to server
+    if server.primary_server:
+        wlogger.log(tid, "Uploading setup.properties")
+        r = c.upload(setup_properties_file, '/opt/{}/install/community-edition-setup/setup.properties'.format(gluu_server))
+    # If this server is not primary, get setup.properties.last from primary server and upload to this server
+    else:
+        pc = RemoteClient(pserver.hostname, ip=pserver.ip)
+        try:
+            pc.startup()
+        except:
+            wlogger.log(tid, "Can't establish SSH connection to primary server: ".format(pserver.hostname), 'error')
+            wlogger.log(tid, "Ending server installation process.", "error")
+            return
+    
+        # ldap_paswwrod of this server should be the same with primary server
+        ldap_passwd = None
+
+        remote_file = '/opt/{}/install/community-edition-setup/setup.properties.last'.format(gluu_server)
+        wlogger.log(tid, 'Downloading setup.properties.last from primary server', 'debug')
+        r=pc.get_file(remote_file)
+        if r[0]:
+            new_setup_properties=''
+            setup_properties = r[1].readlines()
+            for l in setup_properties:
+                if l.startswith('ip='):
+                    l = 'ip={0}\n'.format(server.ip)
+                elif l.startswith('ldapPass='):
+                    ldap_passwd = l.split('=')[1].strip()
+                new_setup_properties += l
+
+            remote_file_new = '/opt/{}/install/community-edition-setup/setup.properties'.format(gluu_server)
+            wlogger.log(tid, 'Uploading setup.properties', 'debug')
+            c.put_file(remote_file_new,  new_setup_properties)
+            
+            if ldap_passwd:
+                server.ldap_password = ldap_passwd
+        else:
+            wlogger.log(tid, "Can't download setup.properties.last from primary server", 'fail')
+            wlogger.log(tid, "Ending server installation process.", "error")
+            return
+
+    #if r.startswith('Error:'):
+    #    wlogger.log(tid, r, 'fail')
+    #    wlogger.log(tid, "Ending server setup process.", "error")
     
     wlogger.log(tid, "Runnin setup.py - Be patient this process will take a while")
     
@@ -863,8 +906,8 @@ def installGluuServer(self, server_id):
             wlogger.log(tid, "Can't make SSH connection to primary server: ".format(pserver.hostname), 'error')
 
         #FIXME: Check this later
-        #cmd = 'rm /opt/gluu/data/main_db/*.mdb'
-        #run_command(tid, c, cmd, '/opt/'+gluu_server)
+        cmd = 'rm /opt/gluu/data/main_db/*.mdb'
+        run_command(tid, c, cmd, '/opt/'+gluu_server)
 
         slapd_conf_file = '/opt/{0}/opt/symas/etc/openldap/slapd.conf'.format(gluu_server)
         r = pc.get_file(slapd_conf_file)

@@ -143,10 +143,10 @@ def get_setup_properties():
             if ls:
                 setup_prop[ls[0]] = ls[1]
     
-    if not setup_prop['inumOrg']:
-        inum_org, inum_appliance = get_inums()
-        setup_prop['inumOrg'] = inum_org
-        setup_prop['inumAppliance'] = inum_appliance
+    
+    inum_org, inum_appliance = get_inums()
+    setup_prop['inumOrg'] = inum_org
+    setup_prop['inumAppliance'] = inum_appliance
 
     return setup_prop
 
@@ -165,6 +165,11 @@ def install_gluu(server_id):
 
 
     server = Server.query.get(server_id)
+    
+    if not server.primary_server:
+        return redirect(url_for('cluster.install_gluu_server',
+                                server_id=server_id))
+    
     
     if not server.os:
         flash("Server OS version hasn't been identified yet. Checking Now",
@@ -194,6 +199,8 @@ def install_gluu(server_id):
         setup_prop['city'] = form.city.data
         setup_prop['orgName'] = form.orgName.data
         setup_prop['admin_email'] = form.admin_email.data
+        setup_prop['inumOrg'] = form.inumOrg.data
+        setup_prop['inumAppliance'] = form.inumAppliance.data
 
         setup_properties_file = os.path.join(Config.DATA_DIR,
                                              'setup.properties')
@@ -211,7 +218,9 @@ def install_gluu(server_id):
         form.city.data = setup_prop['city']
         form.orgName.data = setup_prop['orgName']
         form.admin_email.data = setup_prop['admin_email']
-
+        form.inumOrg.data = setup_prop['inumOrg']
+        form.inumAppliance.data = setup_prop['inumAppliance'] 
+        
     return render_template('new_server.html', form=form,  header=header)
 
 
