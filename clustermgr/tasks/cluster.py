@@ -459,6 +459,21 @@ def setup_ldap_replication(self, server_id):
     # FIXME: change order, first entry should be current server
     #modifyOxLdapProperties(server, c, tid)
 
+
+    if 'CentOS' in server.os:
+        cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service oxauth restart'"
+        wlogger.log(tid, cmd, 'debug')
+        cin, cout, cerr = c.run(cmd)
+        wlogger.log(tid, cout, 'debug')
+        for l in cout.split('\n'):
+            if l.startswith('Starting Jetty'):
+                if not 'OK' in l:
+                    wlogger.log(tid, cerr, 'error')
+        
+    else:
+        run_command(tid, c, 'service oxauth restart', chroot)
+
+
     wlogger.log(tid, "Deployment is successful")
 
 
@@ -812,7 +827,7 @@ def installGluuServer(self, server_id):
         
     wlogger.log(tid, "Check if Gluu Server was installed")
 
-    """
+
     r = c.listdir("/opt")
     if r[0]:
         for s in r[1]:
@@ -839,7 +854,7 @@ def installGluuServer(self, server_id):
         
     run_command(tid, c, start_command.format(appconf.gluu_version))
 
-    """
+
     
     # If this server is primary, upload local setup.properties to server
     if server.primary_server:
