@@ -938,9 +938,10 @@ def installGluuServer(self, server_id):
             wlogger.log(tid, "Can't make SSH connection to primary server: ".format(pserver.hostname), 'error')
 
         #FIXME: Check this later
-        #cmd = 'rm /opt/gluu/data/main_db/*.mdb'
+        cmd = 'rm /opt/gluu/data/main_db/*.mdb'
+        run_command(tid, c, cmd, '/opt/'+gluu_server)
+        #cmd = 'rm /opt/gluu/data/accesslog/*.mdb'
         #run_command(tid, c, cmd, '/opt/'+gluu_server)
-
         slapd_conf_file = '/opt/{0}/opt/symas/etc/openldap/slapd.conf'.format(gluu_server)
         r = pc.get_file(slapd_conf_file)
         if r[0]:
