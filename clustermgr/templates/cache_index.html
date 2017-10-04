@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
+    <h2 class="page-header">Cache Management</h2>
     {% if version < 311 %} {# Notice for the clusters which doesn't support different caches #}
         <div class="jumbotron">
-            <h1>Module not available</h1>
-            <p>Cache Management is available only for clusters configured with Gluu Server version 3.1.1 and above.</p>
-            <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more</a></p>
+            <h3>Module not available</h3>
+            <p class="text-danger">Cache Management is available only for clusters configured with Gluu Server version 3.1.1 and above.</p>
+            <p><a class="btn btn-info" href="#" role="button">Learn more</a></p>
         </div>
     {% else %}
-        <h2 class="page-header">Cache Management</h2>
         {% if servers %}
         <table class="table table-bordered table-condensed table-hover">
             <thead>
@@ -17,7 +17,7 @@
                     <th>IP Address</th>
                     <th>
                         Cache Method
-                        <button class="btn btn-info btn-xs" onclick="updateCacheMethods()"><span class="glyphicon glyphicon-refresh"></span> Refresh</button>
+                        <button id="refreshBtn" class="btn btn-info btn-xs" data-loading-text="Refreshing ..."><span class="glyphicon glyphicon-refresh"></span> Refresh</button>
                         <button class="btn btn-success btn-xs" onclick="alert('Yet to implement');">
                             <span class="glyphicon glyphicon-edit"></span> Change</button>
                     </th>
@@ -34,6 +34,10 @@
                 {% endfor %}
             </tbody>
         </table>
+        {% else %}
+            <div class="alert alert-danger" role="alert">
+                <p><strong>No Servers</strong> have been added to the Cluster Manager. Kindly go to the dashboard and add the servers.</p>
+            </div>
         {% endif %} {# end for "if servers" #}
     {% endif %} {# end for "if version < 311" #}
 {% endblock %}
@@ -41,13 +45,16 @@
 <script>
     var task_id;
     var timer;
-    function updateCacheMethods(){
+    var refreshBtn = $('#refreshBtn').click(function(){
+        $(this).button('loading');
         var url = '{{ url_for("cache_mgr.refresh_methods") }}';
         $.get(url, function(data){
             task_id = data.task_id;
             timer = setInterval(fetchResult, 2000);
         });
-    }
+
+    });
+
     function fetchResult(){
         var url = '{{ url_for("index.get_log", task_id="dummyid")}}';
         url = url.replace("dummyid", task_id);
@@ -55,9 +62,20 @@
         $.get(url, function(data){
             if(data.state == "SUCCESS" || data.state == "FAILURE"){
                 clearInterval(timer);
+                refreshBtn.button('reset');
                 var methods = data.result;
                 for(var i=0; i < methods.length; i++){
                     $("tr#server_"+methods[i].id+"> td.cache_method").text(methods[i].method);
+                }
+                // update the user about the backgroud task via notifications
+                for( var i=0; i<data.messages.length; i++){
+                    if (data.messages[i].level == 'error'){
+                        $.notify({message: data.messages[i].msg,},
+                                 {type: 'danger'});
+                    } else {
+                        $.notify({message: data.messages[i].msg},
+                                 {type: data.messages[i].level})
+                    }
                 }
             }
         });
