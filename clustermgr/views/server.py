@@ -134,6 +134,18 @@ def get_setup_properties():
         'inumAppliance': '',
         'admin_email': '',
         'ip': '',
+        'installOxAuth':True,
+        'installOxTrust':True,
+        'installLDAP':True,
+        'installHTTPD':True,
+        'installJce':False,
+        'installSaml':False,
+        'installAsimba':False,
+        'installCas':False,
+        'installOxAuthRP':False,
+        'installPassport':False,
+        'allowPreReleasedApplications':False,
+        'allowDeprecatedApplications':False,
         }
 
     setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
@@ -141,7 +153,12 @@ def get_setup_properties():
         for l in open(setup_properties_file):
             ls = l.strip().split('=')
             if ls:
-                setup_prop[ls[0]] = ls[1]
+                k,v = tuple(ls)
+                if v == 'True':
+                    v = True
+                elif v == 'False':
+                    v = False
+                setup_prop[k] = v
     
     
     inum_org, inum_appliance = get_inums()
@@ -201,6 +218,21 @@ def install_gluu(server_id):
         setup_prop['admin_email'] = form.admin_email.data
         setup_prop['inumOrg'] = form.inumOrg.data
         setup_prop['inumAppliance'] = form.inumAppliance.data
+        for o in ('installOxAuth',
+                    'installOxTrust',
+                    'installLDAP',
+                    'installHTTPD',
+                    'installJce',
+                    'installSaml',
+                    'installAsimba',
+                    'installCas',
+                    'installOxAuthRP',
+                    'installPassport',
+                    'allowPreReleasedApplications',
+                    'allowDeprecatedApplications',
+                    ):
+            setup_prop[o] = getattr(form, o).data
+
 
         setup_properties_file = os.path.join(Config.DATA_DIR,
                                              'setup.properties')
@@ -220,6 +252,21 @@ def install_gluu(server_id):
         form.admin_email.data = setup_prop['admin_email']
         form.inumOrg.data = setup_prop['inumOrg']
         form.inumAppliance.data = setup_prop['inumAppliance'] 
+        
+        for o in ('installOxAuth',
+                    'installOxTrust',
+                    'installLDAP',
+                    'installHTTPD',
+                    'installJce',
+                    'installSaml',
+                    'installAsimba',
+                    'installCas',
+                    'installOxAuthRP',
+                    'installPassport',
+                    'allowPreReleasedApplications',
+                    'allowDeprecatedApplications',
+                    ):
+            getattr(form, o).data = setup_prop[o]
         
     return render_template('new_server.html', form=form,  header=header)
 

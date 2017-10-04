@@ -118,3 +118,17 @@ class InstallServerForm(FlaskForm):
     admin_email = StringField('Admin E-mail *', validators=[DataRequired()])
     inumOrg = StringField("inumOrg * (Please don't change this unless you know what you do)", validators=[DataRequired()])
     inumAppliance = StringField("inumAppliance * (Please don't change this unless you know what you do)", validators=[DataRequired()])
+
+    installOxAuth = BooleanField('Install oxAuth', default=True)
+    installOxTrust = BooleanField('Install oxTrust', default=True)
+    installLDAP = BooleanField('Install LDAP', default=True)
+    installHTTPD = BooleanField('Install Apache 2 web server', default=True)
+    installJce = BooleanField('Install JCE 1.8')
+    installSaml = BooleanField('Install Shibboleth SAML IDP')
+    installAsimba = BooleanField('Install Asimba SAML Proxy')
+    installCas = BooleanField('Install CAS')
+    installOxAuthRP = BooleanField('Install oxAuth RP')
+    installPassport = BooleanField('Install Passport')
+    allowPreReleasedApplications = BooleanField('Allow pre Released Applications')
+    allowDeprecatedApplications = BooleanField('Allow Deprecated Applications')
+    
