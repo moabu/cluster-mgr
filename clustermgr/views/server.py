@@ -138,7 +138,7 @@ def get_setup_properties():
         'installOxTrust':True,
         'installLDAP':True,
         'installHTTPD':True,
-        'installJce':False,
+        'installJce':True,
         'installSaml':False,
         'installAsimba':False,
         'installCas':False,

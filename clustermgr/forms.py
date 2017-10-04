@@ -129,6 +129,4 @@ class InstallServerForm(FlaskForm):
     installCas = BooleanField('Install CAS')
     installOxAuthRP = BooleanField('Install oxAuth RP')
     installPassport = BooleanField('Install Passport')
-    allowPreReleasedApplications = BooleanField('Allow pre Released Applications')
-    allowDeprecatedApplications = BooleanField('Allow Deprecated Applications')
-    
+
