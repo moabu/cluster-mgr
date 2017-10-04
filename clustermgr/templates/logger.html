@@ -24,21 +24,21 @@ function logitem(message, state){
     var item = document.createElement('li');
     item.setAttribute('class', 'list-group-item');
     var icon = document.createElement('i');
-    if ( state == 'success' ){
+    if ( state === 'success' ){
         icon.setAttribute('class', 'glyphicon glyphicon-ok-sign pull-right');
         item.setAttribute('class', 'list-group-item text-success');
-    } else if ( state == 'error' || state == 'fail' ) {
+    } else if ( state === 'error' || state === 'fail' ) {
         icon.setAttribute('class', 'glyphicon glyphicon-remove-sign pull-right')
         item.setAttribute('class', 'list-group-item text-danger');
-    } else if ( state == 'info' ){
+    } else if ( state === 'info' ){
         icon.setAttribute('style', 'padding-right: 5px')
         icon.setAttribute('class', 'glyphicon glyphicon-tasks')
         item.setAttribute('class', 'list-group-item list-group-item-info');
-    } else if ( state == 'warning' ){
+    } else if ( state === 'warning' ){
         icon.setAttribute('style', 'padding-right: 5px')
         icon.setAttribute('class', 'glyphicon glyphicon-warning-sign')
         item.setAttribute('class', 'list-group-item list-group-item-warning');
-    } else if ( state == 'debug' ){
+    } else if ( state === 'debug' ){
         item = document.createElement('pre')
         item.setAttribute('class', 'list-group-item');
     }

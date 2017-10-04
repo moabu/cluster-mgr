@@ -2,14 +2,27 @@
 {% block content %}
     <h2 class="page-header">Cache Clustering</h2>
     <div class="alert alert-info" role="alert">
-      <p>This is page to configure the cache for the entire cluster involving all the servers. If you are looking to configure cache for a single server kindly use the Gluu Server admin interface.</p>
+      <p><span class="glyphicon glyphicon-info-sign"></span> This is page to configure the cache for the entire cluster involving all the servers. If you are looking to configure cache for a single server kindly use the Gluu Server admin interface.</p>
     </div>
 
     <div class="panel panel-default">
       <div class="panel-heading">
-        <h3 class="panel-title">Cache Details</h3>
+        <h3 class="panel-title">Choose Cache Clustering Method</h3>
       </div>
       <div class="panel-body">
+          <form action="" method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <div class="radio">
+                <label><input type="radio" name="method" id="CLUSTER" value="CLUSTER">
+                  <strong>CLUSTER</strong> - Uses redis-cluster. redis-cluster handles the load distribution
+                </label>
+              </div>
+              <div class="radio">
+                <label><input type="radio" name="method" id="SHARDING" value="SHARDING">
+                  <strong>SHARDING</strong> - Load distribution is handled by oxAuth
+                </label>
+              </div>
+          </form>
       </div>
     </div>
 {% endblock %}

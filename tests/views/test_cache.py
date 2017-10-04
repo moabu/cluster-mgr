@@ -39,4 +39,11 @@ class ServerViewTestCase(unittest.TestCase):
     def test_change_cache_loads_cache_clustering_form(self):
         rv = self.client.get('/cache/change/')
         self.assertIn('Cache Clustering', rv.data)
+        self.assertIn('form', rv.data)
+
+    @patch('clustermgr.views.cache.setup_redis')
+    def test_change_cache_calls_celery_task_on_post(self, mocktask):
+        self.client.post('/cache/change/', data=dict(method='CLUSTER'),
+                         follow_redirects=True)
+        mocktask.delay.assert_called_once_with('CLUSTER')
 

@@ -105,6 +105,11 @@ class StunnelInstaller(object):
 
 
 @celery.task(bind=True)
+def setup_redis(self, method):
+    return method
+
+
+@celery.task(bind=True)
 def configure_redis(self, server_id, method, redis_servers, put_expiration=60):
     """configure_redis is a celery task that installs redis in the specified
     gluu server and configures it according to the parameters specified in the
@@ -132,7 +137,7 @@ def configure_redis(self, server_id, method, redis_servers, put_expiration=60):
     accepted_methods = ['STANDALONE', 'SHARDING', 'CLUSTER']
     if method not in accepted_methods:
         wlogger.log(tid, "Redis cannot be configured in the method {0}. "
-                    "Choose anyone from {2}.".format(method, accepted_methods),
+                    "Choose anyone from {1}.".format(method, accepted_methods),
                     "error")
         return False
 

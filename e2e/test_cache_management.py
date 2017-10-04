@@ -69,4 +69,21 @@ def test_03_change_cache_method_to_cluster(driver):
     # User see the cache clustering form
     assert 'Cache Clustering' in driver.find_element_by_tag_name('h2').text
 
-    # TODO user fills in the form detail
+    # the form gives the option to configure the cache servers in either
+    # cluster or in sharding mode
+    form = driver.find_element_by_tag_name('form')
+    assert 'SHARDING' in form.text
+    assert 'CLUSTER' in form.text
+
+    # user chooses the cluster option and submits the form
+    cluster_radio = driver.find_element_by_id("CLUSTER")
+    cluster_radio.click()
+    cluster_radio.submit()
+
+    # users sees the log of the redis-cluster being setup
+    log_page = driver.find_element_by_tag_name('body')
+    assert "Setting up redis-cluster" in log_page.text
+
+
+
+
