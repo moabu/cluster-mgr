@@ -1,6 +1,7 @@
 import re
 import time
 import logging
+import json
 
 from ldap3 import Server, Connection, SUBTREE, BASE, LEVEL, \
     MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
@@ -386,6 +387,22 @@ class LdapOLC(object):
             }
             )
 
+    def configureOxIDPAuthentication(self, servers):
+        if self.conn.search("ou=appliances,o=gluu", 
+                        search_filter='(objectClass=gluuAppliance)',
+                        search_scope=LEVEL, 
+                        attributes=["oxIDPAuthentication"]):
+            r = self.conn.response
+            if r:
+                oxidp_s = r[0]["attributes"]["oxIDPAuthentication"][0]
+                oxidp = json.loads(oxidp_s)
+                config=json.loads(oxidp["config"])
+                config["servers"] = servers
+                oxidp["config"] = json.dumps(config)
+                oxidp_s = json.dumps(oxidp)
+                return self.conn.modify(
+                                r[0]['dn'], {"oxIDPAuthentication": [MODIFY_REPLACE, oxidp_s]})
+                
 
 class DBManager(object):
     """A wrapper class to operate on the o=gluu DIT of the LDAP.
