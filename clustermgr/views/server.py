@@ -144,8 +144,6 @@ def get_setup_properties():
         'installCas':False,
         'installOxAuthRP':False,
         'installPassport':False,
-        'allowPreReleasedApplications':False,
-        'allowDeprecatedApplications':False,
         }
 
     setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
@@ -228,8 +226,7 @@ def install_gluu(server_id):
                     'installCas',
                     'installOxAuthRP',
                     'installPassport',
-                    'allowPreReleasedApplications',
-                    'allowDeprecatedApplications',
+
                     ):
             setup_prop[o] = getattr(form, o).data
 
@@ -263,8 +260,6 @@ def install_gluu(server_id):
                     'installCas',
                     'installOxAuthRP',
                     'installPassport',
-                    'allowPreReleasedApplications',
-                    'allowDeprecatedApplications',
                     ):
             getattr(form, o).data = setup_prop[o]
         
