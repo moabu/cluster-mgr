@@ -357,7 +357,7 @@ def setup_ldap_replication(self, server_id):
 
 
     # Prepare pDict for modifying ox-ldap.properties file.
-    allproviders = Server.query.filter(Server.mmr.is_(True)).all()
+    allproviders = Server.query.all()
     pDict = {}
     oxIDP=['localhost:1636']
     
@@ -374,8 +374,7 @@ def setup_ldap_replication(self, server_id):
                 ox_auth.append(laddr+':1636')
 
         pDict[ri.hostname]= ','.join(ox_auth)
-    
-    
+
     
     if adminOlc.configureOxIDPAuthentication(oxIDP):
         wlogger.log(tid, 'oxIDPAuthentication entry is modified to include all privders','success')
@@ -385,6 +384,8 @@ def setup_ldap_replication(self, server_id):
     
 
     modifyOxLdapProperties(server, c, tid, pDict, chroot)
+    
+    
     
     
     # 12. Make this server to listen to all other providers
