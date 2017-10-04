@@ -422,5 +422,17 @@ class DBManager(object):
                          search_scope=SUBTREE, attributes=list(args))
         return self.conn.entries[0]
 
+    def set_applicance_attribute(self, attribute, value):
+        """Sets value to an attribute in the gluuApplicane entry
+
+        Args:
+            attribute (string): the name of the attribute
+            value (list): the values of the attribute in list form
+        """
+        entry = self.get_appliance_attributes(attribute)
+        dn = entry.entry_dn
+        mod = {attribute: [(MODIFY_REPLACE, value)]}
+        return self.conn.modify(dn, mod)
+
 
 

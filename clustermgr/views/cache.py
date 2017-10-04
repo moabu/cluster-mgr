@@ -23,3 +23,8 @@ def index():
 def refresh_methods():
     task = get_cache_methods.delay()
     return jsonify({'task_id': task.id})
+
+
+@cache_mgr.route('/change/')
+def change():
+    return render_template('cache_change.html')
