@@ -375,12 +375,12 @@ def setup_ldap_replication(self, server_id):
 
         pDict[ri.hostname]= ','.join(ox_auth)
 
-    
-    if adminOlc.configureOxIDPAuthentication(oxIDP):
-        wlogger.log(tid, 'oxIDPAuthentication entry is modified to include all privders','success')
-    else:
-        wlogger.log(tid, 'Modifying oxIDPAuthentication entry is failed: {}'.format(
-                adminOlc.conn.result['description']), 'success')
+    if server.primary_server:
+        if adminOlc.configureOxIDPAuthentication(oxIDP):
+            wlogger.log(tid, 'oxIDPAuthentication entry is modified to include all privders','success')
+        else:
+            wlogger.log(tid, 'Modifying oxIDPAuthentication entry is failed: {}'.format(
+                    adminOlc.conn.result['description']), 'success')
     
 
     modifyOxLdapProperties(server, c, tid, pDict, chroot)
@@ -389,6 +389,9 @@ def setup_ldap_replication(self, server_id):
     
     
     # 12. Make this server to listen to all other providers
+    
+    
+    
     providers = Server.query.filter(Server.id.isnot(server.id)).filter(
         Server.mmr.is_(True)).all()
     if providers:
@@ -396,38 +399,41 @@ def setup_ldap_replication(self, server_id):
     for p in providers:
 
         paddr = p.ip if app_config.use_ip else p.hostname
-        status = ldp.add_provider(
-            p.id, "ldaps://{0}:1636".format(paddr), app_config.replication_dn,
-            app_config.replication_pw)
-        if status:
-            wlogger.log(tid, '>> Making LDAP of {0} listen to {1}'.format(
-                server.hostname, p.hostname), 'success')
-        else:
-            wlogger.log(tid, '>> Making {0} listen to {1} failed: {2}'.format(
-                p.hostname, server.hostname, ldp.conn.result['description']),
-                "warning")
+        
+        if not server.primary_server:
+        
+            status = ldp.add_provider(
+                p.id, "ldaps://{0}:1636".format(paddr), app_config.replication_dn,
+                app_config.replication_pw)
+            if status:
+                wlogger.log(tid, '>> Making LDAP of {0} listen to {1}'.format(
+                    server.hostname, p.hostname), 'success')
+            else:
+                wlogger.log(tid, '>> Making {0} listen to {1} failed: {2}'.format(
+                    p.hostname, server.hostname, ldp.conn.result['description']),
+                    "warning")
 
-        # 13. Make the other server listen to this server
-        other = LdapOLC('ldaps://{}:1636'.format(paddr), "cn=config",
-                        p.ldap_password)
-        try:
-            other.connect()
-        except Exception as e:
-            wlogger.log("Couldn't connect to {0}. It will not be listening"
-                        " to {1} for changes.".format(
-                            p.hostname, server.hostname), "warning")
-            continue
-        status = other.add_provider(server.id,
-                                    "ldaps://{0}:1636".format(saddr),
-                                    app_config.replication_dn,
-                                    app_config.replication_pw)
-        if status:
-            wlogger.log(tid, '<< Making LDAP of {0} listen to {1}'.format(
-                p.hostname, server.hostname), 'success')
-        else:
-            wlogger.log(tid, '<< Making {0} listen to {1} failed: {2}'.format(
-                p.hostname, server.hostname, ldp.conn.result['description']),
-                "warning")
+            # 13. Make the other server listen to this server
+            other = LdapOLC('ldaps://{}:1636'.format(paddr), "cn=config",
+                            p.ldap_password)
+            try:
+                other.connect()
+            except Exception as e:
+                wlogger.log("Couldn't connect to {0}. It will not be listening"
+                            " to {1} for changes.".format(
+                                p.hostname, server.hostname), "warning")
+                continue
+            status = other.add_provider(server.id,
+                                        "ldaps://{0}:1636".format(saddr),
+                                        app_config.replication_dn,
+                                        app_config.replication_pw)
+            if status:
+                wlogger.log(tid, '<< Making LDAP of {0} listen to {1}'.format(
+                    p.hostname, server.hostname), 'success')
+            else:
+                wlogger.log(tid, '<< Making {0} listen to {1} failed: {2}'.format(
+                    p.hostname, server.hostname, ldp.conn.result['description']),
+                    "warning")
         # Special case - if there are only two server enable mirror mode
         # in other server as well
         if len(providers) == 1:
@@ -475,7 +481,9 @@ def setup_ldap_replication(self, server_id):
                 run_command(tid, pc, 'service oxauth restart', chroot)
                 run_command(tid, pc, 'service identity restart', chroot)
 
-
+    run_command(tid, c, 'service oxauth restart', chroot)
+    run_command(tid, c, 'service identity restart', chroot)
+    
     # 15. Enable Mirrormode in the server
     if providers:
         if not ldp.checkMirroMode():
