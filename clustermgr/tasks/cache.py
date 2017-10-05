@@ -38,7 +38,7 @@ class BaseInstaller(object):
             self.rc.startup()
         except Exception as e:
             wlogger.log(self.tid, "Could not connect to {0}".format(e),
-                        "error")
+                        "error", server_id=self.server.id)
             return False
 
 
@@ -52,8 +52,7 @@ class BaseInstaller(object):
             return self.install_in_centos()
         else:
             wlogger.log(self.tid, "Server OS is not supported. {0}".format(
-                cout
-            ), "error")
+                cout), "error", server_id=self.server.id)
             return False
 
     def install_in_ubuntu(self):
@@ -81,7 +80,8 @@ class BaseInstaller(object):
             return cmd
 
     def run_command(self, cmd):
-        wlogger.log(self.tid, self._chcmd(cmd), "debug")
+        wlogger.log(self.tid, self._chcmd(cmd), "debug",
+                    server_id=self.server.id)
         return self.rc.run(self._chcmd(cmd))
 
 
@@ -97,8 +97,9 @@ class RedisInstaller(BaseInstaller):
         self.run_command("add-apt-repository ppa:chris-lea/redis-server -y")
         self.run_command("apt-get update")
         cin, cout, cerr = self.run_command("apt-get install redis-server -y")
-        wlogger.log(self.tid, cout, "debug")
-        wlogger.log(self.tid, cerr, "cerror")
+        wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
+        if cerr:
+            wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
         # verifying that redis-server is succesfully installed
         cin, cout, cerr = self.rc.run(
             self._chcmd("apt-get install redis-server -y"))
@@ -115,10 +116,10 @@ class RedisInstaller(BaseInstaller):
         self.run_command("yum install epel-release -y")
         self.run_command("yum update -y")
 
-        cin, cout, cerr = self.rc.run(self._chcmd("yum install redis -y"))
-        wlogger.log(self.tid, self._chcmd("yum install redis -y"), "debug")
-        wlogger.log(self.tid, cout, "debug")
-        wlogger.log(self.tid, cerr, "cerror")
+        cin, cout, cerr = self.run_command("yum install redis -y")
+        wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
+        if cerr:
+            wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
         # TODO find the successful install message and return True
         if cerr:
             return False
@@ -129,8 +130,9 @@ class StunnelInstaller(BaseInstaller):
     def install_in_ubuntu(self):
         self.run_command("apt-get update")
         cin, cout, cerr = self.run_command("apt-get install stunnel4 -y")
-        wlogger.log(self.tid, cout, "debug")
-        wlogger.log(self.tid, cerr, "cerror")
+        wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
+        if cerr:
+            wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
 
         # Verifying installation by trying to reinstall
         cin, cout, cerr = self.rc.run(
@@ -143,8 +145,9 @@ class StunnelInstaller(BaseInstaller):
     def install_in_centos(self):
         self.run_command("yum update -y")
         cin, cout, cerr = self.run_command("yum install stunnel -y")
-        wlogger.log(self.tid, cout, "debug")
-        wlogger.log(self.tid, cerr, "cerror")
+        wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
+        if cerr:
+            wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
         # TODO find the successful install message and return True
         if cerr:
             return False
@@ -160,27 +163,6 @@ def setup_cluster(tid):
 def setup_sharding(tid):
     servers = Server.query.all()
     installed = []
-    for server in servers:
-        ri = RedisInstaller(server, tid)
-        redis_installed = ri.install()
-        if redis_installed:
-            server.redis = True
-        else:
-            wlogger.log("Redis could not be installed in {0}. It will not "
-                        "be a part of the cluster.", "warning")
-
-        si = StunnelInstaller(server, tid)
-        stunnel_installed = si.install()
-        if stunnel_installed:
-            server.stunnel = True
-        else:
-            wlogger.log(tid, "Stunnel could not be installed in the server",
-                        "warning")
-
-        db.session.commit()
-        if stunnel_installed and redis_installed:
-            installed.append(server)
-
     # Store the redis server info in the LDAP
     for server in servers:
         server_string = ''
@@ -209,19 +191,6 @@ def setup_sharding(tid):
 
 
 @celery.task(bind=True)
-def setup_redis(self, method):
-    tid = self.request.id
-    if method not in ['CLUSTER', 'SHARDING']:
-        wlogger.log(tid, "Redis cache cannot be setup in the method: "
-                         "{0}".format(method), "error")
-        return False
-
-    if method is 'SHARDING':
-        setup_sharding(tid)
-    elif method is 'CLUSTER':
-        setup_cluster(tid)
-
-@celery.task(bind=True)
 def install_redis_stunnel(self, servers):
     tid = self.request.id
     installed = 0
@@ -232,9 +201,11 @@ def install_redis_stunnel(self, servers):
         ri = RedisInstaller(server, tid)
         redis_installed = ri.install()
         if redis_installed:
+            server.redis = True
             wlogger.log(tid, "Redis install successful", "success",
                         server_id=server_id)
         else:
+            server.redis = False
             wlogger.log(tid, "Redis install failed", "fail",
                         server_id=server_id)
 
@@ -242,11 +213,16 @@ def install_redis_stunnel(self, servers):
         si = StunnelInstaller(server, tid)
         stunnel_installed = si.install()
         if stunnel_installed:
+            server.stunnel = True
             wlogger.log(tid, "Stunnel install successful", "success",
                         server_id=server_id)
         else:
+            server.stunnel = False
             wlogger.log(tid, "Stunnel install failed", "fail",
                         server_id=server_id)
+        # Save the redis and stunnel install situation to the db
+        db.session.commit()
+
         if redis_installed and stunnel_installed:
             installed += 1
     return installed

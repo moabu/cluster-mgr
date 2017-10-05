@@ -51,6 +51,11 @@ def change():
         session["cache_method"] = method
         server_list = [int(sid) for sid in server_list]
         task = install_redis_stunnel.delay(server_list)
+        selected_servers = Server.query.filter(Server.id.in_(server_list)).all()
         return render_template('cache_install.html', method=method,
-                               task_id=task.id)
+                               task_id=task.id, servers=selected_servers)
     return render_template('cache_change.html', servers=servers)
+
+@cache_mgr.route('/configure/<method>/')
+def configure(method):
+    pass
