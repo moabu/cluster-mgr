@@ -747,6 +747,21 @@ def InstallLdapServer(self, ldap_info):
     db.session.add(ldps)
     db.session.commit()
 
+def get_os_type(c):
+    
+    # 2. Linux Distribution of the server
+    cin, cout, cerr = c.run("ls /etc/*release")
+    files = cout.split()
+    cin, cout, cerr = c.run("cat "+files[0])
+    if "Ubuntu" in cout and "14.04" in cout:
+        return "Ubuntu 14"
+    if "Ubuntu" in cout and "16.04" in cout:
+        return "Ubuntu 16"
+    if "CentOS" in cout and "release 6." in cout:
+        return "CentOS 6"
+    if "CentOS" in cout and "release 7." in cout:
+        return "CentOS 7"
+
 
 @celery.task
 def collect_server_details(server_id, manual=False):
@@ -785,18 +800,8 @@ def collect_server_details(server_id, manual=False):
             installed.append(component)
     server.components = ",".join(installed)
 
-    # 2. Linux Distribution of the server
-    cin, cout, cerr = c.run("ls /etc/*release")
-    files = cout.split()
-    cin, cout, cerr = c.run("cat "+files[0])
-    if "Ubuntu" in cout and "14.04" in cout:
-        server.os = "Ubuntu 14"
-    if "Ubuntu" in cout and "16.04" in cout:
-        server.os = "Ubuntu 16"
-    if "CentOS" in cout and "release 6." in cout:
-        server.os = "CentOS 6"
-    if "CentOS" in cout and "release 7." in cout:
-        server.os = "CentOS 7"
+
+    server.os = get_os_type(c)
 
     if manual:
         flash("This server is identifed as {0}.".format(server.os),
@@ -905,7 +910,7 @@ def installGluuServer(self, server_id):
 
     #FIXME : check cerr for possible issues on installing package
     cin, cout, cerr = c.run(install_command + 'install -y ' + gluu_server)
-    wlogger.log(tid, cout, "debug")
+    wlogger.log(tid, cout+cerr, "debug")
 
     if enable_command:
         run_command(tid, c, enable_command.format(appconf.gluu_version))
@@ -1170,9 +1175,63 @@ def removeMultiMasterDeployement(self, server_id):
             return
     
     wlogger.log(tid, 'Deployment of Ldap Server was successfully removed')
-    
 
-    
     return True
 
+@celery.task(bind=True)
+def installNGINX(self, nginx_host):
+    tid = self.request.id
+    app_config = AppConfiguration.query.first()
+    pserver = Server.query.filter_by(primary_server=True).first()
+    wlogger.log(tid, "Making SSH connection to the server {}".format(nginx_host))
+    c = RemoteClient(nginx_host)
 
+    try:
+        c.startup()
+    except Exception as e:
+        wlogger.log(
+            tid, "Cannot establish SSH connection {0}".format(e), "warning")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return False
+    wlogger.log(tid, "Determining OS type")
+    os_type = get_os_type(c)
+    wlogger.log(tid, "OS is determined as {0}".format(os_type),'debug')
+    wlogger.log(tid, "Check if NGINX installed")
+    
+    r = c.exists("/usr/sbin/nginx")
+    
+    if r:
+        wlogger.log(tid, "nginx allready exists")
+    else:
+        if 'CentOS' in os_type:
+            cmd = 'yum install -y nginx'
+        else:
+            cmd = 'apt-get install -y nginx'
+        
+        wlogger.log(tid, cmd, 'debug')
+        
+        #FIXME: check cerr??
+        cin, cout, cerr = c.run(cmd)
+        wlogger.log(tid, cout, 'debug')
+
+    wlogger.log(tid, "Making SSH connection to primary server {} for downloading certificates".format(pserver.hostname))
+    pc = RemoteClient(nginx_host)
+    try:
+        pc.startup()
+    except Exception as e:
+        wlogger.log(
+            tid, "Cannot establish SSH connection to primary server {0}".format(e), "warning")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return False
+    for crt in ('httpd.crt', 'httpd.key'):
+        wlogger.log(tid, "Downloading {0} from primary server".format(crt), "debug")
+        remote_file = 'opt/gluu-server-{0}/etc/certs/{1}'.format(app_config.gluu_version, crt)
+        
+        r = pc.get_file(remote_file)
+        if not r[0]:
+            wlogger.log(tid, "Can't download {0} from primary server".format(crt), "error")
+        fc = r[1].read()
+        #remote_file = 
+        #r = pc.put_file(
+        
+            

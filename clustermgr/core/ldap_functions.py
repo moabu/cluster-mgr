@@ -379,10 +379,11 @@ class LdapOLC(object):
             return self.conn.add(replicator_dn, attributes=attributes)
 
     def checkBaseDN(self):
+        r = self.conn.search(search_base="o=gluu", search_filter='(objectClass=top)', search_scope=BASE)
         if not self.conn.search(search_base="o=gluu", search_filter='(objectClass=top)', search_scope=BASE):
             logger.info("Adding base DN")
             self.conn.add('o=gluu', attributes={
-                'objectClass': ['top', 'organization'],
+                'objectClass': ['organization'],
                 'o': 'gluu',
             }
             )

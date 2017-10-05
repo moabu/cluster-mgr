@@ -288,7 +288,7 @@ def multi_master_replication():
                       " {1}".format(ldp.hostname, e), "warning")
 
             if not r:
-                flash("Connection to LDAPserver {0} at port 1636 has"
+                flash("Connection to LDAPserver {0} at port 1636 has "
                       "failed".format(ldp.hostname), "warning")
 
             if r:

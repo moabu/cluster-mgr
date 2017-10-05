@@ -6,8 +6,9 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
 
 from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.models import Server, AppConfiguration
-from clustermgr.tasks.cluster import setup_ldap_replication, InstallLdapServer, \
-    installGluuServer, remove_provider, removeMultiMasterDeployement
+from clustermgr.tasks.cluster import setup_ldap_replication, \
+    InstallLdapServer, installGluuServer, remove_provider, \
+    removeMultiMasterDeployement, installNGINX
 
 cluster = Blueprint('cluster', __name__, template_folder='templates')
 
@@ -93,4 +94,20 @@ def install_gluu_server(server_id):
     nextpage = "index.home"
     whatNext = "Dashboard"
     return render_template("logger.html", heading=head, server=server.hostname,
+                           task=task, nextpage=nextpage, whatNext=whatNext)
+
+
+
+@cluster.route('/installnginx/')
+def install_nginx():
+    
+    appconf = AppConfiguration.query.first()
+
+    task = installNGINX.delay(appconf.nginx_host)
+
+    print "Install NGINX TASK STARTED", task.id
+    head = "Installing NGINX Server on {0}".format(appconf.nginx_host)
+    nextpage = "index.multi_master_replication"
+    whatNext = "LDAP Replication"
+    return render_template("logger.html", heading=head, server=appconf.nginx_host,
                            task=task, nextpage=nextpage, whatNext=whatNext)
