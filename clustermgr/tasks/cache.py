@@ -1,5 +1,5 @@
 import json
-import os.path
+import os
 
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, celery, wlogger
@@ -7,6 +7,7 @@ from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import DBManager
 
 from ldap3.core.exceptions import LDAPSocketOpenError
+from flask import current_app as app
 
 
 class BaseInstaller(object):
@@ -154,44 +155,97 @@ class StunnelInstaller(BaseInstaller):
         return True
 
 
-def setup_cluster(tid):
-    # TODO implement redis-server deployment logic
-    pass
-
-
-
-def setup_sharding(tid):
-    servers = Server.query.all()
-    installed = []
+def setup_sharded(tid):
+    servers = Server.query.filter(Server.redis.is_(True)).filter(
+        Server.stunnel.is_(True)).all()
+    appconf = AppConfiguration.query.first()
     # Store the redis server info in the LDAP
+    ports_count = len(servers) - 1
     for server in servers:
-        server_string = ''
-        count = len(installed)
-        if server in installed:
-            server_string = 'localhost:6379,'
-            count -= 1
-
+        wlogger.log(tid, "Updating oxCacheConfiguration ...", "debug",
+                    server_id=server.id)
+        server_string = 'localhost:6379,'
         server_string += ",".join(
-            ["localhost:700{0}".format(i) for i in xrange(count)])
+            ["localhost:700{0}".format(i) for i in xrange(ports_count)])
 
-        dbm = DBManager(server.hostname, 1636,  server.ldap_password, ssl=True,
-                        ip=server.ip,)
+        try:
+            dbm = DBManager(server.hostname, 1636,  server.ldap_password,
+                            ssl=True, ip=server.ip,)
+        except Exception as e:
+            wlogger.log(tid, "Couldn't connect to LDAP. Error: {0}".format(e),
+                        "error", server_id=server.id)
+            wlogger.log(tid, "Make sure your LDAP server is listening to "
+                        "connections from outside", "debug",
+                        server_id=server.id)
+            continue
         entry = dbm.get_appliance_attributes('oxCacheConfiguration')
         cache_conf = json.loads(entry.oxCacheConfiguration.value)
         cache_conf['cacheProviderType'] = 'REDIS'
-        redis_conf = cache_conf['cacheProviderType']['redisConfiguration']
-        redis_conf['redisProviderType'] = 'SHARDING'
-        redis_conf['servers'] = server_string
-        cache_conf['cacheProviderType']['redisConfiguration'] = redis_conf
+        cache_conf['redisConfiguration']['redisProviderType'] = 'SHARDED'
+        cache_conf['redisConfiguration']['servers'] = server_string
 
-        dbm.set_applicance_attribute('oxCacheConfiguration',
+        result = dbm.set_applicance_attribute('oxCacheConfiguration',
                                      [json.dumps(cache_conf)])
+        if not result:
+            wlogger.log(tid, "oxCacheConfigutaion update failed", "fail",
+                        server_id=server.id)
+            continue
 
-        # TODO generate stunnel configuration and upload it to the server
+        # generate stunnel configuration and upload it to the server
+        wlogger.log(tid, "Setting up stunnel", "info", server_id=server.id)
+        chdir = '/'
+        if server.gluu_server:
+            chdir = "/opt/gluu-server-{0}".format(appconf.gluu_version)
+
+        rc = RemoteClient(server.hostname, ip=server.ip)
+        try:
+            rc.startup()
+        except:
+            continue
+
+        wlogger.log(tid, "Enable stunnel start on system boot", "debug",
+                    server_id=server.id)
+        # replace the /etc/default/stunnel4 to enable start on system startup
+        local = os.path.join(app.root_path, 'templates', 'stunnel',
+                             'stunnel4.default')
+        remote = os.path.join(chdir, 'etc/default/stunnel4')
+        rc.upload(local, remote)
+
+        # TODO setup the certificate file
+
+        # Generate stunnel config
+        wlogger.log(tid, "Setup stunnel listening and forwarding", "debug",
+                    server_id=server.id)
+        sconf = ["cert = /etc/stunnel/cert.pem",
+                 "pid = /var/run/stunnel.pid",
+                 "[redis-server]",
+                 "client = no",
+                 "accept = {0}:7777".format(server.ip),
+                 "connect = 127.0.0.1:6379"
+                 ]
+        listen_port = 7000
+        for s in servers:
+            if s.id != server.id:
+                sconf.append("[client{0}]".format(s.id))
+                sconf.append("client = yes")
+                sconf.append("accept = 127.0.0.1:{0}".format(listen_port))
+                sconf.append("connect = {0}:7777".format(s.ip))
+                listen_port += 1
+
+        rc.put_file(os.path.join(chdir, "etc/stunnel/redis-gluu.conf"),
+                    "\n".join(sconf))
+    return True
 
 
 @celery.task(bind=True)
 def install_redis_stunnel(self, servers):
+    """Celery task that installs the redis and stunnel software in the given
+    list of servers.
+
+    :param servers: list of server ids (int)
+    :return: the number of servers where both stunnel and redis were installed
+        successfully
+    """
     tid = self.request.id
     installed = 0
     for server_id in servers:
@@ -226,6 +280,15 @@ def install_redis_stunnel(self, servers):
         if redis_installed and stunnel_installed:
             installed += 1
     return installed
+
+
+@celery.task(bind=True)
+def configure_cache_cluster(self, method):
+    if method == 'SHARDED':
+        return setup_sharded(self.request.id)
+    elif method == 'CLUSTER':
+        # TODO write setup cluster
+        return False
 
 
 @celery.task(bind=True)
