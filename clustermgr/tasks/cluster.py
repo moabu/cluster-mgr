@@ -805,6 +805,47 @@ def collect_server_details(server_id, manual=False):
     db.session.commit()
 
 
+def import_key(suffix, hostname, gluu_version, tid, c):
+    defaultTrustStorePW = 'changeit'
+    defaultTrustStoreFN = '/opt/jre/jre/lib/security/cacerts'
+    certFolder = '/etc/certs'
+    public_certificate = '%s/%s.crt' % (certFolder, suffix)
+    cmd =' '.join([ 
+                    '/opt/jre/bin/keytool', "-import", "-trustcacerts", 
+                    "-alias", "%s_%s" % (hostname, suffix),
+                    "-file", public_certificate, "-keystore", 
+                    defaultTrustStoreFN, 
+                    "-storepass", defaultTrustStorePW, "-noprompt"
+                    ])
+
+    chroot = '/opt/gluu-server-{0}'.format(gluu_version)
+    
+    command = 'chroot {0} /bin/bash -c "{1}"'.format(chroot,
+                                                         cmd)
+    
+    cin, cout, cerr = c.run(command)
+    wlogger.log(tid, cmd, 'debug')
+    wlogger.log(tid, cout+cerr, 'debug')
+
+
+def delete_key(suffix, hostname, gluu_version, tid, c):
+    defaultTrustStorePW = 'changeit'
+    defaultTrustStoreFN = '/opt/jre/jre/lib/security/cacerts'
+    chroot = '/opt/gluu-server-{0}'.format(gluu_version)
+    cert = "etc/certs/%s.crt" % (suffix)
+    if c.exists(os.path.join(chroot, cert)):
+        cmd=' '.join([  
+                        '/opt/jre/bin/keytool', "-delete", "-alias", 
+                        "%s_%s" % (hostname, suffix),
+                        "-keystore", defaultTrustStoreFN,
+                        "-storepass", defaultTrustStorePW
+                        ])
+    
+        
+    
+        run_command(tid, c, cmd, chroot)
+
+
 @celery.task(bind=True)
 def installGluuServer(self, server_id):
     tid = self.request.id
@@ -858,8 +899,8 @@ def installGluuServer(self, server_id):
     if not r[1]:
         wlogger.log(tid, "Gluu Server was not previously installed", "debug")
         
-        
     
+
     wlogger.log(tid, "Installing Gluu Server: " + gluu_server)
 
     #FIXME : check cerr for possible issues on installing package
@@ -925,8 +966,6 @@ def installGluuServer(self, server_id):
     else:
         run_command(tid, c, 'cd /install/community-edition-setup/ && ./setup.py -n', '/opt/'+gluu_server+'/')
     
-
-
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
 
@@ -940,8 +979,32 @@ def installGluuServer(self, server_id):
         #FIXME: Check this later
         cmd = 'rm /opt/gluu/data/main_db/*.mdb'
         run_command(tid, c, cmd, '/opt/'+gluu_server)
-        #cmd = 'rm /opt/gluu/data/accesslog/*.mdb'
-        #run_command(tid, c, cmd, '/opt/'+gluu_server)
+
+        if appconf.gluu_version > '3.0.0':
+            wlogger.log(tid, "Downloading certificates from primary server and uploading to this server")
+            
+            cmd = 'tar -zcf /tmp/certs.tgz /opt/gluu-server-{0}/etc/certs/'.format(appconf.gluu_version)
+            wlogger.log(tid,cmd,'debug')
+            cin, cout, cerr = c.run(cmd)
+            wlogger.log(tid, cout+cerr, 'debug')
+            wlogger.log(tid,cmd,'debug')
+            
+            r = c.download("/tmp/certs.tgz","/tmp/certs.tgz")
+            if 'Download successful' in r :
+                wlogger.log(tid, r,'success')
+            else:
+                wlogger.log(tid, r,'error')
+                
+            r = pc.upload("/tmp/certs.tgz","/tmp/certs.tgz")
+            
+            if 'Upload successful' in r:
+                wlogger.log(tid, r,'success')
+            else:
+                wlogger.log(tid, r,'error')
+                
+            cmd = 'tar -zxf /tmp/certs.tgz -C /'
+            run_command(tid, pc, cmd)
+
         slapd_conf_file = '/opt/{0}/opt/symas/etc/openldap/slapd.conf'.format(gluu_server)
         r = pc.get_file(slapd_conf_file)
         if r[0]:
@@ -977,6 +1040,21 @@ def installGluuServer(self, server_id):
                 run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start'")
             else:
                 run_command(tid, c, 'service solserver start', '/opt/'+gluu_server)
+                
+        wlogger.log(tid, 'Manuplating keys')
+        
+        for suffix in (
+                    'httpd',
+                    'shibIDP',
+                    'idp-encryption',
+                    'asimba',
+                    'openldap',
+                ):
+            delete_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
+            import_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
+        
+                
+                
     else:
         custom_schema_dir = os.path.join(Config.DATA_DIR, 'schema')
         custom_schemas = os.listdir(custom_schema_dir)
@@ -990,7 +1068,7 @@ def installGluuServer(self, server_id):
                     wlogger.log(tid, 'Custom schame file {0} uploaded'.format(sf), 'success')
                 else:
                     wlogger.log(tid, "Can't upload custom schame file {0}: ".format(sf, r[1]), 'error')
-    
+
     server.gluu_server = True
     db.session.commit()
 
