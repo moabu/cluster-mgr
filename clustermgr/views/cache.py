@@ -4,7 +4,8 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
     request, session, jsonify
 
 from clustermgr.models import Server, AppConfiguration
-from clustermgr.tasks.cache import get_cache_methods, install_redis_stunnel
+from clustermgr.tasks.cache import get_cache_methods, install_redis_stunnel, \
+    configure_cache_cluster
 
 
 cache_mgr = Blueprint('cache_mgr', __name__, template_folder='templates')
@@ -45,17 +46,21 @@ def change():
         # assert the clustering conditions
         if len(server_list) < 3 and method == 'CLUSTER':
             flash("Redis cluster cannot be setup with less than 3 hosts. "
-                  "Select SHARDING instead.", "warning")
+                  "Select SHARDED instead.", "warning")
             return render_template('cache_change.html', servers=servers)
 
         session["cache_method"] = method
         server_list = [int(sid) for sid in server_list]
         task = install_redis_stunnel.delay(server_list)
         selected_servers = Server.query.filter(Server.id.in_(server_list)).all()
-        return render_template('cache_install.html', method=method,
+        return render_template('cache_logger.html', method=method, step=2,
                                task_id=task.id, servers=selected_servers)
     return render_template('cache_change.html', servers=servers)
 
 @cache_mgr.route('/configure/<method>/')
 def configure(method):
-    pass
+    task = configure_cache_cluster.delay(method)
+    servers = Server.query.filter(Server.redis.is_(True)).filter(
+        Server.stunnel.is_(True)).all()
+    return render_template('cache_logger.html', method=method, servers=servers,
+                           step=3, task_id=task.id)
