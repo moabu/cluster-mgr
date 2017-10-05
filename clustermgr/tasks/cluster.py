@@ -503,7 +503,7 @@ def remove_provider(server_id):
     server = Server.query.get(server_id)
     receivers = Server.query.filter(Server.id.isnot(server_id)).all()
     for receiver in receivers:
-        addr = receiver.ip if appconfig.use_ip else receiver.hostanme
+        addr = receiver.ip if appconfig.use_ip else receiver.hostname
         c = CnManager(addr, 1636, True, 'cn=config', receiver.ldap_password)
         c.remove_olcsyncrepl(server_id)
         c.close()
