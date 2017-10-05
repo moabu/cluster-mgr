@@ -36,6 +36,12 @@ class Server(db.Model):
     # Is this the primary server
     primary_server = db.Column(db.Boolean)
 
+    # Is redis installed
+    redis = db.Column(db.Boolean)
+
+    # Is stunnel installed
+    stunnel = db.Column(db.Boolean)
+
     def __repr__(self):
         return '<Server %d %s>' % (self.id, self.hostname)
 

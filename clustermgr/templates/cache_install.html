@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% from 'macros.html' import cache_process_steps %}
+
+{% block content %}
+    <h2 class="page-header">Cache Clustering</h2>
+    {{ cache_process_steps(2) }}
+    <ul id="logger" class="list-group">
+    </ul>
+
+
+{% endblock %}
+
+{% block js %}
+<script>
+var task_id = "{{ task_id }}";
+var timer;
+var errors = 0;
+
+function logitem(message, state){
+    var item = document.createElement('li');
+    item.setAttribute('class', 'list-group-item');
+    var icon = document.createElement('i');
+    if ( state === 'success' ){
+        icon.setAttribute('class', 'glyphicon glyphicon-ok-sign pull-right');
+        item.setAttribute('class', 'list-group-item text-success');
+    } else if ( state === 'error' || state === 'fail' ) {
+        icon.setAttribute('class', 'glyphicon glyphicon-remove-sign pull-right')
+        item.setAttribute('class', 'list-group-item text-danger');
+    } else if ( state === 'info' ){
+        icon.setAttribute('style', 'padding-right: 5px')
+        icon.setAttribute('class', 'glyphicon glyphicon-tasks')
+        item.setAttribute('class', 'list-group-item list-group-item-info');
+    } else if ( state === 'warning' ){
+        icon.setAttribute('style', 'padding-right: 5px')
+        icon.setAttribute('class', 'glyphicon glyphicon-warning-sign')
+        item.setAttribute('class', 'list-group-item list-group-item-warning');
+    } else if ( state === 'debug' ){
+        item = document.createElement('pre')
+        item.setAttribute('class', 'list-group-item');
+    } else if (state === 'cerror' ){
+        item = document.createElement('pre')
+        item.setAttribute('class', 'list-group-item list-group-item-warning');
+    }
+    item.appendChild(icon);
+    var msgtext = document.createTextNode(message);
+    item.appendChild(msgtext);
+    return item;
+}
+
+function updateLog(){
+    $.get('{{ url_for("index.get_log", task_id=task_id) }}', function(data){
+        var logs = data.messages;
+        var logged_msgs = $('.list-group-item').length;
+        for(var i=logged_msgs; i<logs.length; i++){
+            if (logs[i].msg === ''){
+                // skip creating logItems for empty strings
+                continue;
+            }
+            var entry = logitem(logs[i].msg, logs[i].level);
+            $('#logger').append(entry);
+            entry.scrollIntoView({behavior: "smooth", block: "end"});
+            if(logs[i].level === 'error' || logs[i].level === 'fail'){
+                errors++;
+            }
+        }
+        if(data.state === "SUCCESS" || data.state === "FAILURE"){
+            clearInterval(timer);
+            $('.progress').hide();
+            if (errors){
+                var err_msg = "Errors were found. Fix them in the server and refresh this page to try again.";
+                var entry = logitem(err_msg, 'warning');
+                $('#logger').append(entry);
+                entry.scrollIntoView(false);
+                $('#retry').show()[0].scrollIntoView({behavior: "smooth", block: "end"});
+            } else {
+                $('#home').show()[0].scrollIntoView({behavior: "smooth", block: "end"});
+            }
+        }
+    });
+}
+
+$('#retry').click(function(){
+    window.location.reload(true);
+});
+
+timer = setInterval(updateLog, 1000);
+</script>
+
+{% endblock %}

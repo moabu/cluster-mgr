@@ -1,6 +1,7 @@
 import json
+import os.path
 
-from clustermgr.models import Server
+from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, celery, wlogger
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import DBManager
@@ -8,33 +9,43 @@ from clustermgr.core.ldap_functions import DBManager
 from ldap3.core.exceptions import LDAPSocketOpenError
 
 
-class RedisInstaller(object):
-    """RedisInstaller installs redis-server in the provided server.
+class BaseInstaller(object):
+    """Base class for component installers.
 
     Args:
-        client (class:`clustermgr.core.remote.RemoteClient`): a remote client
-            object to connect to the remote server
         server (class:`clustermgr.models.Server`): the server object denoting
             the server where server should be installed
         tid (string): the task id of the celery task to add logs
     """
-    def __init__(self, client, server, tid):
-        self.rc = client  # rc - Remote Client
+    def __init__(self, server, tid):
         self.server = server
         self.tid = tid
+        self.rc = RemoteClient(server.hostname, ip=server.ip)
+        self.chdir = None
+        if self.server.gluu_server:
+            version = AppConfiguration.query.first().gluu_version
+            self.chdir = "/opt/gluu-server-{0}".format(version)
+
 
     def install(self):
         """install() detects the os of the server and calls the appropriate
         function to install redis on that server.
-        """
-        if self.rc.exists('/usr/bin/redis-server'):
-            wlogger.log(self.tid, "Redis server is already installed.")
-            return True
 
-        wlogger.log(self.tid, "Resolving the OS of the server...")
+        Returns:
+            boolean status of the installs
+        """
+        try:
+            self.rc.startup()
+        except Exception as e:
+            wlogger.log(self.tid, "Could not connect to {0}".format(e),
+                        "error")
+            return False
+
+
         cin, cout, cerr = self.rc.run("ls /etc/*release")
         files = cout.split()
         cin, cout, cerr = self.rc.run("cat "+files[0])
+
         if "Ubuntu" in cout:
             return self.install_in_ubuntu()
         if "CentOS" in cout:
@@ -46,151 +57,199 @@ class RedisInstaller(object):
             return False
 
     def install_in_ubuntu(self):
-        """installs redis-server in a Ubuntu machine.
+        """This method should be overridden by the sub classes. Run the
+        commands needed to install your component.
 
         Returns:
-            a boolean flag indicating success or failure of the operation
+            boolean status of success of the install
         """
-        wlogger.log(self.tid, "Installing redis-server in Ubuntu")
-        commands = [
-            "apt-get update && sudo apt-get upgrade",
-            "apt-get install software-properties-common -y",
-            "add-apt-repository ppa:chris-lea/redis-server -y",
-            "apt-get update",
-            "apt-get install redis-server -y",
-        ]
-        return self.run_commands(commands)
+        pass
 
     def install_in_centos(self):
-        """installs redis-server in a CentOS machine.
+        """This method should be overridden by the sub classes. Run the
+        commands needed to install your component.
 
         Returns:
-            a boolean flag indicating success or failure of the operation
+            boolean status of success of the install
         """
-        commands = [
-            "yum update -y",
-            "yum install epel-release -y",
-            "yum update -y",
-            "yum install redis -y",
-        ]
+        pass
 
+    def _chcmd(self, cmd):
+        if self.chdir:
+            return 'chroot {0} /bin/bash -c "{1}"'.format(self.chdir, cmd)
+        else:
+            return cmd
+
+    def run_command(self, cmd):
+        wlogger.log(self.tid, self._chcmd(cmd), "debug")
+        return self.rc.run(self._chcmd(cmd))
+
+
+
+class RedisInstaller(BaseInstaller):
+    """RedisInstaller installs redis-server in the provided server. Refer to
+    `BaseInstaller` for docs.
+    """
+    def install_in_ubuntu(self):
+        self.run_command("apt-get update")
+        self.run_command("apt-get upgrade -y")
+        self.run_command("apt-get install software-properties-common -y")
+        self.run_command("add-apt-repository ppa:chris-lea/redis-server -y")
+        self.run_command("apt-get update")
+        cin, cout, cerr = self.run_command("apt-get install redis-server -y")
+        wlogger.log(self.tid, cout, "debug")
+        wlogger.log(self.tid, cerr, "cerror")
+        # verifying that redis-server is succesfully installed
+        cin, cout, cerr = self.rc.run(
+            self._chcmd("apt-get install redis-server -y"))
+
+        if "redis-server is already the newest version" in cout:
+            return True
+        else:
+            return False
+
+    def install_in_centos(self):
         # To automatically start redis on boot
         # systemctl enable redis
+        self.run_command("yum update -y")
+        self.run_command("yum install epel-release -y")
+        self.run_command("yum update -y")
 
-        return self.run_commands(commands)
-
-    def run_commands(self, commands):
-        """runs a list of commands on the remote server via the remote client
-
-        Args:
-            commands (list): list of commands to run
-
-        Returns:
-            false if any of the commands fail, true if all the commands succeed
-        """
-        for cmd in commands:
-            wlogger.log(self.tid, cmd, "debug")
-            cin, cout, cerr = self.rc.run(cmd)
-            if cout:
-                wlogger.log(self.tid, cout, "debug")
-            if cerr:
-                wlogger.log(self.tid, cerr, "error")
-                return False
+        cin, cout, cerr = self.rc.run(self._chcmd("yum install redis -y"))
+        wlogger.log(self.tid, self._chcmd("yum install redis -y"), "debug")
+        wlogger.log(self.tid, cout, "debug")
+        wlogger.log(self.tid, cerr, "cerror")
+        # TODO find the successful install message and return True
+        if cerr:
+            return False
         return True
 
 
-class StunnelInstaller(object):
-    def __init__(self, server, redis_servers, tid):
-        pass
+class StunnelInstaller(BaseInstaller):
+    def install_in_ubuntu(self):
+        self.run_command("apt-get update")
+        cin, cout, cerr = self.run_command("apt-get install stunnel4 -y")
+        wlogger.log(self.tid, cout, "debug")
+        wlogger.log(self.tid, cerr, "cerror")
+
+        # Verifying installation by trying to reinstall
+        cin, cout, cerr = self.rc.run(
+            self._chcmd("apt-get install stunnel4 -y"))
+        if "stunnel4 is already the newest version" in cout:
+            return True
+        else:
+            return False
+
+    def install_in_centos(self):
+        self.run_command("yum update -y")
+        cin, cout, cerr = self.run_command("yum install stunnel -y")
+        wlogger.log(self.tid, cout, "debug")
+        wlogger.log(self.tid, cerr, "cerror")
+        # TODO find the successful install message and return True
+        if cerr:
+            return False
+        return True
+
+
+def setup_cluster(tid):
+    # TODO implement redis-server deployment logic
+    pass
+
+
+
+def setup_sharding(tid):
+    servers = Server.query.all()
+    installed = []
+    for server in servers:
+        ri = RedisInstaller(server, tid)
+        redis_installed = ri.install()
+        if redis_installed:
+            server.redis = True
+        else:
+            wlogger.log("Redis could not be installed in {0}. It will not "
+                        "be a part of the cluster.", "warning")
+
+        si = StunnelInstaller(server, tid)
+        stunnel_installed = si.install()
+        if stunnel_installed:
+            server.stunnel = True
+        else:
+            wlogger.log(tid, "Stunnel could not be installed in the server",
+                        "warning")
+
+        db.session.commit()
+        if stunnel_installed and redis_installed:
+            installed.append(server)
+
+    # Store the redis server info in the LDAP
+    for server in servers:
+        server_string = ''
+        count = len(installed)
+        if server in installed:
+            server_string = 'localhost:6379,'
+            count -= 1
+
+        server_string += ",".join(
+            ["localhost:700{0}".format(i) for i in xrange(count)])
+
+        dbm = DBManager(server.hostname, 1636,  server.ldap_password, ssl=True,
+                        ip=server.ip,)
+        entry = dbm.get_appliance_attributes('oxCacheConfiguration')
+        cache_conf = json.loads(entry.oxCacheConfiguration.value)
+        cache_conf['cacheProviderType'] = 'REDIS'
+        redis_conf = cache_conf['cacheProviderType']['redisConfiguration']
+        redis_conf['redisProviderType'] = 'SHARDING'
+        redis_conf['servers'] = server_string
+        cache_conf['cacheProviderType']['redisConfiguration'] = redis_conf
+
+        dbm.set_applicance_attribute('oxCacheConfiguration',
+                                     [json.dumps(cache_conf)])
+
+        # TODO generate stunnel configuration and upload it to the server
 
 
 @celery.task(bind=True)
 def setup_redis(self, method):
-    return method
+    tid = self.request.id
+    if method not in ['CLUSTER', 'SHARDING']:
+        wlogger.log(tid, "Redis cache cannot be setup in the method: "
+                         "{0}".format(method), "error")
+        return False
 
+    if method is 'SHARDING':
+        setup_sharding(tid)
+    elif method is 'CLUSTER':
+        setup_cluster(tid)
 
 @celery.task(bind=True)
-def configure_redis(self, server_id, method, redis_servers, put_expiration=60):
-    """configure_redis is a celery task that installs redis in the specified
-    gluu server and configures it according to the parameters specified in the
-    arguments.
-
-    Args:
-        server_id (int): the id of the server where redis is to be installed
-        method (string): the configuration method for redis
-        redis_servers (string): the string containing the list of servers that
-            oxAuth can use in a comma sperated host:port format. eg.,
-            server1:7000,server2:8081
-        put_expiration (int, optional): the timeout after which put values can
-            be cleared defaults to 60
-
-    Returns:
-        boolean value indicating whether configuration has been successful
-    """
-    # NOTE This task will be applicable for only for STANDALONE
-    # For SHARDING and CLUSTER, the task has to operate on multiple servers
-    # instead of a number of servers - that's a TODO
+def install_redis_stunnel(self, servers):
     tid = self.request.id
-    wlogger.log(tid, "Configuring Redis as Cache", "info")
-    server = Server.query.get(server_id)
-    # Sanitize the method variable
-    accepted_methods = ['STANDALONE', 'SHARDING', 'CLUSTER']
-    if method not in accepted_methods:
-        wlogger.log(tid, "Redis cannot be configured in the method {0}. "
-                    "Choose anyone from {1}.".format(method, accepted_methods),
-                    "error")
-        return False
+    installed = 0
+    for server_id in servers:
+        server = Server.query.get(server_id)
+        wlogger.log(tid, "Installing Redis in server {0}".format(
+            server.hostname), "info", server_id=server_id)
+        ri = RedisInstaller(server, tid)
+        redis_installed = ri.install()
+        if redis_installed:
+            wlogger.log(tid, "Redis install successful", "success",
+                        server_id=server_id)
+        else:
+            wlogger.log(tid, "Redis install failed", "fail",
+                        server_id=server_id)
 
-    c = RemoteClient(server.hostname, ip=server.ip)
-    try:
-        c.startup()
-    except Exception as e:
-        wlogger.log(tid, "Could not connect to the server. {0}".format(e),
-                    "error")
-        return
-
-    # 1. Check if redis is installed and Install the Redis Server
-    ri = RedisInstaller(c, server, tid)
-    install_ok = ri.install()
-    if not install_ok:
-        wlogger.log(tid, "Failed to install redis server. Aborting process.",
-                    "error")
-        return False
-
-    # 2. Get the oxAuth config from LDAP and change the config values
-    dbm = DBManager(server.hostname, 1636,  server.ldap_password, ssl=True,
-                    ip=server.ip,)
-    entry = dbm.get_appliance_attributes('oxCacheConfiguration')
-    cache_conf = json.loads(entry.oxCacheConfiguration.value)
-    cache_conf['cacheProviderType'] = 'REDIS'
-    redis_conf = cache_conf['cacheProviderType']['redisConfiguration']
-    redis_conf['redisProviderType'] = method
-    redis_conf['servers'] = redis_servers
-    redis_conf['defaultPutExpiration'] = put_expiration
-    cache_conf['cacheProviderType']['redisConfiguration'] = redis_conf
-
-    dbm.set_applicance_attribute('oxCacheConfiguration',
-                                 [json.dumps(cache_conf)])
-
-    # 3. update the stunnel configuration and restart stunnel
-    stunnel_required = False
-    servers = redis_servers.split(",")
-    for serve in servers:
-        if 'localhost' not in serve:
-            stunnel_required = True
-            break
-
-    if not stunnel_required:
-        wlogger.log(tid, "Redis server has been successfully setup as a cache"
-                    " for {0}".format(server.hostname), "success")
-        return True
-
-    si = StunnelInstaller(server, redis_servers, tid)
-    stunnel_installed = si.install()
-    if not stunnel_installed:
-        wlogger.log(tid, "Stunnel could not be installed in the server",
-                    "error")
-        return False
+        wlogger.log(tid, "Installing Stunnel", "info", server_id=server_id)
+        si = StunnelInstaller(server, tid)
+        stunnel_installed = si.install()
+        if stunnel_installed:
+            wlogger.log(tid, "Stunnel install successful", "success",
+                        server_id=server_id)
+        else:
+            wlogger.log(tid, "Stunnel install failed", "fail",
+                        server_id=server_id)
+        if redis_installed and stunnel_installed:
+            installed += 1
+    return installed
 
 
 @celery.task(bind=True)

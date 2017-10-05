@@ -78,12 +78,7 @@ def test_03_change_cache_method_to_cluster(driver):
     # user chooses the cluster option and submits the form
     cluster_radio = driver.find_element_by_id("CLUSTER")
     cluster_radio.click()
-    cluster_radio.submit()
+    submit = driver.find_element_by_id("submit")
+    submit.click()
 
-    # users sees the log of the redis-cluster being setup
-    log_page = driver.find_element_by_tag_name('body')
-    assert "Setting up redis-cluster" in log_page.text
-
-
-
-
+    # TODO verify the different steps in the cache cluster setup process

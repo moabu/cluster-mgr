@@ -125,7 +125,7 @@ class RemoteClient(object):
             raise ClientNotSetupException(
                 'Cannot run procedure. Client not initialized')
 
-        buffers = self.client.exec_command(command)
+        buffers = self.client.exec_command(command, timeout=30)
         output = []
         for buf in buffers:
             try:

@@ -41,9 +41,25 @@ class ServerViewTestCase(unittest.TestCase):
         self.assertIn('Cache Clustering', rv.data)
         self.assertIn('form', rv.data)
 
-    @patch('clustermgr.views.cache.setup_redis')
-    def test_change_cache_calls_celery_task_on_post(self, mocktask):
-        self.client.post('/cache/change/', data=dict(method='CLUSTER'),
-                         follow_redirects=True)
-        mocktask.delay.assert_called_once_with('CLUSTER')
+    def test_change_rejects_post_if_method_or_list_of_servers_is_missing(self):
+        # both method and servers are missing
+        rv = self.client.post('/cache/change/', follow_redirects=True)
+        self.assertIn('No clustering method', rv.data)
+        self.assertIn('No servers have been selected', rv.data)
+
+        # only method is missing
+        rv = self.client.post('/cache/change/', data=dict(servers=[1,2,3]),
+                              follow_redirects=True)
+        self.assertIn('No clustering method', rv.data)
+
+        # only servers are missing
+        rv = self.client.post('/cache/change/', data=dict(method='CLUSTER'),
+                              follow_redirects=True)
+        self.assertIn('No servers have been selected', rv.data)
+
+    @patch('clustermgr.views.cache.install_redis_stunnel')
+    def test_change_calls_celery_task_if_form_data_is_correct(self, mocktask):
+        self.client.post('/cache/change/', data=dict(
+            method="CLUSTER", servers=[1,2,3]))
+        mocktask.delay.assert_called_once_with([1,2,3])
 
