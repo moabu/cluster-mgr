@@ -39,7 +39,7 @@ cd cluster-mgr/
 python setup.py install
 ```
 
-A successful installation will install a tool called clustermgr-cli.
+- A successful installation will install a tool called clustermgr-cli.
 
 5) Prepare Databases
 
