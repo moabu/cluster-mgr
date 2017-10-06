@@ -1229,8 +1229,23 @@ def installNGINX(self, nginx_host):
         cin, cout, cerr = c.run(cmd)
         wlogger.log(tid, cout, 'debug')
 
+
+    r = c.exists("/etc/nginx/ssl/")
+    if not r:
+        wlogger.log(tid, "/etc/nginx/ssl/ does not exists. Creating ...", "debug")
+        r2 = c.mkdir("/etc/nginx/ssl/")
+        if r2[0]:
+            wlogger.log(tid, "/etc/nginx/ssl/ was created", "success")
+        else:
+            wlogger.log(tid, "Error creating /etc/nginx/ssl/ {0}".format(r2[1]), "error")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return False
+    else:
+        wlogger.log(tid, "Directory /etc/nginx/ssl/ exists.", "debug")
+
+
     wlogger.log(tid, "Making SSH connection to primary server {} for downloading certificates".format(pserver.hostname))
-    pc = RemoteClient(nginx_host)
+    pc = RemoteClient(pserver.hostname, pserver.ip)
     try:
         pc.startup()
     except Exception as e:
@@ -1241,15 +1256,50 @@ def installNGINX(self, nginx_host):
     for crt in ('httpd.crt', 'httpd.key'):
         wlogger.log(tid, "Downloading {0} from primary server".format(crt), "debug")
         remote_file = '/opt/gluu-server-{0}/etc/certs/{1}'.format(app_config.gluu_version, crt)
-        print "Remote file", remote_file
-        print (pc.server)
         r = pc.get_file(remote_file)
-        
-        
         if not r[0]:
             wlogger.log(tid, "Can't download {0} from primary server: {1}".format(crt,r[1]), "error")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return False
+        else:
+            wlogger.log(tid, "File {} was downloaded.".format(remote_file), "success")
         fc = r[1].read()
-        #remote_file = 
-        #r = pc.put_file(
+        remote = os.path.join("/etc/nginx/ssl/", crt)
+        r = c.put_file(remote, fc)
         
-            
+        if r[0]:
+            wlogger.log(tid, "File {} uploaded".format(remote), "success")
+        else:
+            wlogger.log(tid, "Can't upload {0}: {1}".format(remote,r[1]), "error")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return False
+    
+    servers = Server.query.all()
+    nginx_backends = []
+    
+    
+    nginx_tmp_file = os.path.join(app.root_path, "templates", "nginx",
+                           "nginx.temp")
+    nginx_tmp = open(nginx_tmp_file).read()
+    
+    for s in servers:
+        nginx_backends.append('  server {0}:443;'.format(s.hostname))
+        
+    nginx_tmp = nginx_tmp.replace('{#NGINX#}', nginx_host)
+    nginx_tmp = nginx_tmp.replace('{#SERVERS#}', '\n'.join(nginx_backends))
+
+    remote = "/etc/nginx/nginx.conf"
+    r = c.put_file(remote, nginx_tmp)
+    
+    if r[0]:
+         wlogger.log(tid, "File {} uploaded".format(remote), "success")
+    else:
+        wlogger.log(tid, "Can't upload {0}: {1}".format(remote,r[1]), "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return False
+
+    cmd = 'service nginx restart'
+    
+    run_command(tid, c, cmd)
+    
+    wlogger.log(tid, "NGINX successfully installed")
