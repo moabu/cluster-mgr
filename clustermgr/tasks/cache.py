@@ -1,5 +1,8 @@
 import json
 import os
+import re
+
+from StringIO import StringIO
 
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, celery, wlogger
@@ -164,8 +167,8 @@ def setup_sharded(tid):
     for server in servers:
         wlogger.log(tid, "Updating oxCacheConfiguration ...", "debug",
                     server_id=server.id)
-        server_string = 'localhost:6379,'
-        server_string += ",".join(
+
+        server_string = ",".join(['localhost:6379'] +
             ["localhost:700{0}".format(i) for i in xrange(ports_count)])
 
         try:
@@ -211,7 +214,49 @@ def setup_sharded(tid):
         remote = os.path.join(chdir, 'etc/default/stunnel4')
         rc.upload(local, remote)
 
-        # TODO setup the certificate file
+        # setup the certificate file
+        wlogger.log(tid, "Generating certificate for stunnel ...", "debug",
+                    server_id=server.id)
+        prop_buffer = StringIO()
+        propsfile = os.path.join(chdir, "install", "community-edition-setup",
+                                 "setup.properties.last")
+        rc.sftpclient.getfo(propsfile, prop_buffer)
+        prop_buffer.seek(0)
+        props = dict()
+        prop_in = lambda line: line.split("=")[1].strip()
+        for line in prop_buffer:
+            if re.match('^countryCode', line):
+                props['country'] = prop_in(line)
+            if re.match('^state', line):
+                props['state'] = prop_in(line)
+            if re.match('^city', line):
+                props['city'] = prop_in(line)
+            if re.match('^orgName', line):
+                props['org'] = prop_in(line)
+            if re.match('^hostname', line):
+                props['cn'] = prop_in(line)
+            if re.match('^admin_email', line):
+                props['email'] = prop_in(line)
+
+        subject = "'/C={country}/ST={state}/L={city}/O={org}/CN={cn}/emailAddress={email}'".format(**props)  # no-qa
+        cert_path = os.path.join(chdir, "etc", "stunnel", "server.crt")
+        key_path = os.path.join(chdir, "etc", "stunnel", "server.key")
+        pem_path = os.path.join(chdir, "etc", "stunnel", "cert.pem")
+        cmd = ["/usr/bin/openssl", "req", "-subj", subject, "-new", "-newkey",
+               "rsa:2048", "-sha256", "-days", "365", "-nodes", "-x509",
+               "-keyout", key_path, "-out", cert_path]
+        cin, cout, cerr = rc.run(" ".join(cmd))
+        rc.run("cat {cert} {key} > {pem}".format(cert=cert_path, key=key_path,
+                                                 pem=pem_path))
+        # verify certificate
+        cin, cout, cerr = rc.run("/usr/bin/openssl verify "+pem_path)
+        if props['cn'] in cout and props['org'] in cout:
+            wlogger.log(tid, "Certificate generated successfully", "success",
+                        server_id=server.id)
+        else:
+            wlogger.log(tid, "Certificate generation failed. Add a SSL "
+                        "certificate at /etc/stunnel/cert.pem", "error",
+                        server_id=server.id)
 
         # Generate stunnel config
         wlogger.log(tid, "Setup stunnel listening and forwarding", "debug",
