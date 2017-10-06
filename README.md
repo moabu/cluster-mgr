@@ -10,9 +10,13 @@ GUI tool for managing Gluu Server OpenLDAP replication
 
 Install prerequisites packages first. On debian or ubuntu, install them using `apt-get`:
 
-1) Establish an ssh connection from your administrators computer to the Gluu servers for Cluster-mgr, if you don't already have one set up
+1) Establish an ssh connection from your administrators computer to the Gluu servers for Cluster-mgr:
 
-`- ssh-copy-id root@server1 && ssh-copy-id root@server2 ...`
+`ssh-keygen -t rsa`
+
+- This will provide you with a prompt to create a key-pair. Make sure that you **do not input a password here**, so cluster-mgr can open connections to the servers.
+
+- Now copy that key (default `id_rsa.pub`) to the `/root/.ssh/authorized_keys` file. I prefer to open the `id_rsa.pub` file with `vi` then just copy the hash text into the bottom of `authorized_keys`
 
 2) Install necessary modules
 
@@ -67,3 +71,4 @@ ssh -L 9999:localhost:5000 root@server
 ```
 http://localhost:9999/
 ```
+
