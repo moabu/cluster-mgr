@@ -392,8 +392,7 @@ def setup_ldap_replication(self, server_id):
     
     
     
-    providers = Server.query.filter(Server.id.isnot(server.id)).filter(
-        Server.mmr.is_(True)).all()
+    providers = Server.query.filter(Server.id.isnot(server.id)).filter().all()
     if providers:
         wlogger.log(tid, "Adding Syncrepl to integrate the server in cluster")
     for p in providers:
@@ -438,9 +437,9 @@ def setup_ldap_replication(self, server_id):
             """
         # Special case - if there are only two server enable mirror mode
         # in other server as well
-        if len(providers) == 1:
-            other.makeMirroMode()
-        other.conn.unbind()
+        #if len(providers) == 1:
+        #    other.makeMirroMode()
+        #other.conn.unbind()
 
         pc = RemoteClient(p.hostname, ip=p.ip)
         try:
@@ -485,6 +484,7 @@ def setup_ldap_replication(self, server_id):
 
     run_command(tid, c, 'service oxauth restart', chroot)
     run_command(tid, c, 'service identity restart', chroot)
+    
     
     # 15. Enable Mirrormode in the server
     if providers:
@@ -1061,18 +1061,7 @@ def installGluuServer(self, server_id):
                 
         wlogger.log(tid, 'Manuplating keys')
         
-        for suffix in (
-                    'httpd',
-                    'shibIDP',
-                    'idp-encryption',
-                    'asimba',
-                    'openldap',
-                ):
-            delete_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
-            import_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
-        
-                
-                
+
     else:
         custom_schema_dir = os.path.join(Config.DATA_DIR, 'schema')
         custom_schemas = os.listdir(custom_schema_dir)
@@ -1086,6 +1075,19 @@ def installGluuServer(self, server_id):
                     wlogger.log(tid, 'Custom schame file {0} uploaded'.format(sf), 'success')
                 else:
                     wlogger.log(tid, "Can't upload custom schame file {0}: ".format(sf, r[1]), 'error')
+
+
+
+    for suffix in (
+                'httpd',
+                'shibIDP',
+                'idp-encryption',
+                'asimba',
+                'openldap',
+            ):
+        delete_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
+        import_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
+
 
     server.gluu_server = True
     db.session.commit()
@@ -1238,11 +1240,14 @@ def installNGINX(self, nginx_host):
         return False
     for crt in ('httpd.crt', 'httpd.key'):
         wlogger.log(tid, "Downloading {0} from primary server".format(crt), "debug")
-        remote_file = 'opt/gluu-server-{0}/etc/certs/{1}'.format(app_config.gluu_version, crt)
-        
+        remote_file = '/opt/gluu-server-{0}/etc/certs/{1}'.format(app_config.gluu_version, crt)
+        print "Remote file", remote_file
+        print (pc.server)
         r = pc.get_file(remote_file)
+        
+        
         if not r[0]:
-            wlogger.log(tid, "Can't download {0} from primary server".format(crt), "error")
+            wlogger.log(tid, "Can't download {0} from primary server: {1}".format(crt,r[1]), "error")
         fc = r[1].read()
         #remote_file = 
         #r = pc.put_file(

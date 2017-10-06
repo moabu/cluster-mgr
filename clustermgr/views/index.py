@@ -427,6 +427,7 @@ def add_provider_to_consumer(consumer_id, provider_id):
                 provider.hostname, server.hostname,
                 ldp.conn.result['description']), "danger")
 
-        ldp.makeMirroMode()
+        if not ldp.checkMirroMode():
+            ldp.makeMirroMode()
 
     return redirect(url_for('index.multi_master_replication'))

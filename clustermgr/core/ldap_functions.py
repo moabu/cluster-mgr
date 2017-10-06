@@ -263,6 +263,7 @@ class LdapOLC(object):
                 break
 
         mod = {"olcSyncRepl": [(MODIFY_ADD, [ridText])]}
+        
         return self.conn.modify('olcDatabase={1}mdb,cn=config', mod)
 
     def checkAccesslogDB(self):
