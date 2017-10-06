@@ -22,7 +22,7 @@
             <td>{{ server.hostname }}</td>
             <td>{{ server.ip }}</td>
             <td>
-                {% if server.mmr %}
+                {% if server.hostname in serverStats %}
                     Configured
                 {% else %}
                     <p class="text-danger">Not Configured</p>

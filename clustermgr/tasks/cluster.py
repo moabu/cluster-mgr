@@ -413,6 +413,7 @@ def setup_ldap_replication(self, server_id):
                     p.hostname, server.hostname, ldp.conn.result['description']),
                     "warning")
 
+            """
             # 13. Make the other server listen to this server
             other = LdapOLC('ldaps://{}:1636'.format(paddr), "cn=config",
                             p.ldap_password)
@@ -434,6 +435,7 @@ def setup_ldap_replication(self, server_id):
                 wlogger.log(tid, '<< Making {0} listen to {1} failed: {2}'.format(
                     p.hostname, server.hostname, ldp.conn.result['description']),
                     "warning")
+            """
         # Special case - if there are only two server enable mirror mode
         # in other server as well
         if len(providers) == 1:
@@ -872,7 +874,10 @@ def installGluuServer(self, server_id):
 
     gluu_server = 'gluu-server-' + appconf.gluu_version
 
-
+    if not server.os:
+        wlogger.log(tid, "OS type has not been identified.", 'fail')
+        wlogger.log(tid, "Ending server installation process.", "error")
+        return
 
     # FIXME: add gluu repo and GPG Key before starting to install
 
