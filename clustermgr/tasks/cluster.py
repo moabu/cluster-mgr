@@ -885,7 +885,7 @@ def installGluuServer(self, server_id):
 
     if 'Ubuntu' in server.os:
         install_command = 'apt-get '
-        #enable_command = None
+        enable_command = None
         start_command  = 'service gluu-server-{0} start'
         stop_command   = 'service gluu-server-{0} stop'
         
