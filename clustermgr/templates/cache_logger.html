@@ -34,6 +34,9 @@
 <script>
 var task_id = "{{ task_id }}";
 var timer;
+var errors = 0;
+var warnings = 0;
+
 
 function logitem(message, state){
     var item = document.createElement('li');
@@ -45,6 +48,7 @@ function logitem(message, state){
     } else if ( state === 'error' || state === 'fail' ) {
         icon.setAttribute('class', 'glyphicon glyphicon-remove-sign pull-right')
         item.setAttribute('class', 'list-group-item text-danger');
+        errors++;
     } else if ( state === 'info' ){
         icon.setAttribute('style', 'padding-right: 5px')
         icon.setAttribute('class', 'glyphicon glyphicon-tasks')
@@ -53,6 +57,7 @@ function logitem(message, state){
         icon.setAttribute('style', 'padding-right: 5px')
         icon.setAttribute('class', 'glyphicon glyphicon-warning-sign')
         item.setAttribute('class', 'list-group-item list-group-item-warning');
+        warnings++;
     } else if ( state === 'debug' ){
         item = document.createElement('pre')
         item.setAttribute('class', 'list-group-item');
@@ -94,6 +99,19 @@ function updateLog(){
                 .parent().addClass("panel-info")
                 .find('h4')
                 .append('<span class="glyphicon glyphicon-ok pull-right"></span>');
+
+            if(errors !== 0 || warnings !== 0) {
+                $.notify({
+                    icon: 'glyphicon glyphicon-warning-sign',
+                    title: 'Problems Found! Review Logs',
+                    message: errors.toString()+' Errors and '+warnings+' Warnings were encountered during the process. Kindly review the log of each server before proceeding to the next step.',
+                },{
+                    type: "danger",
+                    placement: {from: "botton", align: "center"},
+                    delay: 0,
+                    animate: {enter: 'animated fadeInUp', exit: 'animated fadeOutDown'}
+                });
+            }
         }
     });
 }
