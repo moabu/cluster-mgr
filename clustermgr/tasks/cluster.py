@@ -329,29 +329,31 @@ def setup_ldap_replication(self, server_id):
                     " user failed: {0}".format(ldp.conn.result['description']),
                     "warning")
 
-    # 11. Add replication user to the o=gluu
-    wlogger.log(tid, 'Creating replicator user: {0}'.format(
-        app_config.replication_dn))
 
-    adminOlc = LdapOLC('ldaps://{}:1636'.format(conn_addr),
-                       'cn=directory manager,o=gluu', server.ldap_password)
-    try:
-        adminOlc.connect()
-    except Exception as e:
-        wlogger.log(
-            tid, "Connection to LDAPserver as direcory manager at port 1636"
-            " has failed: {0}".format(e), "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
+    if server.primary_server:
+        # 11. Add replication user to the o=gluu
+        wlogger.log(tid, 'Creating replicator user: {0}'.format(
+            app_config.replication_dn))
 
-    if adminOlc.addReplicatorUser(app_config.replication_dn,
-                                  app_config.replication_pw):
-        wlogger.log(tid, 'Replicator user created.', 'success')
-    else:
-        wlogger.log(tid, "Creating replicator user failed: {0}".format(
-            adminOlc.conn.result), "warning")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
+        adminOlc = LdapOLC('ldaps://{}:1636'.format(conn_addr),
+                           'cn=directory manager,o=gluu', server.ldap_password)
+        try:
+            adminOlc.connect()
+        except Exception as e:
+            wlogger.log(
+                tid, "Connection to LDAPserver as direcory manager at port 1636"
+                " has failed: {0}".format(e), "error")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return
+
+        if adminOlc.addReplicatorUser(app_config.replication_dn,
+                                      app_config.replication_pw):
+            wlogger.log(tid, 'Replicator user created.', 'success')
+        else:
+            wlogger.log(tid, "Creating replicator user failed: {0}".format(
+                adminOlc.conn.result), "warning")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return
 
     saddr = server.ip if app_config.use_ip else server.hostname
 
@@ -375,23 +377,21 @@ def setup_ldap_replication(self, server_id):
 
         pDict[ri.hostname]= ','.join(ox_auth)
 
+
     if server.primary_server:
         if adminOlc.configureOxIDPAuthentication(oxIDP):
             wlogger.log(tid, 'oxIDPAuthentication entry is modified to include all privders','success')
         else:
             wlogger.log(tid, 'Modifying oxIDPAuthentication entry is failed: {}'.format(
                     adminOlc.conn.result['description']), 'success')
-    
+
 
     modifyOxLdapProperties(server, c, tid, pDict, chroot)
     
-    
-    
-    
+
     # 12. Make this server to listen to all other providers
     
-    
-    
+
     providers = Server.query.filter(Server.id.isnot(server.id)).filter().all()
     if providers:
         wlogger.log(tid, "Adding Syncrepl to integrate the server in cluster")
@@ -441,6 +441,7 @@ def setup_ldap_replication(self, server_id):
         #    other.makeMirroMode()
         #other.conn.unbind()
 
+
         pc = RemoteClient(p.hostname, ip=p.ip)
         try:
             pc.startup()
@@ -481,21 +482,23 @@ def setup_ldap_replication(self, server_id):
             else:
                 run_command(tid, pc, 'service oxauth restart', chroot)
                 run_command(tid, pc, 'service identity restart', chroot)
-
+                
+    wlogger.log(tid, 'Restarting oxauth and identity on provider {0}'.format(server.hostname))
     run_command(tid, c, 'service oxauth restart', chroot)
     run_command(tid, c, 'service identity restart', chroot)
     
-    
-    # 15. Enable Mirrormode in the server
-    if providers:
-        if not ldp.checkMirroMode():
-            if ldp.makeMirroMode():
-                wlogger.log(tid, 'Enabling mirror mode', 'success')
+
+    if not server.primary_server:
+        # 15. Enable Mirrormode in the server
+        if providers:
+            if not ldp.checkMirroMode():
+                if ldp.makeMirroMode():
+                    wlogger.log(tid, 'Enabling mirror mode', 'success')
+                else:
+                    wlogger.log(tid, "Enabling mirror mode failed: {0}".format(
+                        ldp.conn.result['description']), "warning")
             else:
-                wlogger.log(tid, "Enabling mirror mode failed: {0}".format(
-                    ldp.conn.result['description']), "warning")
-        else:
-            wlogger.log(tid, 'LDAP Server is already in mirror mode', 'debug')
+                wlogger.log(tid, 'LDAP Server is already in mirror mode', 'debug')
 
     # 16. Set the mmr flag to True to indicate it has been configured
     server.mmr = True
@@ -982,10 +985,19 @@ def installGluuServer(self, server_id):
     if 'CentOS' in server.os:
         run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'cd /install/community-edition-setup/ && ./setup.py -n'")
     else:
-        run_command(tid, c, 'cd /install/community-edition-setup/ && ./setup.py -n', '/opt/'+gluu_server+'/')
-    
+        cmd = 'chroot /opt/{0}/ /bin/bash -c  "cd /install/community-edition-setup/ && ./setup.py -n"'.format(gluu_server)
+        wlogger.log(tid, cmd, 'debug')
+        cin,cout,cerr = c.run(cmd)
+        #run_command(tid, c, 'cd /install/community-edition-setup/ && ./setup.py -n', '/opt/'+gluu_server+'/')
+        wlogger.log(tid, cout+cerr,'debug')
+        
+
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
+
+        #FIXME: Check this later
+        cmd = 'rm /opt/gluu/data/main_db/*.mdb'
+        run_command(tid, c, cmd, '/opt/'+gluu_server)
 
         pc = RemoteClient(pserver.hostname, ip=pserver.ip)
 
@@ -994,34 +1006,6 @@ def installGluuServer(self, server_id):
         except:
             wlogger.log(tid, "Can't make SSH connection to primary server: ".format(pserver.hostname), 'error')
 
-        #FIXME: Check this later
-        cmd = 'rm /opt/gluu/data/main_db/*.mdb'
-        run_command(tid, c, cmd, '/opt/'+gluu_server)
-
-        if appconf.gluu_version > '3.0.0':
-            wlogger.log(tid, "Downloading certificates from primary server and uploading to this server")
-            
-            cmd = 'tar -zcf /tmp/certs.tgz /opt/gluu-server-{0}/etc/certs/'.format(appconf.gluu_version)
-            wlogger.log(tid,cmd,'debug')
-            cin, cout, cerr = c.run(cmd)
-            wlogger.log(tid, cout+cerr, 'debug')
-            wlogger.log(tid,cmd,'debug')
-            
-            r = c.download("/tmp/certs.tgz","/tmp/certs.tgz")
-            if 'Download successful' in r :
-                wlogger.log(tid, r,'success')
-            else:
-                wlogger.log(tid, r,'error')
-                
-            r = pc.upload("/tmp/certs.tgz","/tmp/certs.tgz")
-            
-            if 'Upload successful' in r:
-                wlogger.log(tid, r,'success')
-            else:
-                wlogger.log(tid, r,'error')
-                
-            cmd = 'tar -zxf /tmp/certs.tgz -C /'
-            run_command(tid, pc, cmd)
 
         slapd_conf_file = '/opt/{0}/opt/symas/etc/openldap/slapd.conf'.format(gluu_server)
         r = pc.get_file(slapd_conf_file)
@@ -1058,10 +1042,32 @@ def installGluuServer(self, server_id):
                 run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start'")
             else:
                 run_command(tid, c, 'service solserver start', '/opt/'+gluu_server)
-                
-        wlogger.log(tid, 'Manuplating keys')
-        
 
+        if appconf.gluu_version > '3.0.2':
+            wlogger.log(tid, "Downloading certificates from primary server and uploading to this server")
+            
+            cmd = 'tar -zcf /tmp/certs.tgz /opt/gluu-server-{0}/etc/certs/'.format(appconf.gluu_version)
+            wlogger.log(tid,cmd,'debug')
+            cin, cout, cerr = c.run(cmd)
+            wlogger.log(tid, cout+cerr, 'debug')
+            wlogger.log(tid,cmd,'debug')
+            
+            r = c.download("/tmp/certs.tgz","/tmp/certs.tgz")
+            if 'Download successful' in r :
+                wlogger.log(tid, r,'success')
+            else:
+                wlogger.log(tid, r,'error')
+                
+            r = pc.upload("/tmp/certs.tgz","/tmp/certs.tgz")
+            
+            if 'Upload successful' in r:
+                wlogger.log(tid, r,'success')
+            else:
+                wlogger.log(tid, r,'error')
+                
+            cmd = 'tar -zxf /tmp/certs.tgz -C /'
+            run_command(tid, pc, cmd)
+        
     else:
         custom_schema_dir = os.path.join(Config.DATA_DIR, 'schema')
         custom_schemas = os.listdir(custom_schema_dir)
@@ -1076,17 +1082,17 @@ def installGluuServer(self, server_id):
                 else:
                     wlogger.log(tid, "Can't upload custom schame file {0}: ".format(sf, r[1]), 'error')
 
-
-
-    for suffix in (
-                'httpd',
-                'shibIDP',
-                'idp-encryption',
-                'asimba',
-                'openldap',
-            ):
-        delete_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
-        import_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
+    if appconf.gluu_version > '3.0.2':
+        wlogger.log(tid, 'Manuplating keys')
+        for suffix in (
+                    'httpd',
+                    'shibIDP',
+                    'idp-encryption',
+                    'asimba',
+                    'openldap',
+                    ):
+            delete_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
+            import_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
 
 
     server.gluu_server = True
@@ -1148,7 +1154,7 @@ def removeMultiMasterDeployement(self, server_id):
     confile_content = open(confile).read()
 
     vals = dict(
-        hosts='"ldaps://127.0.0.1:1636/"',
+        hosts='ldaps://127.0.0.1:1636/',
         extra_args='""',
     )
 

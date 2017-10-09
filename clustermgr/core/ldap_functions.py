@@ -247,8 +247,16 @@ class LdapOLC(object):
                                 return r
 
     def add_provider(self, rid, raddr, rbinddn, rcredentials):
-        ridText = """rid={0} provider={1} bindmethod=simple binddn="{2}" tls_reqcert=never credentials={3} searchbase="o=gluu" logbase="cn=accesslog" logfilter="(&(objectClass=auditWriteObject)(reqResult=0))" schemachecking=on type=refreshAndPersist retry="60 +" syncdata=accesslog sizeLimit=unlimited timelimit=unlimited""".format(
-            rid, raddr, rbinddn, rcredentials)
+        ridText = ('rid={0} provider={1} bindmethod=simple binddn="{2}" '
+                   'tls_reqcert=never credentials={3} searchbase="o=gluu" '
+                   'logbase="cn=accesslog" '
+                   #'filter=(&(objectClass=*)(!(ou:dn:=appliances))) '
+                   'logfilter="(&(objectClass=auditWriteObject)(reqResult=0))" '
+                   'schemachecking=on type=refreshAndPersist retry="60 +" '
+                   'syncdata=accesslog sizeLimit=unlimited '
+                   'timelimit=unlimited'.format(
+                        rid, raddr, rbinddn, rcredentials)
+                    )
 
         self.conn.search(search_base='olcDatabase={1}mdb,cn=config',
                          search_filter='(objectClass=*)',
