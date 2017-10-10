@@ -22,7 +22,7 @@ Install prerequisites packages first. On debian or ubuntu, install them using `a
 
 
 ```
-apt-get install build-essential libssl-dev libffi-dev python-dev redis-server python-setuptools libsasl2-dev  libldap2-dev
+apt-get install build-essential libssl-dev libffi-dev python-dev redis-server python-setuptools libsasl2-dev  libldap2-dev redis-server
 ```
 
 3) Now clone the github repo
