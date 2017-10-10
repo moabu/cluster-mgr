@@ -271,7 +271,15 @@ http {
     location /identity {
         proxy_pass https://backend_id/identity;
     }
-
+    location /cas {
+        proxy_pass https://backend/cas;
+    }
+    location /asimba {
+        proxy_pass https://backend/asimba;
+    }
+    location /passport {
+        proxy_pass https://backend/passport;
+    }
   }
 }
 
