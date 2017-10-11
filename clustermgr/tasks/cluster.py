@@ -16,7 +16,7 @@ from clustermgr.core.utils import ldap_encode
 from clustermgr.config import Config
 
 
-def run_command(tid, c, command, container=None):
+def run_command(tid, c, command, container=None, no_error='error'):
     """Shorthand for RemoteClient.run(). This function automatically logs
     the commands output at appropriate levels to the WebLogger to be shared
     in the web frontend.
@@ -49,7 +49,7 @@ def run_command(tid, c, command, container=None):
         if 'config file testing succeeded' in cerr:
             wlogger.log(tid, cerr, "success")
         else:
-            wlogger.log(tid, cerr, "error")
+            wlogger.log(tid, cerr, no_error)
         output += "\n" + cerr
 
     return output
@@ -891,12 +891,41 @@ def installGluuServer(self, server_id):
         wlogger.log(tid, "Ending server installation process.", "error")
         return
 
+
+    if server.os == 'Ubuntu 14':
+        dist = 'trusty'
+    elif server.os == 'Ubuntu 16':
+        dist = 'xenial'
+        
+    wlogger.log(tid, "Preparing for Installation")
+    cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
+           '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
+
+    run_command(tid, c, cmd)
+    
+
     if 'Ubuntu' in server.os:
+        
+        cmd = 'curl https://repo.gluu.org/ubuntu/gluu-apt.key | apt-key add -'
+        run_command(tid, c, cmd, no_error='debug')
+        
         install_command = 'apt-get '
         enable_command = None
         start_command  = 'service gluu-server-{0} start'
         stop_command   = 'service gluu-server-{0} stop'
-        run_command(tid, c, 'apt-get update')
+        
+        cmd = 'apt-get update'
+        wlogger.log(tid, cmd, 'debug')
+        cin, cout, cerr = c.run(cmd)
+        wlogger.log(tid, cout+'\n'+cerr, 'debug')
+        
+        if 'dpkg --configure -a' in cerr:
+            cmd = 'dpkg --configure -a'
+            wlogger.log(tid, cmd, 'debug')
+            cin, cout, cerr = c.run(cmd)
+            wlogger.log(tid, cout+'\n'+cerr, 'debug')
+        
+        
         
     elif 'CentOS' in server.os:
         install_command = 'yum '
@@ -915,7 +944,20 @@ def installGluuServer(self, server_id):
             if m:
                 gluu_version = m.group("gluu_version")
                 #FIXME : Modify stop command for OS versions
-                run_command(tid, c, stop_command.format(gluu_version))
+
+                cmd = stop_command.format(gluu_version)
+                r = run_command(tid, c, cmd, no_error='debug')
+                
+                if "Can't stop gluu server" in r:
+                    cmd = 'rm -f /var/run/{0}.pid'.format(gluu_server)
+                    run_command(tid, c, cmd, no_error='debug')
+                    
+                    cmd = "df -aP | grep %s | awk '{print $6}' | xargs -I {} umount -l {}" % (gluu_server)
+                    run_command(tid, c, cmd, no_error='debug')
+                
+                    cmd = stop_command.format(gluu_version)
+                    r = run_command(tid, c, cmd, no_error='debug')
+                
                 run_command(tid, c, install_command + "remove -y "+s)
     
     if not r[1]:
