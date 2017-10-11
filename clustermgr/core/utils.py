@@ -140,3 +140,22 @@ def random_chars(size=12, chars=DEFAULT_CHARSET):
         a string of random characters
     """
     return ''.join(random.choice(chars) for _ in range(size))
+
+
+def split_redis_cluster_slots(nodes):
+    """splits the available 16384 slots in a redis cluster between the given
+     number of nodes
+
+    :param nodes: a integer count of the number of nodes
+    :return: list of tuples containing the slot range in the form (start, end)
+    """
+    parts = 16384 / nodes
+    allotted = -1
+    ranges = []
+    for i in xrange(nodes):
+        if i == nodes-1:
+            ranges.append((allotted+1, 16383))
+        else:
+            ranges.append((allotted+1, allotted+parts))
+        allotted += parts
+    return ranges

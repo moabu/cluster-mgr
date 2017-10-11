@@ -4,6 +4,7 @@ import re
 
 from StringIO import StringIO
 
+from clustermgr.core.utils import split_redis_cluster_slots
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, celery, wlogger
 from clustermgr.core.remote import RemoteClient
@@ -299,15 +300,8 @@ def setup_redis_cluster(tid):
                   "cluster-node-timeout 5000",
                   "appendonly yes"]
     for server in servers:
-        rc = RemoteClient(server.hostname, ip=server.ip)
-        try:
-            rc.startup()
-            wlogger.log(tid, "Connecting to server ...", "success",
-                        server_id=server.id)
-        except Exception as e:
-            wlogger.log(tid, "Could not connect to the server over SSH. Error:"
-                        "{0}\nRedis configuration failed.".format(e), "error",
-                        server_id=server.id)
+        rc = get_remote_client(server, tid)
+        if not rc:
             continue
 
         chdir = '/'
@@ -330,8 +324,17 @@ def setup_redis_cluster(tid):
     return True
 
 
-def startup_redis_cluster(tid):
-    pass
+def get_remote_client(server, tid):
+    rc = RemoteClient(server.hostname, ip=server.ip)
+    try:
+        rc.startup()
+        wlogger.log(tid, "Connecting to server ...", "success",
+                    server_id=server.id)
+    except Exception as e:
+        wlogger.log(tid, "Could not connect to the server over SSH. Error:"
+                         "\n{0}".format(e), "error", server_id=server.id)
+        return None
+    return rc
 
 
 @celery.task(bind=True)
@@ -386,20 +389,94 @@ def configure_cache_cluster(self, method):
     elif method == 'CLUSTER':
         return setup_redis_cluster(self.request.id)
 
+def run_and_log(rc, cmd, tid, server_id):
+    """Runs a command using the provided RemoteClient instance and logs the
+    cout and cerr to the wlogger using the task id and server id
+
+    :param rc: the remote client to run the command
+    :param cmd: command that has to be executed
+    :param tid: the task id of the celery task for logging
+    :param server_id: id of the server in which the cmd is excuted
+    :return: nothing
+    """
+    wlogger.log(tid, cmd, "debug", server_id=server_id)
+    _, cout, cerr = rc.run(cmd)
+    if cout:
+        wlogger.log(tid, cout, "debug", server_id=server_id)
+    if cerr:
+        wlogger.log(tid, cerr, "warning", server_id=server_id)
+
 
 @celery.task(bind=True)
 def finish_cluster_setup(self, method):
     tid = self.request.id
-    # TODO steps to finish the clustering
-    # if method is cluster
-    #       start multiple instances of the cluster server and initiate cluster
-    # if method is sharding
-    #       start redis server in default port 6379
-    # start stunnel
-    # restart oxauth service
-    # restart identity service
-    if method == 'CLUSTER':
-        startup_redis_cluster(self.request.id)
+    servers = Server.query.filter(Server.redis.is_(True)).filter(
+        Server.stunnel.is_(True)).all()
+    appconf = AppConfiguration.query.first()
+    ips = []
+
+    for server in servers:
+        ips.append(server.ip)
+        wlogger.log(tid, "(Re)Starting services ... ", "info",
+                    server_id=server.id)
+        rc = get_remote_client(server, tid)
+        if not rc:
+            continue
+
+        def chcmd(cmd):
+            if server.gluu_server:
+                chdir = "/opt/gluu-server-"+appconf.gluu_version
+                return 'chroot {0} /bin/bash -c "{1}"'.format(chdir, cmd)
+            return cmd
+
+        if method is 'SHARDED':
+            run_and_log(rc, chcmd('service stunnel4 restart'), tid, server.id)
+
+        # Common restarts for all
+        run_and_log(rc, chcmd('service redis-server restart'), tid, server.id)
+        run_and_log(rc, chcmd('service oxauth restart'), tid, server.id)
+        run_and_log(rc, chcmd('service identity restart'), tid, server.id)
+        rc.close()
+
+    if method is 'SHARDING':
+        return True
+
+    # If redis-cluster is requested, then we need to setup cluster manually
+    # iterate through the servers and find the one which can be accessed
+    wlogger.log(tid, "Setting up redis cluster", "info")
+    rc = None
+    initializer = None
+    for server in servers:
+        initializer = server
+        rc = get_remote_client(server, tid)
+        if rc: break
+
+    if not rc:
+        wlogger.log(tid, "Cannot connect even a single server. Redis-cluster"
+                    " setup failed", "error")
+
+    slot_ranges = split_redis_cluster_slots(len(ips))
+    for i, ip in enumerate(ips):
+        # add all the masters and create a cluster
+        meet_cmd = "redis-cli -c -h 127.0.0.1 -p 7000 cluster meet {0} 7000".format(ip)
+        range_str = "{{{0}..{1}}}".format(*slot_ranges[i])
+        slot_cmd = "for slot in {0}; do redis-cli -h {1} -p 7000 " \
+                   "CLUSTER ADDSLOTS $slot; done;".format(range_str, ip)
+
+        if initializer.gluu_server:
+            chdir = "/opt/gluu-server-"+appconf.gluu_version
+            meet_cmd = 'chroot {0} /bin/bash -c "{1}"'.format(chdir, meet_cmd)
+            slot_cmd = 'chroot {0} /bin/bash -c "{1}"'.format(chdir, slot_cmd)
+
+        if ip is not initializer.ip:
+            rc.run(meet_cmd)
+        rc.run(slot_cmd)
+
+    # TODO Setup slaves to replicate the masters
+
+    wlogger.log(tid, "Cache clustering setup is complete.", "success")
+    rc.close()
+    return True
 
 
 @celery.task(bind=True)
