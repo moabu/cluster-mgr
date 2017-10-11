@@ -391,7 +391,7 @@ def setup_ldap_replication(self, server_id):
 
     # 12. Make this server to listen to all other providers
     
-
+    restart_gluu_cmd = 'service gluu-server-{0} restart'.format(app_config.gluu_version)
     providers = Server.query.filter(Server.id.isnot(server.id)).filter().all()
     if providers:
         wlogger.log(tid, "Adding Syncrepl to integrate the server in cluster")
@@ -480,13 +480,15 @@ def setup_ldap_replication(self, server_id):
                             wlogger.log(tid, cerr, 'error')        
                 
             else:
+                run_command(tid, pc, 'service identity stop', chroot)
                 run_command(tid, pc, 'service oxauth restart', chroot)
-                run_command(tid, pc, 'service identity restart', chroot)
+                run_command(tid, pc, 'service identity start', chroot)
+                run_command(tid, pc, restart_gluu_cmd, no_error='debug')
                 
     wlogger.log(tid, 'Restarting oxauth and identity on provider {0}'.format(server.hostname))
+    run_command(tid, c, 'service identity stop', chroot)
     run_command(tid, c, 'service oxauth restart', chroot)
-    run_command(tid, c, 'service identity restart', chroot)
-    
+    run_command(tid, c, 'service identity start', chroot)
 
     if not server.primary_server:
         # 15. Enable Mirrormode in the server
@@ -499,6 +501,10 @@ def setup_ldap_replication(self, server_id):
                         ldp.conn.result['description']), "warning")
             else:
                 wlogger.log(tid, 'LDAP Server is already in mirror mode', 'debug')
+
+    
+    
+    run_command(tid, c, restart_gluu_cmd, no_error='debug')
 
     # 16. Set the mmr flag to True to indicate it has been configured
     server.mmr = True
