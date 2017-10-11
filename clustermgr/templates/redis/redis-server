@@ -11,6 +11,7 @@
 # Description:         redis-server - Persistent key-value db
 ### END INIT INFO
 
+# Credits://gist.github.com/ctavan/4482825
 # Usage:
 # cp /etc/redis/redis.conf /etc/redis/redis_server1.conf
 # cp /etc/redis/redis.conf /etc/redis/redis_server2.conf

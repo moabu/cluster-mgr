@@ -21,6 +21,7 @@ class BaseInstaller(object):
             the server where server should be installed
         tid (string): the task id of the celery task to add logs
     """
+
     def __init__(self, server, tid):
         self.server = server
         self.tid = tid
@@ -29,7 +30,6 @@ class BaseInstaller(object):
         if self.server.gluu_server:
             version = AppConfiguration.query.first().gluu_version
             self.chdir = "/opt/gluu-server-{0}".format(version)
-
 
     def install(self):
         """install() detects the os of the server and calls the appropriate
@@ -45,10 +45,9 @@ class BaseInstaller(object):
                         "error", server_id=self.server.id)
             return False
 
-
         cin, cout, cerr = self.rc.run("ls /etc/*release")
         files = cout.split()
-        cin, cout, cerr = self.rc.run("cat "+files[0])
+        cin, cout, cerr = self.rc.run("cat " + files[0])
 
         if "Ubuntu" in cout:
             return self.install_in_ubuntu()
@@ -89,11 +88,11 @@ class BaseInstaller(object):
         return self.rc.run(self._chcmd(cmd))
 
 
-
 class RedisInstaller(BaseInstaller):
     """RedisInstaller installs redis-server in the provided server. Refer to
     `BaseInstaller` for docs.
     """
+
     def install_in_ubuntu(self):
         self.run_command("apt-get update")
         self.run_command("apt-get upgrade -y")
@@ -169,16 +168,17 @@ def setup_sharded(tid):
                     server_id=server.id)
 
         server_string = ",".join(['localhost:6379'] +
-            ["localhost:700{0}".format(i) for i in xrange(ports_count)])
+                                 ["localhost:700{0}".format(i) for i in
+                                  xrange(ports_count)])
 
         try:
-            dbm = DBManager(server.hostname, 1636,  server.ldap_password,
-                            ssl=True, ip=server.ip,)
+            dbm = DBManager(server.hostname, 1636, server.ldap_password,
+                            ssl=True, ip=server.ip, )
         except Exception as e:
             wlogger.log(tid, "Couldn't connect to LDAP. Error: {0}".format(e),
                         "error", server_id=server.id)
             wlogger.log(tid, "Make sure your LDAP server is listening to "
-                        "connections from outside", "debug",
+                             "connections from outside", "debug",
                         server_id=server.id)
             continue
         entry = dbm.get_appliance_attributes('oxCacheConfiguration')
@@ -188,7 +188,7 @@ def setup_sharded(tid):
         cache_conf['redisConfiguration']['servers'] = server_string
 
         result = dbm.set_applicance_attribute('oxCacheConfiguration',
-                                     [json.dumps(cache_conf)])
+                                              [json.dumps(cache_conf)])
         if not result:
             wlogger.log(tid, "oxCacheConfigutaion update failed", "fail",
                         server_id=server.id)
@@ -204,6 +204,8 @@ def setup_sharded(tid):
         try:
             rc.startup()
         except:
+            wlogger.log(tid, "Could not connect to the server over SSH. "
+                        "Stunnel setup failed.", "error", server_id=server.id)
             continue
 
         wlogger.log(tid, "Enable stunnel start on system boot", "debug",
@@ -238,7 +240,8 @@ def setup_sharded(tid):
             if re.match('^admin_email', line):
                 props['email'] = prop_in(line)
 
-        subject = "'/C={country}/ST={state}/L={city}/O={org}/CN={cn}/emailAddress={email}'".format(**props)  # no-qa
+        subject = "'/C={country}/ST={state}/L={city}/O={org}/CN={cn}" \
+                  "/emailAddress={email}'".format(**props)
         cert_path = os.path.join(chdir, "etc", "stunnel", "server.crt")
         key_path = os.path.join(chdir, "etc", "stunnel", "server.key")
         pem_path = os.path.join(chdir, "etc", "stunnel", "cert.pem")
@@ -249,13 +252,13 @@ def setup_sharded(tid):
         rc.run("cat {cert} {key} > {pem}".format(cert=cert_path, key=key_path,
                                                  pem=pem_path))
         # verify certificate
-        cin, cout, cerr = rc.run("/usr/bin/openssl verify "+pem_path)
+        cin, cout, cerr = rc.run("/usr/bin/openssl verify " + pem_path)
         if props['cn'] in cout and props['org'] in cout:
             wlogger.log(tid, "Certificate generated successfully", "success",
                         server_id=server.id)
         else:
             wlogger.log(tid, "Certificate generation failed. Add a SSL "
-                        "certificate at /etc/stunnel/cert.pem", "error",
+                             "certificate at /etc/stunnel/cert.pem", "error",
                         server_id=server.id)
 
         # Generate stunnel config
@@ -280,6 +283,55 @@ def setup_sharded(tid):
         rc.put_file(os.path.join(chdir, "etc/stunnel/redis-gluu.conf"),
                     "\n".join(sconf))
     return True
+
+
+def setup_redis_cluster(tid):
+    servers = Server.query.filter(Server.redis.is_(True)).filter(
+        Server.stunnel.is_(True)).all()
+    appconf = AppConfiguration.query.first()
+
+    master_conf = ["port 7000", "cluster-enabled yes",
+                   "cluster-config-file nodes_7000.conf",
+                   "cluster-node-timeout 5000",
+                   "appendonly yes"]
+    slave_conf = ["port 7001", "cluster-enabled yes",
+                  "cluster-config-file nodes_7001.conf",
+                  "cluster-node-timeout 5000",
+                  "appendonly yes"]
+    for server in servers:
+        rc = RemoteClient(server.hostname, ip=server.ip)
+        try:
+            rc.startup()
+            wlogger.log(tid, "Connecting to server ...", "success",
+                        server_id=server.id)
+        except Exception as e:
+            wlogger.log(tid, "Could not connect to the server over SSH. Error:"
+                        "{0}\nRedis configuration failed.".format(e), "error",
+                        server_id=server.id)
+            continue
+
+        chdir = '/'
+        if server.gluu_server:
+            chdir = "/opt/gluu-server-{0}".format(appconf.gluu_version)
+        # upload the conf files
+        wlogger.log(tid, "Uploading redis conf files...", "debug",
+                    server_id=server.id)
+        rc.put_file(os.path.join(chdir, "etc/redis/redis_7000.conf"),
+                    "\n".join(master_conf))
+        rc.put_file(os.path.join(chdir, "etc/redis/redis_7001.conf"),
+                    "\n".join(slave_conf))
+        # upload the modified init.d file
+        rc.upload(os.path.join(
+            app.root_path, "templates", "redis", "redis-server"),
+            os.path.join(chdir, "etc/init.d/redis-server"))
+        wlogger.log(tid, "Configuration upload complete.", "success",
+                    server_id=server.id)
+
+    return True
+
+
+def startup_redis_cluster(tid):
+    pass
 
 
 @celery.task(bind=True)
@@ -332,8 +384,22 @@ def configure_cache_cluster(self, method):
     if method == 'SHARDED':
         return setup_sharded(self.request.id)
     elif method == 'CLUSTER':
-        # TODO write setup cluster
-        return False
+        return setup_redis_cluster(self.request.id)
+
+
+@celery.task(bind=True)
+def finish_cluster_setup(self, method):
+    tid = self.request.id
+    # TODO steps to finish the clustering
+    # if method is cluster
+    #       start multiple instances of the cluster server and initiate cluster
+    # if method is sharding
+    #       start redis server in default port 6379
+    # start stunnel
+    # restart oxauth service
+    # restart identity service
+    if method == 'CLUSTER':
+        startup_redis_cluster(self.request.id)
 
 
 @celery.task(bind=True)
@@ -343,11 +409,11 @@ def get_cache_methods(self):
     methods = []
     for server in servers:
         try:
-            dbm = DBManager(server.hostname, 1636,  server.ldap_password,
+            dbm = DBManager(server.hostname, 1636, server.ldap_password,
                             ssl=True, ip=server.ip)
         except LDAPSocketOpenError as e:
             wlogger.log(tid, "Couldn't connect to server {0}. Error: "
-                        "{1}".format(server.hostname, e), "error")
+                             "{1}".format(server.hostname, e), "error")
             continue
 
         entry = dbm.get_appliance_attributes('oxCacheConfiguration')

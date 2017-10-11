@@ -5,7 +5,7 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
 
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cache import get_cache_methods, install_redis_stunnel, \
-    configure_cache_cluster
+    configure_cache_cluster, finish_cluster_setup
 
 
 cache_mgr = Blueprint('cache_mgr', __name__, template_folder='templates')
@@ -64,3 +64,12 @@ def configure(method):
         Server.stunnel.is_(True)).all()
     return render_template('cache_logger.html', method=method, servers=servers,
                            step=3, task_id=task.id)
+
+
+@cache_mgr.route('/finish_clustering/<method>/')
+def finish_clustering(method):
+    servers = Server.query.filter(Server.redis.is_(True)).filter(
+        Server.stunnel.is_(True)).all()
+    task = finish_cluster_setup.delay(method)
+    return render_template('cache_logger.html', servers=servers, step=4,
+                           task_id=task.id)

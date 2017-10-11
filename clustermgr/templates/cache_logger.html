@@ -24,8 +24,15 @@
         {% endfor %}
     </div>
 
-    <a href="{{ url_for('cache_mgr.configure', method=method) }}" class="btn btn-block btn-primary" style="display: none;" id="next">
-        Configure Cache Cluster</a>
+    {% if step == 2 %}
+        <a href="{{ url_for('cache_mgr.configure', method=method) }}" class="btn btn-block btn-primary" style="display: none;" id="next">
+            Configure Cache Cluster</a>
+    {% elif step == 3 %}
+        <a href="{{ url_for('cache_mgr.finish_clustering', method=method) }}" class="btn btn-block btn-primary" style="display: none;" id="next">
+            Finish Cache Clustering</a>
+
+    {% endif %}
+
 
 
 {% endblock %}
