@@ -896,6 +896,7 @@ def installGluuServer(self, server_id):
         enable_command = None
         start_command  = 'service gluu-server-{0} start'
         stop_command   = 'service gluu-server-{0} stop'
+        run_command(tid, c, 'apt-get update')
         
     elif 'CentOS' in server.os:
         install_command = 'yum '

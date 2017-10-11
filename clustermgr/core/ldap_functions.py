@@ -86,7 +86,7 @@ class LdapOLC(object):
                       'olcSuffix': 'cn=accesslog',
                       'olcRootDN': 'cn=admin, cn=accesslog',
                       'olcRootPW': ldap_encode(self.passwd),
-                      'olcDbIndex': ['default eq', 'objectClass,entryCSN,entryUUID,reqEnd,reqResult,reqStart'],
+                      'olcDbIndex': ['default eq', 'objectClass,entryCSN,entryUUID,reqEnd,reqResult,reqStart,reqDN'],
                       'olcLimits': 'dn.exact="{0}" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited'.format(replicator_dn),
 
                       }
