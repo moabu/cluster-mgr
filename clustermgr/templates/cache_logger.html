@@ -24,13 +24,21 @@
         {% endfor %}
     </div>
 
+    <ul id="common_logger" class="list-group">
+    </ul>
+
     {% if step == 2 %}
         <a href="{{ url_for('cache_mgr.configure', method=method) }}" class="btn btn-block btn-primary" style="display: none;" id="next">
             Configure Cache Cluster</a>
     {% elif step == 3 %}
         <a href="{{ url_for('cache_mgr.finish_clustering', method=method) }}" class="btn btn-block btn-primary" style="display: none;" id="next">
             Finish Cache Clustering</a>
-
+    {% elif step == 4 %}
+        <div id="next" class="jumbotron" style="display: none;">
+            <h3>Redis Cache Setup Complete</h3>
+            <p class="text-danger">The setup of a clustered cache using Redis is complete.</p>
+            <p><a class="btn btn-info" href="/" role="button">Go to dashboard</a></p>
+        </div>
     {% endif %}
 
 
@@ -85,17 +93,24 @@ function updateLog(){
         var logged_msgs = $('.list-group-item').length;
         for(var i=logged_msgs; i<logs.length; i++){
             var entry = logitem(logs[i].msg, logs[i].level);
-            $('#logger_'+logs[i].server_id).append(entry);
+            var s_id = parseInt(logs[i].server_id);
+            console.log(s_id);
+
+            if (isNaN(s_id) || isNaN(logging_id)) {
+                $('#common_logger').append(entry);
+            } else {
+                $('#logger_'+s_id).append(entry);
+            }
             entry.scrollIntoView({behavior: "smooth", block: "end"});
 
             // auto hide on logger change
-            if (logging_id !== parseInt(logs[i].server_id)){
+            if (logging_id !== s_id) {
                 $('#log_container_'+logging_id).collapse('hide')
                     .parent().addClass("panel-info")
                     .find('h4')
                     .append('<span class="glyphicon glyphicon-ok pull-right"></span>');
-                $('#log_container_'+logs[i].server_id).collapse('show');
-                logging_id = parseInt(logs[i].server_id);
+                $('#log_container_'+s_id).collapse('show');
+                logging_id = s_id;
             }
         }
 

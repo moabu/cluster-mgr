@@ -292,13 +292,25 @@ def setup_redis_cluster(tid):
     appconf = AppConfiguration.query.first()
 
     master_conf = ["port 7000", "cluster-enabled yes",
+                   "daemonize yes",
+                   "dir /var/lib/redis",
+                   "dbfilename dump_7000.rdb",
                    "cluster-config-file nodes_7000.conf",
                    "cluster-node-timeout 5000",
-                   "appendonly yes"]
+                   "appendonly yes", "appendfilename node_7000.aof",
+                   "logfile /var/log/redis/redis-7000.log",
+                   "save 900 1", "save 300 10", "save 60 10000",
+                   ]
     slave_conf = ["port 7001", "cluster-enabled yes",
+                  "daemonize yes",
+                  "dir /var/lib/redis",
+                  "dbfilename dump_7001.rdb",
                   "cluster-config-file nodes_7001.conf",
                   "cluster-node-timeout 5000",
-                  "appendonly yes"]
+                  "appendonly yes", "appendfilename node_7001.aof",
+                  "logfile /var/log/redis/redis-7001.log",
+                  "save 900 1", "save 300 10", "save 60 10000",
+                  ]
     for server in servers:
         rc = get_remote_client(server, tid)
         if not rc:
@@ -321,6 +333,28 @@ def setup_redis_cluster(tid):
         wlogger.log(tid, "Configuration upload complete.", "success",
                     server_id=server.id)
 
+        wlogger.log(tid, "Updating the oxCacheConfiguration in LDAP", "debug",
+                    server_id=server.id)
+        try:
+            dbm = DBManager(server.hostname, 1636, server.ldap_password,
+                            ssl=True, ip=server.ip)
+        except Exception as e:
+            wlogger.log(tid, "Failed to connect to LDAP server. Error: \n"
+                        "{0}".format(e), "error")
+            continue
+        entry = dbm.get_appliance_attributes('oxCacheConfiguration')
+        cache_conf = json.loads(entry.oxCacheConfiguration.value)
+        cache_conf['cacheProviderType'] = 'REDIS'
+        cache_conf['redisConfiguration']['redisProviderType'] = 'CLUSTER'
+        result = dbm.set_applicance_attribute('oxCacheConfiguration',
+                                              [json.dumps(cache_conf)])
+        if not result:
+            wlogger.log(tid, "oxCacheConfiguration update failed", "error",
+                        server_id=server.id)
+        else:
+            wlogger.log(tid, "Cache configuration update successful in LDAP",
+                        "success", server_id=server.id)
+
     return True
 
 
@@ -328,8 +362,8 @@ def get_remote_client(server, tid):
     rc = RemoteClient(server.hostname, ip=server.ip)
     try:
         rc.startup()
-        wlogger.log(tid, "Connecting to server ...", "success",
-                    server_id=server.id)
+        wlogger.log(tid, "Connecting to server: {0}".format(server.hostname),
+                    "success", server_id=server.id)
     except Exception as e:
         wlogger.log(tid, "Could not connect to the server over SSH. Error:"
                          "\n{0}".format(e), "error", server_id=server.id)
@@ -413,6 +447,7 @@ def finish_cluster_setup(self, method):
     servers = Server.query.filter(Server.redis.is_(True)).filter(
         Server.stunnel.is_(True)).all()
     appconf = AppConfiguration.query.first()
+    chdir = "/opt/gluu-server-"+appconf.gluu_version
     ips = []
 
     for server in servers:
@@ -425,11 +460,10 @@ def finish_cluster_setup(self, method):
 
         def chcmd(cmd):
             if server.gluu_server:
-                chdir = "/opt/gluu-server-"+appconf.gluu_version
                 return 'chroot {0} /bin/bash -c "{1}"'.format(chdir, cmd)
             return cmd
 
-        if method is 'SHARDED':
+        if method == 'SHARDED':
             run_and_log(rc, chcmd('service stunnel4 restart'), tid, server.id)
 
         # Common restarts for all
@@ -438,44 +472,58 @@ def finish_cluster_setup(self, method):
         run_and_log(rc, chcmd('service identity restart'), tid, server.id)
         rc.close()
 
-    if method is 'SHARDING':
+    if method == 'SHARDED':
         return True
 
     # If redis-cluster is requested, then we need to setup cluster manually
     # iterate through the servers and find the one which can be accessed
     wlogger.log(tid, "Setting up redis cluster", "info")
-    rc = None
+    init_client = None
     initializer = None
     for server in servers:
         initializer = server
-        rc = get_remote_client(server, tid)
-        if rc: break
+        init_client = get_remote_client(server, tid)
+        if init_client: break
 
-    if not rc:
+    if not init_client:
         wlogger.log(tid, "Cannot connect even a single server. Redis-cluster"
                     " setup failed", "error")
 
-    slot_ranges = split_redis_cluster_slots(len(ips))
     for i, ip in enumerate(ips):
         # add all the masters and create a cluster
         meet_cmd = "redis-cli -c -h 127.0.0.1 -p 7000 cluster meet {0} 7000".format(ip)
-        range_str = "{{{0}..{1}}}".format(*slot_ranges[i])
-        slot_cmd = "for slot in {0}; do redis-cli -h {1} -p 7000 " \
-                   "CLUSTER ADDSLOTS $slot; done;".format(range_str, ip)
 
         if initializer.gluu_server:
-            chdir = "/opt/gluu-server-"+appconf.gluu_version
             meet_cmd = 'chroot {0} /bin/bash -c "{1}"'.format(chdir, meet_cmd)
-            slot_cmd = 'chroot {0} /bin/bash -c "{1}"'.format(chdir, slot_cmd)
 
         if ip is not initializer.ip:
-            rc.run(meet_cmd)
+            wlogger.log(tid, meet_cmd, "debug")
+            init_client.run(meet_cmd)
+
+    # Connect to each server and assign the slots
+    slot_ranges = split_redis_cluster_slots(len(ips))
+    for i, server in enumerate(servers):
+        range_str = "{{{0}..{1}}}".format(*slot_ranges[i])
+        slot_cmd = "for slot in {0}; do redis-cli -h localhost -p 7000 " \
+                   "CLUSTER ADDSLOTS \$slot; done;".format(range_str)
+        rc = get_remote_client(server, tid)
+        if initializer.gluu_server:
+            slot_cmd = 'chroot {0} /bin/bash -c "{1}"'.format(chdir, slot_cmd)
+        wlogger.log(tid, slot_cmd, "debug")
         rc.run(slot_cmd)
+        rc.close()
 
     # TODO Setup slaves to replicate the masters
 
+    status_cmd = "redis-cli -p 7000 cluster nodes"
+    if initializer.gluu_server:
+        status_cmd = 'chroot {0} /bin/bash -c "{1}"'.format(chdir, status_cmd)
+    wlogger.log(tid, status_cmd, "debug")
+    reply = init_client.run(status_cmd)
+    wlogger.log(tid, reply[1], "debug")
+    wlogger.log(tid, reply[2], "debug")
     wlogger.log(tid, "Cache clustering setup is complete.", "success")
-    rc.close()
+    init_client.close()
     return True
 
 
@@ -496,6 +544,9 @@ def get_cache_methods(self):
         entry = dbm.get_appliance_attributes('oxCacheConfiguration')
         cache_conf = json.loads(entry.oxCacheConfiguration.value)
         server.cache_method = cache_conf['cacheProviderType']
+        if server.cache_method == 'REDIS':
+            type = cache_conf['redisConfiguration']['redisProviderType']
+            server.cache_method += " - " + type
         db.session.commit()
         methods.append({"id": server.id, "method": server.cache_method})
     wlogger.log(tid, "Cache Methods of servers have been updated.", "success")
