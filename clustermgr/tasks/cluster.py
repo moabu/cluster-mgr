@@ -389,6 +389,20 @@ def setup_ldap_replication(self, server_id):
     modifyOxLdapProperties(server, c, tid, pDict, chroot)
     
 
+    if app_config.gluu_version > '3.0.2':
+        wlogger.log(tid, 'Manuplating keys')
+        for suffix in (
+                    'httpd',
+                    'shibIDP',
+                    'idp-encryption',
+                    'asimba',
+                    'openldap',
+                    ):
+            delete_key(suffix, app_config.nginx_host, app_config.gluu_version, tid, c)
+            import_key(suffix, app_config.nginx_host, app_config.gluu_version, tid, c)
+
+
+
     # 12. Make this server to listen to all other providers
     
     restart_gluu_cmd = 'service gluu-server-{0} restart'.format(app_config.gluu_version)
@@ -979,6 +993,12 @@ def installGluuServer(self, server_id):
     cin, cout, cerr = c.run(install_command + 'install -y ' + gluu_server)
     wlogger.log(tid, cout+cerr, "debug")
 
+    if 'half-installed' in cout + cerr:
+        if 'Ubuntu' in server.os: 
+            cmd = 'apt-get install --reinstall -y '+ gluu_server
+            run_command(tid, c, cmd, no_error='debug')
+
+
     if enable_command:
         run_command(tid, c, enable_command.format(appconf.gluu_version))
         
@@ -1036,11 +1056,9 @@ def installGluuServer(self, server_id):
     if 'CentOS' in server.os:
         run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'cd /install/community-edition-setup/ && ./setup.py -n'")
     else:
-        cmd = 'chroot /opt/{0}/ /bin/bash -c  "cd /install/community-edition-setup/ && ./setup.py -n"'.format(gluu_server)
-        wlogger.log(tid, cmd, 'debug')
-        cin,cout,cerr = c.run(cmd)
-        #run_command(tid, c, 'cd /install/community-edition-setup/ && ./setup.py -n', '/opt/'+gluu_server+'/')
-        wlogger.log(tid, cout+cerr,'debug')
+        cmd = 'cd /install/community-edition-setup/ && ./setup.py -n'.format(gluu_server)
+        run_command(tid, c, cmd, '/opt/'+gluu_server+'/', no_error='debug')
+
         
 
     # Get slapd.conf from primary server and upload this server
@@ -1133,17 +1151,17 @@ def installGluuServer(self, server_id):
                 else:
                     wlogger.log(tid, "Can't upload custom schame file {0}: ".format(sf, r[1]), 'error')
 
-    if appconf.gluu_version > '3.0.2':
-        wlogger.log(tid, 'Manuplating keys')
-        for suffix in (
-                    'httpd',
-                    'shibIDP',
-                    'idp-encryption',
-                    'asimba',
-                    'openldap',
-                    ):
-            delete_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
-            import_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
+    #if appconf.gluu_version > '3.0.2':
+    #    wlogger.log(tid, 'Manuplating keys')
+    #    for suffix in (
+    #                'httpd',
+    #                'shibIDP',
+    #                'idp-encryption',
+    #                'asimba',
+    #                'openldap',
+    #                ):
+    #        delete_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
+    #        import_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
 
 
     server.gluu_server = True
@@ -1229,6 +1247,18 @@ def removeMultiMasterDeployement(self, server_id):
     db.session.commit()
     
     #modifyOxLdapProperties(server, c, tid)
+
+    if appconf.gluu_version > '3.0.2':
+        wlogger.log(tid, 'Manuplating keys')
+        for suffix in (
+                    'httpd',
+                    'shibIDP',
+                    'idp-encryption',
+                    'asimba',
+                    'openldap',
+                    ):
+            delete_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
+            import_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
 
 
     # Restart the solserver with slapd.conf configuration
