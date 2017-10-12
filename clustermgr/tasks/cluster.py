@@ -974,6 +974,8 @@ def installGluuServer(self, server_id):
     wlogger.log(tid, "Installing Gluu Server: " + gluu_server)
 
     #FIXME : check cerr for possible issues on installing package
+    cmd = install_command + 'install -y ' + gluu_server
+    wlogger.log(tid, cmd, "debug")
     cin, cout, cerr = c.run(install_command + 'install -y ' + gluu_server)
     wlogger.log(tid, cout+cerr, "debug")
 
