@@ -163,14 +163,17 @@ def setup_sharded(tid, standalone=False):
         Server.stunnel.is_(True)).all()
     appconf = AppConfiguration.query.first()
     # Store the redis server info in the LDAP
-    ports_count = len(servers) - 1
     for server in servers:
         wlogger.log(tid, "Updating oxCacheConfiguration ...", "debug",
                     server_id=server.id)
 
-        server_string = ",".join(['localhost:6379'] +
-                                 ["localhost:700{0}".format(i) for i in
-                                  xrange(ports_count)])
+        redis_instances = ['localhost:6379']
+        for s in servers:
+            if s.id != server.id:
+                port = 7000 + s.id
+                redis_instances.append('localhost:{0}'.format(port))
+
+        server_string = ",".join(redis_instances)
 
         try:
             dbm = DBManager(server.hostname, 1636, server.ldap_password,
@@ -251,7 +254,7 @@ def setup_sharded(tid, standalone=False):
         cmd = ["/usr/bin/openssl", "req", "-subj", subject, "-new", "-newkey",
                "rsa:2048", "-sha256", "-days", "365", "-nodes", "-x509",
                "-keyout", key_path, "-out", cert_path]
-        cin, cout, cerr = rc.run(" ".join(cmd))
+        rc.run(" ".join(cmd))
         rc.run("cat {cert} {key} > {pem}".format(cert=cert_path, key=key_path,
                                                  pem=pem_path))
         # verify certificate
@@ -274,14 +277,13 @@ def setup_sharded(tid, standalone=False):
                  "accept = {0}:7777".format(server.ip),
                  "connect = 127.0.0.1:6379"
                  ]
-        listen_port = 7000
         for s in servers:
             if s.id != server.id:
+                port = 7000 + s.id
                 sconf.append("[client{0}]".format(s.id))
                 sconf.append("client = yes")
-                sconf.append("accept = 127.0.0.1:{0}".format(listen_port))
+                sconf.append("accept = 127.0.0.1:{0}".format(port))
                 sconf.append("connect = {0}:7777".format(s.ip))
-                listen_port += 1
 
         rc.put_file(os.path.join(chdir, "etc/stunnel/redis-gluu.conf"),
                     "\n".join(sconf))
