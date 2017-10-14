@@ -13,16 +13,22 @@
             <form action="" method="post">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <h4>Clustering Method</h4>
-                <div class="radio">
+                <!-- div class="radio">
                     <label><input type="radio" name="method" id="CLUSTER" value="CLUSTER">
                         CLUSTER<span class="text-muted"> - Uses redis-cluster. redis-cluster handles the load distribution.
                             Recommended for clusters with 3 or more servers. </span>
                     </label>
+                </div -->
+                <div class="radio">
+                    <label><input type="radio" name="method" id="STANDALONE" value="STANDALONE">
+                        STANDALONE <span class="text-muted"> - A redis instance is launched per host and all the hosts can connect to all the
+                        redis instances, providing rudimentary failover mechanism.</span>
+                    </label>
                 </div>
                 <div class="radio">
                     <label><input type="radio" name="method" id="SHARDED" value="SHARDED">
-                        SHARDED <span class="text-muted"> - Load distribution is handled by oxAuth. Recommended if the number of servers
-                        in the cluster changes frequently.</span>
+                        SHARDED <span class="text-muted"> - A redis instance is launched per host and data is distributed across instances for
+                            load distribution by oxAuth.</span>
                     </label>
                 </div>
 

@@ -158,7 +158,7 @@ class StunnelInstaller(BaseInstaller):
         return True
 
 
-def setup_sharded(tid):
+def setup_sharded(tid, standalone=False):
     servers = Server.query.filter(Server.redis.is_(True)).filter(
         Server.stunnel.is_(True)).all()
     appconf = AppConfiguration.query.first()
@@ -186,6 +186,8 @@ def setup_sharded(tid):
         cache_conf = json.loads(entry.oxCacheConfiguration.value)
         cache_conf['cacheProviderType'] = 'REDIS'
         cache_conf['redisConfiguration']['redisProviderType'] = 'SHARDED'
+        if standalone:
+            cache_conf['redisConfiguration']['redisProviderType'] = 'STANDALONE'
         cache_conf['redisConfiguration']['servers'] = server_string
 
         result = dbm.set_applicance_attribute('oxCacheConfiguration',
@@ -420,6 +422,8 @@ def install_redis_stunnel(self, servers):
 def configure_cache_cluster(self, method):
     if method == 'SHARDED':
         return setup_sharded(self.request.id)
+    elif method == 'STANDALONE':
+        return setup_sharded(self.request.id, standalone=True)
     elif method == 'CLUSTER':
         return setup_redis_cluster(self.request.id)
 
