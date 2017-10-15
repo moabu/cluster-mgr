@@ -1059,7 +1059,7 @@ def installGluuServer(self, server_id):
     #    wlogger.log(tid, r, 'fail')
     #    wlogger.log(tid, "Ending server setup process.", "error")
     
-    wlogger.log(tid, "Runnin setup.py - Be patient this process will take a while")
+    wlogger.log(tid, "Running setup.py - Be patient this process will take a while ...")
     
     if 'CentOS' in server.os:
         run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'cd /install/community-edition-setup/ && ./setup.py -n'")
