@@ -73,13 +73,14 @@ def edit(server_id):
 
     if request.method == 'POST' and not form.ldap_password.data:
         form.ldap_password.data = '**dummy**'
-
+        form.ldap_password_confirm.data = '**dummy**'
+        
     if form.validate_on_submit():
         server.gluu_server = form.gluu_server.data
         server.hostname = form.hostname.data
         server.ip = form.ip.data
         server.primary_server = form.primary_server.data
-        if form.ldap_password.data is not '**dummy**':
+        if form.ldap_password.data and form.ldap_password_confirm.data is not '**dummy**':
             server.ldap_password = form.ldap_password.data
         db.session.commit()
         # start the background job to get system details

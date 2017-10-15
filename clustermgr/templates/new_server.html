@@ -1,9 +1,36 @@
 {% extends "base.html" %}
-{% from 'macros.html' import render_form %}
+{% from 'macros.html' import render_field, render_checkbox_field, render_form %}
 {% block  content %}
-<h2 class="page-header">{{ header }}</h2>
-{{ render_form(form, action_url='', btn_class='btn btn-primary') }}
+
+<h2 class="page-header"> {{ header }}</h2>
+
+<form id="form" action="" method="POST">
+    {{ form.csrf_token }}
+    {{ render_field(form.ip) }}
+    {{ render_field(form.hostname) }}
+    {{ render_field(form.ldap_password) }}
+    {{ render_field(form.ldap_password_confirm) }}
+    {{ render_checkbox_field(form.gluu_server) }}
+    {{ render_checkbox_field(form.primary_server) }}
+
+    <input type="submit" name="submit" value="Submit" class="btn btn-primary">
+
+</form>
+
+
 {% endblock %}
 {% block js %}
+<script>
+
+$('input[type=submit]').click(function(e){
+    if($("#ldap_password").val() != $("#ldap_password_confirm").val())
+    {
+    alert("Passwords mismatch");
+    return false;
+    }
+    });
+
+
+</script>
 
 {% endblock %}

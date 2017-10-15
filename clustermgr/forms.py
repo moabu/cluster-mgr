@@ -91,8 +91,10 @@ class ServerForm(FlaskForm):
         'IP Address *', validators=[DataRequired(), IPAddress()])
     ldap_password = PasswordField(
         'LDAP Admin Password *', validators=[DataRequired()])
+    ldap_password_confirm = PasswordField(
+        'LDAP Admin Password (confirm) *', validators=[DataRequired()])
     gluu_server = BooleanField("Gluu Server is installed")
-    primary_server = BooleanField('This is primary LDAP Server')
+    primary_server = BooleanField('This is primary Server')
 
 class TestUser(FlaskForm):
     first_name = StringField('First Name', validators=[DataRequired()])
