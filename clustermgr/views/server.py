@@ -37,12 +37,12 @@ def index():
 
     if form.validate_on_submit():
         server = Server()
-        server.gluu_server = form.gluu_server.data
-        server.hostname = form.hostname.data
-        server.ip = form.ip.data
-        server.ldap_password = form.ldap_password.data
+        server.gluu_server = form.gluu_server.data.strip()
+        server.hostname = form.hostname.data.strip()
+        server.ip = form.ip.data.strip()
+        server.ldap_password = form.ldap_password.data.strip()
         server.mmr = False
-        server.primary_server = form.primary_server.data
+        server.primary_server = form.primary_server.data.strip()
         db.session.add(server)
         db.session.commit()
 
@@ -71,17 +71,17 @@ def edit(server_id):
         if not get_primary_server_id() == server_id:
             form.primary_server.render_kw = {'disabled': 'disabled'}
 
-    if request.method == 'POST' and not form.ldap_password.data:
+    if request.method == 'POST' and not form.ldap_password.data.strip():
         form.ldap_password.data = '**dummy**'
         form.ldap_password_confirm.data = '**dummy**'
         
     if form.validate_on_submit():
         server.gluu_server = form.gluu_server.data
-        server.hostname = form.hostname.data
-        server.ip = form.ip.data
+        server.hostname = form.hostname.data.strip()
+        server.ip = form.ip.data.strip()
         server.primary_server = form.primary_server.data
         if form.ldap_password.data and form.ldap_password_confirm.data is not '**dummy**':
-            server.ldap_password = form.ldap_password.data
+            server.ldap_password = form.ldap_password.data.strip()
         db.session.commit()
         # start the background job to get system details
         collect_server_details.delay(server.id)
@@ -210,13 +210,13 @@ def install_gluu(server_id):
     setup_prop['ldapPass'] = server.ldap_password
 
     if form.validate_on_submit():
-        setup_prop['countryCode'] = form.countryCode.data
-        setup_prop['state'] = form.state.data
-        setup_prop['city'] = form.city.data
-        setup_prop['orgName'] = form.orgName.data
-        setup_prop['admin_email'] = form.admin_email.data
-        setup_prop['inumOrg'] = form.inumOrg.data
-        setup_prop['inumAppliance'] = form.inumAppliance.data
+        setup_prop['countryCode'] = form.countryCode.data.strip()
+        setup_prop['state'] = form.state.data.strip()
+        setup_prop['city'] = form.city.data.strip()
+        setup_prop['orgName'] = form.orgName.data.strip()
+        setup_prop['admin_email'] = form.admin_email.data.strip()
+        setup_prop['inumOrg'] = form.inumOrg.data.strip()
+        setup_prop['inumAppliance'] = form.inumAppliance.data.strip()
         for o in ('installOxAuth',
                     'installOxTrust',
                     'installLDAP',

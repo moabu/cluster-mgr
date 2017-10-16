@@ -58,22 +58,32 @@ def app_configuration():
     config = AppConfiguration.query.first()
     schemafiles = os.listdir(app.config['SCHEMA_DIR'])
 
+    if request.method == 'POST' and not conf_form.replication_pw.data.strip():
+        conf_form.replication_pw.data = '**dummy**'
+        conf_form.replication_pw_confirm.data = '**dummy**'
+
+
     if conf_form.update.data and conf_form.validate_on_submit():
-        replication_dn = "cn={},o=gluu".format(conf_form.replication_dn.data)
+        replication_dn = "cn={},o=gluu".format(conf_form.replication_dn.data.strip())
         if not config:
             config = AppConfiguration()
         else:
-            if config.replication_dn != replication_dn or \
-                config.replication_pw != conf_form.replication_pw.data:
-                flash("You changed Replication Manager information. "
+            if config.replication_dn != replication_dn:
+                flash("You changed Replication Manager dn. "
                       "This will break replication. Please re-deploy all LDAP Servers.",
                        "danger")
 
-        config.replication_dn = replication_dn
-        config.replication_pw = conf_form.replication_pw.data
-        config.gluu_version = conf_form.gluu_version.data
+
+        if conf_form.replication_pw.data and conf_form.replication_pw_confirm.data is not '**dummy**':
+            config.replication_pw = conf_form.replication_pw.data.strip()
+            flash("You changed Replication Manager password. "
+                    "This will break replication. Please re-deploy all LDAP Servers.",
+                    "danger")
+        
+        config.replication_dn = replication_dn.strip()
+        config.gluu_version = conf_form.gluu_version.data.strip()
         config.use_ip = conf_form.use_ip.data
-        config.nginx_host = conf_form.nginx_host.data
+        config.nginx_host = conf_form.nginx_host.data.strip()
         
         db.session.add(config)
         db.session.commit()
@@ -243,16 +253,16 @@ def install_ldap_server():
                                        data=data)
 
             session['nongluuldapinfo'] = {
-                'fqn_hostname': form.hostname.data,
-                'ip_address': form.ip_address.data,
-                'ldap_password': form.ldap_password.data,
+                'fqn_hostname': form.hostname.data.strip(),
+                'ip_address': form.ip_address.data.strip(),
+                'ldap_password': form.ldap_password.data.strip(),
                 'ldap_user': 'ldap',
                 'ldap_group': 'ldap',
-                'countryCode': form.countryCode.data,
-                'state': form.state.data,
-                'city': form.city.data,
-                'orgName': form.orgName.data,
-                'admin_email': form.admin_email.data,
+                'countryCode': form.countryCode.data.strip(),
+                'state': form.state.data.strip(),
+                'city': form.city.data.strip(),
+                'orgName': form.orgName.data.strip(),
+                'admin_email': form.admin_email.data.strip(),
             }
 
             return redirect(url_for('cluster.install_ldap_server'))
@@ -318,11 +328,11 @@ def add_test_user(server_id):
                           server.ldap_password)
 
         if ldp:
-            if ldp.addTestUser(form.first_name.data, form.last_name.data,
-                               form.email.data):
+            if ldp.addTestUser(form.first_name.data.strip(), form.last_name.data.strip(),
+                               form.email.data.strip()):
                 flash("Test User {0} {1} to {2} was sucessfuly added.".format(
-                    form.first_name.data, form.last_name.data,
-                    server.hostname), "success")
+                    form.first_name.data.strip(), form.last_name.data.strip(),
+                    server.hostname.strip()), "success")
             else:
                 flash("Adding user failed: {0}".format(
                     ldp.conn.result['description']), "warning")
