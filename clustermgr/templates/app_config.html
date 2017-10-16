@@ -80,7 +80,7 @@
     <div class="panel-body">
         <ul class="list-group">
             {% for sf in schemafiles %}
-            <li class="list-group-item">{{ sf }}</li>
+            <li class="list-group-item">{{ sf }} <a href="{{ url_for('index.remove_custom_schema', schema_file=sf) }}"><span class="glyphicon glyphicon-trash"></span></a></li>
             {% endfor %}
         </ul>
         <form id="sform" action="" method="POST" enctype="multipart/form-data">

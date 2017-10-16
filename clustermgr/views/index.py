@@ -101,7 +101,8 @@ def app_configuration():
             filename = name + "_" + str(len(matches)) + extension
         f.save(os.path.join(app.config['SCHEMA_DIR'], filename))
         schemafiles.append(filename)
-        flash("Schema: {0} has been uploaded sucessfully.".format(filename),
+        flash("Schema: {0} has been uploaded sucessfully. "
+              "Please edit slapd.conf of primary server and re-deploy all servers.".format(filename),
               "success")
 
     # request.method == GET gets processed here
@@ -441,3 +442,11 @@ def add_provider_to_consumer(consumer_id, provider_id):
             ldp.makeMirroMode()
 
     return redirect(url_for('index.multi_master_replication'))
+
+@index.route('/removecustomschema/<schema_file>')
+def remove_custom_schema(schema_file):
+    
+    file_path = os.path.join(app.config['SCHEMA_DIR'], schema_file)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    return redirect(url_for('index.app_configuration'))
