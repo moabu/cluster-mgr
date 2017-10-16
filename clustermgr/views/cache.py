@@ -15,6 +15,10 @@ cache_mgr = Blueprint('cache_mgr', __name__, template_folder='templates')
 def index():
     servers = Server.query.all()
     appconf = AppConfiguration.query.first()
+    if not appconf:
+        flash("The application needs to be configured first. Kindly set the ",
+              "values before attempting clustering.", "warning")
+        return redirect(url_for("index.app_configuration"))
     version = int(appconf.gluu_version.replace(".", ""))
     return render_template('cache_index.html', servers=servers,
                            version=version)
