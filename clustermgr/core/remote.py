@@ -115,6 +115,17 @@ class RemoteClient(object):
     def run(self, command):
         """Run a command in the remote server.
 
+        This should be used only commands that returns quickly. There is a
+        timeout limit of 30 seconds after which the function would return.
+        If the process would take more than 30 seconds to reply, then call the
+        exec_command of the Paramiko SSH client directly and read the buffers.
+        Refer http://docs.paramiko.org/en/2.3/api/channel.html
+
+        Example:
+
+            rc = RemoteClient(host)
+            rc.client.exec_command(your_command)
+
         Args:
             command (string): the command to be run on the remote server
 
