@@ -897,51 +897,6 @@ def installGluuServer(self, server_id):
         wlogger.log(tid, "Ending server installation process.", "error")
         return
 
-
-    r = c.listdir("/opt")
-    if r[0]:
-        for s in r[1]:
-            m=re.search("gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+))$",s)
-            if m:
-                gluu_version = m.group("gluu_version")
-                #FIXME : Modify stop command for OS versions
-
-                #cmd = stop_command.format(gluu_version)
-                #r = run_command(tid, c, cmd, no_error='debug')
-                
-                #if "Can't stop gluu server" in r:
-                #    cmd = 'rm -f /var/run/{0}.pid'.format(gluu_server)
-                #    run_command(tid, c, cmd, no_error='debug')
-                #    
-                #    cmd = "df -aP | grep %s | awk '{print $6}' | xargs -I {} umount -l {}" % (gluu_server)
-                #    run_command(tid, c, cmd, no_error='debug')
-                # 
-                #    cmd = stop_command.format(gluu_version)
-                #    r = run_command(tid, c, cmd, no_error='debug')
-                
-                #run_command(tid, c, install_command + "remove -y "+s)
-                wlogger.log(tid, 
-                        "Gluu version {} was previously installed. Please unintsall and then retry.".format(gluu_version),
-                        "fail")
-                wlogger.log(tid, "Ending server installation process.", "error")
-                return
-    
-    if not r[1]:
-        wlogger.log(tid, "Gluu Server was not previously installed", "debug")
-
-
-    if server.os == 'Ubuntu 14':
-        dist = 'trusty'
-    elif server.os == 'Ubuntu 16':
-        dist = 'xenial'
-        
-    wlogger.log(tid, "Preparing for Installation")
-    cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
-           '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
-
-    run_command(tid, c, cmd)
-    
-
     if 'Ubuntu' in server.os:
         
         cmd = 'curl https://repo.gluu.org/ubuntu/gluu-apt.key | apt-key add -'
@@ -971,8 +926,57 @@ def installGluuServer(self, server_id):
         stop_command    = '/sbin/gluu-serverd-{0} stop'
         start_command   = '/sbin/gluu-serverd-{0} start'
         qury_package    = 'yum list installed | grep gluu-server-'
-        
+
     wlogger.log(tid, "Check if Gluu Server was installed")
+
+    r = c.listdir("/opt")
+    if r[0]:
+        for s in r[1]:
+            m=re.search("gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+))$",s)
+            if m:
+                gluu_version = m.group("gluu_version")
+                #FIXME : Modify stop command for OS versions
+
+                cmd = stop_command.format(gluu_version)
+                r = run_command(tid, c, cmd, no_error='debug')
+                
+                if "Can't stop gluu server" in r:
+                    cmd = 'rm -f /var/run/{0}.pid'.format(gluu_server)
+                    run_command(tid, c, cmd, no_error='debug')
+                    
+                    cmd = "df -aP | grep %s | awk '{print $6}' | xargs -I {} umount -l {}" % (gluu_server)
+                    run_command(tid, c, cmd, no_error='debug')
+                 
+                    cmd = stop_command.format(gluu_version)
+                    r = run_command(tid, c, cmd, no_error='debug')
+                
+                run_command(tid, c, install_command + "remove -y "+s)
+                #wlogger.log(tid, 
+                #        "Gluu version {} was previously installed. Please unintsall and then retry.".format(gluu_version),
+                #       "fail")
+                #wlogger.log(tid, "Ending server installation process.", "error")
+                #return
+
+
+    if not r[1]:
+        wlogger.log(tid, "Gluu Server was not previously installed", "debug")
+
+
+    if server.os == 'Ubuntu 14':
+        dist = 'trusty'
+    elif server.os == 'Ubuntu 16':
+        dist = 'xenial'
+        
+    wlogger.log(tid, "Preparing for Installation")
+    cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
+           '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
+
+    run_command(tid, c, cmd)
+    
+
+
+        
+    
 
 
     wlogger.log(tid, "Installing Gluu Server: " + gluu_server)
@@ -1046,7 +1050,7 @@ def installGluuServer(self, server_id):
     if 'CentOS' in server.os:
         run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'cd /install/community-edition-setup/ && ./setup.py -n'")
     else:
-        cmd = 'cd /install/community-edition-setup/ && ./setup.py -n'.format(gluu_server)
+        cmd = 'cd /install/community-edition-setup/ && ./setup.py -n'
         run_command(tid, c, cmd, '/opt/'+gluu_server+'/', no_error='debug')
 
         

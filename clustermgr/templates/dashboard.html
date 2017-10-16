@@ -61,6 +61,7 @@
             <th>Hostname</th>
             <th>IP Address</th>
             <th>Gluu Server</th>
+            <th>OS</th>
             <th>Actions</th>
         </tr>
     </thead>
@@ -71,7 +72,7 @@
             <td>{{ server.hostname }}</td>
             <td>{{ server.ip }}</td>
             <td>{% if server.gluu_server %} <span class="glyphicon glyphicon-ok"></span>{% endif %}</td>
-
+            <td>{{ server.os }}</td>
             <td>
                 <a class="btn btn-default btn-xs" href="{{ url_for('server.edit', server_id=server.id) }}">Edit</a>
                 <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal" data-serverid="{{server.id}}"
