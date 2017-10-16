@@ -264,7 +264,7 @@ def install_gluu(server_id):
                     ):
             getattr(form, o).data = setup_prop[o]
         
-    return render_template('new_server.html', form=form,  header=header)
+    return render_template('gluu_install.html', form=form,  header=header)
 
 
 @server_view.route('/editslapdconf/<int:server_id>/', methods=['GET', 'POST'])

@@ -14,7 +14,7 @@ from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.core.olc import CnManager
 from clustermgr.core.utils import ldap_encode
 from clustermgr.config import Config
-
+import uuid
 
 def run_command(tid, c, command, container=None, no_error='error'):
     """Shorthand for RemoteClient.run(). This function automatically logs
@@ -1122,20 +1122,22 @@ def installGluuServer(self, server_id):
 
         if appconf.gluu_version > '3.0.2':
             wlogger.log(tid, "Downloading certificates from primary server and uploading to this server")
+            certs_file_name = "/tmp/certs_"+str(uuid.uuid4())[:4].upper()+".tgz"
             
-            cmd = 'tar -zcf /tmp/certs.tgz /opt/gluu-server-{0}/etc/certs/'.format(appconf.gluu_version)
+            cmd = 'tar -zcf {0} /opt/gluu-server-{1}/etc/certs/'.format(certs_file_name, appconf.gluu_version)
             wlogger.log(tid,cmd,'debug')
-            cin, cout, cerr = c.run(cmd)
+            cin, cout, cerr = pc.run(cmd)
             wlogger.log(tid, cout+cerr, 'debug')
             wlogger.log(tid,cmd,'debug')
             
-            r = c.download("/tmp/certs.tgz","/tmp/certs.tgz")
+
+            r = pc.download(certs_file_name,"/tmp/certs.tgz")
             if 'Download successful' in r :
                 wlogger.log(tid, r,'success')
             else:
                 wlogger.log(tid, r,'error')
                 
-            r = pc.upload("/tmp/certs.tgz","/tmp/certs.tgz")
+            r = c.upload("/tmp/certs.tgz","/tmp/certs.tgz")
             
             if 'Upload successful' in r:
                 wlogger.log(tid, r,'success')
@@ -1143,7 +1145,7 @@ def installGluuServer(self, server_id):
                 wlogger.log(tid, r,'error')
                 
             cmd = 'tar -zxf /tmp/certs.tgz -C /'
-            run_command(tid, pc, cmd)
+            run_command(tid, c, cmd)
         
     else:
         custom_schema_dir = os.path.join(Config.DATA_DIR, 'schema')

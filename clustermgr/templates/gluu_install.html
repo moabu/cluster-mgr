@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% from 'macros.html' import render_form %}
+{% block  content %}
+<h2 class="page-header">{{ header }}</h2>
+{{ render_form(form, action_url='', btn_class='btn btn-primary') }}
+{% endblock %}
+{% block js %}
+
+{% endblock %}
