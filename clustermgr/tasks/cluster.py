@@ -1256,19 +1256,6 @@ def removeMultiMasterDeployement(self, server_id):
     
     #modifyOxLdapProperties(server, c, tid)
 
-    if appconf.gluu_version > '3.0.2':
-        wlogger.log(tid, 'Manuplating keys')
-        for suffix in (
-                    'httpd',
-                    'shibIDP',
-                    'idp-encryption',
-                    'asimba',
-                    'openldap',
-                    ):
-            delete_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
-            import_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
-
-
     # Restart the solserver with slapd.conf configuration
     wlogger.log(tid, "Restarting LDAP server with slapd.conf configuration")
     
