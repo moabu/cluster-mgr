@@ -389,20 +389,6 @@ def setup_ldap_replication(self, server_id):
     modifyOxLdapProperties(server, c, tid, pDict, chroot)
     
 
-    if app_config.gluu_version > '3.0.2':
-        wlogger.log(tid, 'Manuplating keys')
-        for suffix in (
-                    'httpd',
-                    'shibIDP',
-                    'idp-encryption',
-                    'asimba',
-                    'openldap',
-                    ):
-            delete_key(suffix, app_config.nginx_host, app_config.gluu_version, tid, c)
-            import_key(suffix, app_config.nginx_host, app_config.gluu_version, tid, c)
-
-
-
     # 12. Make this server to listen to all other providers
     
     restart_gluu_cmd = 'service gluu-server-{0} restart'.format(app_config.gluu_version)
@@ -469,7 +455,7 @@ def setup_ldap_replication(self, server_id):
         modifyOxLdapProperties(p, pc, tid, pDict, chroot)
         
 
-        wlogger.log(tid, 'Restarting oxauth and identity on provider {0}'.format(p.hostname))
+        wlogger.log(tid, 'Restarting Gluu Server on provider {0}'.format(p.hostname))
         wlogger.log(tid, "SSH connection to provider server: {0}".format(p.hostname), 'success')
         
         if pc:
@@ -494,15 +480,15 @@ def setup_ldap_replication(self, server_id):
                             wlogger.log(tid, cerr, 'error')        
                 
             else:
-                run_command(tid, pc, 'service identity stop', chroot)
-                run_command(tid, pc, 'service oxauth restart', chroot)
-                run_command(tid, pc, 'service identity start', chroot)
+                #run_command(tid, pc, 'service identity stop', chroot)
+                #run_command(tid, pc, 'service oxauth restart', chroot)
+                #run_command(tid, pc, 'service identity start', chroot)
                 run_command(tid, pc, restart_gluu_cmd, no_error='debug')
                 
-    wlogger.log(tid, 'Restarting oxauth and identity on provider {0}'.format(server.hostname))
-    run_command(tid, c, 'service identity stop', chroot)
-    run_command(tid, c, 'service oxauth restart', chroot)
-    run_command(tid, c, 'service identity start', chroot)
+    #wlogger.log(tid, 'Restarting oxauth and identity on provider {0}'.format(server.hostname))
+    #run_command(tid, c, 'service identity stop', chroot)
+    #run_command(tid, c, 'service oxauth restart', chroot)
+    #run_command(tid, c, 'service identity start', chroot)
 
     if not server.primary_server:
         # 15. Enable Mirrormode in the server
@@ -517,7 +503,7 @@ def setup_ldap_replication(self, server_id):
                 wlogger.log(tid, 'LDAP Server is already in mirror mode', 'debug')
 
     
-    
+    wlogger.log(tid, 'Restarting Gluu Server')
     run_command(tid, c, restart_gluu_cmd, no_error='debug')
 
     # 16. Set the mmr flag to True to indicate it has been configured
@@ -989,10 +975,6 @@ def installGluuServer(self, server_id):
     wlogger.log(tid, "Check if Gluu Server was installed")
 
 
-
-        
-    
-
     wlogger.log(tid, "Installing Gluu Server: " + gluu_server)
 
     #FIXME : check cerr for possible issues on installing package
@@ -1122,22 +1104,23 @@ def installGluuServer(self, server_id):
 
         if appconf.gluu_version > '3.0.2':
             wlogger.log(tid, "Downloading certificates from primary server and uploading to this server")
-            certs_file_name = "/tmp/certs_"+str(uuid.uuid4())[:4].upper()+".tgz"
+            certs_remote_tmp = "/tmp/certs_"+str(uuid.uuid4())[:4].upper()+".tgz"
+            certs_local_tmp = "/tmp/certs_"+str(uuid.uuid4())[:4].upper()+".tgz"
             
-            cmd = 'tar -zcf {0} /opt/gluu-server-{1}/etc/certs/'.format(certs_file_name, appconf.gluu_version)
+            cmd = 'tar -zcf {0} /opt/gluu-server-{1}/etc/certs/'.format(certs_remote_tmp, appconf.gluu_version)
             wlogger.log(tid,cmd,'debug')
             cin, cout, cerr = pc.run(cmd)
             wlogger.log(tid, cout+cerr, 'debug')
             wlogger.log(tid,cmd,'debug')
             
 
-            r = pc.download(certs_file_name,"/tmp/certs.tgz")
+            r = pc.download(certs_remote_tmp, certs_local_tmp)
             if 'Download successful' in r :
                 wlogger.log(tid, r,'success')
             else:
                 wlogger.log(tid, r,'error')
                 
-            r = c.upload("/tmp/certs.tgz","/tmp/certs.tgz")
+            r = c.upload(certs_local_tmp, "/tmp/certs.tgz")
             
             if 'Upload successful' in r:
                 wlogger.log(tid, r,'success')
@@ -1147,6 +1130,17 @@ def installGluuServer(self, server_id):
             cmd = 'tar -zxf /tmp/certs.tgz -C /'
             run_command(tid, c, cmd)
         
+            wlogger.log(tid, 'Manuplating keys')
+            for suffix in (
+                    'httpd',
+                    'shibIDP',
+                    'idp-encryption',
+                    'asimba',
+                    'openldap',
+                    ):
+                delete_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
+                import_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
+
     else:
         custom_schema_dir = os.path.join(Config.DATA_DIR, 'schema')
         custom_schemas = os.listdir(custom_schema_dir)
