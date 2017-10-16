@@ -4,20 +4,11 @@
 
 <h2 class="page-header"> {{ header }}</h2>
 
-<form id="form" action="" method="POST">
-    {{ form.csrf_token }}
-    {{ render_field(form.ip) }}
-    {{ render_field(form.hostname) }}
-    {{ render_field(form.ldap_password) }}
-    {{ render_field(form.ldap_password_confirm) }}
-    {{ render_checkbox_field(form.gluu_server) }}
-    {{ render_checkbox_field(form.primary_server) }}
+{{ render_form(form, action_url='', btn_class='btn btn-primary') }}
 
-    <input type="submit" name="submit" value="Submit" class="btn btn-primary">
+{% if server is defined %}
 
-</form>
-
-    <!-- Alert Modal before a server is removed from the cluster -->
+    <!-- Alert Modal for password confirmation -->
     <div id="passwordMismatch" class="modal fade" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
@@ -35,22 +26,26 @@
         </div><!-- /.modal-dialog -->
     </div><!-- /.modal -->
 
+{% endif %}
 
 {% endblock %}
 
 {% block js %}
-<script>
 
-$('input[type=submit]').click(function(e){
-    if($("#ldap_password").val() != $("#ldap_password_confirm").val())
-    {
-    //alert("Passwords mismatch");
-    $('#passwordMismatch').modal('show');
-    return false;
-    }
+{% if server is defined %}
+    <script>
+
+    $(document).ready(function(){
+        $(".btn.btn-primary").click(function(){
+            if($("#ldap_password").val() != $("#ldap_password_confirm").val()) {
+           
+                $('#passwordMismatch').modal('show');
+                return false;
+            }
+        });
+
     });
 
-
-</script>
-
+    </script>
+{% endif %}
 {% endblock %}

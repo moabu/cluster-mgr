@@ -92,7 +92,7 @@ def edit(server_id):
     form.ip.data = server.ip
     form.ldap_password.data = server.ldap_password
     form.primary_server.data = server.primary_server
-    return render_template('new_server.html', form=form,
+    return render_template('new_server.html', form=form, server=True,
                            header="Update Server Details")
 
 
@@ -264,7 +264,7 @@ def install_gluu(server_id):
                     ):
             getattr(form, o).data = setup_prop[o]
         
-    return render_template('gluu_install.html', form=form,  header=header)
+    return render_template('new_server.html', form=form,  header=header)
 
 
 @server_view.route('/editslapdconf/<int:server_id>/', methods=['GET', 'POST'])
