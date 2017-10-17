@@ -16,7 +16,7 @@ def index():
     servers = Server.query.all()
     appconf = AppConfiguration.query.first()
     if not appconf:
-        flash("The application needs to be configured first. Kindly set the ",
+        flash("The application needs to be configured first. Kindly set the "
               "values before attempting clustering.", "warning")
         return redirect(url_for("index.app_configuration"))
     version = int(appconf.gluu_version.replace(".", ""))
@@ -56,10 +56,11 @@ def change():
         session["cache_method"] = method
         server_list = [int(sid) for sid in server_list]
         task = install_redis_stunnel.delay(server_list)
-        selected_servers = Server.query.filter(Server.id.in_(server_list)).all()
+        selected = Server.query.filter(Server.id.in_(server_list)).all()
         return render_template('cache_logger.html', method=method, step=2,
-                               task_id=task.id, servers=selected_servers)
+                               task_id=task.id, servers=selected)
     return render_template('cache_change.html', servers=servers)
+
 
 @cache_mgr.route('/configure/<method>/')
 def configure(method):
