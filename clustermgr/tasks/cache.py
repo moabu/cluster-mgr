@@ -162,16 +162,27 @@ def setup_sharded(tid, standalone=False):
     servers = Server.query.filter(Server.redis.is_(True)).filter(
         Server.stunnel.is_(True)).all()
     appconf = AppConfiguration.query.first()
-    # Store the redis server info in the LDAP
+    # Store the redis server info in the LDA
     for server in servers:
         wlogger.log(tid, "Updating oxCacheConfiguration ...", "debug",
                     server_id=server.id)
+        redis_instances = []
+        stunnel_conf = [
+            "cert = /etc/stunnel/cert.pem",
+            "pid = /var/run/stunnel.pid",
+            "[redis-server]",
+            "client = no",
+            "accept = {0}:7777".format(server.ip),
+            "connect = 127.0.0.1:6379"
+        ]
 
-        redis_instances = ['localhost:6379']
         for s in servers:
-            if s.id != server.id:
-                port = 7000 + s.id
-                redis_instances.append('localhost:{0}'.format(port))
+            port = 7000 + s.id
+            redis_instances.append('localhost:{0}'.format(port))
+            stunnel_conf.append("[client{0}]".format(s.id))
+            stunnel_conf.append("client = yes")
+            stunnel_conf.append("accept = 127.0.0.1:{0}".format(port))
+            stunnel_conf.append("connect = {0}:7777".format(s.ip))
 
         server_string = ",".join(redis_instances)
 
@@ -190,7 +201,8 @@ def setup_sharded(tid, standalone=False):
         cache_conf['cacheProviderType'] = 'REDIS'
         cache_conf['redisConfiguration']['redisProviderType'] = 'SHARDED'
         if standalone:
-            cache_conf['redisConfiguration']['redisProviderType'] = 'STANDALONE'
+            cache_conf['redisConfiguration'][
+                'redisProviderType'] = 'STANDALONE'
         cache_conf['redisConfiguration']['servers'] = server_string
 
         result = dbm.set_applicance_attribute('oxCacheConfiguration',
@@ -209,9 +221,11 @@ def setup_sharded(tid, standalone=False):
         rc = RemoteClient(server.hostname, ip=server.ip)
         try:
             rc.startup()
-        except:
+        except Exception as e:
             wlogger.log(tid, "Could not connect to the server over SSH. "
-                        "Stunnel setup failed.", "error", server_id=server.id)
+                             "Stunnel setup failed. Error: {0}".format(e),
+                        "error",
+                        server_id=server.id)
             continue
 
         wlogger.log(tid, "Enable stunnel start on system boot", "debug",
@@ -231,7 +245,10 @@ def setup_sharded(tid, standalone=False):
         rc.sftpclient.getfo(propsfile, prop_buffer)
         prop_buffer.seek(0)
         props = dict()
-        prop_in = lambda line: line.split("=")[1].strip()
+
+        def prop_in(string):
+            return string.split("=")[1].strip()
+
         for line in prop_buffer:
             if re.match('^countryCode', line):
                 props['country'] = prop_in(line)
@@ -270,23 +287,8 @@ def setup_sharded(tid, standalone=False):
         # Generate stunnel config
         wlogger.log(tid, "Setup stunnel listening and forwarding", "debug",
                     server_id=server.id)
-        sconf = ["cert = /etc/stunnel/cert.pem",
-                 "pid = /var/run/stunnel.pid",
-                 "[redis-server]",
-                 "client = no",
-                 "accept = {0}:7777".format(server.ip),
-                 "connect = 127.0.0.1:6379"
-                 ]
-        for s in servers:
-            if s.id != server.id:
-                port = 7000 + s.id
-                sconf.append("[client{0}]".format(s.id))
-                sconf.append("client = yes")
-                sconf.append("accept = 127.0.0.1:{0}".format(port))
-                sconf.append("connect = {0}:7777".format(s.ip))
-
         rc.put_file(os.path.join(chdir, "etc/stunnel/redis-gluu.conf"),
-                    "\n".join(sconf))
+                    "\n".join(stunnel_conf))
     return True
 
 
@@ -344,7 +346,7 @@ def setup_redis_cluster(tid):
                             ssl=True, ip=server.ip)
         except Exception as e:
             wlogger.log(tid, "Failed to connect to LDAP server. Error: \n"
-                        "{0}".format(e), "error")
+                             "{0}".format(e), "error")
             continue
         entry = dbm.get_appliance_attributes('oxCacheConfiguration')
         cache_conf = json.loads(entry.oxCacheConfiguration.value)
@@ -429,6 +431,7 @@ def configure_cache_cluster(self, method):
     elif method == 'CLUSTER':
         return setup_redis_cluster(self.request.id)
 
+
 def run_and_log(rc, cmd, tid, server_id):
     """Runs a command using the provided RemoteClient instance and logs the
     cout and cerr to the wlogger using the task id and server id
@@ -453,7 +456,7 @@ def finish_cluster_setup(self, method):
     servers = Server.query.filter(Server.redis.is_(True)).filter(
         Server.stunnel.is_(True)).all()
     appconf = AppConfiguration.query.first()
-    chdir = "/opt/gluu-server-"+appconf.gluu_version
+    chdir = "/opt/gluu-server-" + appconf.gluu_version
     ips = []
 
     for server in servers:
@@ -489,15 +492,17 @@ def finish_cluster_setup(self, method):
     for server in servers:
         initializer = server
         init_client = get_remote_client(server, tid)
-        if init_client: break
+        if init_client:
+            break
 
     if not init_client:
         wlogger.log(tid, "Cannot connect even a single server. Redis-cluster"
-                    " setup failed", "error")
+                         " setup failed", "error")
 
     for i, ip in enumerate(ips):
         # add all the masters and create a cluster
-        meet_cmd = "redis-cli -c -h 127.0.0.1 -p 7000 cluster meet {0} 7000".format(ip)
+        meet_cmd = "redis-cli -c -h 127.0.0.1 -p 7000 cluster meet {0} 7000".format(
+            ip)
 
         if initializer.gluu_server:
             meet_cmd = 'chroot {0} /bin/bash -c "{1}"'.format(chdir, meet_cmd)
@@ -551,8 +556,8 @@ def get_cache_methods(self):
         cache_conf = json.loads(entry.oxCacheConfiguration.value)
         server.cache_method = cache_conf['cacheProviderType']
         if server.cache_method == 'REDIS':
-            type = cache_conf['redisConfiguration']['redisProviderType']
-            server.cache_method += " - " + type
+            method = cache_conf['redisConfiguration']['redisProviderType']
+            server.cache_method += " - " + method
         db.session.commit()
         methods.append({"id": server.id, "method": server.cache_method})
     wlogger.log(tid, "Cache Methods of servers have been updated.", "success")
