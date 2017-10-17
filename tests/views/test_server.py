@@ -52,6 +52,7 @@ class ServerViewTestCase(unittest.TestCase):
             hostname="server.example.com",
             ip="1.1.1.1",
             ldap_password="secret",
+            ldap_password_confirm="secret",
             gluu_server="y",
             primary_server=None,
         ), follow_redirects=True)
@@ -71,6 +72,7 @@ class ServerViewTestCase(unittest.TestCase):
             hostname="server.example.com",
             ip="1.1.1.1",
             ldap_password="secret",
+            ldap_password_confirm="secret",
             gluu_server="y",
             primary_server=None,
         ), follow_redirects=True)
@@ -108,7 +110,8 @@ class ServerViewTestCase(unittest.TestCase):
             ip="2.2.2.2",
             gluu_server=None,
             primary_server="y",
-            ldap_password="changed"
+            ldap_password="changed",
+            ldap_password_confirm="changed",
         ), follow_redirects=True)
 
         with self.app.app_context():
@@ -121,6 +124,8 @@ class ServerViewTestCase(unittest.TestCase):
             hostname="hostname.example.com",
             ip="2.2.2.2",
             gluu_server=None,
+            ldap_password="",
+            ldap_password_confirm="",
             primary_server="y"
         ), follow_redirects=True)
 

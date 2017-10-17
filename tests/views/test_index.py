@@ -44,6 +44,7 @@ class IndexViewTestCase(unittest.TestCase):
             gluu_version='3.1.0',
             replication_dn='rep manager',
             replication_pw='secret',
+            replication_pw_confirm='secret',
             nginx_host='nginx.example.com',
             use_ip=False,
             update=True,

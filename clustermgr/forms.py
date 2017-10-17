@@ -92,9 +92,13 @@ class ServerForm(FlaskForm):
     ip = StringField(
         'IP Address *', validators=[DataRequired(), IPAddress()])
     ldap_password = PasswordField(
-        'LDAP Admin Password *', validators=[DataRequired()])
+        'LDAP Admin Password *', validators=[
+            DataRequired(),
+            validators.EqualTo('ldap_password_confirm',
+                               message='Passwords must match')
+        ])
     ldap_password_confirm = PasswordField(
-        'LDAP Admin Password (confirm) *', validators=[DataRequired()])
+        'Re-enter LDAP Admin Password *', validators=[DataRequired()])
     gluu_server = BooleanField("Gluu Server is installed")
     primary_server = BooleanField('This is primary Server')
 

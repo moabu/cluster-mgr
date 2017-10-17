@@ -42,7 +42,7 @@ def index():
         server.ip = form.ip.data.strip()
         server.ldap_password = form.ldap_password.data.strip()
         server.mmr = False
-        server.primary_server = form.primary_server.data.strip()
+        server.primary_server = form.primary_server.data
         db.session.add(server)
         db.session.commit()
 
