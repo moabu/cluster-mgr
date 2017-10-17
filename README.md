@@ -21,7 +21,8 @@ Install prerequisites packages first. On debian or ubuntu, install them using `a
 2) Install necessary modules on the machine being used for cluster-mgr (Preferably not the Gluu servers or anything internet-facing)
 
 ```
-apt-get install build-essential libssl-dev libffi-dev python-dev redis-server python-setuptools libsasl2-dev  libldap2-dev redis-server
+apt-get install build-essential libssl-dev libffi-dev python-dev redis-server python-setuptools libsasl2-dev  libldap2-dev redis-server python-pip
+pip install --upgrade setuptools
 ```
 
 3) Now clone the github repo on that same machine.
