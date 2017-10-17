@@ -18,8 +18,11 @@ def find_version(*file_paths):
 
 setup(
     name='clustermgr',
+    author="Gluu",
+    author_email="support@gluu.org",
+    url="https://github.com/GluuFederation/cluster-mgr/",
     version=find_version("clustermgr", "__init__.py"),
-    packages=find_packages(),
+    packages=find_packages(exclude=["e2e", "tests"]),
     zip_safe=False,
     include_package_data=True,
     install_requires=[
@@ -28,7 +31,6 @@ setup(
         "celery",
         "flask-sqlalchemy",
         "redis",
-        "cryptography",
         "requests",
         "flask-migrate",
         "ldap3",
