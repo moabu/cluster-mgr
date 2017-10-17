@@ -2,6 +2,8 @@
 
 GUI tool for managing Gluu Server and OpenLDAP replication.
 
+Currently only tested with Ubuntu 14 and 16.
+
 #### The Cluster-mgr should NOT be internet-facing and preferably installed on a secure adminstrators computer or a VM on Digital Ocean or Amazon you can turn off when you're not using it. After the inital set-up, cluster-mgr is not required to be connected to the servers anymore.
 
 ## Installing Cluster Manager
