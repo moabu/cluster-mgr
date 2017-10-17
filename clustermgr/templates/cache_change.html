@@ -7,18 +7,18 @@
 
     <div class="panel panel-default">
         <div class="panel-heading">
-            <h3 class="panel-title">Cluster Method and Servers</h3>
+            <h3 class="panel-title">Select the Servers</h3>
         </div>
         <div class="panel-body">
             <form action="" method="post">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <h4>Clustering Method</h4>
-                <!-- div class="radio">
+                <!-- h4>Clustering Method</h4>
+                <div class="radio">
                     <label><input type="radio" name="method" id="CLUSTER" value="CLUSTER">
                         CLUSTER<span class="text-muted"> - Uses redis-cluster. redis-cluster handles the load distribution.
                             Recommended for clusters with 3 or more servers. </span>
                     </label>
-                </div -->
+                </div>
                 <div class="radio">
                     <label><input type="radio" name="method" id="STANDALONE" value="STANDALONE">
                         STANDALONE <span class="text-muted"> - A redis instance is launched per host and all the hosts can connect to all the
@@ -30,7 +30,7 @@
                         SHARDED <span class="text-muted"> - A redis instance is launched per host and data is distributed across instances for
                             load distribution by oxAuth.</span>
                     </label>
-                </div>
+                </div -->
 
                 <fieldset>
                     <h4>Servers to form the Cache Cluster</h4>

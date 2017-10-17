@@ -34,26 +34,15 @@ def refresh_methods():
 def change():
     servers = Server.query.all()
     if request.method == 'POST':
-        method = request.form.get('method')
         server_list = request.form.getlist('servers')
 
-        # Validate form input
-        if not method:
-            flash("No clustering method has been selected. Kindly select a "
-                  "clustering method", "danger")
         if not server_list:
             flash("No servers have been selected. Kindly select the servers "
                   "to form the cluster", "danger")
-        if not method or not server_list:
             return render_template('cache_change.html', servers=servers)
 
-        # assert the clustering conditions
-        if len(server_list) < 3 and method == 'CLUSTER':
-            flash("Redis cluster cannot be setup with less than 3 hosts. "
-                  "Select SHARDED instead.", "warning")
-            return render_template('cache_change.html', servers=servers)
-
-        session["cache_method"] = method
+        # For now the only supported redis clustering method is SHARDED
+        method = 'SHARDED'
         server_list = [int(sid) for sid in server_list]
         task = install_redis_stunnel.delay(server_list)
         selected = Server.query.filter(Server.id.in_(server_list)).all()
