@@ -1,5 +1,6 @@
 import StringIO
 import socket
+import logging
 
 from paramiko import SSHException
 from paramiko.client import SSHClient, AutoAddPolicy
@@ -37,6 +38,7 @@ class RemoteClient(object):
         self.sftpclient = None
         self.client.set_missing_host_key_policy(AutoAddPolicy())
         self.client.load_system_host_keys()
+        logging.debug("RemoteClient created for host: %s", host)
 
     def startup(self):
         """Function that starts SSH connection and makes client available for
@@ -44,16 +46,26 @@ class RemoteClient(object):
         it tries with the IP address if supplied
         """
         try:
+            logging.debug("Trying to connect to remote server %s", self.host)
             self.client.connect(self.host, port=22, username=self.user)
             self.sftpclient = self.client.open_sftp()
         except (SSHException, socket.error):
-            self._try_with_ip()
+            if self.ip:
+                logging.warning("Connection with hostname failed. Retrying "
+                                "with IP")
+                self._try_with_ip()
+            else:
+                logging.error("Connection to %s failed.", self.host)
+                raise ClientNotSetupException('Could not connect to the host.')
+
 
     def _try_with_ip(self):
         try:
+            logging.debug("Connecting to IP:%s User:%s", self.ip, self.user )
             self.client.connect(self.ip, port=22, username=self.user)
             self.sftpclient = self.client.open_sftp()
         except (SSHException, socket.error):
+            logging.error("Connection with IP (%s) failed.", self.ip)
             raise ClientNotSetupException('Could not connect to the host.')
 
     def download(self, remote, local):
@@ -210,3 +222,7 @@ class RemoteClient(object):
         """Close the SSH Connection
         """
         self.client.close()
+
+    def __repr__(self):
+        return "RemoteClient({0}, ip={1}, user={2})".format(self.host, self.ip,
+                                                            self.user)
