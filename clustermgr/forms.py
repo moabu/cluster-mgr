@@ -10,19 +10,19 @@ from flask_wtf.file import FileField, FileRequired, FileAllowed
 
 
 class AppConfigForm(FlaskForm):
-    gluu_version = SelectField('Gluu Server Version', choices=[
-        ('3.1.1', '3.1.1'), ('3.1.0', '3.1.0'), ('3.0.2', '3.0.2'),
-        ('3.0.1', '3.0.1')])
+    versions = ['3.0.1', '3.0.2', '3.1.0', '3.1.1']
+    gluu_version = SelectField('Gluu Server Version',
+                               choices=[(v, v) for v in versions])
     use_ip = BooleanField('Use IP Address in place of Hostname for replication')
     replication_dn = StringField('Replication Manager DN', validators=[
-        DataRequired(), Regexp(
-            '^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$',
-            message="Only alphabets and space allowed; cannot end with space.")])  # noqa
+        DataRequired(),
+        Regexp('^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$',
+               message="Only alphabets and space allowed; cannot end with space.")])  # noqa
     replication_pw = PasswordField('Replication Manager Password',validators=[
         DataRequired(), validators.EqualTo(
             'replication_pw_confirm', message='Passwords must match')])
-    replication_pw_confirm = PasswordField('Replication Manager Password (confirm)',
-                                 validators=[DataRequired()])
+    replication_pw_confirm = PasswordField(
+        'Re-enter Password', validators=[DataRequired()])
     nginx_host = StringField('NGINX Host', validators=[DataRequired()])
     
     update = SubmitField("Update Configuration")
@@ -98,6 +98,7 @@ class ServerForm(FlaskForm):
     gluu_server = BooleanField("Gluu Server is installed")
     primary_server = BooleanField('This is primary Server')
 
+
 class TestUser(FlaskForm):
     first_name = StringField('First Name', validators=[DataRequired()])
     last_name = StringField('Last Name', validators=[DataRequired()])
@@ -118,7 +119,6 @@ class InstallServerForm(FlaskForm):
                         validators=[Length(min=2, max=2), DataRequired()])
     city = StringField('City *', validators=[DataRequired()])
     orgName = StringField('Organization Name *', validators=[DataRequired()])
-    admin_email = StringField('Admin E-mail *', validators=[DataRequired()])
     admin_email = StringField('Admin E-mail *', validators=[DataRequired()])
     inumOrg = StringField("inumOrg * (Please don't change this unless you know what you do)", validators=[DataRequired()])
     inumAppliance = StringField("inumAppliance * (Please don't change this unless you know what you do)", validators=[DataRequired()])
