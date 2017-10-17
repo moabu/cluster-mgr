@@ -37,7 +37,7 @@ def index():
 
     if form.validate_on_submit():
         server = Server()
-        server.gluu_server = form.gluu_server.data.strip()
+        server.gluu_server = form.gluu_server.data
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
         server.ldap_password = form.ldap_password.data.strip()
