@@ -17,6 +17,16 @@ from clustermgr.core.remote import RemoteClient, ClientNotSetupException
 
 server_view = Blueprint('server', __name__)
 
+def sync_ldap_passwords(password):
+    non_primary_servers = Server.query.filter(Server.primary_server.isnot(True)).all()
+    for server in non_primary_servers:
+        server.ldap_password = password
+    db.session.commit()
+
+def get_primary_server_password():
+    primary_server =  Server.query.filter_by(primary_server=True).first()
+    if primary_server:
+        return primary_server.ldap_password
 
 @server_view.route('/', methods=['GET', 'POST'])
 def index():
@@ -30,19 +40,29 @@ def index():
         return redirect(url_for('index.app_configuration', next="/server/"))
     form = ServerForm()
 
-    pr_server = get_primary_server_id()
-    if pr_server:
-        form.primary_server.render_kw = {'disabled': 'disabled'}
+    header="New Server"
 
+    pr_server = get_primary_server_id()
+    
+    
+    if not pr_server:
+         header="New Server - Primary Server"
+    else:
+        del form.ldap_password
+        del form.ldap_password_confirm
 
     if form.validate_on_submit():
         server = Server()
         server.gluu_server = form.gluu_server.data
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
-        server.ldap_password = form.ldap_password.data.strip()
         server.mmr = False
-        server.primary_server = form.primary_server.data
+        if not pr_server:
+            server.ldap_password = form.ldap_password.data.strip()
+            server.primary_server = True
+        else:
+            server.ldap_password = get_primary_server_password()
+
         db.session.add(server)
         db.session.commit()
 
@@ -50,10 +70,13 @@ def index():
         collect_server_details.delay(server.id)
         return redirect(url_for('index.home'))
 
+    
+
     flash('Cluster Manager will connect to this server via SSH to perform its'
           ' tasks. Ensure the server running Cluster Manager has'
           '"Password-less" SSH access via shared keys to the server.', 'info')
-    return render_template('new_server.html', form=form, header="New Server")
+    return render_template('new_server.html', form=form, header=header)
+
 
 
 @server_view.route('/edit/<int:server_id>/', methods=['GET', 'POST'])
@@ -63,25 +86,36 @@ def edit(server_id):
         flash('There is no server with the ID: %s' % server_id, "warning")
         return redirect(url_for('index.home'))
 
+    is_this_primary = get_primary_server_id() == server_id
     form = ServerForm()
 
     pr_server = get_primary_server_id()
 
-    if pr_server:
-        if not get_primary_server_id() == server_id:
-            form.primary_server.render_kw = {'disabled': 'disabled'}
+    header="Update Server Details"
 
-    if request.method == 'POST' and not form.ldap_password.data.strip():
-        form.ldap_password.data = '**dummy**'
-        form.ldap_password_confirm.data = '**dummy**'
-        
+    if not pr_server:
+        header="Update Primary Server Details"
+
+
+    if pr_server:
+        if is_this_primary:
+            header="Update Primary Server Details"
+            if request.method == 'POST' and not form.ldap_password.data.strip():
+                form.ldap_password.data = '**dummy**'
+                form.ldap_password_confirm.data = '**dummy**'
+        else:
+            del form.ldap_password
+            del form.ldap_password_confirm
+
+
     if form.validate_on_submit():
         server.gluu_server = form.gluu_server.data
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
-        server.primary_server = form.primary_server.data
-        if form.ldap_password.data and form.ldap_password_confirm.data is not '**dummy**':
-            server.ldap_password = form.ldap_password.data.strip()
+        if is_this_primary:
+            if form.ldap_password.data and form.ldap_password_confirm.data is not '**dummy**':
+                server.ldap_password = form.ldap_password.data.strip()
+                sync_ldap_passwords(server.ldap_password)
         db.session.commit()
         # start the background job to get system details
         collect_server_details.delay(server.id)
@@ -90,10 +124,11 @@ def edit(server_id):
     form.gluu_server.data = server.gluu_server
     form.hostname.data = server.hostname
     form.ip.data = server.ip
-    form.ldap_password.data = server.ldap_password
-    form.primary_server.data = server.primary_server
+    if is_this_primary:
+        form.ldap_password.data = server.ldap_password
+    
     return render_template('new_server.html', form=form, server=True,
-                           header="Update Server Details")
+                           header=header)
 
 
 @server_view.route('/remove/<int:server_id>/')

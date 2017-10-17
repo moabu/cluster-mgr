@@ -100,7 +100,7 @@ class ServerForm(FlaskForm):
     ldap_password_confirm = PasswordField(
         'Re-enter LDAP Admin Password *', validators=[DataRequired()])
     gluu_server = BooleanField("Gluu Server is installed")
-    primary_server = BooleanField('This is primary Server')
+    #primary_server = BooleanField('This is primary Server')
 
 
 class TestUser(FlaskForm):
