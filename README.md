@@ -48,8 +48,8 @@ python setup.py install
 5) Prepare Databases
 
 ```
-APP_MODE=dev clustermgr-cli db upgrade
-APP_MODE=dev clustermgr-cli db migrate
+clustermgr-cli db upgrade
+clustermgr-cli db migrate
 ```
 
 6) Run celery worker on a new terminal
