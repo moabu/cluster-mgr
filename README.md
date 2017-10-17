@@ -12,7 +12,7 @@ Currently only tested with Ubuntu 14 and 16.
 
 Install prerequisites packages first. On debian or ubuntu, install them using `apt-get`:
 
-1) First we must enable whatever computer/VM that cluster-mgr is installed on to establish an ssh connection to the servers that are going to be added to the cluster:
+1) First we must enable whatever computer/VM that cluster-mgr is installed on to establish an ssh connection to the servers that are going to be added to the cluster. This includes the NGINX server:
 
 `ssh-keygen -t rsa`
 
