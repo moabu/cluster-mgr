@@ -49,7 +49,6 @@ python setup.py install
 
 ```
 clustermgr-cli db upgrade
-clustermgr-cli db migrate
 ```
 
 6) Run celery worker on a new terminal
