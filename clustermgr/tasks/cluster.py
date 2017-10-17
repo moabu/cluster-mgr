@@ -391,8 +391,13 @@ def setup_ldap_replication(self, server_id):
 
     # 12. Make this server to listen to all other providers
     
-    restart_gluu_cmd = 'service gluu-server-{0} restart'.format(app_config.gluu_version)
+    if 'CentOS' in server.os:
+        restart_gluu_cmd = '/sbin/gluu-serverd-{0} restart'.format(app_config.gluu_version)
+    else:
+        restart_gluu_cmd = 'service gluu-server-{0} restart'.format(app_config.gluu_version)
+    
     providers = Server.query.filter(Server.id.isnot(server.id)).filter().all()
+    
     if providers:
         wlogger.log(tid, "Adding Syncrepl to integrate the server in cluster")
     for p in providers:
@@ -459,36 +464,7 @@ def setup_ldap_replication(self, server_id):
         wlogger.log(tid, "SSH connection to provider server: {0}".format(p.hostname), 'success')
         
         if pc:
-
-            if 'CentOS' in server.os:
-                cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service oxauth restart'"
-                wlogger.log(tid, cmd, 'debug')
-                cin, cout, cerr = pc.run(cmd)
-                wlogger.log(tid, cout, 'debug')
-                for l in cout.split('\n'):
-                    if l.startswith('Starting Jetty'):
-                        if not 'OK' in l:
-                            wlogger.log(tid, cerr, 'error')
-                
-                cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service identity restart'"
-                wlogger.log(tid, cmd, 'debug')
-                cin, cout, cerr = pc.run(cmd)
-                wlogger.log(tid, cout, 'debug')
-                for l in cout.split('\n'):
-                    if l.startswith('Starting Jetty'):
-                        if not 'OK' in l:
-                            wlogger.log(tid, cerr, 'error')        
-                
-            else:
-                #run_command(tid, pc, 'service identity stop', chroot)
-                #run_command(tid, pc, 'service oxauth restart', chroot)
-                #run_command(tid, pc, 'service identity start', chroot)
-                run_command(tid, pc, restart_gluu_cmd, no_error='debug')
-                
-    #wlogger.log(tid, 'Restarting oxauth and identity on provider {0}'.format(server.hostname))
-    #run_command(tid, c, 'service identity stop', chroot)
-    #run_command(tid, c, 'service oxauth restart', chroot)
-    #run_command(tid, c, 'service identity start', chroot)
+            run_command(tid, pc, restart_gluu_cmd, no_error='debug')
 
     if not server.primary_server:
         # 15. Enable Mirrormode in the server
@@ -829,7 +805,7 @@ def collect_server_details(server_id, manual=False):
     db.session.commit()
 
 
-def import_key(suffix, hostname, gluu_version, tid, c):
+def import_key(suffix, hostname, gluu_version, tid, c, sos):
     defaultTrustStorePW = 'changeit'
     defaultTrustStoreFN = '/opt/jre/jre/lib/security/cacerts'
     certFolder = '/etc/certs'
@@ -844,7 +820,10 @@ def import_key(suffix, hostname, gluu_version, tid, c):
 
     chroot = '/opt/gluu-server-{0}'.format(gluu_version)
     
-    command = 'chroot {0} /bin/bash -c "{1}"'.format(chroot,
+    if 'CentOS' in sos:
+        command = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost '{0}'".format(cmd)
+    else:
+        command = 'chroot {0} /bin/bash -c "{1}"'.format(chroot,
                                                          cmd)
     
     cin, cout, cerr = c.run(command)
@@ -852,7 +831,7 @@ def import_key(suffix, hostname, gluu_version, tid, c):
     wlogger.log(tid, cout+cerr, 'debug')
 
 
-def delete_key(suffix, hostname, gluu_version, tid, c):
+def delete_key(suffix, hostname, gluu_version, tid, c, sos):
     defaultTrustStorePW = 'changeit'
     defaultTrustStoreFN = '/opt/jre/jre/lib/security/cacerts'
     chroot = '/opt/gluu-server-{0}'.format(gluu_version)
@@ -864,10 +843,15 @@ def delete_key(suffix, hostname, gluu_version, tid, c):
                         "-keystore", defaultTrustStoreFN,
                         "-storepass", defaultTrustStorePW
                         ])
-    
-        
-    
-        run_command(tid, c, cmd, chroot)
+
+        if 'CentOS' in sos:
+            command = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost '{0}'".format(cmd)
+        else:
+            command = 'chroot {0} /bin/bash -c "{1}"'.format(chroot,
+                                                         cmd)
+        cin, cout, cerr = c.run(command)
+        wlogger.log(tid, cmd, 'debug')
+        wlogger.log(tid, cout+cerr, 'debug')
 
 
 @celery.task(bind=True)
@@ -896,12 +880,24 @@ def installGluuServer(self, server_id):
         wlogger.log(tid, "Can't establish SSH connection",'fail')
         wlogger.log(tid, "Ending server installation process.", "error")
         return
+    
+    wlogger.log(tid, "Preparing for Installation")
 
     if 'Ubuntu' in server.os:
-        
+
+        if server.os == 'Ubuntu 14':
+            dist = 'trusty'
+        elif server.os == 'Ubuntu 16':
+            dist = 'xenial'
+
         cmd = 'curl https://repo.gluu.org/ubuntu/gluu-apt.key | apt-key add -'
         run_command(tid, c, cmd, no_error='debug')
-        
+
+        cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
+               '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
+
+        run_command(tid, c, cmd)
+
         install_command = 'apt-get '
         enable_command = None
         start_command  = 'service gluu-server-{0} start'
@@ -917,15 +913,35 @@ def installGluuServer(self, server_id):
             wlogger.log(tid, cmd, 'debug')
             cin, cout, cerr = c.run(cmd)
             wlogger.log(tid, cout+'\n'+cerr, 'debug')
-        
-        
-        
+
+
     elif 'CentOS' in server.os:
         install_command = 'yum '
         enable_command  = '/sbin/gluu-serverd-{0} enable'
         stop_command    = '/sbin/gluu-serverd-{0} stop'
         start_command   = '/sbin/gluu-serverd-{0} start'
         qury_package    = 'yum list installed | grep gluu-server-'
+
+        if not c.exists('/usr/bin/wget'):
+            cmd = install_command +'install -y wget'
+            run_command(tid, c, cmd, no_error='debug')
+
+        if server.os == 'CentOS 6':
+            cmd = 'wget https://repo.gluu.org/centos/Gluu-centos6.repo -O /etc/yum.repos.d/Gluu.repo'
+        elif server.os == 'CentOS 7':
+            cmd = 'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O /etc/yum.repos.d/Gluu.repo'
+
+
+        run_command(tid, c, cmd, no_error='debug')
+
+        cmd = 'wget https://repo.gluu.org/centos/RPM-GPG-KEY-GLUU -O /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'
+        run_command(tid, c, cmd, no_error='debug')
+        
+        cmd = 'rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'
+        run_command(tid, c, cmd, no_error='debug')
+        
+        cmd = 'yum clean all'
+        run_command(tid, c, cmd, no_error='debug')
 
     wlogger.log(tid, "Check if Gluu Server was installed")
 
@@ -938,9 +954,9 @@ def installGluuServer(self, server_id):
                 #FIXME : Modify stop command for OS versions
 
                 cmd = stop_command.format(gluu_version)
-                r = run_command(tid, c, cmd, no_error='debug')
+                rs = run_command(tid, c, cmd, no_error='debug')
                 
-                if "Can't stop gluu server" in r:
+                if "Can't stop gluu server" in rs:
                     cmd = 'rm -f /var/run/{0}.pid'.format(gluu_server)
                     run_command(tid, c, cmd, no_error='debug')
                     
@@ -948,7 +964,7 @@ def installGluuServer(self, server_id):
                     run_command(tid, c, cmd, no_error='debug')
                  
                     cmd = stop_command.format(gluu_version)
-                    r = run_command(tid, c, cmd, no_error='debug')
+                    rs = run_command(tid, c, cmd, no_error='debug')
                 
                 run_command(tid, c, install_command + "remove -y "+s)
                 #wlogger.log(tid, 
@@ -961,22 +977,6 @@ def installGluuServer(self, server_id):
     if not r[1]:
         wlogger.log(tid, "Gluu Server was not previously installed", "debug")
 
-
-    if server.os == 'Ubuntu 14':
-        dist = 'trusty'
-    elif server.os == 'Ubuntu 16':
-        dist = 'xenial'
-        
-    wlogger.log(tid, "Preparing for Installation")
-    cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
-           '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
-
-    run_command(tid, c, cmd)
-    
-
-
-        
-    
 
 
     wlogger.log(tid, "Installing Gluu Server: " + gluu_server)
@@ -994,7 +994,7 @@ def installGluuServer(self, server_id):
 
 
     if enable_command:
-        run_command(tid, c, enable_command.format(appconf.gluu_version))
+        run_command(tid, c, enable_command.format(appconf.gluu_version), no_error='debug')
         
     run_command(tid, c, start_command.format(appconf.gluu_version))
 
@@ -1142,8 +1142,8 @@ def installGluuServer(self, server_id):
                     'asimba',
                     'openldap',
                     ):
-                delete_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
-                import_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
+                delete_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c, server.os)
+                import_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c, server.os)
 
     else:
         custom_schema_dir = os.path.join(Config.DATA_DIR, 'schema')
@@ -1174,7 +1174,7 @@ def installGluuServer(self, server_id):
 
     server.gluu_server = True
     db.session.commit()
-
+    wlogger.log(tid, "Gluu Server successfully installed")
 
 
 @celery.task(bind=True)
@@ -1301,10 +1301,12 @@ def installNGINX(self, nginx_host):
         wlogger.log(tid, "nginx allready exists")
     else:
         if 'CentOS' in os_type:
+            run_command(tid, c, 'yum install -y epel-release')
             cmd = 'yum install -y nginx'
         else:
+            run_command(tid, c, 'apt-get update')
             cmd = 'apt-get install -y nginx'
-        
+            
         wlogger.log(tid, cmd, 'debug')
         
         #FIXME: check cerr??
@@ -1382,6 +1384,6 @@ def installNGINX(self, nginx_host):
 
     cmd = 'service nginx restart'
     
-    run_command(tid, c, cmd)
+    run_command(tid, c, cmd, no_error='debug')
     
     wlogger.log(tid, "NGINX successfully installed")
