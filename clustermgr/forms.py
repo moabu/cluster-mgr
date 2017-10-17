@@ -3,7 +3,7 @@ try:
 except ImportError:
     from flask_wtf import Form as FlaskForm
 from wtforms import StringField, SelectField, BooleanField, IntegerField, \
-    PasswordField, RadioField, SubmitField
+    PasswordField, RadioField, SubmitField, validators
 from wtforms.validators import DataRequired, Regexp, AnyOf, \
     ValidationError, URL, IPAddress, Email, Length
 from flask_wtf.file import FileField, FileRequired, FileAllowed
@@ -18,8 +18,9 @@ class AppConfigForm(FlaskForm):
         DataRequired(), Regexp(
             '^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$',
             message="Only alphabets and space allowed; cannot end with space.")])  # noqa
-    replication_pw = PasswordField('Replication Manager Password',
-                                 validators=[DataRequired()])
+    replication_pw = PasswordField('Replication Manager Password',validators=[
+        DataRequired(), validators.EqualTo(
+            'replication_pw_confirm', message='Passwords must match')])
     replication_pw_confirm = PasswordField('Replication Manager Password (confirm)',
                                  validators=[DataRequired()])
     nginx_host = StringField('NGINX Host', validators=[DataRequired()])
