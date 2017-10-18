@@ -1232,7 +1232,7 @@ def removeMultiMasterDeployement(self, server_id):
 
     vals = dict(
         hosts='ldaps://127.0.0.1:1636/',
-        extra_args='""',
+        extra_args='',
     )
 
     confile_content = confile_content.format(**vals)
@@ -1249,6 +1249,12 @@ def removeMultiMasterDeployement(self, server_id):
         return
 
     run_command(tid, c, "chown -R ldap:ldap /opt/symas/etc/openldap", chroot)
+
+
+    slapd_d_dir = os.path.join(chroot, 'opt/symas/etc/openldap/')
+    if c.exists(slapd_d_dir):
+        cmd = "rm -rf /opt/symas/etc/openldap/slapd.d"
+        run_command(tid, c, cmd, chroot)
 
 
     server.mmr = False
