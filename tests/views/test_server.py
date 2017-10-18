@@ -78,17 +78,20 @@ class ServerViewTestCase(unittest.TestCase):
         ), follow_redirects=True)
         mocktask.delay.assert_called_once_with(1)
 
-    def test_edit_redirects_for_non_existant_server_id(self):
+    @patch('clustermgr.views.server.collect_server_details')
+    def test_edit_redirects_for_non_existant_server_id(self, mocktask):
         rv = self.client.get('/server/edit/999/')
         assert rv.status_code == 302
 
-    def test_edit_loads_the_page_with_existing_details_on_get(self):
+    @patch('clustermgr.views.server.collect_server_details')
+    def test_edit_loads_the_page_with_existing_details_on_get(self, mocktask):
         self._add_server()
         rv = self.client.get('/server/edit/1/')
         self.assertIn('server.example.com', rv.data)
         self.assertIn('1.1.1.1', rv.data)
 
-    def test_edit_updates_the_server_details_on_post(self):
+    @patch('clustermgr.views.server.collect_server_details')
+    def test_edit_updates_the_server_details_on_post(self, mocktask):
         self._add_server()
         self.client.post('/server/edit/1/', data=dict(
             hostname="hostname.example.com",
@@ -103,7 +106,8 @@ class ServerViewTestCase(unittest.TestCase):
             self.assertTrue(s.primary_server)
             self.assertFalse(s.gluu_server)
 
-    def test_edit_changes_ldap_password_when_supplied(self):
+    @patch('clustermgr.views.server.collect_server_details')
+    def test_edit_changes_ldap_password_when_supplied(self, mocktask):
         self._add_server()
         self.client.post('/server/edit/1/', data=dict(
             hostname="hostname.example.com",
@@ -118,7 +122,8 @@ class ServerViewTestCase(unittest.TestCase):
             s = Server.query.first()
             self.assertEqual(s.ldap_password, "changed")
 
-    def test_edit_preserves_password_when_empty(self):
+    @patch('clustermgr.views.server.collect_server_details')
+    def test_edit_preserves_password_when_empty(self, mocktask):
         self._add_server()
         self.client.post('/server/edit/1/', data=dict(
             hostname="hostname.example.com",
