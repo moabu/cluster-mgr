@@ -53,7 +53,6 @@ def index():
 
     if form.validate_on_submit():
         server = Server()
-        server.gluu_server = form.gluu_server.data
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
         server.mmr = False
@@ -109,7 +108,6 @@ def edit(server_id):
 
 
     if form.validate_on_submit():
-        server.gluu_server = form.gluu_server.data
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
         if is_this_primary:
@@ -121,7 +119,6 @@ def edit(server_id):
         collect_server_details.delay(server.id)
         return redirect(url_for('index.home'))
 
-    form.gluu_server.data = server.gluu_server
     form.hostname.data = server.hostname
     form.ip.data = server.ip
     if is_this_primary:

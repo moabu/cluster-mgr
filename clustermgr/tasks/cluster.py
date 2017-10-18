@@ -757,6 +757,15 @@ def get_os_type(c):
     if "CentOS" in cout and "release 7." in cout:
         return "CentOS 7"
 
+def check_gluu_installation(c):
+
+    appconf = AppConfiguration.query.first()
+    check_file = ('/opt/gluu-server-{}/install/community-edition-setup/'
+                  'setup.properties.last').format(
+                                                appconf.gluu_version
+                                            )
+    return c.exists(check_file)
+    
 
 @celery.task
 def collect_server_details(server_id, manual=False):
@@ -795,8 +804,8 @@ def collect_server_details(server_id, manual=False):
             installed.append(component)
     server.components = ",".join(installed)
 
-
     server.os = get_os_type(c)
+    server.gluu_server = check_gluu_installation(c)
 
     if manual:
         flash("This server is identifed as {0}.".format(server.os),
@@ -1159,20 +1168,8 @@ def installGluuServer(self, server_id):
                 else:
                     wlogger.log(tid, "Can't upload custom schame file {0}: ".format(sf, r[1]), 'error')
 
-    #if appconf.gluu_version > '3.0.2':
-    #    wlogger.log(tid, 'Manuplating keys')
-    #    for suffix in (
-    #                'httpd',
-    #                'shibIDP',
-    #                'idp-encryption',
-    #                'asimba',
-    #                'openldap',
-    #                ):
-    #        delete_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
-    #        import_key(suffix, appconf.nginx_host, appconf.gluu_version, tid, c)
 
-
-    server.gluu_server = True
+    #server.gluu_server = True
     db.session.commit()
     wlogger.log(tid, "Gluu Server successfully installed")
 
