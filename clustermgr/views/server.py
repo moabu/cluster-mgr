@@ -207,9 +207,11 @@ def install_gluu(server_id):
               "Server.", "warning")
         return redirect(url_for('index.home')) 
 
-    if not (server_id == pserver.id or pserver.gluu_server):
-        flash("Please first install primary server.", "warning")
-        return redirect(url_for('index.home')) 
+    
+
+    #if not (server_id == pserver.id or pserver.gluu_server):
+    #    flash("Please first install primary server.", "warning")
+    #    return redirect(url_for('index.home')) 
 
 
     server = Server.query.get(server_id)

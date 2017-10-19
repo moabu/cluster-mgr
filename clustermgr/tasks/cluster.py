@@ -881,6 +881,26 @@ def installGluuServer(self, server_id):
         wlogger.log(tid, "Ending server installation process.", "error")
         return
 
+
+    if not server.primary_server:
+        wlogger.log(tid, "Check if Primary Server is Installed")
+
+        pc = RemoteClient(pserver.hostname, ip=pserver.ip)
+
+        try:
+            pc.startup()
+        except:
+            wlogger.log(tid, "Can't make SSH connection to primary server: ".format(pserver.hostname), 'error')
+            wlogger.log(tid, "Ending server installation process.", "error")
+            return
+        
+        if check_gluu_installation(pc):
+            wlogger.log(tid, "Primary Server is Installed",'success')
+        else:
+            wlogger.log(tid, "Primary Server is not Installed. Please first install Primary Server",'fail')
+            wlogger.log(tid, "Ending server installation process.", "error")
+            return
+
     # FIXME: add gluu repo and GPG Key before starting to install
 
     try:
@@ -954,6 +974,8 @@ def installGluuServer(self, server_id):
 
     wlogger.log(tid, "Check if Gluu Server was installed")
 
+    gluu_installed = False
+
     r = c.listdir("/opt")
     if r[0]:
         for s in r[1]:
@@ -961,7 +983,7 @@ def installGluuServer(self, server_id):
             if m:
                 gluu_version = m.group("gluu_version")
                 #FIXME : Modify stop command for OS versions
-
+                gluu_installed = True
                 cmd = stop_command.format(gluu_version)
                 rs = run_command(tid, c, cmd, no_error='debug')
                 
@@ -983,7 +1005,7 @@ def installGluuServer(self, server_id):
                 #return
 
 
-    if not r[1]:
+    if not gluu_installed:
         wlogger.log(tid, "Gluu Server was not previously installed", "debug")
 
 
@@ -1070,13 +1092,6 @@ def installGluuServer(self, server_id):
         #FIXME: Check this later
         cmd = 'rm /opt/gluu/data/main_db/*.mdb'
         run_command(tid, c, cmd, '/opt/'+gluu_server)
-
-        pc = RemoteClient(pserver.hostname, ip=pserver.ip)
-
-        try:
-            pc.startup()
-        except:
-            wlogger.log(tid, "Can't make SSH connection to primary server: ".format(pserver.hostname), 'error')
 
 
         slapd_conf_file = '/opt/{0}/opt/symas/etc/openldap/slapd.conf'.format(gluu_server)
@@ -1169,7 +1184,7 @@ def installGluuServer(self, server_id):
                     wlogger.log(tid, "Can't upload custom schame file {0}: ".format(sf, r[1]), 'error')
 
 
-    #server.gluu_server = True
+    server.gluu_server = True
     db.session.commit()
     wlogger.log(tid, "Gluu Server successfully installed")
 
