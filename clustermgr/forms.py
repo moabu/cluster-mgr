@@ -23,7 +23,7 @@ class AppConfigForm(FlaskForm):
             'replication_pw_confirm', message='Passwords must match')])
     replication_pw_confirm = PasswordField(
         'Re-enter Password', validators=[DataRequired()])
-    nginx_host = StringField('NGINX Host', validators=[DataRequired()])
+    nginx_host = StringField('Load Balancer Hostname', validators=[DataRequired()])
     
     update = SubmitField("Update Configuration")
 
