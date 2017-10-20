@@ -378,42 +378,41 @@ def get_remote_client(server, tid):
 
 
 @celery.task(bind=True)
-def install_redis_stunnel(self, servers):
+def install_redis_stunnel(self):
     """Celery task that installs the redis and stunnel software in the given
     list of servers.
 
-    :param servers: list of server ids (int)
     :return: the number of servers where both stunnel and redis were installed
         successfully
     """
     tid = self.request.id
     installed = 0
-    for server_id in servers:
-        server = Server.query.get(server_id)
+    servers = Server.query.all()
+    for server in servers:
         wlogger.log(tid, "Installing Redis in server {0}".format(
-            server.hostname), "info", server_id=server_id)
+            server.hostname), "info", server_id=server.id)
         ri = RedisInstaller(server, tid)
         redis_installed = ri.install()
         if redis_installed:
             server.redis = True
             wlogger.log(tid, "Redis install successful", "success",
-                        server_id=server_id)
+                        server_id=server.id)
         else:
             server.redis = False
             wlogger.log(tid, "Redis install failed", "fail",
-                        server_id=server_id)
+                        server_id=server.id)
 
-        wlogger.log(tid, "Installing Stunnel", "info", server_id=server_id)
+        wlogger.log(tid, "Installing Stunnel", "info", server_id=server.id)
         si = StunnelInstaller(server, tid)
         stunnel_installed = si.install()
         if stunnel_installed:
             server.stunnel = True
             wlogger.log(tid, "Stunnel install successful", "success",
-                        server_id=server_id)
+                        server_id=server.id)
         else:
             server.stunnel = False
             wlogger.log(tid, "Stunnel install failed", "fail",
-                        server_id=server_id)
+                        server_id=server.id)
         # Save the redis and stunnel install situation to the db
         db.session.commit()
 
