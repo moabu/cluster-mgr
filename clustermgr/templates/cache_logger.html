@@ -27,13 +27,13 @@
     <ul id="common_logger" class="list-group">
     </ul>
 
-    {% if step == 2 %}
+    {% if step == 1 %}
         <a href="{{ url_for('cache_mgr.configure', method=method) }}" class="btn btn-block btn-primary" style="display: none;" id="next">
             Configure Cache Cluster</a>
-    {% elif step == 3 %}
+    {% elif step == 2 %}
         <a href="{{ url_for('cache_mgr.finish_clustering', method=method) }}" class="btn btn-block btn-primary" style="display: none;" id="next">
             Finish Cache Clustering</a>
-    {% elif step == 4 %}
+    {% elif step == 3 %}
         <div id="next" class="jumbotron" style="display: none;">
             <h3>Redis Cache Setup Complete</h3>
             <p class="text-danger">The setup of a clustered cache using Redis is complete.</p>
