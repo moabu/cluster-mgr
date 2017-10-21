@@ -124,10 +124,13 @@ class RedisInstaller(BaseInstaller):
         wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
         if cerr:
             wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
-        # TODO find the successful install message and return True
-        if cerr:
+        # verifying installation
+        cin, cout, cerr = self.rc.run(
+            self._chcmd("yum install redis -y"))
+        if "already installed" in cout:
+            return True
+        else:
             return False
-        return True
 
 
 class StunnelInstaller(BaseInstaller):
@@ -152,10 +155,13 @@ class StunnelInstaller(BaseInstaller):
         wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
         if cerr:
             wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
-        # TODO find the successful install message and return True
-        if cerr:
+        # verifying installation
+        cin, cout, cerr = self.rc.run(
+            self._chcmd("yum install stunnel -y"))
+        if "already installed" in cout:
+            return True
+        else:
             return False
-        return True
 
 
 def setup_sharded(tid, standalone=False):
@@ -236,6 +242,13 @@ def setup_sharded(tid, standalone=False):
         remote = os.path.join(chdir, 'etc/default/stunnel4')
         rc.upload(local, remote)
 
+        if 'CentOS' in server.os:
+            local = os.path.join(app.root_path, 'templates', 'stunnel',
+                                 'centos.init')
+            remote = os.path.join(chdir, 'etc/rc.d/init.d/stunnel4')
+            rc.upload(local, remote)
+            rc.run("chmod +x {0}".format(remote))
+
         # setup the certificate file
         wlogger.log(tid, "Generating certificate for stunnel ...", "debug",
                     server_id=server.id)
@@ -287,7 +300,7 @@ def setup_sharded(tid, standalone=False):
         # Generate stunnel config
         wlogger.log(tid, "Setup stunnel listening and forwarding", "debug",
                     server_id=server.id)
-        rc.put_file(os.path.join(chdir, "etc/stunnel/redis-gluu.conf"),
+        rc.put_file(os.path.join(chdir, "etc/stunnel/stunnel.conf"),
                     "\n".join(stunnel_conf))
     return True
 
@@ -475,7 +488,11 @@ def finish_cluster_setup(self, method):
             run_and_log(rc, chcmd('service stunnel4 restart'), tid, server.id)
 
         # Common restarts for all
-        run_and_log(rc, chcmd('service redis-server restart'), tid, server.id)
+        if 'centos' in server.os.lower():
+            run_and_log(rc, chcmd('service redis restart'), tid, server.id)
+        else:
+            run_and_log(rc, chcmd('service redis-server restart'), tid,
+                        server.id)
         run_and_log(rc, chcmd('service oxauth restart'), tid, server.id)
         run_and_log(rc, chcmd('service identity restart'), tid, server.id)
         rc.close()
