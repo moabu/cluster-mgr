@@ -105,3 +105,6 @@ tmp
 
 # PyCharm folder
 .idea
+
+# Node.js
+node_modules/
