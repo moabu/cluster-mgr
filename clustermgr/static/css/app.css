@@ -23,3 +23,47 @@
 .bs-wizard > .bs-wizard-step:last-child  > .progress {width: 50%;}
 .bs-wizard > .bs-wizard-step.disabled a.bs-wizard-dot{ pointer-events: none; }
 /*END Form Wizard*/
+
+.logContainer {
+    height: 500px;
+    width: auto;
+    border: 1px solid #343d46;
+}
+
+.containerTitle {
+    color: #e5e5e5;
+    background-color: #333333;
+    padding: 5px;
+    margin-bottom: 0;
+}
+.logItem{
+    font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
+    border-top: 0.5px solid #888888;
+    border-bottom: 0.5px solid #666666;
+    background-color: #555555;
+}
+.logItem .command {
+    color: #e5e5e5;
+    font-size: 12px;
+    padding-top: 5px;
+    margin-bottom: 0px;
+    padding-left: 10px;
+    border-bottom: 1px solid #666666;
+}
+
+.logItem .command-fail {
+    background-color: #9e1317;
+}
+
+.logItem .command .host{
+    color: #1fc231;
+}
+
+.logItem pre{
+    background-color: transparent;
+    border: none;
+    color: #999999;
+    margin: 0;
+    padding: 3px 0 3px 10px;
+    font-size: 12px;
+}

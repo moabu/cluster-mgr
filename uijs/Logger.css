@@ -1,0 +1,10 @@
+.logger {
+    height: 600px;
+    width: auto;
+    border: 1px solid #343d46;
+}
+
+.containerTitle {
+    color: #e5e5e5;
+    background-color: #333333;
+}
