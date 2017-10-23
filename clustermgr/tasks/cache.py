@@ -479,27 +479,35 @@ def finish_cluster_setup(self, method):
         if not rc:
             continue
 
-        def chcmd(cmd):
-            if server.gluu_server:
+        def get_cmd(cmd):
+            if server.gluu_server and not server.os == "CentOS 7":
                 return 'chroot {0} /bin/bash -c "{1}"'.format(chdir, cmd)
+            elif "CentOS 7" == server.os:
+                parts = ["ssh", "-o IdentityFile=/etc/gluu/keys/gluu-console",
+                         "-o Port=60022", "-o LogLevel=QUIET",
+                         "-o StrictHostKeyChecking=no",
+                         "-o UserKnownHostsFile=/dev/null",
+                         "-o PubkeyAuthentication=yes",
+                         "root@localhost", "'{0}'".format(cmd)]
+                return " ".join(parts)
             return cmd
 
         if method == 'SHARDED':
-            run_and_log(rc, chcmd('service stunnel4 restart'), tid, server.id)
+            run_and_log(rc, get_cmd('service stunnel4 restart'), tid, server.id)
 
         # Common restarts for all
         if 'centos' in server.os.lower():
-            run_and_log(rc, chcmd('service redis restart'), tid, server.id)
+            run_and_log(rc, get_cmd('service redis restart'), tid, server.id)
         else:
-            run_and_log(rc, chcmd('service redis-server restart'), tid,
+            run_and_log(rc, get_cmd('service redis-server restart'), tid,
                         server.id)
             # sometime apache service is stopped (happened in Ubuntu 16)
             # when install_redis_stunnel task is executed; hence we also need to
             # restart the service
-            run_and_log(rc, chcmd('service apache2 restart'), tid, server.id)
+            run_and_log(rc, get_cmd('service apache2 restart'), tid, server.id)
 
-        run_and_log(rc, chcmd('service oxauth restart'), tid, server.id)
-        run_and_log(rc, chcmd('service identity restart'), tid, server.id)
+        run_and_log(rc, get_cmd('service oxauth restart'), tid, server.id)
+        run_and_log(rc, get_cmd('service identity restart'), tid, server.id)
         rc.close()
 
     if method == 'SHARDED':

@@ -799,8 +799,7 @@ def collect_server_details(server_id, manual=False):
     }
     installed = []
     for component, marker in components.iteritems():
-        if server.gluu_server:
-            marker = os.path.join(chdir, marker)
+        marker = os.path.join(chdir, marker)
         if c.exists(marker):
             installed.append(component)
     server.components = ",".join(installed)
