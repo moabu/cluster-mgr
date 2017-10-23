@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import re
 
 from flask import Flask
 
@@ -69,5 +70,19 @@ def create_app():
     app.register_blueprint(cluster, url_prefix="/cluster")
     app.register_blueprint(logserver, url_prefix="/logging_server")
     app.register_blueprint(cache_mgr, url_prefix="/cache")
+
+    @app.context_processor
+    def hash_processor():
+        def hashed_url(filepath):
+            directory, filename = filepath.rsplit('/')
+            name, extension = filename.rsplit(".")
+            folder = os.path.join(app.root_path, 'static', directory)
+            files = os.listdir(folder)
+            for f in files:
+                regex = name+"\.[a-z0-9]+\."+extension
+                if re.match(regex, f):
+                    return os.path.join('/static', directory, f)
+            return os.path.join('/static', filepath)
+        return dict(hashed_url=hashed_url)
 
     return app
