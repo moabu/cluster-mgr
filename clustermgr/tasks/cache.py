@@ -493,6 +493,11 @@ def finish_cluster_setup(self, method):
         else:
             run_and_log(rc, chcmd('service redis-server restart'), tid,
                         server.id)
+            # sometime apache service is stopped (happened in Ubuntu 16)
+            # when install_redis_stunnel task is executed; hence we also need to
+            # restart the service
+            run_and_log(rc, chcmd('service apache2 restart'), tid, server.id)
+
         run_and_log(rc, chcmd('service oxauth restart'), tid, server.id)
         run_and_log(rc, chcmd('service identity restart'), tid, server.id)
         rc.close()
