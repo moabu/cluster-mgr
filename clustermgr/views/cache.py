@@ -33,22 +33,10 @@ def refresh_methods():
 @cache_mgr.route('/change/', methods=['GET', 'POST'])
 def change():
     servers = Server.query.all()
-    if request.method == 'POST':
-        server_list = request.form.getlist('servers')
-
-        if not server_list:
-            flash("No servers have been selected. Kindly select the servers "
-                  "to form the cluster", "danger")
-            return render_template('cache_change.html', servers=servers)
-
-        # For now the only supported redis clustering method is SHARDED
-        method = 'SHARDED'
-        server_list = [int(sid) for sid in server_list]
-        task = install_redis_stunnel.delay(server_list)
-        selected = Server.query.filter(Server.id.in_(server_list)).all()
-        return render_template('cache_logger.html', method=method, step=2,
-                               task_id=task.id, servers=selected)
-    return render_template('cache_change.html', servers=servers)
+    method = 'SHARDED'
+    task = install_redis_stunnel.delay()
+    return render_template('cache_logger.html', method=method, step=1,
+                           task_id=task.id, servers=servers)
 
 
 @cache_mgr.route('/configure/<method>/')
@@ -57,7 +45,7 @@ def configure(method):
     servers = Server.query.filter(Server.redis.is_(True)).filter(
         Server.stunnel.is_(True)).all()
     return render_template('cache_logger.html', method=method, servers=servers,
-                           step=3, task_id=task.id)
+                           step=2, task_id=task.id)
 
 
 @cache_mgr.route('/finish_clustering/<method>/')
@@ -65,5 +53,5 @@ def finish_clustering(method):
     servers = Server.query.filter(Server.redis.is_(True)).filter(
         Server.stunnel.is_(True)).all()
     task = finish_cluster_setup.delay(method)
-    return render_template('cache_logger.html', servers=servers, step=4,
+    return render_template('cache_logger.html', servers=servers, step=3,
                            task_id=task.id)

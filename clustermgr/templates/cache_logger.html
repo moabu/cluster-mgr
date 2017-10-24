@@ -5,6 +5,8 @@
     <h2 class="page-header">Cache Clustering</h2>
     {{ cache_process_steps(step) }}
 
+    <div id="log_root"></div>
+
     <div class="panel-group" id="accordion" role="tablist">
         {% for server in servers %}
             <div class="panel panel-default">
@@ -27,13 +29,13 @@
     <ul id="common_logger" class="list-group">
     </ul>
 
-    {% if step == 2 %}
+    {% if step == 1 %}
         <a href="{{ url_for('cache_mgr.configure', method=method) }}" class="btn btn-block btn-primary" style="display: none;" id="next">
             Configure Cache Cluster</a>
-    {% elif step == 3 %}
+    {% elif step == 2 %}
         <a href="{{ url_for('cache_mgr.finish_clustering', method=method) }}" class="btn btn-block btn-primary" style="display: none;" id="next">
             Finish Cache Clustering</a>
-    {% elif step == 4 %}
+    {% elif step == 3 %}
         <div id="next" class="jumbotron" style="display: none;">
             <h3>Redis Cache Setup Complete</h3>
             <p class="text-danger">The setup of a clustered cache using Redis is complete.</p>
@@ -46,6 +48,9 @@
 {% endblock %}
 
 {% block js %}
+    <script type="text/javascript" src="{{ hashed_url('build/runtime.js') }}"></script>
+    <script type="text/javascript" src="{{ hashed_url('build/vendor.js') }}"></script>
+    <script type="text/javascript" src="{{ hashed_url('build/main.js') }}"></script>
 <script>
 var task_id = "{{ task_id }}";
 var timer;

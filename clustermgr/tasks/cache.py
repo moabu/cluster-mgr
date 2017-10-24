@@ -124,10 +124,13 @@ class RedisInstaller(BaseInstaller):
         wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
         if cerr:
             wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
-        # TODO find the successful install message and return True
-        if cerr:
+        # verifying installation
+        cin, cout, cerr = self.rc.run(
+            self._chcmd("yum install redis -y"))
+        if "already installed" in cout:
+            return True
+        else:
             return False
-        return True
 
 
 class StunnelInstaller(BaseInstaller):
@@ -152,10 +155,13 @@ class StunnelInstaller(BaseInstaller):
         wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
         if cerr:
             wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
-        # TODO find the successful install message and return True
-        if cerr:
+        # verifying installation
+        cin, cout, cerr = self.rc.run(
+            self._chcmd("yum install stunnel -y"))
+        if "already installed" in cout:
+            return True
+        else:
             return False
-        return True
 
 
 def setup_sharded(tid, standalone=False):
@@ -236,6 +242,13 @@ def setup_sharded(tid, standalone=False):
         remote = os.path.join(chdir, 'etc/default/stunnel4')
         rc.upload(local, remote)
 
+        if 'CentOS' in server.os:
+            local = os.path.join(app.root_path, 'templates', 'stunnel',
+                                 'centos.init')
+            remote = os.path.join(chdir, 'etc/rc.d/init.d/stunnel4')
+            rc.upload(local, remote)
+            rc.run("chmod +x {0}".format(remote))
+
         # setup the certificate file
         wlogger.log(tid, "Generating certificate for stunnel ...", "debug",
                     server_id=server.id)
@@ -287,7 +300,7 @@ def setup_sharded(tid, standalone=False):
         # Generate stunnel config
         wlogger.log(tid, "Setup stunnel listening and forwarding", "debug",
                     server_id=server.id)
-        rc.put_file(os.path.join(chdir, "etc/stunnel/redis-gluu.conf"),
+        rc.put_file(os.path.join(chdir, "etc/stunnel/stunnel.conf"),
                     "\n".join(stunnel_conf))
     return True
 
@@ -378,42 +391,41 @@ def get_remote_client(server, tid):
 
 
 @celery.task(bind=True)
-def install_redis_stunnel(self, servers):
+def install_redis_stunnel(self):
     """Celery task that installs the redis and stunnel software in the given
     list of servers.
 
-    :param servers: list of server ids (int)
     :return: the number of servers where both stunnel and redis were installed
         successfully
     """
     tid = self.request.id
     installed = 0
-    for server_id in servers:
-        server = Server.query.get(server_id)
+    servers = Server.query.all()
+    for server in servers:
         wlogger.log(tid, "Installing Redis in server {0}".format(
-            server.hostname), "info", server_id=server_id)
+            server.hostname), "info", server_id=server.id)
         ri = RedisInstaller(server, tid)
         redis_installed = ri.install()
         if redis_installed:
             server.redis = True
             wlogger.log(tid, "Redis install successful", "success",
-                        server_id=server_id)
+                        server_id=server.id)
         else:
             server.redis = False
             wlogger.log(tid, "Redis install failed", "fail",
-                        server_id=server_id)
+                        server_id=server.id)
 
-        wlogger.log(tid, "Installing Stunnel", "info", server_id=server_id)
+        wlogger.log(tid, "Installing Stunnel", "info", server_id=server.id)
         si = StunnelInstaller(server, tid)
         stunnel_installed = si.install()
         if stunnel_installed:
             server.stunnel = True
             wlogger.log(tid, "Stunnel install successful", "success",
-                        server_id=server_id)
+                        server_id=server.id)
         else:
             server.stunnel = False
             wlogger.log(tid, "Stunnel install failed", "fail",
-                        server_id=server_id)
+                        server_id=server.id)
         # Save the redis and stunnel install situation to the db
         db.session.commit()
 
@@ -467,18 +479,35 @@ def finish_cluster_setup(self, method):
         if not rc:
             continue
 
-        def chcmd(cmd):
-            if server.gluu_server:
+        def get_cmd(cmd):
+            if server.gluu_server and not server.os == "CentOS 7":
                 return 'chroot {0} /bin/bash -c "{1}"'.format(chdir, cmd)
+            elif "CentOS 7" == server.os:
+                parts = ["ssh", "-o IdentityFile=/etc/gluu/keys/gluu-console",
+                         "-o Port=60022", "-o LogLevel=QUIET",
+                         "-o StrictHostKeyChecking=no",
+                         "-o UserKnownHostsFile=/dev/null",
+                         "-o PubkeyAuthentication=yes",
+                         "root@localhost", "'{0}'".format(cmd)]
+                return " ".join(parts)
             return cmd
 
         if method == 'SHARDED':
-            run_and_log(rc, chcmd('service stunnel4 restart'), tid, server.id)
+            run_and_log(rc, get_cmd('service stunnel4 restart'), tid, server.id)
 
         # Common restarts for all
-        run_and_log(rc, chcmd('service redis-server restart'), tid, server.id)
-        run_and_log(rc, chcmd('service oxauth restart'), tid, server.id)
-        run_and_log(rc, chcmd('service identity restart'), tid, server.id)
+        if 'centos' in server.os.lower():
+            run_and_log(rc, get_cmd('service redis restart'), tid, server.id)
+        else:
+            run_and_log(rc, get_cmd('service redis-server restart'), tid,
+                        server.id)
+            # sometime apache service is stopped (happened in Ubuntu 16)
+            # when install_redis_stunnel task is executed; hence we also need to
+            # restart the service
+            run_and_log(rc, get_cmd('service apache2 restart'), tid, server.id)
+
+        run_and_log(rc, get_cmd('service oxauth restart'), tid, server.id)
+        run_and_log(rc, get_cmd('service identity restart'), tid, server.id)
         rc.close()
 
     if method == 'SHARDED':

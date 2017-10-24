@@ -785,21 +785,21 @@ def collect_server_details(server_id, manual=False):
     chdir = "/opt/gluu-server-" + appconf.gluu_version
     if not c.exists(chdir):
         server.gluu_server = False
+        chdir = '/'
 
     # 1. The components installed in the server
     components = {
-        'oxAuth': '/opt/gluu/jetty/oxauth',
-        'oxTrust': '/opt/gluu/jetty/identity',
-        'OpenLDAP': '/opt/symas/etc/openldap',
-        'Shibboleth': '/opt/shibboleth-idp',
-        'oxAuthRP': '/opt/gluu/jetty/oxauth-rp',
-        'Asimba': '/opt/gluu/jetty/asimba',
-        'Passport': '/opt/gluu/node/passport',
+        'oxAuth': 'opt/gluu/jetty/oxauth',
+        'oxTrust': 'opt/gluu/jetty/identity',
+        'OpenLDAP': 'opt/symas/etc/openldap',
+        'Shibboleth': 'opt/shibboleth-idp',
+        'oxAuthRP': 'opt/gluu/jetty/oxauth-rp',
+        'Asimba': 'opt/gluu/jetty/asimba',
+        'Passport': 'opt/gluu/node/passport',
     }
     installed = []
     for component, marker in components.iteritems():
-        if server.gluu_server:
-            marker = os.path.join(chdir, marker)
+        marker = os.path.join(chdir, marker)
         if c.exists(marker):
             installed.append(component)
     server.components = ",".join(installed)
