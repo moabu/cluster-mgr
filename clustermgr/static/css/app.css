@@ -24,46 +24,59 @@
 .bs-wizard > .bs-wizard-step.disabled a.bs-wizard-dot{ pointer-events: none; }
 /*END Form Wizard*/
 
-.logContainer {
-    height: 500px;
+
+/*
+Logger Styles
+ */
+
+.logger {
     width: auto;
-    border: 1px solid #343d46;
+    border: 1px solid #444;
+    background-color: #444;
 }
 
-.containerTitle {
+.log-header {
     color: #e5e5e5;
-    background-color: #333333;
     padding: 5px;
     margin-bottom: 0;
 }
-.logItem{
-    font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
-    border-top: 0.5px solid #888888;
-    border-bottom: 0.5px solid #666666;
-    background-color: #555555;
+
+.log-body {
+    height: 500px;
+    overflow: scroll;
 }
-.logItem .command {
+
+.log-item{
+    font-family: Monaco,Menlo,Consolas,"Courier New",monospace;
+    border-top: 0.5px solid #555;
+    border-bottom: 0.5px solid #444;
+    background-color: #222;
+}
+.log-item:hover {
+    background-color: #333;
+}
+.log-item .command {
     color: #e5e5e5;
     font-size: 12px;
     padding-top: 5px;
-    margin-bottom: 0px;
+    margin-bottom: 0;
     padding-left: 10px;
-    border-bottom: 1px solid #666666;
+    border-bottom: 1px solid #333;
 }
 
-.logItem .command-fail {
+.log-item .command-fail {
     background-color: #9e1317;
 }
 
-.logItem .command .host{
+.log-item .command .host{
     color: #1fc231;
 }
 
-.logItem pre{
+.log-item pre{
     background-color: transparent;
     border: none;
     color: #999999;
     margin: 0;
-    padding: 3px 0 3px 10px;
+    padding: 3px 0 3px 30px;
     font-size: 12px;
 }

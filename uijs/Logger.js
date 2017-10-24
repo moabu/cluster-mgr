@@ -1,6 +1,5 @@
 import React, {Component} from "react";
 import ReachDOM from "react-dom";
-import styles from './Logger.css';
 
 
 /**
@@ -25,18 +24,18 @@ import styles from './Logger.css';
 const LogItem = ({id, action, state, output, server}) => {
     const getState = () => {
         if (state === 'running'){
-            return <i className="glyphicon glyphicon-flash"></i>;
+            return <i className="glyphicon glyphicon-flash text-warning"></i>;
         }
         else if (state === 'fail'){
-            return <i className="glyphicon glyphicon-remove-circle"></i>;
+            return <i className="glyphicon glyphicon-remove-circle text-danger"></i>;
         }
         else if (state === 'success'){
-            return <i className="glyphicon glyphicon-ok-circle"></i>;
+            return <i className="glyphicon glyphicon-ok-circle text-success"></i>;
         }
         return state;
     };
     return (
-        <div id={"logItem_"+id} className="logItem">
+        <div id={"logItem_"+id} className="log-item">
             <p className={"command command-"+state}>{getState()} <span className="host">root@{server}:~# </span>{action}</p>
             <pre>{output}</pre>
         </div>
@@ -62,12 +61,11 @@ const LogContainer = (props) => {
     });
 
     return (
-        <div className="logContainer">
-            <p className="containerTitle">{title + " : " + server}</p>
+        <div className="log-body">
             {logItems}
         </div>
     );
-}
+};
 
 class Logger extends Component {
     constructor (props) {
@@ -79,9 +77,23 @@ class Logger extends Component {
         const logData = [
             {id:1, action: 'apt-get update -y', state: "success", output: "update succeded"},
             {id:2, action: 'service solserver restart', state: "fail", output: "Service restarted"},
-            {id:3, action: 'apt-get install redis-server', state: "running", output: "some output being streamed"},
+            {id:3, action: 'apt-get install stunnel', state: "success", output: "something \n that has \n a multi-line \n output"},
+            {id:4, action: 'apt-get install redis-server', state: "running", output: "some output being streamed"},
         ];
-        return <LogContainer items={logData} title="Setting up server" server="example.com"/>;
+        const server = "example.com";
+        return (
+            <div className="logger">
+                <div className="row log-header">
+                    <div className="col-md-8">
+                        <h5>{"Setting up server : " + server}</h5>
+                    </div>
+                    <div className="col-md-4">
+                    </div>
+                </div>
+                <LogContainer items={logData} server={server}/>;
+            </div>
+        )
+
     }
 }
 
