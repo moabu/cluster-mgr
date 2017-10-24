@@ -3,6 +3,7 @@
 import os
 import re
 import StringIO
+import time
 
 from flask import current_app as app
 from flask import flash
@@ -1034,7 +1035,9 @@ def installGluuServer(self, server_id):
         
     run_command(tid, c, start_command.format(appconf.gluu_version))
 
-
+    if server.os == 'CentOS 7':
+        wlogger.log(tid, "Sleeping 10 secs to wait for gluu server start properly.")
+        time.sleep(10)
     
     # If this server is primary, upload local setup.properties to server
     if server.primary_server:
@@ -1081,10 +1084,12 @@ def installGluuServer(self, server_id):
     #    wlogger.log(tid, r, 'fail')
     #    wlogger.log(tid, "Ending server setup process.", "error")
     
+
     wlogger.log(tid, "Running setup.py - Be patient this process will take a while ...")
     
     if server.os == 'CentOS 7':
-        run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'cd /install/community-edition-setup/ && ./setup.py -n'")
+        cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'cd /install/community-edition-setup/ && ./setup.py -n'"
+        run_command(tid, c, cmd)
     else:
         cmd = 'cd /install/community-edition-setup/ && ./setup.py -n'
         run_command(tid, c, cmd, '/opt/'+gluu_server+'/', no_error='debug')
