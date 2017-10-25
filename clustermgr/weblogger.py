@@ -121,3 +121,28 @@ class WebLogger(object):
             taskid (string) - the unique id of the task
         """
         self.r.delete(self.__key(taskid))
+
+    def log_raw(self, taskid, raw_data):
+        """json.dumps the raw_data and pushes the string into REDIS as a list
+        for that task id with the key <app.name>:<taskid>.
+
+        Args:
+            taskid (string) - Unique id of the task
+            raw_data - json serilaizable data (string, dict, list, ...etc)
+        """
+        self.r.rpush(self.__key(taskid), json.dumps(raw_data))
+
+    def update_log(self, taskid, inlog):
+        """Updates an item in the list of items for that task_id.
+
+        Args:
+            taskid (string) - Unique id of the task
+            inlog (dict) - the log info to replace a previous item. The dict
+                must contain a key named 'id' and the item to be replaced must
+                be a dict with the key 'id'
+        """
+        logs = self.r.lrange(self.__key(taskid), 0, -1)
+        log_items = [json.loads(l) for l in logs]
+        for index, item in enumerate(log_items):
+            if 'id' in item and item['id'] == inlog['id']:
+                self.r.lset(self.__key(taskid), index, json.dumps(inlog))

@@ -49,6 +49,28 @@ class WebLoggerTestCase(unittest.TestCase):
         self.wlog.clean('test-id')
         self.r.delete.assert_called_with('weblogger:test-id')
 
+    def test_log_raw_stores_different_types(self):
+        d = dict(name='test', count='10')
+        l = ['one', 2, 'three']
+        s = "hello"
+
+        self.wlog.log_raw('id', d)
+        assert json.loads(self.r.rpush.call_args[0][1])['name'] == 'test'
+
+        self.wlog.log_raw('id2', l)
+        self.r.rpush.assert_called_with('weblogger:id2', '["one", 2, "three"]')
+
+        self.wlog.log_raw('id3', s)
+        self.r.rpush.assert_called_with('weblogger:id3', '"hello"')
+
+    def test_update_log_replaces_item_as_expected(self):
+        items = [json.dumps(dict(id=i, name="item {0}".format(i))) for i in xrange(5)]
+        self.r.lrange.return_value = items
+
+        new_item = dict(id=3, name="new item")
+        self.wlog.update_log("id", new_item)
+        self.r.lset.assert_called_with("weblogger:id", 3, json.dumps(new_item))
+
 
 if __name__ == "__main__":
     unittest.main()
