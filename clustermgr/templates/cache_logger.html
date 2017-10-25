@@ -48,9 +48,14 @@
 {% endblock %}
 
 {% block js %}
+{#
+<!--
     <script type="text/javascript" src="{{ hashed_url('build/runtime.js') }}"></script>
     <script type="text/javascript" src="{{ hashed_url('build/vendor.js') }}"></script>
     <script type="text/javascript" src="{{ hashed_url('build/main.js') }}"></script>
+-->
+#}
+
 <script>
 var task_id = "{{ task_id }}";
 var timer;
