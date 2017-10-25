@@ -2,6 +2,7 @@ import StringIO
 import socket
 import logging
 
+import select
 from paramiko import SSHException
 from paramiko.client import SSHClient, AutoAddPolicy
 
@@ -57,7 +58,6 @@ class RemoteClient(object):
             else:
                 logging.error("Connection to %s failed.", self.host)
                 raise ClientNotSetupException('Could not connect to the host.')
-
 
     def _try_with_ip(self):
         try:
@@ -137,7 +137,6 @@ class RemoteClient(object):
             raise ClientNotSetupException(
                 'Cannot run procedure. Client not initialized')
         
-        #buffers = self.client.exec_command(command, timeout=30)
         buffers = self.client.exec_command(command)
         output = []
         for buf in buffers:
@@ -147,6 +146,24 @@ class RemoteClient(object):
                 output.append('')
 
         return tuple(output)
+
+    def run_s(self, command):
+        if not self.client:
+            raise ClientNotSetupException("Client not initialized")
+        transport = self.client.get_transport()
+        channel = transport.open_session()
+        channel.set_combine_stderr(True)
+        channel.exec_command(command)
+        while True:
+            rl, wl, xl = select.select([channel], [], [], 0.0)
+            data = None
+            if len(rl) > 0:
+                data = channel.recv(1024)
+
+            if data:
+                yield data
+            elif not data and channel.exit_status_ready():
+                break
 
     def get_file(self, filename):
         """Reads content of filename on remote server

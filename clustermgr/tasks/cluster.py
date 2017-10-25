@@ -13,7 +13,7 @@ from clustermgr.extensions import celery, wlogger, db
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.core.olc import CnManager
-from clustermgr.core.utils import ldap_encode
+from clustermgr.core.utils import ldap_encode, get_os_type
 from clustermgr.config import Config
 import uuid
 
@@ -743,20 +743,6 @@ def InstallLdapServer(self, ldap_info):
     db.session.add(ldps)
     db.session.commit()
 
-def get_os_type(c):
-    
-    # 2. Linux Distribution of the server
-    cin, cout, cerr = c.run("ls /etc/*release")
-    files = cout.split()
-    cin, cout, cerr = c.run("cat "+files[0])
-    if "Ubuntu" in cout and "14.04" in cout:
-        return "Ubuntu 14"
-    if "Ubuntu" in cout and "16.04" in cout:
-        return "Ubuntu 16"
-    if "CentOS" in cout and "release 6." in cout:
-        return "CentOS 6"
-    if "CentOS" in cout and "release 7." in cout:
-        return "CentOS 7"
 
 def check_gluu_installation(c):
 

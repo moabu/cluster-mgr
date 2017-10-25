@@ -4,6 +4,8 @@ import hashlib
 import string
 import random
 
+from clustermgr.core.constants import *
+
 from cryptography.hazmat.primitives.ciphers import Cipher
 from cryptography.hazmat.primitives.ciphers import algorithms
 from cryptography.hazmat.primitives.ciphers import modes
@@ -159,3 +161,25 @@ def split_redis_cluster_slots(nodes):
             ranges.append((allotted+1, allotted+parts))
         allotted += parts
     return ranges
+
+
+def get_os_type(c):
+    """Function  that uses the `RemoteClient` object `c` to fetch the os type.
+
+    :param c:  object of `RemoteClient`
+    :return: string denoting the OS type. Refer `clustermgr.core.constants`
+    """
+    cin, cout, cerr = c.run("ls /etc/*release")
+    files = cout.split()
+    cin, cout, cerr = c.run("cat " + files[0])
+    if "Ubuntu" in cout and "14.04" in cout:
+        return UBUNTU_14
+    if "Ubuntu" in cout and "16.04" in cout:
+        return UBUNTU_16
+    if "CentOS" in cout and "release 6." in cout:
+        return CENTOS_6
+    if "CentOS" in cout and "release 7." in cout:
+        return CENTOS_7
+    # TODO: add checks for other supported OSes
+    else:
+        return cout

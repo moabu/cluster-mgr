@@ -1,0 +1,35 @@
+Ubuntu 14:
+  tasks: &U14
+    - name: update
+      command: apt-get update
+    - name: upgrade
+      command: apt-get upgrade -y
+    - name: install software-properties-common
+      command: apt-get install software-properties-common -y
+    - name: add ppa for redis-server
+      command: add-apt-repository ppa:chris-lea/redis-server -y
+    - name: update again
+      command: apt-get update
+    - name: install redis
+      command: apt-get install redis-server -y
+    - name: install stunnel
+      command: apt-get install stunnel4 -y
+
+Ubuntu 16:
+  tasks: *U14
+
+CentOS 6:
+  tasks: &C6
+    - name: update
+      command: yum update -y
+    - name: install epel-release
+      command: yum insall epel-release -y
+    - name: update again
+      command: yum update -y
+    - name: install redis
+      command: yum install redis -y
+    - name: install stunnel
+      command: yum install stunnel -y
+
+CentOS 7:
+  tasks: *C6
