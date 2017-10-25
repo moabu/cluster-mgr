@@ -1193,6 +1193,24 @@ def installGluuServer(self, server_id):
                 else:
                     wlogger.log(tid, "Can't upload custom schame file {0}: ".format(sf, r[1]), 'error')
 
+    wlogger.log(tid, "Checking if ntp is installed and configured.")
+
+    if c.exists('/usr/sbin/ntpdate'):
+        wlogger.log(tid, "ntp was installed", 'success')
+    else:
+
+        cmd = install_command + 'install -y ntpdate'
+        run_command(tid, c, cmd)
+    
+    c.put_file('/etc/cron.d/setdate', '* * * * *    root    /usr/sbin/ntpdate -s time.nist.gov\n')
+    wlogger.log(tid, 'Crontab entry was created to update time in every minute', 'debug')
+    
+    if 'CentOS' in server.os:
+        cmd = 'service crond reload'
+    else:
+        cmd = 'service cron reload'
+    
+    run_command(tid, c, cmd, no_error='debug')
 
     server.gluu_server = True
     db.session.commit()
