@@ -21,7 +21,7 @@ class IndexViewTestCase(unittest.TestCase):
 
     def test_empty_db_returns_intro_page(self):
         rv = self.client.get('/')
-        self.assertIn('Replication Manager', rv.data)
+        self.assertIn('Gluu Cluster Manager', rv.data)
         self.assertIn('Add Server', rv.data)
 
     def test_db_with_data_loads_dashboard(self):
