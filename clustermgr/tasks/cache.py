@@ -9,6 +9,7 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, celery, wlogger
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import DBManager
+from clustermgr.core.task_runner import YAMLTaskRunner
 
 from ldap3.core.exceptions import LDAPSocketOpenError
 from flask import current_app as app
