@@ -2,80 +2,128 @@ import React, {Component} from "react";
 import ReactDOM from "react-dom";
 import axios from 'axios';
 
-
-const LogItem = ({id, action, state, output, server}) => {
-    const getState = () => {
-        if (state === 'running'){
-            return <i className="glyphicon glyphicon-flash text-warning"></i>;
-        }
-        else if (state === 'fail'){
-            return <i className="glyphicon glyphicon-remove-circle text-danger"></i>;
-        }
-        else if (state === 'success'){
-            return <i className="glyphicon glyphicon-ok-circle text-success"></i>;
-        }
-        else if (state === 'complete'){
-            return <i className="glyphicon glyphicon-ok text-info"></i>;
-        }
-        return state;
-    };
-    return (
-        <div id={"logItem_"+id} className="log-item">
-            <p className={"command command-"+state}>{getState()} <span className="host">root@{server}:~# </span>{action}</p>
-            <pre>{output}</pre>
-        </div>
-    );
+const StateIcon = (props) => {
+    const {state} = props;
+    if (state === 'running') {
+        return <i className="glyphicon glyphicon-flash text-warning" />;
+    }
+    else if (state === 'fail') {
+        return <i className="glyphicon glyphicon-remove-circle text-danger" />;
+    }
+    else if (state === 'success') {
+        return <i className="glyphicon glyphicon-ok-circle text-success" />;
+    }
+    else if (state === 'complete') {
+        return <i className="glyphicon glyphicon-ok text-info" />;
+    }
+    return state;
 };
 
-const LogContainer = (props) => {
-    const {items, server} = props;
-    const logItems = items.map(itemInfo => {
-        const {id, action, state, output} = itemInfo;
+
+class LogItem extends Component {
+    constructor (props) {
+        super(props);
+        this.state = {
+            outputShown: true,
+        };
+        this.toggleOutput = this.toggleOutput.bind(this);
+    }
+
+    toggleOutput() {
+        this.setState(prevState => ({
+            outputShown: !prevState.outputShown,
+        }));
+    };
+
+    componentWillUpdate(prevProps){
+        if (prevProps.state !== this.props.state) {
+            this.setState({outputShown: false});
+        }
+    }
+
+    render (){
+        return (
+            <div id={"logItem_" + this.props.id} className="log-item">
+                <div className="row">
+                    <div className="col-md-10">
+                        <p className={"command command-" + this.props.state}>
+                            <StateIcon state={this.props.state}/>
+                            <span className="host"> root@{this.props.server}:~# </span>{this.props.action}
+                        </p>
+                    </div>
+                    <div className="col-md-2" onClick={this.toggleOutput}>
+                        { this.state.outputShown
+                            ? <span className="label label-default" style={{cursor: "pointer"}}>hide log</span>
+                            : <span className="label label-default" style={{cursor: "pointer"}}>show log</span>
+                        }
+                    </div>
+                </div>
+
+                <pre id={"pre_"+this.props.id} className={this.state.outputShown ? "": "hidden"}>{this.props.output}</pre>
+            </div>
+        );
+    }
+}
+
+class LogContainer extends Component {
+
+    constructor(props) {
+        super(props);
+        this.state = {
+            items: this.props.items
+        }
+    }
+
+    render() {
+        const logItems = this.props.items.map(itemInfo => {
+            const {id, action, state, output} = itemInfo;
+            return (
+                <LogItem
+                    key={id}
+                    id={id}
+                    action={action}
+                    state={state}
+                    output={output}
+                    server={this.props.server}
+                />
+            );
+
+        });
 
         return (
-            <LogItem
-                key={id}
-                id={id}
-                action={action}
-                state={state}
-                output={output}
-                server={server}
-            />
-        );
-
-    });
-
-    return (
-        <div className="log-body">
-            {logItems}
-        </div>
-    );
-};
+            <div className="log-body">
+                {logItems}
+            </div>
+        )
+    }
+}
 
 class Logger extends Component {
-    constructor (props) {
+    constructor(props) {
         super(props);
         this.state = {
             logData: {
                 messages: []
             }
         };
+        this.fetchData = this.fetchData.bind(this);
     }
 
     componentDidMount() {
         this.timerID = setInterval(
             () => this.fetchData(),
-            1000
+            500
         );
     }
 
     fetchData() {
-        console.log(this);
-        const self = this;
         const id = document.clustermgr.task_id;
-        axios.get("/log/"+id).then(
+        axios.get("/log/" + id).then(
             (response) => {
-                self.setState({logData: response.data})
+                this.setState({logData: response.data});
+                if (response.data.state === 'SUCCESS' || response.data.state === 'FAILED') {
+                    clearInterval(this.timerID);
+                }
             }
         );
     }
@@ -86,7 +134,6 @@ class Logger extends Component {
 
     render() {
         const server = "example.com";
-        console.log(this.state.logData);
         return (
             <div className="logger">
                 <div className="row log-header">
@@ -96,7 +143,8 @@ class Logger extends Component {
                     <div className="col-md-4">
                     </div>
                 </div>
-                <LogContainer items={this.state.logData.messages} server={server}/>;
+                <LogContainer items={this.state.logData.messages}
+                              server={server}/>
             </div>
         )
 

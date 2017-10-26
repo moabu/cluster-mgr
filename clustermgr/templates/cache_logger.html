@@ -7,28 +7,6 @@
 
     <div id="log_root"></div>
 
-    <div class="panel-group" id="accordion" role="tablist">
-        {% for server in servers %}
-            <div class="panel panel-default">
-            <div class="panel-heading">
-                <h4 class="panel-title">
-                    <a href="#log_container_{{ server.id }}" role="button" data-toggle="collapse" data-parent="#accordion">
-                        {{ server.hostname }}
-                    </a>
-                </h4>
-            </div> <!-- heading -->
-            <div id="log_container_{{ server.id }}" class="panel-collapse collapse in" role="tabpanel">
-                <ul id="logger_{{ server.id }}" class="list-group">
-                </ul>
-            </div>
-            </div>
-
-        {% endfor %}
-    </div>
-
-    <ul id="common_logger" class="list-group">
-    </ul>
-
     {% if step == 1 %}
         <a href="{{ url_for('cache_mgr.configure', method=method) }}" class="btn btn-block btn-primary" style="display: none;" id="next">
             Configure Cache Cluster</a>
