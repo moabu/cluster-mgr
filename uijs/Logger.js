@@ -1,26 +1,8 @@
 import React, {Component} from "react";
-import ReachDOM from "react-dom";
+import ReactDOM from "react-dom";
+import axios from 'axios';
 
 
-/**
- *
- *  log_item {
- *      id: unique_id,
- *      action: command being run or any action,
- *      state: pending, success, fail,
- *      output: any value returned by the action
- *  }
- *
- *  log_container {
- *      // container that hold a number of log_items
- *  }
- *
- *  app{
- *     // holds the the conatiner or multiple containers if necessary
- *  }
- *
- *
- */
 const LogItem = ({id, action, state, output, server}) => {
     const getState = () => {
         if (state === 'running'){
@@ -31,6 +13,9 @@ const LogItem = ({id, action, state, output, server}) => {
         }
         else if (state === 'success'){
             return <i className="glyphicon glyphicon-ok-circle text-success"></i>;
+        }
+        else if (state === 'complete'){
+            return <i className="glyphicon glyphicon-ok text-info"></i>;
         }
         return state;
     };
@@ -43,7 +28,7 @@ const LogItem = ({id, action, state, output, server}) => {
 };
 
 const LogContainer = (props) => {
-    const {items, title, server} = props;
+    const {items, server} = props;
     const logItems = items.map(itemInfo => {
         const {id, action, state, output} = itemInfo;
 
@@ -70,17 +55,38 @@ const LogContainer = (props) => {
 class Logger extends Component {
     constructor (props) {
         super(props);
+        this.state = {
+            logData: {
+                messages: []
+            }
+        };
+    }
 
+    componentDidMount() {
+        this.timerID = setInterval(
+            () => this.fetchData(),
+            1000
+        );
+    }
+
+    fetchData() {
+        console.log(this);
+        const self = this;
+        const id = document.clustermgr.task_id;
+        axios.get("/log/"+id).then(
+            (response) => {
+                self.setState({logData: response.data})
+            }
+        );
+    }
+
+    componentWillUnmount() {
+        clearInterval(this.timerID);
     }
 
     render() {
-        const logData = [
-            {id:1, action: 'apt-get update -y', state: "success", output: "update succeded"},
-            {id:2, action: 'service solserver restart', state: "fail", output: "Service restarted"},
-            {id:3, action: 'apt-get install stunnel', state: "success", output: "something \n that has \n a multi-line \n output"},
-            {id:4, action: 'apt-get install redis-server', state: "running", output: "some output being streamed"},
-        ];
         const server = "example.com";
+        console.log(this.state.logData);
         return (
             <div className="logger">
                 <div className="row log-header">
@@ -90,14 +96,14 @@ class Logger extends Component {
                     <div className="col-md-4">
                     </div>
                 </div>
-                <LogContainer items={logData} server={server}/>;
+                <LogContainer items={this.state.logData.messages} server={server}/>;
             </div>
         )
 
     }
 }
 
-ReachDOM.render(
+ReactDOM.render(
     <Logger/>,
     document.getElementById('log_root')
 );
