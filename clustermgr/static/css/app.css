@@ -41,11 +41,6 @@ Logger Styles
     margin-bottom: 0;
 }
 
-.log-body {
-    height: 600px;
-    overflow: scroll;
-}
-
 .log-item{
     font-family: Monaco,Menlo,Consolas,"Courier New",monospace;
     border-top: 0.5px solid #555;
@@ -79,4 +74,15 @@ Logger Styles
     margin: 0;
     padding: 3px 0 3px 30px;
     font-size: 12px;
+}
+
+.logger-button {
+    border: 1px solid #999;
+    background-color: transparent;
+    color: #999;
+    font-size: small;
+}
+.logger-button:hover {
+    background-color: #d9534f;
+    color: white;
 }

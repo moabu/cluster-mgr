@@ -74,6 +74,20 @@ class LogContainer extends Component {
         }
     }
 
+    scrollToBottom() {
+        const node = ReactDOM.findDOMNode(this.logEnd);
+        node.scrollIntoView({ behavior: "smooth" });
+    }
+
+    componentDidMount() {
+        this.scrollToBottom();
+    }
+
+    componentDidUpdate() {
+        this.scrollToBottom();
+    }
+
+
     render() {
         const logItems = this.props.items.map(itemInfo => {
             const {id, action, state, output} = itemInfo;
@@ -91,8 +105,9 @@ class LogContainer extends Component {
         });
 
         return (
-            <div className="log-body">
+            <div className={this.props.show ? "log-body" : "hidden"}>
                 {logItems}
+                <div style={{ float:"left", clear: "both" }} ref={(el) => { this.logEnd = el; }}></div>
             </div>
         )
     }
@@ -104,9 +119,11 @@ class Logger extends Component {
         this.state = {
             logData: {
                 messages: []
-            }
+            },
+            showContent: true
         };
         this.fetchData = this.fetchData.bind(this);
+        this.toggleContentView = this.toggleContentView.bind(this);
     }
 
     componentDidMount() {
@@ -132,19 +149,28 @@ class Logger extends Component {
         clearInterval(this.timerID);
     }
 
+    toggleContentView(){
+        this.setState(prevState => ({showContent: !prevState.showContent}))
+    }
+
     render() {
-        const server = "example.com";
         return (
             <div className="logger">
                 <div className="row log-header">
                     <div className="col-md-8">
-                        <h5>{"Setting up server : " + server}</h5>
                     </div>
                     <div className="col-md-4">
+                        { this.state.showContent
+                            ?
+                            <button className={"logger-button pull-right"} onClick={this.toggleContentView}>
+                            <i className="glyphicon glyphicon-eye-close"/>  Hide Logs</button>
+                            :
+                            <button className={"logger-button pull-right"} onClick={this.toggleContentView}>
+                                <i className="glyphicon glyphicon-eye-open"/>  Show Logs</button>
+                        }
                     </div>
                 </div>
-                <LogContainer items={this.state.logData.messages}
-                              server={server}/>
+                <LogContainer items={this.state.logData.messages} show={this.state.showContent} server={"example.com"}/>
             </div>
         )
 
