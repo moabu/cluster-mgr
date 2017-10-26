@@ -1,16 +1,15 @@
 import yaml
-
-from uuid import uuid4
-
-try:
-    from yaml import CLoader as Loader, CDumper as Dumper
-except ImportError:
-    from yaml import Loader, Dumper
+import uuid
 
 from clustermgr.extensions import wlogger
 from clustermgr.core.remote import RemoteClient, ClientNotSetupException
 from clustermgr.core.utils import get_os_type
 from clustermgr.core.constants import *
+
+try:
+    from yaml import CLoader as Loader, CDumper as Dumper
+except ImportError:
+    from yaml import Loader, Dumper
 
 
 class YAMLTask(object):
@@ -22,7 +21,7 @@ class YAMLTask(object):
         :param expect: string that indicates that task completed successfully
         :param fail: sting that indicates that task failed to complete
         """
-        self.id = str(uuid4())[0:8]
+        self.id = str(uuid.uuid4())[0:8]
         self.name = name
         self.command = command
         self.expect = expect
@@ -120,7 +119,7 @@ class YAMLTaskRunner(object):
         self.rc = RemoteClient(hostname, ip, user)
         self.tasks = []
 
-    def run_tasks(self, weblog_id=None, async=False):
+    def run_tasks(self, weblog_id=None, async=False, chdir=None):
         """Runs the tasks in the YAML file
 
         Args:
@@ -130,6 +129,8 @@ class YAMLTaskRunner(object):
                 each task has to complete in the server before the output
                 is available for usage. Set this to true if you require
                 real time logging of command's output
+            chdir (string, optional): the location of the chroot container if
+                the tasks have to be run inside the container
         """
         yaml_fo = open(self.yaml_file)
         task_map = yaml.load(yaml_fo.read(), Loader=Loader)
@@ -142,7 +143,11 @@ class YAMLTaskRunner(object):
         os = get_os_type(self.rc)
         self.tasks = [YAMLTask.from_dict(item) for item in
                       task_map[os]['tasks']]
+
         for task in self.tasks:
+            if chdir:
+                task.command = 'chroot {0} /bin/bash -c "{1}"'.format(
+                    chdir, task.command)
             if async:
                 task.execute(self.rc, weblog_id)
             else:
