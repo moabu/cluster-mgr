@@ -6,11 +6,6 @@ from clustermgr.core.remote import RemoteClient, ClientNotSetupException
 from clustermgr.core.utils import get_os_type
 from clustermgr.core.constants import *
 
-try:
-    from yaml import CLoader as Loader, CDumper as Dumper
-except ImportError:
-    from yaml import Loader, Dumper
-
 
 class YAMLTask(object):
     """Task defining the extracted information from YAML file
@@ -132,8 +127,7 @@ class YAMLTaskRunner(object):
             to be run inside the container
         :return: None
         """
-        yaml_fo = open(self.yaml_file)
-        task_map = yaml.load(yaml_fo.read(), Loader=Loader)
+        task_map = yaml.safe_load(open(self.yaml_file).read())
         try:
             self.rc.startup()
         except ClientNotSetupException as e:
