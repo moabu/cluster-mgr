@@ -310,6 +310,8 @@ def multi_master_replication():
     if 'nongluuldapinfo' in session:
         del session['nongluuldapinfo']
 
+    ldap_errors = []
+
     ldaps = Server.query.all()
     serverStats = {}
 
@@ -322,12 +324,8 @@ def multi_master_replication():
         try:
             r = s.connect()
         except Exception as e:
-            flash("Connection to LDAPserver {0} at port 1636 was failed:"
-                  " {1}".format(ldp.hostname, e), "warning")
-
-        if not r:
-            flash("Connection to LDAPserver {0} at port 1636 has "
-                  "failed".format(ldp.hostname), "warning")
+            ldap_errors.append("Connection to LDAPserver {0} at port 1636 was failed:"
+                  " {1}".format(ldp.hostname, e))
 
         if r:
             sstat = s.getMMRStatus()
@@ -337,9 +335,11 @@ def multi_master_replication():
         flash("Please add ldap servers.", "warning")
         return redirect(url_for('index.home'))
         
-    return render_template('multi_master.html', ldapservers=ldaps,
+    return render_template('multi_master.html', 
+                           ldapservers=ldaps,
                            serverStats=serverStats,
                            pr_server=pr_server,
+                           ldap_errors=ldap_errors,
                            )
 
 

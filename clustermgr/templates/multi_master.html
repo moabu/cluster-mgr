@@ -1,6 +1,28 @@
 {% extends "base.html" %}
 {% from 'macros.html' import render_form %}
 {% block  content %}
+
+{% if ldap_errors %}
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h4 class="panel-title">
+      <a data-toggle="collapse" data-parent="#accordion" href="#collapse2">LDAP Connection Info</a>
+    </h4>
+  </div>
+  <div id="collapse2" class="panel-collapse collapse">
+    <div class="panel-body">
+        {% for e in ldap_errors %}
+            <p class="text-warning"><span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
+            {{e}}</p>
+        {% endfor %}
+        <p class="text-info"><strong>If you have no attempted to deploy replication yet, this is normal. If you have tried and are still receiving this error, please troubleshoot your server.</p></strong></p>
+    </div>
+  </div>
+</div>
+
+{% endif %}
+
 <h2 class="page-header">Multi Master Replication</h2>
 
 {% if ldapservers %}
