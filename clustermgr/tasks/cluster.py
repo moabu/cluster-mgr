@@ -235,8 +235,8 @@ def setup_ldap_replication(self, server_id):
         ldp.connect()
         wlogger.log(tid, 'Successfully connected to LDAPServer ', 'success')
     except Exception as e:
-        wlogger.log(tid, "Connection to LDAPserver at port 1636 was failed:"
-                    " {0}".format(e), "error")
+        wlogger.log(tid, "Connection to LDAPserver {0} at port 1636 was failed:"
+                    " {1}".format(conn_addr, e), "error")
         wlogger.log(tid, "Ending server setup process.", "error")
         return
 
@@ -312,7 +312,7 @@ def setup_ldap_replication(self, server_id):
             'debug')
 
     if not ldp.checkAccesslogPurge():
-        if ldp.accesslogPurge():
+        if ldp.accesslogPurge(app_config.log_purge):
             wlogger.log(tid, 'Creating accesslog purge entry', 'success')
         else:
             wlogger.log(tid, "Creating accesslog purge entry failed: {0}".format(

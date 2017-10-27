@@ -46,7 +46,16 @@
             {{ render_field(cform.replication_pw_confirm) }}
             {{ render_field(cform.nginx_host) }}
 
-
+            <div class="form-group">
+                <label>Access Log Purge</label>
+                <p class="help-block">Defines both the maximum age for log entries to be retained in the database and how often to scan the database for old entries.</p>
+                <div class="form-inline">
+                    <label>Age (D H M) </label> {{ cform.purge_age_day(class='form-control') }} {{ cform.purge_age_hour(class='form-control') }} {{ cform.purge_age_min (class='form-control')}}
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    <label>Interval (D H M) </label> {{ cform.purge_interval_day(class='form-control') }} {{ cform.purge_interval_hour(class='form-control') }} {{ cform.purge_interval_min (class='form-control')}}
+                
+                </div>
+            </div>
 
             {{ cform.update(class="btn btn-primary")}}
         </form>
