@@ -12,6 +12,14 @@ clustermgr\.tasks\.all module
     :undoc-members:
     :show-inheritance:
 
+clustermgr\.tasks\.cache module
+-------------------------------
+
+.. automodule:: clustermgr.tasks.cache
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 clustermgr\.tasks\.cluster module
 ---------------------------------
 

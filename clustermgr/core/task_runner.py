@@ -13,14 +13,14 @@ except ImportError:
 
 
 class YAMLTask(object):
-    def __init__(self, name=None, command=None, expect=None, fail=None):
-        """Task defining the extracted information from YAML file
+    """Task defining the extracted information from YAML file
 
-        :param name: name of the task
-        :param command: the command to be executed in the remote server
-        :param expect: string that indicates that task completed successfully
-        :param fail: sting that indicates that task failed to complete
-        """
+    :param name: name of the task
+    :param command: the command to be executed in the remote server
+    :param expect: string that indicates that task completed successfully
+    :param fail: sting that indicates that task failed to complete
+    """
+    def __init__(self, name=None, command=None, expect=None, fail=None):
         self.id = str(uuid.uuid4())[0:8]
         self.name = name
         self.command = command
@@ -33,6 +33,7 @@ class YAMLTask(object):
     @classmethod
     def from_dict(cls, indict):
         """ Create a new YAMLTask object from a dictionary
+
         :param indict: dictionary containing the init values for the object
         :return: YAMLTask object
         """
@@ -71,7 +72,8 @@ class YAMLTask(object):
         synchronous manner. It updates the log in real-time as the command
         executes.
 
-        :param client: RemoteClient object to run the command
+        :param client: :class:`clustermgr.core.remote.RemoteClient` object to
+            run the command
         :param parent_id: the ID to add logs via WebLogger
         :return: None
         """
@@ -100,18 +102,17 @@ class YAMLTask(object):
 
 
 class YAMLTaskRunner(object):
-    def __init__(self, yaml_file, hostname, ip=None, user='root'):
-        """Task runner that reads a YAML file containing the tasks and runs
+    """Task runner that reads a YAML file containing the tasks and runs
         the commands on the host specified.
 
-        Args:
-            yaml_file (string): location of the file
-            hostname (string): hostname of the server where the tasks are to be
-                run
-            ip (string, optional): IP Address of the server for fallback if
-                hostname doesn't resolve
-            user (string, optional): username for logging into the server
-        """
+    :param yaml_file: location of the file
+    :param hostname: hostname of the server where the tasks are to be run
+    :param ip: OPTIONAL - IP Address of the server for fallback if
+        hostname doesn't resolve
+    :param user: OPTIONAL - username for logging into the server; defaults
+        to root
+    """
+    def __init__(self, yaml_file, hostname, ip=None, user='root'):
         self.yaml_file = yaml_file
         self.hostname = hostname
         self.ip = ip
@@ -122,15 +123,14 @@ class YAMLTaskRunner(object):
     def run_tasks(self, weblog_id=None, async=False, chdir=None):
         """Runs the tasks in the YAML file
 
-        Args:
-            weblog_id (string, optional): id in which the command's output
-                should be logged to the weblogger
-            async (boolean, optional): run the command asynchronously, i.e.,
-                each task has to complete in the server before the output
-                is available for usage. Set this to true if you require
-                real time logging of command's output
-            chdir (string, optional): the location of the chroot container if
-                the tasks have to be run inside the container
+        :param weblog_id: id in which the command's output should be logged to
+            the weblogger
+        :param async: run the command asynchronously, i.e., each task has to
+            complete in the server before the output is available for usage.
+            If set *True* it provides real time logging of command's output
+        :param chdir: the location of the chroot container if the tasks have
+            to be run inside the container
+        :return: None
         """
         yaml_fo = open(self.yaml_file)
         task_map = yaml.load(yaml_fo.read(), Loader=Loader)

@@ -173,7 +173,6 @@ class Logger extends Component {
                 <LogContainer items={this.state.logData.messages} show={this.state.showContent} server={"example.com"}/>
             </div>
         )
-
     }
 }
 

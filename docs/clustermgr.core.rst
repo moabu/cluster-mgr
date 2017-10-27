@@ -4,6 +4,14 @@ clustermgr\.core package
 Submodules
 ----------
 
+clustermgr\.core\.constants module
+----------------------------------
+
+.. automodule:: clustermgr.core.constants
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 clustermgr\.core\.keygen module
 -------------------------------
 
@@ -12,10 +20,10 @@ clustermgr\.core\.keygen module
     :undoc-members:
     :show-inheritance:
 
-clustermgr\.core\.ldaplib module
---------------------------------
+clustermgr\.core\.ldap\_functions module
+----------------------------------------
 
-.. automodule:: clustermgr.core.ldaplib
+.. automodule:: clustermgr.core.ldap_functions
     :members:
     :undoc-members:
     :show-inheritance:
@@ -24,6 +32,14 @@ clustermgr\.core\.msgcon module
 -------------------------------
 
 .. automodule:: clustermgr.core.msgcon
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+clustermgr\.core\.olc module
+----------------------------
+
+.. automodule:: clustermgr.core.olc
     :members:
     :undoc-members:
     :show-inheritance:
@@ -40,6 +56,14 @@ clustermgr\.core\.remote module
 -------------------------------
 
 .. automodule:: clustermgr.core.remote
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+clustermgr\.core\.task\_runner module
+-------------------------------------
+
+.. automodule:: clustermgr.core.task_runner
     :members:
     :undoc-members:
     :show-inheritance:

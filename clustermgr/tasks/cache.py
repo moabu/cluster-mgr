@@ -245,9 +245,6 @@ def get_remote_client(server, tid):
 def install_redis_stunnel(self):
     """Celery task that installs the redis and stunnel software in the given
     list of servers.
-
-    :return: the number of servers where both stunnel and redis were installed
-        successfully
     """
     tid = self.request.id
     servers = Server.query.all()

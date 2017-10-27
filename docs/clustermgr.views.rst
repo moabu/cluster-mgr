@@ -4,6 +4,14 @@ clustermgr\.views package
 Submodules
 ----------
 
+clustermgr\.views\.cache module
+-------------------------------
+
+.. automodule:: clustermgr.views.cache
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 clustermgr\.views\.cluster module
 ---------------------------------
 
@@ -24,6 +32,14 @@ clustermgr\.views\.logserver module
 -----------------------------------
 
 .. automodule:: clustermgr.views.logserver
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+clustermgr\.views\.server module
+--------------------------------
+
+.. automodule:: clustermgr.views.server
     :members:
     :undoc-members:
     :show-inheritance:
