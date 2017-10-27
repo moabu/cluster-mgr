@@ -41,9 +41,15 @@ cd cluster-mgr/
 python setup.py install
 ```
 
-- There may be a few errors here, but this is normal.
+- There may be a few warnings here, but this is normal.
 
 - A successful installation will install a tool called clustermgr-cli.
+
+```
+Installed /usr/local/lib/python2.7/dist-packages/vine-1.1.4-py2.7.egg
+Finished processing dependencies for clustermgr==1.1.0
+root@ubuntu:~/cluster-mgr#
+```
 
 5) Prepare Databases
 
