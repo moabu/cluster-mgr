@@ -15,6 +15,31 @@ from ldap3.core.exceptions import LDAPSocketOpenError
 from flask import current_app as app
 
 
+@celery.task(bind=True)
+def install_redis_stunnel(self):
+    """Celery task that installs the redis and stunnel software in the given
+    list of servers.
+    """
+    tid = self.request.id
+    servers = Server.query.all()
+    task_file = os.path.join(app.root_path, "tasks",
+                             "install_redis_stunnel.yaml")
+
+    for server in servers:
+        tr = YAMLTaskRunner(task_file, server.hostname, server.ip)
+        tr.run_tasks(weblog_id=tid)
+
+
+@celery.task(bind=True)
+def configure_cache_cluster(self, method):
+    if method == 'SHARDED':
+        return setup_sharded(self.request.id)
+    elif method == 'STANDALONE':
+        return setup_sharded(self.request.id, standalone=True)
+    elif method == 'CLUSTER':
+        return setup_redis_cluster(self.request.id)
+
+
 def setup_sharded(tid, standalone=False):
     servers = Server.query.filter(Server.redis.is_(True)).filter(
         Server.stunnel.is_(True)).all()
@@ -241,31 +266,6 @@ def get_remote_client(server, tid):
     return rc
 
 
-@celery.task(bind=True)
-def install_redis_stunnel(self):
-    """Celery task that installs the redis and stunnel software in the given
-    list of servers.
-    """
-    tid = self.request.id
-    servers = Server.query.all()
-    task_file = os.path.join(app.root_path, "tasks",
-                             "install_redis_stunnel.yaml")
-
-    for server in servers:
-        tr = YAMLTaskRunner(task_file, server.hostname, server.ip)
-        tr.run_tasks(weblog_id=tid)
-
-
-@celery.task(bind=True)
-def configure_cache_cluster(self, method):
-    if method == 'SHARDED':
-        return setup_sharded(self.request.id)
-    elif method == 'STANDALONE':
-        return setup_sharded(self.request.id, standalone=True)
-    elif method == 'CLUSTER':
-        return setup_redis_cluster(self.request.id)
-
-
 def run_and_log(rc, cmd, tid, server_id):
     """Runs a command using the provided RemoteClient instance and logs the
     cout and cerr to the wlogger using the task id and server id
@@ -315,14 +315,13 @@ def finish_cluster_setup(self, method):
             return cmd
 
         if method == 'SHARDED':
-            run_and_log(rc, get_cmd('service stunnel4 restart'), tid, server.id)
+            run_and_log(rc, 'service stunnel4 restart', tid, server.id)
 
         # Common restarts for all
         if 'centos' in server.os.lower():
-            run_and_log(rc, get_cmd('service redis restart'), tid, server.id)
+            run_and_log(rc, 'service redis restart', tid, server.id)
         else:
-            run_and_log(rc, get_cmd('service redis-server restart'), tid,
-                        server.id)
+            run_and_log(rc, 'service redis-server restart', tid, server.id)
             # sometime apache service is stopped (happened in Ubuntu 16)
             # when install_redis_stunnel task is executed; hence we also need to
             # restart the service
