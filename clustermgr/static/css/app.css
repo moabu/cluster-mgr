@@ -76,6 +76,32 @@ Logger Styles
     font-size: 12px;
 }
 
+.log-item .msg{
+    color: #e5e5e5;
+    padding: 5px 0px 5px 0px;
+    margin: 0;
+}
+
+.log-item .msg-info{
+    color: #31708f;
+    background-color: #d9edf7;
+}
+
+.log-item .msg-danger, .msg-error, .msg-fail{
+    color: #a94442;
+    background-color: #f2dede;
+}
+
+.log-item .msg-success{
+    color: #3c763d;
+    background-color: #dff0d8;
+}
+
+.log-item .msg-warning{
+    color: #8a6d3b;
+    background-color: #fcf8e3;
+}
+
 .logger-button {
     border: 1px solid #999;
     background-color: transparent;

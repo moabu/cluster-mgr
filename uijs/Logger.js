@@ -45,7 +45,7 @@ class LogContainer extends Component {
                 // TODO pass the the individual properties instead of itemInfo object
                 return (
                     <MessageItem
-                        key={parseInt(Math.random()*1000)}
+                        key={Math.random()}
                         level={itemInfo.level}
                         msg={itemInfo.msg}
                     />
