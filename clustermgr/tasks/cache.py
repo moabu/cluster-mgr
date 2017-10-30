@@ -148,6 +148,59 @@ class StunnelInstaller(BaseInstaller):
         else:
             return False
 
+@celery.task(bind=True)
+def install_redis_stunnel(self):
+    """Celery task that installs the redis and stunnel software in the given
+    list of servers.
+
+    :return: the number of servers where both stunnel and redis were installed
+        successfully
+    """
+    tid = self.request.id
+    installed = 0
+    servers = Server.query.all()
+    for server in servers:
+        wlogger.log(tid, "Installing Redis in server {0}".format(
+            server.hostname), "info", server_id=server.id)
+        ri = RedisInstaller(server, tid)
+        redis_installed = ri.install()
+        if redis_installed:
+            server.redis = True
+            wlogger.log(tid, "Redis install successful", "success",
+                        server_id=server.id)
+        else:
+            server.redis = False
+            wlogger.log(tid, "Redis install failed", "fail",
+                        server_id=server.id)
+
+        wlogger.log(tid, "Installing Stunnel", "info", server_id=server.id)
+        si = StunnelInstaller(server, tid)
+        stunnel_installed = si.install()
+        if stunnel_installed:
+            server.stunnel = True
+            wlogger.log(tid, "Stunnel install successful", "success",
+                        server_id=server.id)
+        else:
+            server.stunnel = False
+            wlogger.log(tid, "Stunnel install failed", "fail",
+                        server_id=server.id)
+        # Save the redis and stunnel install situation to the db
+        db.session.commit()
+
+        if redis_installed and stunnel_installed:
+            installed += 1
+    return installed
+
+
+@celery.task(bind=True)
+def configure_cache_cluster(self, method):
+    if method == 'SHARDED':
+        return setup_sharded(self.request.id)
+    elif method == 'STANDALONE':
+        return setup_sharded(self.request.id, standalone=True)
+    elif method == 'CLUSTER':
+        return setup_redis_cluster(self.request.id)
+
 
 def setup_sharded(tid, standalone=False):
     """Function that adds the stunnel configuration to all the servers and
@@ -315,7 +368,7 @@ def setup_redis_cluster(tid):
                   "save 900 1", "save 300 10", "save 60 10000",
                   ]
     for server in servers:
-        rc = get_remote_client(server, tid)
+        rc = __get_remote_client(server, tid)
         if not rc:
             continue
 
@@ -356,7 +409,7 @@ def setup_redis_cluster(tid):
     return True
 
 
-def get_remote_client(server, tid):
+def __get_remote_client(server, tid):
     rc = RemoteClient(server.hostname, ip=server.ip)
     try:
         rc.startup()
@@ -367,60 +420,6 @@ def get_remote_client(server, tid):
                          "\n{0}".format(e), "error", server_id=server.id)
         return None
     return rc
-
-
-@celery.task(bind=True)
-def install_redis_stunnel(self):
-    """Celery task that installs the redis and stunnel software in the given
-    list of servers.
-
-    :return: the number of servers where both stunnel and redis were installed
-        successfully
-    """
-    tid = self.request.id
-    installed = 0
-    servers = Server.query.all()
-    for server in servers:
-        wlogger.log(tid, "Installing Redis in server {0}".format(
-            server.hostname), "info", server_id=server.id)
-        ri = RedisInstaller(server, tid)
-        redis_installed = ri.install()
-        if redis_installed:
-            server.redis = True
-            wlogger.log(tid, "Redis install successful", "success",
-                        server_id=server.id)
-        else:
-            server.redis = False
-            wlogger.log(tid, "Redis install failed", "fail",
-                        server_id=server.id)
-
-        wlogger.log(tid, "Installing Stunnel", "info", server_id=server.id)
-        si = StunnelInstaller(server, tid)
-        stunnel_installed = si.install()
-        if stunnel_installed:
-            server.stunnel = True
-            wlogger.log(tid, "Stunnel install successful", "success",
-                        server_id=server.id)
-        else:
-            server.stunnel = False
-            wlogger.log(tid, "Stunnel install failed", "fail",
-                        server_id=server.id)
-        # Save the redis and stunnel install situation to the db
-        db.session.commit()
-
-        if redis_installed and stunnel_installed:
-            installed += 1
-    return installed
-
-
-@celery.task(bind=True)
-def configure_cache_cluster(self, method):
-    if method == 'SHARDED':
-        return setup_sharded(self.request.id)
-    elif method == 'STANDALONE':
-        return setup_sharded(self.request.id, standalone=True)
-    elif method == 'CLUSTER':
-        return setup_redis_cluster(self.request.id)
 
 
 def run_and_log(rc, cmd, tid, server_id):
@@ -446,18 +445,33 @@ def finish_cluster_setup(self, method):
     tid = self.request.id
     servers = Server.query.filter(Server.redis.is_(True)).filter(
         Server.stunnel.is_(True)).all()
+    appconf = AppConfiguration.query.first()
+    chdir = "/opt/gluu-server-" + appconf.gluu_version
     ips = []
 
     for server in servers:
         ips.append(server.ip)
         wlogger.log(tid, "(Re)Starting services ... ", "info",
                     server_id=server.id)
-        rc = get_remote_client(server, tid)
+        rc = __get_remote_client(server, tid)
         if not rc:
             continue
 
         if method == 'SHARDED':
             run_and_log(rc, 'service stunnel4 restart', tid, server.id)
+
+        def get_cmd(cmd):
+            if server.gluu_server and not server.os == "CentOS 7":
+                return 'chroot {0} /bin/bash -c "{1}"'.format(chdir, cmd)
+            elif "CentOS 7" == server.os:
+                parts = ["ssh", "-o IdentityFile=/etc/gluu/keys/gluu-console",
+                         "-o Port=60022", "-o LogLevel=QUIET",
+                         "-o StrictHostKeyChecking=no",
+                         "-o UserKnownHostsFile=/dev/null",
+                         "-o PubkeyAuthentication=yes",
+                         "root@localhost", "'{0}'".format(cmd)]
+                return " ".join(parts)
+            return cmd
 
         # Common restarts for all
         if 'centos' in server.os.lower():
@@ -467,12 +481,10 @@ def finish_cluster_setup(self, method):
             # sometime apache service is stopped (happened in Ubuntu 16)
             # when install_redis_stunnel task is executed; hence we also need to
             # restart the service
-            # TODO the apache restart was added when the installation happened
-            #      inside the container. Check if this is still required
-            # run_and_log(rc, 'service apache2 restart', tid, server.id)
+            run_and_log(rc, get_cmd('service apache2 restart'), tid, server.id)
 
-        run_and_log(rc, 'service oxauth restart', tid, server.id)
-        run_and_log(rc, 'service identity restart', tid, server.id)
+        run_and_log(rc, get_cmd('service oxauth restart'), tid, server.id)
+        run_and_log(rc, get_cmd('service identity restart'), tid, server.id)
         rc.close()
 
     if method == 'SHARDED':
@@ -485,7 +497,7 @@ def finish_cluster_setup(self, method):
     initializer = None
     for server in servers:
         initializer = server
-        init_client = get_remote_client(server, tid)
+        init_client = __get_remote_client(server, tid)
         if init_client:
             break
 
@@ -508,7 +520,7 @@ def finish_cluster_setup(self, method):
         range_str = "{{{0}..{1}}}".format(*slot_ranges[i])
         slot_cmd = "for slot in {0}; do redis-cli -h localhost -p 7000 " \
                    "CLUSTER ADDSLOTS \$slot; done;".format(range_str)
-        rc = get_remote_client(server, tid)
+        rc = __get_remote_client(server, tid)
         wlogger.log(tid, slot_cmd, "debug")
         rc.run(slot_cmd)
         rc.close()
