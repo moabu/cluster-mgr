@@ -9,7 +9,6 @@ module.exports = {
         vendor: [
             'react', 'react-dom', 'axios'
         ]
-
     },
     output: {
         path: path.resolve(__dirname, 'clustermgr/static/build'),
