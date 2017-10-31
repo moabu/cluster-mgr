@@ -179,8 +179,14 @@ def setup_ldap_replication(self, server_id):
     syconf = os.path.join(chroot, 'opt/symas/etc/openldap/symas-openldap.conf')
     confile = os.path.join(app.root_path, "templates", "slapd",
                            "symas-openldap.conf")
+                           
+    ldap_bind_addr = server.hostname
+    if app_config.use_ip:
+        ldap_bind_addr = server.ip
+    
+
     values = dict(
-        hosts="ldaps://127.0.0.1:1636/ ldaps://{0}:1636/".format(server.ip),
+        hosts="ldaps://127.0.0.1:1636/ ldaps://{0}:1636/".format(ldap_bind_addr)
         extra_args="-F /opt/symas/etc/openldap/slapd.d"
     )
 
@@ -200,7 +206,7 @@ def setup_ldap_replication(self, server_id):
     # 6. Generate OLC slapd.d
     wlogger.log(tid, "Convert slapd.conf to slapd.d OLC")
     
-    if server.os == 'CentOS 7':
+    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
         run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver stop'")
     else:
         run_command(tid, c, 'service solserver stop', chroot)
@@ -214,7 +220,7 @@ def setup_ldap_replication(self, server_id):
     # 7. Restart the solserver with the new OLC configuration
     wlogger.log(tid, "Restarting LDAP server with OLC configuration")
 
-    if server.os == 'CentOS 7':
+    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
         log= run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start'")
     else:
         log = run_command(tid, c, "service solserver start", chroot)
@@ -222,7 +228,7 @@ def setup_ldap_replication(self, server_id):
         wlogger.log(tid, "Couldn't restart solserver.", "error")
         wlogger.log(tid, "Ending server setup process.", "error")
         
-        if 'CentOS' in server.os:
+        if 'CentOS' in server.os or 'RHEL' in server.os:
             run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start -d 1'")
         else:
             run_command(tid, c, "service solserver start -d 1", chroot)
@@ -392,7 +398,7 @@ def setup_ldap_replication(self, server_id):
 
     # 12. Make this server to listen to all other providers
     
-    if server.os == 'CentOS 7':
+    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
         restart_gluu_cmd = '/sbin/gluu-serverd-{0} restart'.format(app_config.gluu_version)
     else:
         restart_gluu_cmd = 'service gluu-server-{0} restart'.format(app_config.gluu_version)
@@ -749,6 +755,7 @@ def get_os_type(c):
     cin, cout, cerr = c.run("ls /etc/*release")
     files = cout.split()
     cin, cout, cerr = c.run("cat "+files[0])
+
     if "Ubuntu" in cout and "14.04" in cout:
         return "Ubuntu 14"
     if "Ubuntu" in cout and "16.04" in cout:
@@ -757,6 +764,9 @@ def get_os_type(c):
         return "CentOS 6"
     if "CentOS" in cout and "release 7." in cout:
         return "CentOS 7"
+    if 'Red Hat Enterprise Linux' in cout and '7.':
+        return 'RHEL 7'
+
 
 def check_gluu_installation(c):
 
@@ -948,9 +958,9 @@ def installGluuServer(self, server_id):
             wlogger.log(tid, cout+'\n'+cerr, 'debug')
 
 
-    elif 'CentOS' in server.os:
+    elif 'CentOS' in server.os or 'RHEL' in server.os:
         install_command = 'yum '
-        if server.os == 'CentOS 7':
+        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
             enable_command  = '/sbin/gluu-serverd-{0} enable'
             stop_command    = '/sbin/gluu-serverd-{0} stop'
             start_command   = '/sbin/gluu-serverd-{0} start'
@@ -965,7 +975,8 @@ def installGluuServer(self, server_id):
             cmd = 'wget https://repo.gluu.org/centos/Gluu-centos6.repo -O /etc/yum.repos.d/Gluu.repo'
         elif server.os == 'CentOS 7':
             cmd = 'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O /etc/yum.repos.d/Gluu.repo'
-
+        elif server.os == 'RHEL 7':
+            cmd = 'wget https://repo.gluu.org/rhel/Gluu-rhel7.repo -O /etc/yum.repos.d/Gluu.repo'
 
         run_command(tid, c, cmd, no_error='debug')
 
@@ -1035,7 +1046,7 @@ def installGluuServer(self, server_id):
         
     run_command(tid, c, start_command.format(appconf.gluu_version))
 
-    if server.os == 'CentOS 7':
+    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
         wlogger.log(tid, "Sleeping 10 secs to wait for gluu server start properly.")
         time.sleep(10)
     
@@ -1087,7 +1098,7 @@ def installGluuServer(self, server_id):
 
     wlogger.log(tid, "Running setup.py - Be patient this process will take a while ...")
     
-    if server.os == 'CentOS 7':
+    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
         cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'cd /install/community-edition-setup/ && ./setup.py -n'"
         run_command(tid, c, cmd)
     else:
@@ -1130,12 +1141,12 @@ def installGluuServer(self, server_id):
                 os.remove(local)
                 wlogger.log(tid, '{0} dowloaded from from primary and uploaded'.format(csf), 'debug')
 
-            if server.os == 'CentOS 7':
+            if server.os == 'CentOS 7' or server.os == 'RHEL 7':
                 run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver stop'")
             else:
                 run_command(tid, c, 'service solserver stop', '/opt/'+gluu_server)
             
-            if server.os == 'CentOS 7':
+            if server.os == 'CentOS 7' or server.os == 'RHEL 7':
                 run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start'")
             else:
                 run_command(tid, c, 'service solserver start', '/opt/'+gluu_server)
@@ -1205,7 +1216,7 @@ def installGluuServer(self, server_id):
     c.put_file('/etc/cron.d/setdate', '* * * * *    root    /usr/sbin/ntpdate -s time.nist.gov\n')
     wlogger.log(tid, 'Crontab entry was created to update time in every minute', 'debug')
     
-    if 'CentOS' in server.os:
+    if 'CentOS' in server.os or 'RHEL' in server.os:
         cmd = 'service crond reload'
     else:
         cmd = 'service cron reload'
