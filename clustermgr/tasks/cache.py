@@ -218,6 +218,7 @@ def setup_sharded(tid, standalone=False):
         stunnel_conf = [
             "cert = /etc/stunnel/cert.pem",
             "pid = /var/run/stunnel.pid",
+            "output = /var/log/stunnel4/stunnel.log",
             "[redis-server]",
             "client = no",
             "accept = {0}:7777".format(server.ip),
