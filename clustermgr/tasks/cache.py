@@ -282,12 +282,23 @@ def setup_sharded(tid, standalone=False):
         remote = '/etc/default/stunnel4'
         rc.upload(local, remote)
 
-        if 'CentOS' in server.os:
+        if 'CentOS 6' == server.os:
             local = os.path.join(app.root_path, 'templates', 'stunnel',
                                  'centos.init')
             remote = '/etc/rc.d/init.d/stunnel4'
             rc.upload(local, remote)
             rc.run("chmod +x {0}".format(remote))
+
+        if 'CentOS 7' == server.os or 'RHEL 7' == server.os:
+            local = os.path.join(app.root_path, 'templates', 'stunnel',
+                                 'stunnel.service')
+            remote = '/lib/systemd/system/stunnel.service'
+            rc.upload(local, remote)
+            rc.run("mkdir -p /var/log/stunnel4")
+            wlogger.log(tid, "Setup auto-start on system boot", "info",
+                        server_id=server.id)
+            run_and_log(rc, 'systemctl enable redis', tid, server.id)
+            run_and_log(rc, 'systemctl enable stunnel', tid, server.id)
 
         # setup the certificate file
         wlogger.log(tid, "Generating certificate for stunnel ...", "debug",
@@ -458,9 +469,6 @@ def finish_cluster_setup(self, method):
         if not rc:
             continue
 
-        if method == 'SHARDED':
-            run_and_log(rc, 'service stunnel4 restart', tid, server.id)
-
         def get_cmd(cmd):
             if server.gluu_server and not server.os == "CentOS 7":
                 return 'chroot {0} /bin/bash -c "{1}"'.format(chdir, cmd)
@@ -475,10 +483,15 @@ def finish_cluster_setup(self, method):
             return cmd
 
         # Common restarts for all
-        if 'centos' in server.os.lower():
+        if server.os == 'CentOS 6':
             run_and_log(rc, 'service redis restart', tid, server.id)
+            run_and_log(rc, 'service stunnel4 restart', tid, server.id)
+        elif server.os == 'CentOS 7' or server.os == 'RHEL 7':
+            run_and_log(rc, 'systemctl restart redis', tid, server.id)
+            run_and_log(rc, 'systemctl restart stunnel', tid, server.id)
         else:
             run_and_log(rc, 'service redis-server restart', tid, server.id)
+            run_and_log(rc, 'service stunnel4 restart', tid, server.id)
             # sometime apache service is stopped (happened in Ubuntu 16)
             # when install_redis_stunnel task is executed; hence we also need to
             # restart the service
