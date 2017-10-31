@@ -103,14 +103,8 @@ def setup_sharded(tid, standalone=False):
         if server.gluu_server:
             chdir = "/opt/gluu-server-{0}".format(appconf.gluu_version)
 
-        rc = RemoteClient(server.hostname, ip=server.ip)
-        try:
-            rc.startup()
-        except Exception as e:
-            wlogger.log(tid, "Could not connect to the server over SSH. "
-                             "Stunnel setup failed. Error: {0}".format(e),
-                        "error",
-                        server_id=server.id)
+        rc = get_remote_client(server, tid)
+        if  not rc:
             continue
 
         wlogger.log(tid, "Enable stunnel start on system boot", "debug",
@@ -269,24 +263,6 @@ def get_remote_client(server, tid):
     return rc
 
 
-def run_and_log(rc, cmd, tid, server_id):
-    """Runs a command using the provided RemoteClient instance and logs the
-    cout and cerr to the wlogger using the task id and server id
-
-    :param rc: the remote client to run the command
-    :param cmd: command that has to be executed
-    :param tid: the task id of the celery task for logging
-    :param server_id: id of the server in which the cmd is excuted
-    :return: nothing
-    """
-    wlogger.log(tid, cmd, "debug", server_id=server_id)
-    _, cout, cerr = rc.run(cmd)
-    if cout:
-        wlogger.log(tid, cout, "debug", server_id=server_id)
-    if cerr:
-        wlogger.log(tid, cerr, "warning", server_id=server_id)
-
-
 @celery.task(bind=True)
 def finish_cluster_setup(self, method):
     tid = self.request.id
@@ -294,20 +270,20 @@ def finish_cluster_setup(self, method):
         Server.stunnel.is_(True)).all()
     appconf = AppConfiguration.query.first()
     chdir = "/opt/gluu-server-" + appconf.gluu_version
-    ips = []
     task_file = os.path.join(app.root_path, "tasks",
                              "restart_redis_services.yaml")
 
     for server in servers:
-        ips.append(server.ip)
         tr = YAMLTaskRunner(task_file, server.hostname, server.ip)
         tr.run_tasks(weblog_id=tid, requirements=dict(chdir=chdir))
 
-    if method == 'SHARDED':
-        return True
 
+def establish_redis_cluster(tid, servers, ips):
+    # FIXME This is here for future use where redis-cluster will be setup
     # If redis-cluster is requested, then we need to setup cluster manually
     # iterate through the servers and find the one which can be accessed
+    appconf = AppConfiguration.query.first()
+    chdir = "/opt/gluu-server-" + appconf.gluu_version
     wlogger.log(tid, "Setting up redis cluster", "info")
     init_client = None
     initializer = None
