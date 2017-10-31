@@ -30,13 +30,13 @@ CentOS 6:
       command: service stunnel4 restart
     - name: restart oxAuth
       command: service oxauth restart
-      prefix: chroot
+      env: chroot
     - name: restart oxTrust (identity)
       command: service identity restart
-      prefix: chroot
+      env: chroot
     - name: restart Apache 2
       command: service apache2 restart
-      prefix: chroot
+      env: chroot
   envs: *U14Envs
 
 # The tasks are the same as CentOS 6. But due to the systemctl handling of

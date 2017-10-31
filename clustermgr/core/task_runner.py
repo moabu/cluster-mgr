@@ -183,8 +183,10 @@ class YAMLTaskRunner(object):
                 "The requirement {0} for task {1} was not passed to "
                 "the task runner.".format(env['requires'], task['name']))
 
-        data = {env['requires']: requirements[env['requires']],
-                'command': task['command']}
+        data = {'command': task['command']}
+        if 'requires' in env:
+            data[env['requires']] = requirements[env['requires']]
+
         task['command'] = env['wrapper'].format(**data)
         return task
 
