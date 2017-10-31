@@ -128,13 +128,26 @@ class YAMLTaskRunner(object):
 
         :return: None
         """
-        yaml_dict = yaml.safe_load(open(self.yaml_file).read())
         try:
             self.rc.startup()
         except ClientNotSetupException as e:
             print e
             return False
 
+        self.__enqueue_tasks(requirements)
+        for task in self.task_queue:
+            if async:
+                task.execute(self.rc, weblog_id)
+            else:
+                task.execute_s(self.rc, weblog_id)
+
+    def __enqueue_tasks(self, requirements):
+        """Parses the YAML file and queues the tasks.
+
+        :param requirements: dictionary containing the requirements defined in
+            the YAML file
+        """
+        yaml_dict = yaml.safe_load(open(self.yaml_file).read())
         os = get_os_type(self.rc)
         envs = yaml_dict[os].get('envs')
         tasks = yaml_dict[os].get('tasks')
@@ -142,13 +155,8 @@ class YAMLTaskRunner(object):
             task = self.__wrap_command_with_env(task, envs, requirements)
             self.task_queue.append(YAMLTask.from_dict(task))
 
-        for task in self.task_queue:
-            if async:
-                task.execute(self.rc, weblog_id)
-            else:
-                task.execute_s(self.rc, weblog_id)
-
-    def __wrap_command_with_env(self, task, envs, requirements):
+    @staticmethod
+    def __wrap_command_with_env(task, envs, requirements):
         """Wraps the task's command in the required environment
 
         :param task: the dictionary containing the task information from YAML
