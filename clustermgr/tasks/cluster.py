@@ -186,7 +186,7 @@ def setup_ldap_replication(self, server_id):
     
 
     values = dict(
-        hosts="ldaps://127.0.0.1:1636/ ldaps://{0}:1636/".format(ldap_bind_addr)
+        hosts="ldaps://127.0.0.1:1636/ ldaps://{0}:1636/".format(ldap_bind_addr),
         extra_args="-F /opt/symas/etc/openldap/slapd.d"
     )
 
