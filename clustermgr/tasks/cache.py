@@ -28,6 +28,9 @@ def install_redis_stunnel(self):
     for server in servers:
         tr = YAMLTaskRunner(task_file, server.hostname, server.ip)
         tr.run_tasks(weblog_id=tid)
+        server.redis = True
+        server.stunnel = True
+        db.session.commit()
 
 
 @celery.task(bind=True)
@@ -292,44 +295,13 @@ def finish_cluster_setup(self, method):
     appconf = AppConfiguration.query.first()
     chdir = "/opt/gluu-server-" + appconf.gluu_version
     ips = []
+    task_file = os.path.join(app.root_path, "tasks",
+                             "restart_redis_services.yaml")
 
     for server in servers:
         ips.append(server.ip)
-        wlogger.log(tid, "(Re)Starting services ... ", "info",
-                    server_id=server.id)
-        rc = get_remote_client(server, tid)
-        if not rc:
-            continue
-
-        def get_cmd(cmd):
-            if server.gluu_server and not server.os == "CentOS 7":
-                return 'chroot {0} /bin/bash -c "{1}"'.format(chdir, cmd)
-            elif "CentOS 7" == server.os:
-                parts = ["ssh", "-o IdentityFile=/etc/gluu/keys/gluu-console",
-                         "-o Port=60022", "-o LogLevel=QUIET",
-                         "-o StrictHostKeyChecking=no",
-                         "-o UserKnownHostsFile=/dev/null",
-                         "-o PubkeyAuthentication=yes",
-                         "root@localhost", "'{0}'".format(cmd)]
-                return " ".join(parts)
-            return cmd
-
-        if method == 'SHARDED':
-            run_and_log(rc, 'service stunnel4 restart', tid, server.id)
-
-        # Common restarts for all
-        if 'centos' in server.os.lower():
-            run_and_log(rc, 'service redis restart', tid, server.id)
-        else:
-            run_and_log(rc, 'service redis-server restart', tid, server.id)
-            # sometime apache service is stopped (happened in Ubuntu 16)
-            # when install_redis_stunnel task is executed; hence we also need to
-            # restart the service
-            run_and_log(rc, get_cmd('service apache2 restart'), tid, server.id)
-
-        run_and_log(rc, get_cmd('service oxauth restart'), tid, server.id)
-        run_and_log(rc, get_cmd('service identity restart'), tid, server.id)
-        rc.close()
+        tr = YAMLTaskRunner(task_file, server.hostname, server.ip)
+        tr.run_tasks(weblog_id=tid, requirements=dict(chdir=chdir))
 
     if method == 'SHARDED':
         return True

@@ -113,9 +113,9 @@ class YAMLTaskRunner(object):
         self.ip = ip
         self.user = user
         self.rc = RemoteClient(hostname, ip, user)
-        self.tasks = []
+        self.task_queue = []
 
-    def run_tasks(self, weblog_id=None, async=False, chdir=None):
+    def run_tasks(self, weblog_id=None, async=False, requirements=None):
         """Runs the tasks in the YAML file
 
         :param weblog_id: id in which the command's output should be logged to
@@ -123,11 +123,12 @@ class YAMLTaskRunner(object):
         :param async: run the command asynchronously, i.e., each task has to
             complete in the server before the output is available for usage.
             If set *True* it provides real time logging of command's output
-        :param chdir: the location of the chroot container if the tasks have
-            to be run inside the container
+        :param requirements: dict containing the environment requirements like
+            chroot directory
+
         :return: None
         """
-        task_map = yaml.safe_load(open(self.yaml_file).read())
+        yaml_dict = yaml.safe_load(open(self.yaml_file).read())
         try:
             self.rc.startup()
         except ClientNotSetupException as e:
@@ -135,17 +136,49 @@ class YAMLTaskRunner(object):
             return False
 
         os = get_os_type(self.rc)
-        self.tasks = [YAMLTask.from_dict(item) for item in
-                      task_map[os]['tasks']]
+        envs = yaml_dict[os].get('envs')
+        tasks = yaml_dict[os].get('tasks')
+        for task in tasks:
+            task = self.__wrap_command_with_env(task, envs, requirements)
+            self.task_queue.append(YAMLTask.from_dict(task))
 
-        for task in self.tasks:
-            if chdir:
-                task.command = 'chroot {0} /bin/bash -c "{1}"'.format(
-                    chdir, task.command)
+        for task in self.task_queue:
             if async:
                 task.execute(self.rc, weblog_id)
             else:
                 task.execute_s(self.rc, weblog_id)
+
+    def __wrap_command_with_env(self, task, envs, requirements):
+        """Wraps the task's command in the required environment
+
+        :param task: the dictionary containing the task information from YAML
+        :param envs: the envs dict parsed from YAML
+        :param requirements: requirements dict passed to the run_tasks function
+        :return: task dictionary with the modified command
+        """
+        if 'env' not in task:
+            return task
+
+        env = None
+        for e in envs:
+            if task['env'] == e['name']:
+                env = e
+                break
+
+        if not env:
+            raise KeyError(
+                "The environment '{0}' specified in task '{1}' could not be "
+                "found.".format(task['env'], task['name']))
+
+        if 'requires' in env and env['requires'] not in requirements:
+            raise KeyError(
+                "The requirement {0} for task {1} was not passed to "
+                "the task runner.".format(env['requires'], task['name']))
+
+        data = {env['requires']: requirements[env['requires']],
+                'command': task['command']}
+        task['command'] = env['wrapper'].format(**data)
+        return task
 
     def __repr__(self):
         return "<YAMLTaskRunner based on {0}>".format(self.yaml_file)

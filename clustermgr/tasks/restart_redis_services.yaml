@@ -6,24 +6,24 @@ Ubuntu 14:
       command: service stunnel4 restart
     - name: restart oxAuth
       command: service oxauth restart
-      prefix: chroot
+      env: chroot
     - name: restart oxTrust (identity)
       command: service identity restart
-      prefix: chroot
+      env: chroot
     - name: restart Apache 2
       command: service apache2 restart
-      prefix: chroot
-  prefixes: &U14Prefixes
+      env: chroot
+  envs: &U14Envs
     - name: chroot
       wrapper: chroot {chdir} /bin/bash -c "{command}"
-      expects: chdir
+      requires: chdir
 
 Ubuntu 16:
   tasks: *U14Tasks
-  prefixes: *U14Prefixes
+  envs: *U14Envs
 
 CentOS 6:
-  tasks: $C6
+  tasks: &C6
     - name: restart redis
       command: service redis restart
     - name: restart stunnel
@@ -37,12 +37,12 @@ CentOS 6:
     - name: restart Apache 2
       command: service apache2 restart
       prefix: chroot
-  prefixes: *U14Prefixes
+  envs: *U14Envs
 
 # The tasks are the same as CentOS 6. But due to the systemctl handling of
 # services, the prefix is changed
 CentOS 7:
   tasks: *C6
-  prefixes:
+  envs:
     - name: chroot
       wrapper: ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost "{command}"

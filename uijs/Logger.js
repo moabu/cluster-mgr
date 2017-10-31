@@ -87,7 +87,7 @@ class Logger extends Component {
         axios.get("/log/" + id).then(
             (response) => {
                 this.setState({logData: response.data});
-                if (response.data.state === 'SUCCESS' || response.data.state === 'FAILED') {
+                if (response.data.state === 'SUCCESS' || response.data.state === 'FAILURE') {
                     clearInterval(this.timerID);
                 }
             }
