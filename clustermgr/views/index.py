@@ -32,13 +32,6 @@ def home():
 
     return render_template('dashboard.html', servers=servers, app_conf=appconf)
 
-
-def get_primary_server_id():
-    pr_server = Server.query.filter_by(primary_server=True).first()
-    if pr_server:
-        return pr_server.id
-
-
 @index.route('/configuration/', methods=['GET', 'POST'])
 def app_configuration():
     conf_form = AppConfigForm()

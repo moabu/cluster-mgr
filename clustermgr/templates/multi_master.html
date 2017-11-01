@@ -1,32 +1,32 @@
 {% extends "base.html" %}
 {% from 'macros.html' import render_form %}
+
 {% block header %}
     <h1>Multi Master Replication</h1>
 {% endblock %}
+
 {% block  content %}
 
 {% if ldap_errors %}
-
-<div class="panel panel-danger">
-  <div class="panel-heading">
-    <h4 class="panel-title">
-      <a data-toggle="collapse" data-parent="#accordion" href="#collapse2">LDAP Connection Info</a>
-        <span class="pull-right badge bg-red">{{ ldap_errors | length }}</span>
-    </h4>
-  </div>
-  <div id="collapse2" class="panel-collapse collapse">
-    <div class="panel-body">
-        {% for e in ldap_errors %}
-            <p class="text-warning"><span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
-            {{e}}</p>
-        {% endfor %}
-        <p class="text-info"><strong>If you have no attempted to deploy replication yet, this is normal. If you have tried and are still receiving this error, please troubleshoot your server.</p></strong></p>
+    <div class="panel panel-danger">
+      <div class="panel-heading">
+        <h4 class="panel-title">
+          <a data-toggle="collapse" data-parent="#accordion" href="#collapse2">LDAP Connection Info</a>
+            <span class="pull-right badge bg-red">{{ ldap_errors | length }}</span>
+        </h4>
+      </div>
+      <div id="collapse2" class="panel-collapse collapse">
+        <div class="panel-body">
+            {% for e in ldap_errors %}
+                <p class="text-warning"><span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
+                {{e}}</p>
+            {% endfor %}
+            <p class="text-info"><strong>If you have no attempted to deploy replication yet, this is normal.
+                If you have tried and are still receiving this error, please troubleshoot your server.</strong></p>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
-
 {% endif %}
-
 
 {% if ldapservers %}
 <div class="box">

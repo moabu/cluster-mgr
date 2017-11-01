@@ -10,7 +10,6 @@ from clustermgr.extensions import db
 from clustermgr.models import Server, AppConfiguration
 
 from clustermgr.forms import ServerForm, InstallServerForm
-from clustermgr.views.index import get_primary_server_id
 from clustermgr.tasks.cluster import remove_provider, collect_server_details
 from clustermgr.config import Config
 from clustermgr.core.remote import RemoteClient, ClientNotSetupException
@@ -23,11 +22,6 @@ def sync_ldap_passwords(password):
         server.ldap_password = password
     db.session.commit()
 
-def get_primary_server_password():
-    primary_server =  Server.query.filter_by(primary_server=True).first()
-    if primary_server:
-        return primary_server.ldap_password
-
 @server_view.route('/', methods=['GET', 'POST'])
 def index():
     """Route for URL /server/. GET returns ServerForm to add a server,
@@ -38,30 +32,28 @@ def index():
         flash("Kindly set default values for the application before adding"
               " servers.", "info")
         return redirect(url_for('index.app_configuration', next="/server/"))
+
     form = ServerForm()
-
     header="New Server"
+    primary_server = Server.query.filter(
+        Server.primary_server.is_(True)).first()
 
-    pr_server = get_primary_server_id()
-    
-    
-    if not pr_server:
-         header="New Server - Primary Server"
-    else:
+    if primary_server:
         del form.ldap_password
         del form.ldap_password_confirm
+    else:
+        header = "New Server - Primary Server"
 
     if form.validate_on_submit():
         server = Server()
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
         server.mmr = False
-        if not pr_server:
+        if primary_server:
+            server.ldap_password = primary_server.ldap_password
+        else:
             server.ldap_password = form.ldap_password.data.strip()
             server.primary_server = True
-        else:
-            server.ldap_password = get_primary_server_password()
-
         db.session.add(server)
         db.session.commit()
 
@@ -79,34 +71,23 @@ def edit(server_id):
         flash('There is no server with the ID: %s' % server_id, "warning")
         return redirect(url_for('index.home'))
 
-    is_this_primary = get_primary_server_id() == server_id
     form = ServerForm()
-
-    pr_server = get_primary_server_id()
-
     header="Update Server Details"
-
-    if not pr_server:
+    if server.primary_server:
         header="Update Primary Server Details"
-
-    if pr_server:
-        if is_this_primary:
-            header="Update Primary Server Details"
-            if request.method == 'POST' and not form.ldap_password.data.strip():
-                form.ldap_password.data = '**dummy**'
-                form.ldap_password_confirm.data = '**dummy**'
-        else:
-            del form.ldap_password
-            del form.ldap_password_confirm
-
+        if request.method == 'POST' and not form.ldap_password.data.strip():
+            form.ldap_password.data = '**dummy**'
+            form.ldap_password_confirm.data = '**dummy**'
+    else:
+        del form.ldap_password
+        del form.ldap_password_confirm
 
     if form.validate_on_submit():
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
-        if is_this_primary:
-            if form.ldap_password.data and form.ldap_password_confirm.data is not '**dummy**':
-                server.ldap_password = form.ldap_password.data.strip()
-                sync_ldap_passwords(server.ldap_password)
+        if server.primary_server and form.ldap_password.data != '**dummy**':
+            server.ldap_password = form.ldap_password.data.strip()
+            sync_ldap_passwords(server.ldap_password)
         db.session.commit()
         # start the background job to get system details
         collect_server_details.delay(server.id)
@@ -114,11 +95,10 @@ def edit(server_id):
 
     form.hostname.data = server.hostname
     form.ip.data = server.ip
-    if is_this_primary:
+    if server.primary_server:
         form.ldap_password.data = server.ldap_password
-    
-    return render_template('new_server.html', form=form, server=True,
-                           header=header)
+
+    return render_template('new_server.html', form=form, header=header)
 
 
 @server_view.route('/remove/<int:server_id>/')
