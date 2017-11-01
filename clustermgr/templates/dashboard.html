@@ -4,7 +4,61 @@
 {% endblock %}
 {% block content %}
 
-{% if data.ldapservers %}
+<div class="row">
+    <div class="col-xs-12 col-sm-6 col-md-3">
+        <div class="small-box bg-aqua">
+            <div class="inner">
+                <h3>{{ servers | length }}</h3>
+                <p>Servers</p>
+            </div>
+            <div class="icon">
+                <i class="fa fa-server"></i>
+            </div>
+            <a href="{{ url_for('server.index') }}" class="small-box-footer">
+                Add Server
+                <i class="fa fa-arrow-circle-right"></i>
+            </a>
+        </div>
+    </div>
+
+    {% if app_conf %}
+     <div class="col-xs-12 col-sm-6 col-md-3">
+        <div class="small-box bg-yellow">
+            <div class="inner">
+                <h3>{{ app_conf.gluu_version }}</h3>
+                <p>Gluu Version</p>
+            </div>
+            <div class="icon">
+                <i class="fa fa-code-fork"></i>
+            </div>
+            <a href="{{ url_for('index.app_configuration') }}" class="small-box-footer">
+                Change
+                <i class="fa fa-arrow-circle-right"></i>
+            </a>
+        </div>
+    </div>
+
+    {% else %}
+     <div class="col-xs-12 col-sm-6 col-md-3">
+        <div class="small-box bg-orange">
+            <div class="inner">
+                <h3>No</h3>
+                <p>Application Configuration</p>
+            </div>
+            <div class="icon">
+                <i class="fa fa-cogs"></i>
+            </div>
+            <a href="{{ url_for('index.app_configuration') }}" class="small-box-footer">
+                Setup Application
+                <i class="fa fa-arrow-circle-right"></i>
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+{% if servers %}
 <div class="row">
     <div class="col-md-12">
         <div class="box">
@@ -16,7 +70,7 @@
               </div>
             </div>
             <div class="box-body no-padding">
-                <table id="servers" class="table">
+                <table id="servers" class="table table-bordered">
                     <thead>
                     <tr>
                         <th>Server ID</th>
@@ -28,10 +82,14 @@
                     </tr>
                     </thead>
                     <tbody>
-                    {% for server in data.ldapservers %}
-                    <tr class="{% if server.id == data.pr_server %}success{% endif %}">
+                    {% for server in servers %}
+                    <tr>
                         <td>{{ server.id }}</td>
-                        <td>{{ server.hostname }}</td>
+                        <td>{{ server.hostname }}
+                            {% if server.primary_server %}
+                                <span class="badge bg-green">Primary</span>
+                            {% endif %}
+                        </td>
                         <td>{{ server.ip }}</td>
                         <td>{% if server.gluu_server %} <span class="glyphicon glyphicon-ok"></span>{% endif %}
                         </td>
@@ -63,24 +121,6 @@
 </div>
 {% endif %}
 
-<div class="row">
-    <div class="col-xs-12 col-sm-6 col-md-3">
-        <div class="small-box bg-aqua">
-            <div class="inner">
-                <h3>{{ data.gluu_server }}</h3>
-                <p>Servers</p>
-            </div>
-            <div class="icon">
-                <i class="fa fa-server"></i>
-            </div>
-            <a href="{{ url_for('server.index') }}" class="small-box-footer">
-                Add Server
-                <i class="fa fa-arrow-circle-right"></i>
-            </a>
-        </div>
-    </div>
-
-</div>
 
 {% endblock %}
 

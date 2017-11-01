@@ -7,10 +7,11 @@
 
 {% if ldap_errors %}
 
-<div class="panel panel-default">
+<div class="panel panel-danger">
   <div class="panel-heading">
     <h4 class="panel-title">
       <a data-toggle="collapse" data-parent="#accordion" href="#collapse2">LDAP Connection Info</a>
+        <span class="pull-right badge bg-red">{{ ldap_errors | length }}</span>
     </h4>
   </div>
   <div id="collapse2" class="panel-collapse collapse">
@@ -43,9 +44,13 @@
             </thead>
             <tbody>
                 {% for server in ldapservers %}
-                <tr {% if server.id == pr_server %} class="success" {% endif %}>
+                <tr>
                     <td>{{ server.id }}</td>
-                    <td>{{ server.hostname }}</td>
+                    <td>{{ server.hostname }}
+                        {% if server.primary_server %}
+                        <span class="badge bg-green">Primary</span>
+                        {% endif %}
+                    </td>
                     <td>{{ server.ip }}</td>
                     <td>
                         {% if server.hostname in serverStats %}

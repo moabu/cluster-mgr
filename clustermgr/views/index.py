@@ -25,24 +25,12 @@ def home():
     if 'nongluuldapinfo' in session:
         del session['nongluuldapinfo']
 
-    ldaps = Server.query.all()
-    if not len(ldaps):
+    servers  = Server.query.all()
+    appconf = AppConfiguration.query.first()
+    if not servers:
         return render_template('intro.html')
 
-    gluu_server = 0
-    nongluu_server = 0
-    for s in ldaps:
-        if s.gluu_server:
-            gluu_server += 1
-        else:
-            nongluu_server += 1
-
-    pr_server = get_primary_server_id()
-
-    data = {"ldapservers": ldaps, 'nongluu_server': nongluu_server,
-            'gluu_server': gluu_server, 'pr_server': pr_server}
-
-    return render_template('dashboard.html', data=data)
+    return render_template('dashboard.html', servers=servers, app_conf=appconf)
 
 
 def get_primary_server_id():
@@ -301,7 +289,6 @@ def install_ldap_server():
 @index.route('/mmr/')
 def multi_master_replication():
     app_config = AppConfiguration.query.first()
-    pr_server = get_primary_server_id()
     if not app_config:
         flash("Repication user and/or password has not been defined."
               " Please go to 'Configuration' and set these before proceed.",
@@ -338,7 +325,6 @@ def multi_master_replication():
     return render_template('multi_master.html', 
                            ldapservers=ldaps,
                            serverStats=serverStats,
-                           pr_server=pr_server,
                            ldap_errors=ldap_errors,
                            )
 
