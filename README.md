@@ -2,25 +2,24 @@
 
 GUI tool for managing Gluu Server and OpenLDAP replication.
 
-Currently only tested with Ubuntu 14 and 16.
+Currently only supports installation on Ubuntu 14 and 16. It can, however, configure cluster replication on Debian and CentOS.
 
-#### The Cluster-mgr should NOT be internet-facing and preferably installed on a secure adminstrators computer or a VM on Digital Ocean or Amazon you can turn off when you're not using it. After the inital set-up, cluster-mgr is not required to be connected to the servers anymore.
+#### The Gluu Cluster Manager should preferably be installed on a secure adminstrators computer or a VM as it will have SSH access to all the servers in the cluster.
+
+- After configuration, the Gluu Cluster Manager no longer needs to be actively connected to the cluster for them to work properly. It can however be used to monitor and manage your cluster for modifications at any time.
 
 ## Installing Cluster Manager
 
-### OS Packages
-
-Install prerequisites packages first. On debian or ubuntu, install them using `apt-get`:
-
-1) First we must enable the machine that cluster-mgr is installed on to establish an ssh connection to the servers that are going to be added to the cluster. This includes the NGINX/Load-balancing server:
+1) First we must enable the machine that Gluu Cluster Manager is installed on the ability to establish an ssh connection to the servers that are going to be added to the cluster. This includes the NGINX/Load-balancing server:
 
 `ssh-keygen -t rsa`
 
 - This will provide you with a prompt to create a key-pair. Make sure that you **do not input a password here**, so cluster-mgr can open connections to the servers.
 
-- Now copy that key (default is `id_rsa.pub`) to the `/root/.ssh/authorized_keys` file. I prefer to open the `id_rsa.pub` file with `vi` then just copy the hash text into the bottom of `authorized_keys`
+- Now copy that key (default is `id_rsa.pub`) to the `/root/.ssh/authorized_keys` file of all servers in the cluster, including your NGINX server (if you're not going to use another load-balancing service). 
+- I prefer to open the `id_rsa.pub` file with `vi` then just copy the hash text into the bottom of `authorized_keys`
 
-2) Install necessary modules on the machine being used for cluster-mgr
+2) Install the necessary modules on the Gluu Cluster Manager machine:
 
 ```
 apt-get install build-essential libssl-dev libffi-dev python-dev redis-server python-setuptools libsasl2-dev  libldap2-dev redis-server python-pip
@@ -46,6 +45,7 @@ python setup.py install
 - A successful installation will install a tool called clustermgr-cli.
 
 ```
+...
 Installed /usr/local/lib/python2.7/dist-packages/vine-1.1.4-py2.7.egg
 Finished processing dependencies for clustermgr==1.1.0
 root@ubuntu:~/cluster-mgr#
@@ -57,7 +57,7 @@ root@ubuntu:~/cluster-mgr#
 clustermgr-cli db upgrade
 ```
 
-6) Run celery worker on a new terminal
+6) Run celery worker on one terminal
 
 ```
 celery -A clusterapp.celery worker &
