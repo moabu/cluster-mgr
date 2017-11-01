@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% from 'macros.html' import render_field, render_checkbox_field, render_form %}
+{% block header %}
+    <h1>Application Settings</h1>
+{% endblock %}
 {% block content %}
-<h2 class="page-header">App Configuration</h2>
 <div class="panel panel-default">
     <div class="panel-heading">
         <h3 class="panel-title">Replication</h3>

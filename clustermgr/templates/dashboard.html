@@ -1,119 +1,113 @@
 {% extends "base.html" %}
+{% block header %}
+<h1>Dashboard</h1>
+{% endblock %}
 {% block content %}
 
-<h2 class="page-header">Dashboard</h2>
-
-<!-- provider info box -->
-<div class="col-xs-12 col-sm-6 col-md-3">
-    <div class="panel panel-info">
-        <div class="bg-success"><b>Gluu Servers</b></div>
-        <div class="panel-heading">
-
-            <div class="row">
-                <div class="col-xs-3">
-
-                    <h1><i class="glyphicon glyphicon-hdd"></i></h1>
-                </div>
-                <div class="col-xs-9 text-right">
-                    <h3>{{ data.gluu_server }} <br> <small>Server</small></h3>
-                </div>
-            </div>
-        </div>
-        <a href="{{ url_for('server.index') }}" class="text-info">
-            <div class="panel-body">
-                <span class="pull-left">Add Server</span>
-                <span class="pull-right"><i class="glyphicon glyphicon-circle-arrow-right"></i></span>
-                <div class="clearfix"></div>
-            </div>
-        </a>
-    </div>
-</div>
-
-<!-- provider info box -->
-<div class="col-xs-12 col-sm-6 col-md-3">
-    <div class="panel panel-info">
-        <div class="bg-success"><b>Non Gluu Servers</b></div>
-        <div class="panel-heading">
-            <div class="row">
-                <div class="col-xs-3">
-                    <h1><i class="glyphicon glyphicon-download-alt"></i></h1>
-                </div>
-                <div class="col-xs-9 text-right">
-                    <h3>{{data.nongluu_server}} <br> <small>Server</small></h3>
-                </div>
-            </div>
-        </div>
-        <a href="{{ url_for('index.install_ldap_server') }}" class="text-info">
-            <div class="panel-body">
-                <span class="pull-left">Install Symas LDAP Server</span>
-                <span class="pull-right"><i class="glyphicon glyphicon-circle-arrow-right"></i></span>
-                <div class="clearfix"></div>
-            </div>
-        </a>
-    </div>
-</div>
-
 {% if data.ldapservers %}
-<table id="servers" class="table table-bordered">
-    <thead>
-        <tr>
-            <th>Server ID</th>
-            <th>Hostname</th>
-            <th>IP Address</th>
-            <th>Gluu Server</th>
-            <th>OS</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for server in data.ldapservers %}
-        <tr {% if server.id == data.pr_server %} class="success" {% endif %}>
-            <td>{{ server.id }}</td>
-            <td>{{ server.hostname }}</td>
-            <td>{{ server.ip }}</td>
-            <td>{% if server.gluu_server %} <span class="glyphicon glyphicon-ok"></span>{% endif %}</td>
-            <td>{{ server.os }}</td>
-            <td>
-                <a class="btn btn-default btn-xs" href="{{ url_for('server.edit', server_id=server.id) }}">Edit</a>
-                <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal" data-serverid="{{server.id}}"
-                data-hostname="{{ server.hostname }}">Remove</a>
-                
-                <a class="btn btn-default btn-xs" href="{{ url_for('server.install_gluu', server_id=server.id) }}">Install Gluu</a>
-                
-                {% if server.gluu_server and  server.primary_server %} 
-                    <br><a class="btn btn-default btn-xs" href="{{ url_for('server.edit_slapd_conf', server_id=server.id) }}">Edit slapd.conf</a>
-                {% endif %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="box">
+            <div class="box-header with-border">
+                <h3 class="box-title">Servers in the Cluster</h3>
+                <div class="box-tools pull-right">
+                <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i>
+                </button>
+              </div>
+            </div>
+            <div class="box-body no-padding">
+                <table id="servers" class="table">
+                    <thead>
+                    <tr>
+                        <th>Server ID</th>
+                        <th>Hostname</th>
+                        <th>IP Address</th>
+                        <th>Gluu Server</th>
+                        <th>OS</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for server in data.ldapservers %}
+                    <tr class="{% if server.id == data.pr_server %}success{% endif %}">
+                        <td>{{ server.id }}</td>
+                        <td>{{ server.hostname }}</td>
+                        <td>{{ server.ip }}</td>
+                        <td>{% if server.gluu_server %} <span class="glyphicon glyphicon-ok"></span>{% endif %}
+                        </td>
+                        <td>{{ server.os }}</td>
+                        <td>
+                            <a class="btn btn-default btn-xs" href="{{ url_for('server.edit', server_id=server.id) }}">Edit</a>
+                            <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal"
+                               data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Remove</a>
+                            {% if not server.gluu_server %}
+                            <br>
+                            <a class="btn btn-default btn-xs" href="{{ url_for('server.install_gluu', server_id=server.id) }}">Install Gluu</a>
+                            {% endif %}
 
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+                            {% if server.gluu_server and server.primary_server %}
+                            <br>
+                            <a class="btn btn-default btn-xs" href="{{ url_for('server.edit_slapd_conf', server_id=server.id) }}">Edit slapd.conf</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
 
+            </div>
+        </div>
 
+    </div>
+
+</div>
 {% endif %}
+
+<div class="row">
+    <div class="col-xs-12 col-sm-6 col-md-3">
+        <div class="small-box bg-aqua">
+            <div class="inner">
+                <h3>{{ data.gluu_server }}</h3>
+                <p>Servers</p>
+            </div>
+            <div class="icon">
+                <i class="fa fa-server"></i>
+            </div>
+            <a href="{{ url_for('server.index') }}" class="small-box-footer">
+                Add Server
+                <i class="fa fa-arrow-circle-right"></i>
+            </a>
+        </div>
+    </div>
+
+</div>
 
 {% endblock %}
 
 {% block modals %}
-    <!-- Alert Modal before a server is removed from the cluster -->
-    <div id="remove_alert_modal" class="modal fade" tabindex="-1" role="dialog">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                    <h4 class="modal-title">Remove Server</h4>
-                </div>
-                <div class="modal-body">
-                   <p>This will remove the server from the cluster. Are you sure you want it removed?</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                    <a id="remove_url" class="btn btn-danger" href="#">Confirm</a>
-                </div>
-            </div><!-- /.modal-content -->
-        </div><!-- /.modal-dialog -->
-    </div><!-- /.modal -->
+<!-- Alert Modal before a server is removed from the cluster -->
+<div id="remove_alert_modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"
+                        aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">Remove Server</h4>
+            </div>
+            <div class="modal-body">
+                <p>This will remove the server from the cluster. Are you sure
+                    you want it removed?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default"
+                        data-dismiss="modal">Close
+                </button>
+                <a id="remove_url" class="btn btn-danger" href="#">Confirm</a>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
 
 {% endblock %}
 
@@ -129,6 +123,7 @@
         modal.find('.modal-title').text('Remove ' + hostname);
         $('#remove_url').attr('href', remove_server_url);
     });
+
 </script>
 {% endblock %}
 

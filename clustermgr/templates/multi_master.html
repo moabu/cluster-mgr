@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 {% from 'macros.html' import render_form %}
+{% block header %}
+    <h1>Multi Master Replication</h1>
+{% endblock %}
 {% block  content %}
 
 {% if ldap_errors %}
@@ -23,88 +26,91 @@
 
 {% endif %}
 
-<h2 class="page-header">Multi Master Replication</h2>
 
 {% if ldapservers %}
-<table id="servers" class="table table-bordered">
-    <thead>
-        <tr>
-            <th>Server ID</th>
-            <th>Hostname</th>
-            <th>IP Address</th>
-            <th>Replication Status</th>
-            <th>Providers</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for server in ldapservers %}
-        <tr {% if server.id == pr_server %} class="success" {% endif %}>
-            <td>{{ server.id }}</td>
-            <td>{{ server.hostname }}</td>
-            <td>{{ server.ip }}</td>
-            <td>
-                {% if server.hostname in serverStats %}
-                    Configured
-                {% else %}
-                    <p class="text-danger">Not Configured</p>
-                {% endif %}
-            </td>
-
-            <!-- providers -->
-
-            <td>
-                {% if server.hostname in serverStats %}
-                <ul>
-                    {% for p in serverStats[server.hostname]['providers'] %}
-                        <li>{{ serverStats[server.hostname]['providers'][p][0] }} &nbsp;{{ p }}:{{ serverStats[server.hostname]['providers'][p][1] }}
-                            <a class="btn btn-danger btn-xs" href="{{ url_for('index.remove_provider_from_consumer', consumer_id=server.id, provider_addr=serverStats[server.hostname]['providers'][p][2]) }}">
-                                Remove
-                            </a>
-                        </li>
-                    {% endfor %}
-                </ul>
-                {% endif %}
-
-                {% if server.hostname in serverStats %}
-                    {% for ms in serverStats %}
-                        {% if (ms != server.hostname) and (ms not in serverStats[server.hostname]['providers']) %}
-                            <li>
-                                <s>{{serverStats[ms]['server_id']}} {{ms}} </s>
-                                <a href="{{ url_for('index.add_provider_to_consumer', consumer_id=server.id, provider_id= serverStats[ms]['server_id'])}}"
-                                    class="btn btn-primary btn-single btn-sm">
-                                    Add
-                                </a>
-                            </li>
+<div class="box">
+    <div class="box-body no-padding">
+        <table id="servers" class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Server ID</th>
+                    <th>Hostname</th>
+                    <th>IP Address</th>
+                    <th>Replication Status</th>
+                    <th>Providers</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for server in ldapservers %}
+                <tr {% if server.id == pr_server %} class="success" {% endif %}>
+                    <td>{{ server.id }}</td>
+                    <td>{{ server.hostname }}</td>
+                    <td>{{ server.ip }}</td>
+                    <td>
+                        {% if server.hostname in serverStats %}
+                            Configured
+                        {% else %}
+                            <p class="text-danger">Not Configured</p>
                         {% endif %}
-                    {% endfor %}
-                {% endif %}
-            </td>
+                    </td>
 
-            <!-- providers end -->
+                    <!-- providers -->
+                    <td>
+                        {% if server.hostname in serverStats %}
+                        <ul>
+                            {% for p in serverStats[server.hostname]['providers'] %}
+                                <li>{{ serverStats[server.hostname]['providers'][p][0] }} &nbsp;{{ p }}:{{ serverStats[server.hostname]['providers'][p][1] }}
+                                    <a class="btn btn-danger btn-xs" href="{{ url_for('index.remove_provider_from_consumer', consumer_id=server.id, provider_addr=serverStats[server.hostname]['providers'][p][2]) }}">
+                                        Remove
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
 
-            <td>
-                {% if server.hostname in serverStats %}
-                    {% if serverStats[server.hostname]['server_id'] and serverStats[server.hostname]['accesslogDB'] %}
-                        <a class="btn btn-primary btn-xs" href="{{ url_for('cluster.deploy_config', server_id=server.id) }}">Re-deploy Configuration</a>
-                        <a class="btn btn-danger btn-xs" href="{{ url_for('cluster.remove_deployment', server_id=server.id) }}"> Remove Deployment</a>
-                        <br><a href="{{ url_for('index.add_test_user', server_id=server.id) }}"  class="btn btn-default btn-xs">Add Test User</a>
-                        <a href="{{ url_for('index.search_test_users', server_id=server.id) }}"  class="btn btn-default btn-xs">Search Test Users</a>
-                    {% else %}
-                        <a class="btn btn-success btn-xs" href="{{ url_for('cluster.deploy_config', server_id=server.id) }}">Deploy Configuration</a>
-                        <a class="btn btn-danger btn-xs" href="{{ url_for('index.remove_multi_master_replicator')}}?server_id={{server.id}}">Remove Master</a>
-                    {% endif %}
-                {% else %}
-                    <a class="btn btn-success btn-xs" href="{{ url_for('cluster.deploy_config', server_id=server.id) }}">Deploy Configuration</a>
-                {% endif %}
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+                        {% if server.hostname in serverStats %}
+                        <ul>
+                            {% for ms in serverStats %}
+                                {% if (ms != server.hostname) and (ms not in serverStats[server.hostname]['providers']) %}
+                                    <li>
+                                        <s>{{serverStats[ms]['server_id']}} {{ms}} </s>
+                                        <a href="{{ url_for('index.add_provider_to_consumer', consumer_id=server.id, provider_id= serverStats[ms]['server_id'])}}"
+                                            class="btn btn-primary btn-single btn-sm">
+                                            Add
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </td>
+
+                    <!-- providers end -->
+
+                    <td>
+                        {% if server.hostname in serverStats %}
+                            {% if serverStats[server.hostname]['server_id'] and serverStats[server.hostname]['accesslogDB'] %}
+                                <a class="btn btn-primary btn-xs" href="{{ url_for('cluster.deploy_config', server_id=server.id) }}">Re-deploy Configuration</a>
+                                <a class="btn btn-danger btn-xs" href="{{ url_for('cluster.remove_deployment', server_id=server.id) }}"> Remove Deployment</a>
+                                <br><a href="{{ url_for('index.add_test_user', server_id=server.id) }}"  class="btn btn-default btn-xs">Add Test User</a>
+                                <a href="{{ url_for('index.search_test_users', server_id=server.id) }}"  class="btn btn-default btn-xs">Search Test Users</a>
+                            {% else %}
+                                <a class="btn btn-success btn-xs" href="{{ url_for('cluster.deploy_config', server_id=server.id) }}">Deploy Configuration</a>
+                                <a class="btn btn-danger btn-xs" href="{{ url_for('index.remove_multi_master_replicator')}}?server_id={{server.id}}">Remove Master</a>
+                            {% endif %}
+                        {% else %}
+                            <a class="btn btn-success btn-xs" href="{{ url_for('cluster.deploy_config', server_id=server.id) }}">Deploy Configuration</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
 {% endif %}
-
-<br><a class="btn btn-success btn-xs" href="{{ url_for('cluster.install_nginx') }}">Install NGINX </a>
 
 {% endblock %}
 {% block js %}

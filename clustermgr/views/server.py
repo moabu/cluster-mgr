@@ -69,13 +69,7 @@ def index():
         collect_server_details.delay(server.id)
         return redirect(url_for('index.home'))
 
-    
-
-    flash('Cluster Manager will connect to this server via SSH to perform its'
-          ' tasks. Ensure the server running Cluster Manager has'
-          '"Password-less" SSH access via shared keys to the server.', 'info')
     return render_template('new_server.html', form=form, header=header)
-
 
 
 @server_view.route('/edit/<int:server_id>/', methods=['GET', 'POST'])
@@ -94,7 +88,6 @@ def edit(server_id):
 
     if not pr_server:
         header="Update Primary Server Details"
-
 
     if pr_server:
         if is_this_primary:
