@@ -779,17 +779,13 @@ def check_gluu_installation(c):
     
 
 @celery.task
-def collect_server_details(server_id, manual=False):
+def collect_server_details(server_id):
     server = Server.query.get(server_id)
     appconf = AppConfiguration.query.first()
     c = RemoteClient(server.hostname, ip=server.ip)
     try:
         c.startup()
     except:
-        if manual:
-            flash("Can't make SSH connection to {0}. "
-                  "Please check your public keys.".format(server.hostname),
-                    "danger")
         return
 
     # 0. Make sure it is a Gluu Server

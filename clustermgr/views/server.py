@@ -180,26 +180,14 @@ def install_gluu(server_id):
               "Server.", "warning")
         return redirect(url_for('index.home')) 
 
-    
-
-    #if not (server_id == pserver.id or pserver.gluu_server):
-    #    flash("Please first install primary server.", "warning")
-    #    return redirect(url_for('index.home')) 
-
-
     server = Server.query.get(server_id)
-    
     if not server.primary_server:
         return redirect(url_for('cluster.install_gluu_server',
                                 server_id=server_id))
-    
-    
     if not server.os:
         flash("Server OS version hasn't been identified yet. Checking Now",
               "warning")
-        
-        collect_server_details(server_id, True)
-        
+        collect_server_details.delay(server_id)
         return redirect(url_for('index.home'))
     
     appconf = AppConfiguration.query.first()
