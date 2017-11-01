@@ -12,15 +12,15 @@ Currently only tested with Ubuntu 14 and 16.
 
 Install prerequisites packages first. On debian or ubuntu, install them using `apt-get`:
 
-1) First we must enable whatever computer/VM that cluster-mgr is installed on to establish an ssh connection to the servers that are going to be added to the cluster. This includes the NGINX server:
+1) First we must enable the machine that cluster-mgr is installed on to establish an ssh connection to the servers that are going to be added to the cluster. This includes the NGINX/Load-balancing server:
 
 `ssh-keygen -t rsa`
 
 - This will provide you with a prompt to create a key-pair. Make sure that you **do not input a password here**, so cluster-mgr can open connections to the servers.
 
-- Now copy that key (default `id_rsa.pub`) to the `/root/.ssh/authorized_keys` file. I prefer to open the `id_rsa.pub` file with `vi` then just copy the hash text into the bottom of `authorized_keys`
+- Now copy that key (default is `id_rsa.pub`) to the `/root/.ssh/authorized_keys` file. I prefer to open the `id_rsa.pub` file with `vi` then just copy the hash text into the bottom of `authorized_keys`
 
-2) Install necessary modules on the machine being used for cluster-mgr (Preferably not the Gluu servers or anything internet-facing)
+2) Install necessary modules on the machine being used for cluster-mgr
 
 ```
 apt-get install build-essential libssl-dev libffi-dev python-dev redis-server python-setuptools libsasl2-dev  libldap2-dev redis-server python-pip
@@ -41,7 +41,7 @@ cd cluster-mgr/
 python setup.py install
 ```
 
-- There may be a few warnings here, but this is normal.
+- There may be a few innocuous warnings here, but this is normal.
 
 - A successful installation will install a tool called clustermgr-cli.
 
@@ -63,7 +63,7 @@ clustermgr-cli db upgrade
 celery -A clusterapp.celery worker &
 ```
 
-7) On another terminal run cluster-mgr
+7) Open another terminal to run clustermgr-cli
 
 ```
 clustermgr-cli run
