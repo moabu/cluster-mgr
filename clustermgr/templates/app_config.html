@@ -1,22 +1,26 @@
 {% extends "base.html" %}
 {% from 'macros.html' import render_field, render_checkbox_field, render_form %}
+
 {% block header %}
     <h1>Application Settings</h1>
+    <ol class="breadcrumb">
+        <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+        <li class="active">Settings</li>
+    </ol>
 {% endblock %}
+
 {% block content %}
-<div class="panel panel-default">
-    <div class="panel-heading">
+<div class="box box-primary">
+    <form id="cform" action="{{ url_for('index.app_configuration', next=next) }}" method="POST" class="form-horizontal">
+    <div class="box-header with-border">
         <h3 class="panel-title">Replication</h3>
     </div>
-    <div class="panel-body">
-        <form id="cform" action="{{ url_for('index.app_configuration', next=next) }}" method="POST">
+    <div class="box-body">
             {{ cform.csrf_token }}
 
-
             <div class="form-group {{ 'has-error' if cform.gluu_version.errors else '' }}">
-                {{ cform.gluu_version.label(class="control-label") }}
-                <p class="help-block">A cluster should contain Gluu servers of the same version. Select version of your servers.</p>
-                <div class="input-group">
+                {{ cform.gluu_version.label(class="control-label col-md-3") }}
+                <div class="col-md-9">
                     {{ cform.gluu_version(class="form-control") }}
                 </div>
                 {% for error in cform.gluu_version.errors %}
@@ -24,64 +28,79 @@
                 {% endfor %}
             </div>
 
+            <div class="form-group {{ 'has-error' if cform.replication_dn.errors else '' }}">
+                {{ cform.replication_dn.label(class="control-label col-md-3") }}
+                <div class="col-md-9">
+                    <div class="input-group">
+                        <span class="input-group-addon">cn=</span>
+                        {{ cform.replication_dn(class="form-control") }}
+                        <span class="input-group-addon">,o=gluu</span>
+                    </div>
+                    <p class="help-block">This will be used by the LDAP servers to securely communicate for replication.</p>
+                    {% for error in cform.replication_dn.errors %}
+                        <p class="help-block">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-group {{ 'has-error' if cform.replication_pw.errors else '' }}">
+                {{ cform.replication_pw.label(class="control-label col-md-3") }}
+                <div class="col-md-9">
+                    {{ cform.replication_pw(class="form-control") }}
+                    {% for error in cform.replication_pw.errors %}
+                        <p class="help-block">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
 
             <div class="form-group">
-                <div class="input-group">
+                {{ cform.replication_pw_confirm.label(class="control-label col-md-3") }}
+                <div class="col-md-9">
+                    {{ cform.replication_pw_confirm(class="form-control") }}
+                </div>
+            </div>
+
+            <div class="form-group {{ 'has-error' if cform.nginx_host.errors else '' }}">
+                {{ cform.nginx_host.label(class="control-label col-md-3") }}
+                <div class="col-md-9">
+                    {{ cform.nginx_host(class="form-control") }}
+                    {% for error in cform.nginx_host.errors %}
+                        <p class="help-block">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="control-label col-md-3">Access Log Purge</label>
+                <div class="col-md-9">
+                    <div class="row">
+                        <div class="col-md-2 text-right"><label>Age</label></div>
+                        <div class="col-md-1">{{ cform.purge_age_day(class='form-control') }} Days</div>
+                        <div class="col-md-1">{{ cform.purge_age_hour(class='form-control') }} Hours</div>
+                        <div class="col-md-1">{{ cform.purge_age_min (class='form-control')}} Minutes</div>
+                        <div class="col-md-1"></div>
+                        <div class="col-md-2 text-right"><label>Interval</label></div>
+                        <div class="col-md-1">{{ cform.purge_interval_day(class='form-control') }} Days</div>
+                        <div class="col-md-1">{{ cform.purge_interval_hour(class='form-control') }} Hours</div>
+                        <div class="col-md-1">{{ cform.purge_interval_min (class='form-control')}} Minutes</div>
+                        <div class="col-md-1"></div>
+                    </div>
+                    <p class="help-block">Defines both the maximum age for log entries to be retained in the database and how often to scan the database for old entries.</p>
+                </div>
+
+            </div>
+
+            <div class="form-group">
+                <div class="col-md-offset-3 col-md-9">
                     {{ render_checkbox_field(cform.use_ip) }}
                 </div>
             </div>
-
-            <div class="form-group {{ 'has-error' if cform.replication_dn.errors else '' }}">
-                {{ cform.replication_dn.label(class="control-label") }}
-                <p class="help-block">This DN (e.g., cn=replicator,o=gluu) will be used by all consumers to authenticate with providers.</p>
-                <div class="input-group">
-                    <span class="input-group-addon">cn=</span>
-                    {{ cform.replication_dn(class="form-control", placeholder="replicator") }}
-                    <span class="input-group-addon">,o=gluu</span>
-                </div>
-                {% for error in cform.replication_dn.errors %}
-                <p class="help-block">{{ error }}</p>
-                {% endfor %}
-            </div>
-
-            {{ render_field(cform.replication_pw) }}
-            {{ render_field(cform.replication_pw_confirm) }}
-            {{ render_field(cform.nginx_host) }}
-
-            <div class="form-group">
-                <label>Access Log Purge</label>
-                <p class="help-block">Defines both the maximum age for log entries to be retained in the database and how often to scan the database for old entries.</p>
-                <div class="form-inline">
-                    <label>Age (D H M) </label> {{ cform.purge_age_day(class='form-control') }} {{ cform.purge_age_hour(class='form-control') }} {{ cform.purge_age_min (class='form-control')}}
-                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                    <label>Interval (D H M) </label> {{ cform.purge_interval_day(class='form-control') }} {{ cform.purge_interval_hour(class='form-control') }} {{ cform.purge_interval_min (class='form-control')}}
-                
-                </div>
-            </div>
-
-            {{ cform.update(class="btn btn-primary")}}
-        </form>
-    </div>
+        </div>
+        <div class="box-footer">
+            {{ cform.update(class="btn btn-primary pull-right") }}
+        </div>
+    </form>
 </div>
-
-
-    <!-- Alert Modal for password confirmation -->
-    <div id="passwordMismatch" class="modal fade" tabindex="-1" role="dialog">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                    <h4 class="modal-title">Password Mismatch</h4>
-                </div>
-                <div class="modal-body">
-                   <p>Please enter same password.</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                </div>
-            </div><!-- /.modal-content -->
-        </div><!-- /.modal-dialog -->
-    </div><!-- /.modal -->
 
 
 <div class="panel panel-default">
@@ -117,20 +136,4 @@
 
 
 {% block js %}
-<script>
-
-
-$(document).ready(function(){
-    $("#update").click(function(){
-        if($("#replication_pw").val() != $("#replication_pw_confirm").val()) {
-       
-            $('#passwordMismatch').modal('show');
-            return false;
-        }
-    });
-
-});
-
-</script>
-
 {% endblock %}

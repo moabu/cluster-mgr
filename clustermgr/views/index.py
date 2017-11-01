@@ -24,11 +24,13 @@ index = Blueprint('index', __name__)
 def home():
     if 'nongluuldapinfo' in session:
         del session['nongluuldapinfo']
+    appconf = AppConfiguration.query.first()
+    if not appconf:
+        return render_template('intro.html', setup='cluster')
 
     servers  = Server.query.all()
-    appconf = AppConfiguration.query.first()
     if not servers:
-        return render_template('intro.html')
+        return render_template('intro.html', setup='server')
 
     return render_template('dashboard.html', servers=servers, app_conf=appconf)
 
