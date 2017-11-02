@@ -814,10 +814,6 @@ def collect_server_details(server_id):
     server.os = get_os_type(c)
     server.gluu_server = check_gluu_installation(c)
 
-    if manual:
-        flash("This server is identifed as {0}.".format(server.os),
-                "success")
-
     db.session.commit()
 
 
