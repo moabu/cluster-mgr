@@ -174,7 +174,7 @@ def get_setup_properties():
         'installJce':True,
         'installSaml':False,
         'installAsimba':False,
-        'installCas':False,
+        #'installCas':False,
         'installOxAuthRP':False,
         'installPassport':False,
         }
@@ -258,7 +258,7 @@ def install_gluu(server_id):
                     'installJce',
                     'installSaml',
                     'installAsimba',
-                    'installCas',
+                    #'installCas',
                     'installOxAuthRP',
                     'installPassport',
 
@@ -292,7 +292,7 @@ def install_gluu(server_id):
                     'installJce',
                     'installSaml',
                     'installAsimba',
-                    'installCas',
+                    #'installCas',
                     'installOxAuthRP',
                     'installPassport',
                     ):
