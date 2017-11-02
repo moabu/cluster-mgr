@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 {% from 'macros.html' import cache_process_steps %}
+{% block header %}
+    <h1>Cache Clustering</h1>
+{% endblock %}
 
 {% block content %}
-    <h2 class="page-header">Cache Clustering</h2>
     {{ cache_process_steps(step) }}
 
     <div id="log_root"></div>

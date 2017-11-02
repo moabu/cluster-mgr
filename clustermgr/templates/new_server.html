@@ -1,51 +1,14 @@
 {% extends "base.html" %}
 {% from 'macros.html' import render_field, render_checkbox_field, render_form %}
+
+{% block header %}
+    <h1> {{ header }}</h1>
+{% endblock header %}
+
 {% block  content %}
-
-<h2 class="page-header"> {{ header }}</h2>
-
-{{ render_form(form, action_url='', btn_class='btn btn-primary') }}
-
-{% if server is defined %}
-
-    <!-- Alert Modal for password confirmation -->
-    <div id="passwordMismatch" class="modal fade" tabindex="-1" role="dialog">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                    <h4 class="modal-title">Password Mismatch</h4>
-                </div>
-                <div class="modal-body">
-                   <p>Please enter same password.</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                </div>
-            </div><!-- /.modal-content -->
-        </div><!-- /.modal-dialog -->
-    </div><!-- /.modal -->
-
-{% endif %}
-
-{% endblock %}
-
-{% block js %}
-
-{% if server is defined %}
-    <script>
-
-    $(document).ready(function(){
-        $(".btn.btn-primary").click(function(){
-            if($("#ldap_password").val() != $("#ldap_password_confirm").val()) {
-           
-                $('#passwordMismatch').modal('show');
-                return false;
-            }
-        });
-
-    });
-
-    </script>
-{% endif %}
+<div class="box box-primary">
+    <div class="box-body">
+        {{ render_form(form, action_url='', btn_class='btn btn-primary') }}
+    </div>
+</div>
 {% endblock %}
