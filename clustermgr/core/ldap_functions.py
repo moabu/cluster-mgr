@@ -179,15 +179,30 @@ class LdapOLC(object):
             search_filter='(objectClass=olcAccessLogConfig)',
             search_scope=SUBTREE, attributes=["olcAccessLogPurge"])
 
-    def accesslogPurge(self):
+    def accesslogPurge(self, purge='0:24:0 1:0:0'):
+        p,a = purge.split()
+        pl = p.split(':')
+        al = a.split(':')
+
+        olcAccessLogPurge = ''
+
+        if not pl[0]=='0':
+            olcAccessLogPurge += pl[0].zfill(2)+'+'
+        olcAccessLogPurge += "{}:{}".format(pl[1].zfill(2),pl[2].zfill(2)) + ' '
+        
+        if not al[0]=='0':
+            olcAccessLogPurge += al[0].zfill(2)+'+'
+        olcAccessLogPurge += "{}:{}".format(al[1].zfill(2),al[2].zfill(2))
+
         attributes = {
-            'objectClass':  ['olcOverlayConfig', 'olcAccessLogConfig'],
-            'olcOverlay': 'accesslog',
-            'olcAccessLogDB': 'cn=accesslog',
-            'olcAccessLogOps': 'writes',
-            'olcAccessLogSuccess': 'TRUE',
-            'olcAccessLogPurge': '07+00:00 01+00:00',
-        }
+                'objectClass':  ['olcOverlayConfig', 'olcAccessLogConfig'],
+                'olcOverlay': 'accesslog',
+                'olcAccessLogDB': 'cn=accesslog',
+                'olcAccessLogOps': 'writes',
+                'olcAccessLogSuccess': 'TRUE',
+                'olcAccessLogPurge': olcAccessLogPurge,
+            }
+            
         if not self.checkAccesslogPurge():
             return self.conn.add(
                 'olcOverlay=accesslog,olcDatabase={1}mdb,cn=config',

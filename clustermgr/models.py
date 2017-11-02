@@ -68,6 +68,7 @@ class AppConfiguration(db.Model):
     
     nginx_host = db.Column(db.String(250))
 
+    log_purge = db.Column(db.String(50))
 
 class KeyRotation(db.Model):
     __tablename__ = "keyrotation"

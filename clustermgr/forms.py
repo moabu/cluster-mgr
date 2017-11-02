@@ -24,7 +24,15 @@ class AppConfigForm(FlaskForm):
     replication_pw_confirm = PasswordField(
         'Re-enter Password', validators=[DataRequired()])
     nginx_host = StringField('Load Balancer Hostname', validators=[DataRequired()])
+
+    purge_age_day = SelectField(choices=[(str(d), str(d)) for d in range(0,31)])
+    purge_age_hour = SelectField(choices=[(str(h), str(h)) for h in range(0,25)], default="24")
+    purge_age_min = SelectField(choices=[(str(m), str(m)) for m in range(0,60)])
     
+    purge_interval_day = SelectField(choices=[(str(d), str(d)) for d in range(0,31)], default="1")
+    purge_interval_hour = SelectField(choices=[(str(h), str(h)) for h in range(0,25)])
+    purge_interval_min = SelectField(choices=[(str(m), str(m)) for m in range(0,60)])
+
     update = SubmitField("Update Configuration")
 
 
@@ -99,8 +107,6 @@ class ServerForm(FlaskForm):
         ])
     ldap_password_confirm = PasswordField(
         'Re-enter LDAP Admin Password *', validators=[DataRequired()])
-    #gluu_server = BooleanField("Gluu Server is installed")
-    #primary_server = BooleanField('This is primary Server')
 
 
 class TestUser(FlaskForm):
@@ -134,7 +140,7 @@ class InstallServerForm(FlaskForm):
     installJce = BooleanField('Install JCE 1.8')
     installSaml = BooleanField('Install Shibboleth SAML IDP')
     installAsimba = BooleanField('Install Asimba SAML Proxy')
-    installCas = BooleanField('Install CAS')
+    #installCas = BooleanField('Install CAS')
     installOxAuthRP = BooleanField('Install oxAuth RP')
     installPassport = BooleanField('Install Passport')
 

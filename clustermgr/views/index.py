@@ -24,32 +24,15 @@ index = Blueprint('index', __name__)
 def home():
     if 'nongluuldapinfo' in session:
         del session['nongluuldapinfo']
+    appconf = AppConfiguration.query.first()
+    if not appconf:
+        return render_template('intro.html', setup='cluster')
 
-    ldaps = Server.query.all()
-    if not len(ldaps):
-        return render_template('intro.html')
+    servers  = Server.query.all()
+    if not servers:
+        return render_template('intro.html', setup='server')
 
-    gluu_server = 0
-    nongluu_server = 0
-    for s in ldaps:
-        if s.gluu_server:
-            gluu_server += 1
-        else:
-            nongluu_server += 1
-
-    pr_server = get_primary_server_id()
-
-    data = {"ldapservers": ldaps, 'nongluu_server': nongluu_server,
-            'gluu_server': gluu_server, 'pr_server': pr_server}
-
-    return render_template('dashboard.html', data=data)
-
-
-def get_primary_server_id():
-    pr_server = Server.query.filter_by(primary_server=True).first()
-    if pr_server:
-        return pr_server.id
-
+    return render_template('dashboard.html', servers=servers, app_conf=appconf)
 
 @index.route('/configuration/', methods=['GET', 'POST'])
 def app_configuration():
@@ -61,7 +44,6 @@ def app_configuration():
     if request.method == 'POST' and not conf_form.replication_pw.data.strip():
         conf_form.replication_pw.data = '**dummy**'
         conf_form.replication_pw_confirm.data = '**dummy**'
-
 
     if conf_form.update.data and conf_form.validate_on_submit():
         replication_dn = "cn={},o=gluu".format(conf_form.replication_dn.data.strip())
@@ -80,11 +62,27 @@ def app_configuration():
                     "This will break replication. Please re-deploy all LDAP Servers.",
                     "danger")
         
-        config.replication_dn = replication_dn.strip()
+        config.replication_dn = replication_dn
         config.gluu_version = conf_form.gluu_version.data.strip()
         config.use_ip = conf_form.use_ip.data
         config.nginx_host = conf_form.nginx_host.data.strip()
         
+        config.replication_dn = replication_dn
+        config.gluu_version = conf_form.gluu_version.data.strip()
+        config.use_ip = conf_form.use_ip.data
+        config.nginx_host = conf_form.nginx_host.data.strip()
+        
+        purge_age_day = conf_form.purge_age_day.data
+        purge_age_hour = conf_form.purge_age_hour.data
+        purge_age_min = conf_form.purge_age_min.data
+        purge_interval_day = conf_form.purge_interval_day.data
+        purge_interval_hour = conf_form.purge_interval_hour.data
+        purge_interval_min = conf_form.purge_interval_min.data
+        
+        log_purge = "{}:{}:{} {}:{}:{}".format(purge_age_day, purge_age_hour, purge_age_min,
+                                               purge_interval_day, purge_interval_hour, purge_interval_min)
+        config.log_purge = log_purge
+        print log_purge
         db.session.add(config)
         db.session.commit()
         flash("Gluu Replication Manager application configuration has been "
@@ -114,6 +112,18 @@ def app_configuration():
         conf_form.use_ip.data = config.use_ip
         if config.gluu_version:
             conf_form.gluu_version.data = config.gluu_version
+
+        if config.log_purge:
+            a, i = config.log_purge.split()
+            pa = a.split(':')
+            pi = i.split(':')
+            conf_form.purge_age_day.data = pa[0]
+            conf_form.purge_age_hour.data = pa[1]
+            conf_form.purge_age_min.data = pa[2]
+            conf_form.purge_interval_day.data = pi[0]
+            conf_form.purge_interval_hour.data = pi[1]
+            conf_form.purge_interval_min.data = pi[2]
+
 
     return render_template('app_config.html', cform=conf_form, sform=sch_form,
                            config=config, schemafiles=schemafiles,
@@ -274,7 +284,6 @@ def install_ldap_server():
 @index.route('/mmr/')
 def multi_master_replication():
     app_config = AppConfiguration.query.first()
-    pr_server = get_primary_server_id()
     if not app_config:
         flash("Repication user and/or password has not been defined."
               " Please go to 'Configuration' and set these before proceed.",
@@ -282,6 +291,8 @@ def multi_master_replication():
 
     if 'nongluuldapinfo' in session:
         del session['nongluuldapinfo']
+
+    ldap_errors = []
 
     ldaps = Server.query.all()
     serverStats = {}
@@ -295,12 +306,8 @@ def multi_master_replication():
         try:
             r = s.connect()
         except Exception as e:
-            flash("Connection to LDAPserver {0} at port 1636 was failed:"
-                  " {1}".format(ldp.hostname, e), "warning")
-
-        if not r:
-            flash("Connection to LDAPserver {0} at port 1636 has "
-                  "failed".format(ldp.hostname), "warning")
+            ldap_errors.append("Connection to LDAPserver {0} at port 1636 was failed:"
+                  " {1}".format(ldp.hostname, e))
 
         if r:
             sstat = s.getMMRStatus()
@@ -310,9 +317,10 @@ def multi_master_replication():
         flash("Please add ldap servers.", "warning")
         return redirect(url_for('index.home'))
         
-    return render_template('multi_master.html', ldapservers=ldaps,
+    return render_template('multi_master.html', 
+                           ldapservers=ldaps,
                            serverStats=serverStats,
-                           pr_server=pr_server,
+                           ldap_errors=ldap_errors,
                            )
 
 

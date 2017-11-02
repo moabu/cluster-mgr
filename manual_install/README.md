@@ -33,7 +33,7 @@ Multi-master replication with OpenLDAP through delta-syncrepl by creating an acc
 
 With:
 
-`servers: localhost:1636,{insert server1 FQDN here},{insert server2 FQDN here},...`
+`servers: localhost:1636,{insert server1 FQDN here}:1636,{insert server2 FQDN here}:1636,...`
 
 Placing all servers in your cluster topology in this config portion.
 
@@ -172,7 +172,6 @@ HOST_LIST="ldaps://127.0.0.1:1636/"
 ```
 HOST_LIST="ldaps://0.0.0.0:1636/ ldaps:///"
 ```
-- You can also identify server IP addresses individually as well i.e. (ldaps://{server1's IP address}:1636/ ldaps://{server2's IP address}:1636/ ... ldaps:///" for more security.
 
 ### 5. It is important that our servers times are synchronized so we must install ntp outside of the Gluu chroot and set ntp to update by the minute (necessary for delta-sync log synchronization). If time gets out of sync, the entries will conflict and their could be issues with replication.
 
