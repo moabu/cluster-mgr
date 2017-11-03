@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block header %}
+  <h1>Current Background Tasks</h1>
+{% endblock %}
+
+{% block content %}
+  {% if not tasks %}
+    <div class="callout callout-warning">
+      <h4>No Tasks Running!</h4>
+      <p>Currently there are no background tasks running in Cluster Manager.</p>
+    </div>
+    <a href="/" class="btn btn-block btn-primary">
+      <i class="fa fa-dashboard"></i>
+      Go back to Dashboard
+    </a>
+  {% endif %}
+
+  {% for task in tasks %}
+    <div class="box">
+      <div class="box-header with-border">
+        <h3 class="box-title">
+          {{ task.name }}
+        </h3>
+      </div>
+      <div class="box-body">
+          <div class="progress progress-sm active">
+            <div class="progress-bar progress-bar-success progress-bar-striped" role="progressbar" aria-valuenow="20" aria-valuemin="0"
+                 aria-valuemax="100" style="width: 20%">
+            <span class="sr-only">Running</span>
+            </div>
+          </div>
+      </div>
+    </div>
+  {% endfor %}
+
+{% endblock %}
+
+{% block js %}
+  <script>
+    // TODO get the most recent update from the tasks and put it underneath the progress bar
+
+  </script>
+{% endblock %}

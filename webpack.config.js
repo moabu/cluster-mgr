@@ -5,7 +5,7 @@ const CleanWebpackPlugin = require('clean-webpack-plugin');
 
 module.exports = {
     entry: {
-        main: './uijs/Logger.js',
+        main: './uijs/logger/Logger.js',
         vendor: [
             'react', 'react-dom', 'axios'
         ]

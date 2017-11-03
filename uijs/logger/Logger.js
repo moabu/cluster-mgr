@@ -2,8 +2,8 @@ import React, {Component} from "react";
 import ReactDOM from "react-dom";
 import axios from 'axios';
 
-import LogItem from './logitem';
-import MessageItem from './messageitem'
+import LogItem from './LogItem';
+import MessageItem from './MessageItem'
 
 class LogContainer extends Component {
 
@@ -125,7 +125,4 @@ class Logger extends Component {
     }
 }
 
-ReactDOM.render(
-    <Logger/>,
-    document.getElementById('log_root')
-);
+export default Logger

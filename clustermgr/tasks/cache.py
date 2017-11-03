@@ -25,7 +25,9 @@ def install_redis_stunnel(self):
     task_file = os.path.join(app.root_path, "tasks",
                              "install_redis_stunnel.yaml")
 
+    wlogger.log(tid, "Setting up Redis", "info")
     for server in servers:
+        wlogger.log(tid, "Server: {0}".format(server.hostname))
         tr = YAMLTaskRunner(task_file, server.hostname, server.ip)
         tr.run_tasks(weblog_id=tid)
         server.redis = True

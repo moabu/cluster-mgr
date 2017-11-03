@@ -67,11 +67,6 @@ def app_configuration():
         config.use_ip = conf_form.use_ip.data
         config.nginx_host = conf_form.nginx_host.data.strip()
         
-        config.replication_dn = replication_dn
-        config.gluu_version = conf_form.gluu_version.data.strip()
-        config.use_ip = conf_form.use_ip.data
-        config.nginx_host = conf_form.nginx_host.data.strip()
-        
         purge_age_day = conf_form.purge_age_day.data
         purge_age_hour = conf_form.purge_age_hour.data
         purge_age_min = conf_form.purge_age_min.data
@@ -297,8 +292,8 @@ def multi_master_replication():
     ldaps = Server.query.all()
     serverStats = {}
 
+    # TODO move the calls to the LDAP servers to the background
     for ldp in ldaps:
-
         s = LdapOLC(
             "ldaps://{0}:1636".format(ldp.hostname), "cn=config",
             ldp.ldap_password)
@@ -451,10 +446,44 @@ def add_provider_to_consumer(consumer_id, provider_id):
 
     return redirect(url_for('index.multi_master_replication'))
 
+
 @index.route('/removecustomschema/<schema_file>')
 def remove_custom_schema(schema_file):
-    
     file_path = os.path.join(app.config['SCHEMA_DIR'], schema_file)
     if os.path.exists(file_path):
         os.remove(file_path)
     return redirect(url_for('index.app_configuration'))
+
+
+@index.route('/tasks/')
+def task_list():
+    tasks = list()
+    inspector = celery.control.inspect()
+    active_tasks = inspector.active()
+    mock = [
+    {
+        "acknowledged": True,
+        "args": "()",
+        "delivery_info": {
+            "exchange": "",
+            "priority": 0,
+            "redelivered": None,
+            "routing_key": "celery"
+        },
+        "hostname": "celery@airy.local",
+        "id": "d30a4938-7c39-4c33-ab2d-9a3ba45f3bd8",
+        "kwargs": "{}",
+        "name": "clustermgr.tasks.cache.get_cache_methods",
+        "time_start": 480297.58282455005,
+        "type": "clustermgr.tasks.cache.get_cache_methods",
+        "worker_pid": 97136
+    }
+    ]
+
+    for host in active_tasks:
+        tasks.extend(active_tasks[host])
+
+    if request.args.get('format') and request.args.get('format') == 'json':
+        return jsonify(mock)
+    return render_template('task_list.html', tasks=mock)
+
