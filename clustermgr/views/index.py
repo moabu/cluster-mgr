@@ -61,24 +61,24 @@ def app_configuration():
             flash("You changed Replication Manager password. "
                     "This will break replication. Please re-deploy all LDAP Servers.",
                     "danger")
-        
+
         config.replication_dn = replication_dn
         config.gluu_version = conf_form.gluu_version.data.strip()
         config.use_ip = conf_form.use_ip.data
         config.nginx_host = conf_form.nginx_host.data.strip()
-        
+
         config.replication_dn = replication_dn
         config.gluu_version = conf_form.gluu_version.data.strip()
         config.use_ip = conf_form.use_ip.data
         config.nginx_host = conf_form.nginx_host.data.strip()
-        
+
         purge_age_day = conf_form.purge_age_day.data
         purge_age_hour = conf_form.purge_age_hour.data
         purge_age_min = conf_form.purge_age_min.data
         purge_interval_day = conf_form.purge_interval_day.data
         purge_interval_hour = conf_form.purge_interval_hour.data
         purge_interval_min = conf_form.purge_interval_min.data
-        
+
         log_purge = "{}:{}:{} {}:{}:{}".format(purge_age_day, purge_age_hour, purge_age_min,
                                                purge_interval_day, purge_interval_hour, purge_interval_min)
         config.log_purge = log_purge
@@ -316,8 +316,8 @@ def multi_master_replication():
     if not ldaps:
         flash("Please add ldap servers.", "warning")
         return redirect(url_for('index.home'))
-        
-    return render_template('multi_master.html', 
+
+    return render_template('multi_master.html',
                            ldapservers=ldaps,
                            serverStats=serverStats,
                            ldap_errors=ldap_errors,
@@ -453,7 +453,7 @@ def add_provider_to_consumer(consumer_id, provider_id):
 
 @index.route('/removecustomschema/<schema_file>')
 def remove_custom_schema(schema_file):
-    
+
     file_path = os.path.join(app.config['SCHEMA_DIR'], schema_file)
     if os.path.exists(file_path):
         os.remove(file_path)

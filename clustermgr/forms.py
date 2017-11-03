@@ -28,7 +28,7 @@ class AppConfigForm(FlaskForm):
     purge_age_day = SelectField(choices=[(str(d), str(d)) for d in range(0,31)])
     purge_age_hour = SelectField(choices=[(str(h), str(h)) for h in range(0,25)], default="24")
     purge_age_min = SelectField(choices=[(str(m), str(m)) for m in range(0,60)])
-    
+
     purge_interval_day = SelectField(choices=[(str(d), str(d)) for d in range(0,31)], default="1")
     purge_interval_hour = SelectField(choices=[(str(h), str(h)) for h in range(0,25)])
     purge_interval_min = SelectField(choices=[(str(m), str(m)) for m in range(0,60)])
@@ -144,3 +144,10 @@ class InstallServerForm(FlaskForm):
     installOxAuthRP = BooleanField('Install oxAuth RP')
     installPassport = BooleanField('Install Passport')
 
+
+class LicenseSettingsForm(FlaskForm):
+    license_id = StringField("License ID", validators=[DataRequired()])
+    license_password = StringField("License Password", validators=[DataRequired()])
+    public_password = StringField("Public Password", validators=[DataRequired()])
+    public_key = StringField("Public Key", validators=[DataRequired()])
+    update = SubmitField("Update")
