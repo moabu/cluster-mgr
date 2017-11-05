@@ -4,7 +4,6 @@ import re
 
 from StringIO import StringIO
 
-from clustermgr.core.utils import split_redis_cluster_slots
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, celery, wlogger
 from clustermgr.core.remote import RemoteClient
@@ -46,9 +45,13 @@ def configure_cache_cluster(self, method):
 
 
 def setup_sharded(tid, standalone=False):
+    """Function that adds the stunnel configuration to all the servers and
+    maps the ports in the LDAP configuration.
+    """
     servers = Server.query.filter(Server.redis.is_(True)).filter(
         Server.stunnel.is_(True)).all()
     appconf = AppConfiguration.query.first()
+    chdir = "/opt/gluu-server-" + appconf.gluu_version
     # Store the redis server info in the LDA
     for server in servers:
         wlogger.log(tid, "Updating oxCacheConfiguration ...", "debug",
@@ -57,6 +60,7 @@ def setup_sharded(tid, standalone=False):
         stunnel_conf = [
             "cert = /etc/stunnel/cert.pem",
             "pid = /var/run/stunnel.pid",
+            "output = /var/log/stunnel4/stunnel.log",
             "[redis-server]",
             "client = no",
             "accept = {0}:7777".format(server.ip),
@@ -101,12 +105,9 @@ def setup_sharded(tid, standalone=False):
 
         # generate stunnel configuration and upload it to the server
         wlogger.log(tid, "Setting up stunnel", "info", server_id=server.id)
-        chdir = '/'
-        if server.gluu_server:
-            chdir = "/opt/gluu-server-{0}".format(appconf.gluu_version)
 
-        rc = get_remote_client(server, tid)
-        if  not rc:
+        rc = __get_remote_client(server, tid)
+        if not rc:
             continue
 
         wlogger.log(tid, "Enable stunnel start on system boot", "debug",
@@ -114,15 +115,26 @@ def setup_sharded(tid, standalone=False):
         # replace the /etc/default/stunnel4 to enable start on system startup
         local = os.path.join(app.root_path, 'templates', 'stunnel',
                              'stunnel4.default')
-        remote = os.path.join(chdir, 'etc/default/stunnel4')
+        remote = '/etc/default/stunnel4'
         rc.upload(local, remote)
 
-        if 'CentOS' in server.os:
+        if 'CentOS 6' == server.os:
             local = os.path.join(app.root_path, 'templates', 'stunnel',
                                  'centos.init')
-            remote = os.path.join(chdir, 'etc/rc.d/init.d/stunnel4')
+            remote = '/etc/rc.d/init.d/stunnel4'
             rc.upload(local, remote)
             rc.run("chmod +x {0}".format(remote))
+
+        if 'CentOS 7' == server.os or 'RHEL 7' == server.os:
+            local = os.path.join(app.root_path, 'templates', 'stunnel',
+                                 'stunnel.service')
+            remote = '/lib/systemd/system/stunnel.service'
+            rc.upload(local, remote)
+            rc.run("mkdir -p /var/log/stunnel4")
+            wlogger.log(tid, "Setup auto-start on system boot", "info",
+                        server_id=server.id)
+            rc.run(rc, 'systemctl enable redis', tid, server.id)
+            rc.run(rc, 'systemctl enable stunnel', tid, server.id)
 
         # setup the certificate file
         wlogger.log(tid, "Generating certificate for stunnel ...", "debug",
@@ -153,9 +165,9 @@ def setup_sharded(tid, standalone=False):
 
         subject = "'/C={country}/ST={state}/L={city}/O={org}/CN={cn}" \
                   "/emailAddress={email}'".format(**props)
-        cert_path = os.path.join(chdir, "etc", "stunnel", "server.crt")
-        key_path = os.path.join(chdir, "etc", "stunnel", "server.key")
-        pem_path = os.path.join(chdir, "etc", "stunnel", "cert.pem")
+        cert_path = "/etc/stunnel/server.crt"
+        key_path = "/etc/stunnel/server.key"
+        pem_path = "/etc/stunnel/cert.pem"
         cmd = ["/usr/bin/openssl", "req", "-subj", subject, "-new", "-newkey",
                "rsa:2048", "-sha256", "-days", "365", "-nodes", "-x509",
                "-keyout", key_path, "-out", cert_path]
@@ -175,15 +187,13 @@ def setup_sharded(tid, standalone=False):
         # Generate stunnel config
         wlogger.log(tid, "Setup stunnel listening and forwarding", "debug",
                     server_id=server.id)
-        rc.put_file(os.path.join(chdir, "etc/stunnel/stunnel.conf"),
-                    "\n".join(stunnel_conf))
+        rc.put_file("/etc/stunnel/stunnel.conf", "\n".join(stunnel_conf))
     return True
 
 
 def setup_redis_cluster(tid):
     servers = Server.query.filter(Server.redis.is_(True)).filter(
         Server.stunnel.is_(True)).all()
-    appconf = AppConfiguration.query.first()
 
     master_conf = ["port 7000", "cluster-enabled yes",
                    "daemonize yes",
@@ -206,24 +216,19 @@ def setup_redis_cluster(tid):
                   "save 900 1", "save 300 10", "save 60 10000",
                   ]
     for server in servers:
-        rc = get_remote_client(server, tid)
+        rc = __get_remote_client(server, tid)
         if not rc:
             continue
 
-        chdir = '/'
-        if server.gluu_server:
-            chdir = "/opt/gluu-server-{0}".format(appconf.gluu_version)
         # upload the conf files
         wlogger.log(tid, "Uploading redis conf files...", "debug",
                     server_id=server.id)
-        rc.put_file(os.path.join(chdir, "etc/redis/redis_7000.conf"),
-                    "\n".join(master_conf))
-        rc.put_file(os.path.join(chdir, "etc/redis/redis_7001.conf"),
-                    "\n".join(slave_conf))
+        rc.put_file("/etc/redis/redis_7000.conf", "\n".join(master_conf))
+        rc.put_file("/etc/redis/redis_7001.conf", "\n".join(slave_conf))
         # upload the modified init.d file
         rc.upload(os.path.join(
             app.root_path, "templates", "redis", "redis-server"),
-            os.path.join(chdir, "etc/init.d/redis-server"))
+            "/etc/init.d/redis-server")
         wlogger.log(tid, "Configuration upload complete.", "success",
                     server_id=server.id)
 
@@ -252,7 +257,7 @@ def setup_redis_cluster(tid):
     return True
 
 
-def get_remote_client(server, tid):
+def __get_remote_client(server, tid):
     rc = RemoteClient(server.hostname, ip=server.ip)
     try:
         rc.startup()
@@ -266,7 +271,7 @@ def get_remote_client(server, tid):
 
 
 @celery.task(bind=True)
-def finish_cluster_setup(self, method):
+def restart_services(self, method):
     tid = self.request.id
     servers = Server.query.filter(Server.redis.is_(True)).filter(
         Server.stunnel.is_(True)).all()
@@ -278,64 +283,6 @@ def finish_cluster_setup(self, method):
     for server in servers:
         tr = YAMLTaskRunner(task_file, server.hostname, server.ip)
         tr.run_tasks(weblog_id=tid, requirements=dict(chdir=chdir))
-
-
-def establish_redis_cluster(tid, servers, ips):
-    # FIXME This is here for future use where redis-cluster will be setup
-    # If redis-cluster is requested, then we need to setup cluster manually
-    # iterate through the servers and find the one which can be accessed
-    appconf = AppConfiguration.query.first()
-    chdir = "/opt/gluu-server-" + appconf.gluu_version
-    wlogger.log(tid, "Setting up redis cluster", "info")
-    init_client = None
-    initializer = None
-    for server in servers:
-        initializer = server
-        init_client = get_remote_client(server, tid)
-        if init_client:
-            break
-
-    if not init_client:
-        wlogger.log(tid, "Cannot connect even a single server. Redis-cluster"
-                         " setup failed", "error")
-
-    for i, ip in enumerate(ips):
-        # add all the masters and create a cluster
-        meet_cmd = "redis-cli -c -h 127.0.0.1 -p 7000 cluster meet {0} 7000".format(
-            ip)
-
-        if initializer.gluu_server:
-            meet_cmd = 'chroot {0} /bin/bash -c "{1}"'.format(chdir, meet_cmd)
-
-        if ip is not initializer.ip:
-            wlogger.log(tid, meet_cmd, "debug")
-            init_client.run(meet_cmd)
-
-    # Connect to each server and assign the slots
-    slot_ranges = split_redis_cluster_slots(len(ips))
-    for i, server in enumerate(servers):
-        range_str = "{{{0}..{1}}}".format(*slot_ranges[i])
-        slot_cmd = "for slot in {0}; do redis-cli -h localhost -p 7000 " \
-                   "CLUSTER ADDSLOTS \$slot; done;".format(range_str)
-        rc = get_remote_client(server, tid)
-        if initializer.gluu_server:
-            slot_cmd = 'chroot {0} /bin/bash -c "{1}"'.format(chdir, slot_cmd)
-        wlogger.log(tid, slot_cmd, "debug")
-        rc.run(slot_cmd)
-        rc.close()
-
-    # TODO Setup slaves to replicate the masters
-
-    status_cmd = "redis-cli -p 7000 cluster nodes"
-    if initializer.gluu_server:
-        status_cmd = 'chroot {0} /bin/bash -c "{1}"'.format(chdir, status_cmd)
-    wlogger.log(tid, status_cmd, "debug")
-    reply = init_client.run(status_cmd)
-    wlogger.log(tid, reply[1], "debug")
-    wlogger.log(tid, reply[2], "debug")
-    wlogger.log(tid, "Cache clustering setup is complete.", "success")
-    init_client.close()
-    return True
 
 
 @celery.task(bind=True)
