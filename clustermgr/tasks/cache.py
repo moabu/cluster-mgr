@@ -453,7 +453,7 @@ def run_and_log(rc, cmd, tid, server_id):
 
 
 @celery.task(bind=True)
-def finish_cluster_setup(self, method):
+def restart_services(self, method):
     tid = self.request.id
     servers = Server.query.filter(Server.redis.is_(True)).filter(
         Server.stunnel.is_(True)).all()
@@ -500,55 +500,6 @@ def finish_cluster_setup(self, method):
         run_and_log(rc, get_cmd('service oxauth restart'), tid, server.id)
         run_and_log(rc, get_cmd('service identity restart'), tid, server.id)
         rc.close()
-
-    if method == 'SHARDED':
-        return True
-
-    # If redis-cluster is requested, then we need to setup cluster manually
-    # iterate through the servers and find the one which can be accessed
-    wlogger.log(tid, "Setting up redis cluster", "info")
-    init_client = None
-    initializer = None
-    for server in servers:
-        initializer = server
-        init_client = __get_remote_client(server, tid)
-        if init_client:
-            break
-
-    if not init_client:
-        wlogger.log(tid, "Cannot connect even a single server. Redis-cluster"
-                         " setup failed", "error")
-
-    for i, ip in enumerate(ips):
-        # add all the masters and create a cluster
-        meet_cmd = "redis-cli -c -h 127.0.0.1 -p 7000 cluster meet {0} 7000".format(
-            ip)
-
-        if ip is not initializer.ip:
-            wlogger.log(tid, meet_cmd, "debug")
-            init_client.run(meet_cmd)
-
-    # Connect to each server and assign the slots
-    slot_ranges = split_redis_cluster_slots(len(ips))
-    for i, server in enumerate(servers):
-        range_str = "{{{0}..{1}}}".format(*slot_ranges[i])
-        slot_cmd = "for slot in {0}; do redis-cli -h localhost -p 7000 " \
-                   "CLUSTER ADDSLOTS \$slot; done;".format(range_str)
-        rc = __get_remote_client(server, tid)
-        wlogger.log(tid, slot_cmd, "debug")
-        rc.run(slot_cmd)
-        rc.close()
-
-    # TODO Setup slaves to replicate the masters
-
-    status_cmd = "redis-cli -p 7000 cluster nodes"
-    wlogger.log(tid, status_cmd, "debug")
-    reply = init_client.run(status_cmd)
-    wlogger.log(tid, reply[1], "debug")
-    wlogger.log(tid, reply[2], "debug")
-    wlogger.log(tid, "Cache clustering setup is complete.", "success")
-    init_client.close()
-    return True
 
 
 @celery.task(bind=True)
