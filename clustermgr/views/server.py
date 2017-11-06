@@ -17,7 +17,8 @@ from clustermgr.core.remote import RemoteClient, ClientNotSetupException
 server_view = Blueprint('server', __name__)
 
 def sync_ldap_passwords(password):
-    non_primary_servers = Server.query.filter(Server.primary_server.isnot(True)).all()
+    non_primary_servers = Server.query.filter(
+                        Server.primary_server.isnot(True)).all()
     for server in non_primary_servers:
         server.ldap_password = password
     db.session.commit()
@@ -120,6 +121,9 @@ def get_quad():
 
 
 def get_inums():
+    """This fuction created inums based on Python's uuid4 function.
+    Barrowed from setup.py of gluu installer"""
+    
     base_inum = '@!%s.%s.%s.%s' % tuple([get_quad() for _ in xrange(4)])
     org_two_quads = '%s.%s' % tuple([get_quad() for _ in xrange(2)])
     inum_org = '%s!0001!%s' % (base_inum, org_two_quads)
@@ -129,6 +133,9 @@ def get_inums():
 
 
 def get_setup_properties():
+    """This fucntion returns properties for setup.properties file."""
+    
+    #We are goint to deal with these properties with cluster-mgr
     setup_prop = {
         'hostname': '',
         'orgName': '',
@@ -152,6 +159,8 @@ def get_setup_properties():
         'installPassport':False,
         }
 
+    #Check if there exists a previously created setup.properties file. 
+    #If exists, modify properties with content of this file.
     setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
     if os.path.exists(setup_properties_file):
         for l in open(setup_properties_file):
@@ -164,7 +173,7 @@ def get_setup_properties():
                     v = False
                 setup_prop[k] = v
     
-    
+    #Every time this function is called, create new inum
     inum_org, inum_appliance = get_inums()
     setup_prop['inumOrg'] = inum_org
     setup_prop['inumAppliance'] = inum_appliance
@@ -174,36 +183,55 @@ def get_setup_properties():
 
 @server_view.route('/installgluu/<int:server_id>/', methods=['GET', 'POST'])
 def install_gluu(server_id):
+    """Gluu server installation view. This function creates setup.properties 
+    file and redirects to install_gluu_server which does actual installation.
+    """
+
+    #If current server is not primary server, first we should identify 
+    #primary server. If primary server is not installed then redirect 
+    #to home to install primary.
     pserver = Server.query.filter_by(primary_server=True).first()
     if not pserver:
         flash("Please identify primary server before starting to install Gluu "
               "Server.", "warning")
         return redirect(url_for('index.home')) 
 
+    #If current server is not primary server, and primary server was installed,
+    #start installation redirecting to cluster.install_gluu_server
     server = Server.query.get(server_id)
     if not server.primary_server:
         return redirect(url_for('cluster.install_gluu_server',
                                 server_id=server_id))
+    
+    #We need os type to perform installation. If it was not identified, 
+    #return to home and wait until it is identifed. 
     if not server.os:
         flash("Server OS version hasn't been identified yet. Checking Now",
               "warning")
         collect_server_details.delay(server_id)
         return redirect(url_for('index.home'))
     
+    #If we come up here, it is primary server and we will ask admin which
+    #components will be installed. So prepare form by InstallServerForm
     appconf = AppConfiguration.query.first()
     form = InstallServerForm()
 
+    #We don't require these for server installation. These fields are required
+    #for adding new server.
     del form.hostname
     del form.ip_address
     del form.ldap_password
+    
     header = 'Install Gluu Server on {0}'.format(server.hostname)
 
+    #Get default setup properties.
     setup_prop = get_setup_properties()
 
     setup_prop['hostname'] = appconf.nginx_host
     setup_prop['ip'] = server.ip
     setup_prop['ldapPass'] = server.ldap_password
 
+    #If form is submitted and validated, create setup.properties file.
     if form.validate_on_submit():
         setup_prop['countryCode'] = form.countryCode.data.strip()
         setup_prop['state'] = form.state.data.strip()
@@ -234,9 +262,12 @@ def install_gluu(server_id):
             for k, v in setup_prop.items():
                 f.write('{0}={1}\n'.format(k, v))
 
+        #Redirect to cluster.install_gluu_server to start installation.
         return redirect(url_for('cluster.install_gluu_server',
                                 server_id=server_id))
-        
+
+    #If this is view is requested, rather than post, display form to
+    #admin to determaine which elements to be installed.
     if request.method == 'GET':
         form.countryCode.data = setup_prop['countryCode']
         form.state.data = setup_prop['state']
@@ -264,11 +295,13 @@ def install_gluu(server_id):
 
 @server_view.route('/editslapdconf/<int:server_id>/', methods=['GET', 'POST'])
 def edit_slapd_conf(server_id):
+    """This view  provides editing of slapd.conf file before depoloyments."""
+    
     server = Server.query.get(server_id)
     appconf = AppConfiguration.query.first()
     
+    #If there is no server with server_id return to home
     if not server:
-        print "Yoook"
         flash("No such server.", "warning")
         return redirect(url_for('index.home'))
 
@@ -276,7 +309,9 @@ def edit_slapd_conf(server_id):
         chroot = '/'
     else:
         chroot = '/opt/gluu-server-' + appconf.gluu_version
-        
+    
+    #slapd.conf file will be downloaded from server. Make ssh connection
+    #and download it
     c = RemoteClient(server.hostname, ip=server.ip)
     try:
         c.startup()
@@ -296,7 +331,8 @@ def edit_slapd_conf(server_id):
             flash('File {0} was saved on {1}'.format(slapd_conf_file,
                                                      server.hostname))
             return redirect(url_for('index.home'))
-            
+    
+    #After editing, slapd.conf file will be uploaded to server via ssh
     r = c.get_file(slapd_conf_file)
     
     if not r[0]:
