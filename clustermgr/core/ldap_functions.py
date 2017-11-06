@@ -30,7 +30,14 @@ def get_ip_by_hostname(hostname):
 
 
 class LdapOLC(object):
+    """A wrapper class to operate on the o=gluu DIT of the LDAP.
 
+    Args:
+        hostname (string): hostname of the server running the LDAP server
+        addr (string): uri of ldap server, such as ldaps://ldp.foo.org:1636
+        binddn (string): bind dn for ldap server
+        password (string): the password of binddn
+    """
     def __init__(self, addr, binddn, passwd):
         self.addr = addr
         self.binddn = binddn
@@ -40,6 +47,11 @@ class LdapOLC(object):
         self.hostname = get_host_port(addr)[0]
 
     def connect(self):
+        """Makes connection to ldap server and returns result
+        
+        Returns:
+            the ldap connection result
+        """
         logger.debug("Making Ldap Connection")
         self.server = Server(self.addr, use_ssl=True)
         self.conn = Connection(
@@ -47,14 +59,26 @@ class LdapOLC(object):
         return self.conn.bind()
 
     def loadModules(self, *modules):
-        """If modules are loaded, returns status, If modules are already loaded returns -1"""
+        """This function creates ldap entry on server for loading nodules.
+        
+        Args:
+            modules (list): list of modules to be loaded 
+        
+        Returns:
+            -1 if modulas were already loaded, else returns modify result
+        """
+        
+        #Get loaded modules
         self.conn.search(search_base='cn=module{0},cn=config',
                          search_filter='(objectClass=*)', search_scope=BASE,
                          attributes=["olcModuleLoad"])
 
+        #addList are modules that will be loaded
         addList = list(modules)
 
         if self.conn.response:
+            
+            #if a module is allread loaded, remove it from addList
             for a in self.conn.response[0]['attributes']['olcModuleLoad']:
                 r = re.split("{\d+}", a)
                 if len(r) == 1:
@@ -65,19 +89,40 @@ class LdapOLC(object):
                 if mn[0] in addList:
                     addList.remove(mn[0])
 
+        #If there is still modules to be loaded, add them and return
+        #modify results
         if addList:
 
             return self.conn.modify('cn=module{0},cn=config',
                                     {'olcModuleLoad': [MODIFY_ADD, addList]})
 
+        #If all modules were loaded previously, return -1
         return -1
 
     def checkAccesslogDBEntry(self):
+        """Checks if access logdb (cn=accesslog) entry exists
+        
+        Returns:
+            search results of cn=accesslog
+        """
+        
         return self.conn.search(search_base='cn=config',
                                 search_filter='(olcSuffix=cn=accesslog)',
                                 search_scope=SUBTREE, attributes=["*"])
 
-    def accesslogDBEntry(self, replicator_dn, log_dir="/opt/gluu/data/accesslog"):
+    def accesslogDBEntry(self, replicator_dn, 
+                            log_dir="/opt/gluu/data/accesslog"):
+        """This function creates ldap entry on server for accesslog database.
+        
+        Args:
+            replicator_dn (string): replicator dn for replication
+            log_dir (string, optional): accesslog database directorsy,
+                    default to /opt/gluu/data/accesslog
+        
+        Returns:
+            None if accesslogdb entry is already exists else ldap modifcation 
+            result for adding accsesslogdb entry.
+        """
 
         attributes = {'objectClass':  ['olcDatabaseConfig', 'olcMdbConfig'],
                       'olcDatabase': '{2}mdb',
@@ -90,25 +135,36 @@ class LdapOLC(object):
                       'olcLimits': 'dn.exact="{0}" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited'.format(replicator_dn),
 
                       }
-
+        #check if accesslogdb entry is allread exists. If not exists, create it.
         if not self.checkAccesslogDBEntry():
             return self.conn.add('olcDatabase={2}mdb,cn=config',
                                  attributes=attributes)
 
     def checkSyncprovOverlaysDB1(self):
+        """Checks if overlay configuration entry exists on first database
+        
+        Returns:
+            search results of olcOverlay=syncprov
+        """
         return self.conn.search(search_base='olcDatabase={1}mdb,cn=config',
                                 search_filter='(olcOverlay=syncprov)',
                                 search_scope=SUBTREE, attributes=["*"])
 
     def syncprovOverlaysDB1(self):
+        """This function creates overlay configuration on first database
+
+        Returns:
+            None if overlay configuration entry is already exists 
+            else ldap modifcation result for adding overlay configuration entry.
+        """
         attributes = {'objectClass':  ['olcOverlayConfig',
                                        'olcSyncProvConfig'],
                       'olcOverlay': 'syncprov',
-                      # 'olcSpNoPresent': 'TRUE', ???
                       'olcSpReloadHint': 'TRUE',
                       'olcSpCheckPoint': '100 10',
                       'olcSpSessionlog': '10000',
                       }
+        #If not overlay configuration on first database is not exists, crtate it
         if not self.checkSyncprovOverlaysDB1():
             self.conn.add(
                 'olcOverlay=syncprov,olcDatabase={1}mdb,cn=config',
@@ -117,21 +173,30 @@ class LdapOLC(object):
                 return True
 
     def checkSyncprovOverlaysDB2(self):
+        """Checks if overlay configuration entry exists on second database
+        
+        Returns:
+            search results of olcOverlay=syncprov
+        """
         return self.conn.search(search_base='olcDatabase={2}mdb,cn=config',
                                 search_filter='(olcOverlay=syncprov)',
                                 search_scope=SUBTREE, attributes=["*"])
 
     def syncprovOverlaysDB2(self):
+        """This function creates overlay configuration on second database
+
+        Returns:
+            None if overlay configuration entry is already exists 
+            else ldap modifcation result for adding overlay configuration entry.
+        """
         attributes = {
             'objectClass':  ['olcOverlayConfig', 'olcSyncProvConfig'],
-            # 'structuralObjectClass': ['olcSyncProvConfig'],
             'olcOverlay': 'syncprov',
             'olcSpNoPresent': 'TRUE',
             'olcSpReloadHint': 'TRUE',
-            # 'olcSpCheckPoint': '100 10',
-            # 'olcSpSessionlog': '10000',
-            # 'olcLimits': 'dn.exact="cn=directory manager,o=gluu" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited',
-        }
+            }
+        #If not overlay configuration on second database 
+        #is not exists, crtate it
         if not self.checkSyncprovOverlaysDB2():
             self.conn.add(
                 'olcOverlay=syncprov,olcDatabase={2}mdb,cn=config',
@@ -141,17 +206,34 @@ class LdapOLC(object):
                 return True
 
     def checkServerID(self):
+        """Checks if Server ID entry exists
+        
+        Returns:
+            search results of olcServerID
+        """
         return self.conn.search(search_base='cn=config',
                                 search_filter='(objectClass=*)',
                                 search_scope=BASE, attributes=["olcServerID"])
 
     def setServerID(self, sid):
+        """This function sets Server ID for replication
+        
+        Args:
+            sid (int): Server ID for this server
 
+        Returns:
+            ldap modifcation result for setting server id entry.
+        """
+        
+        #modification type is add
         mod_type = MODIFY_ADD
+        
+        #check if server id exists.
         self.conn.search(search_base='cn=config',
                          search_filter='(objectClass=*)',
                          search_scope=BASE, attributes=["olcServerID"])
 
+        #If server id exists, modfication type id replace
         if self.checkServerID():
             if self.conn.response[0]['attributes']['olcServerID']:
                 mod_type = MODIFY_REPLACE
@@ -160,11 +242,19 @@ class LdapOLC(object):
                                 {'olcServerID': [mod_type, str(sid)]})
 
     def setDBIndexes(self):
+        """This function sets indexes for accesslog database
+        
+        Returns:
+            ldap modifcation result for setting indexes for accesslog.
+        """
+        
+        #check if indexes exist
         self.conn.search(search_base='olcDatabase={1}mdb,cn=config',
                          search_filter='(objectClass=*)', search_scope=BASE,
                          attributes=["olcDbIndex"])
         addList = ["entryCSN eq", "entryUUID eq"]
 
+        #remove index that is already exist
         if self.conn.response:
             for idx in self.conn.response[0]['attributes']['olcDbIndex']:
                 if idx in addList:
@@ -174,18 +264,36 @@ class LdapOLC(object):
                                 {'olcDbIndex': [MODIFY_ADD, addList]})
 
     def checkAccesslogPurge(self):
+        """This function checks if accesslog purge entry exists
+        
+        Returns:
+            search result of objectClass=olcAccessLogConfig
+        """
         return self.conn.search(
             search_base='cn=config',
             search_filter='(objectClass=olcAccessLogConfig)',
             search_scope=SUBTREE, attributes=["olcAccessLogPurge"])
 
     def accesslogPurge(self, purge='0:24:0 1:0:0'):
+        """This function creates purge interval and age for accessogdb entries
+        
+        Args:
+            purge (string, optional): interval and age representation separeted
+                by a space in the form: "D+H:M:S" 
+                where D: day, H: hour, M: min, S:sec
+
+        Returns:
+            ldap modifcation result for setting accesslog purge entry.
+        """
+        
+        #split data to interval and age.
         p,a = purge.split()
         pl = p.split(':')
         al = a.split(':')
 
         olcAccessLogPurge = ''
 
+        #all entries except day, should be double in length
         if not pl[0]=='0':
             olcAccessLogPurge += pl[0].zfill(2)+'+'
         olcAccessLogPurge += "{}:{}".format(pl[1].zfill(2),pl[2].zfill(2)) + ' '
@@ -210,6 +318,11 @@ class LdapOLC(object):
             )
 
     def removeMirrorMode(self):
+        """This function removes mirror mode entry
+
+        Returns:
+            None if server is not in mirror mode else ldap modification result
+        """
         self.conn.search(search_base='olcDatabase={1}mdb,cn=config',
                          search_filter='(objectClass=*)', search_scope=BASE,
                          attributes=["olcMirrorMode"])
@@ -222,6 +335,13 @@ class LdapOLC(object):
                                     {"olcMirrorMode": [MODIFY_REPLACE, []]})
 
     def checkMirroMode(self):
+        """This function checks if server is in mirror mode
+
+        Returns:
+            False if server is not in mirror mode else search result of 
+            olcMirrorMode
+            
+        """
         r = self.conn.search(search_base='olcDatabase={1}mdb,cn=config',
                              search_filter='(objectClass=*)',
                              search_scope=BASE, attributes=["olcMirrorMode"])
@@ -233,18 +353,35 @@ class LdapOLC(object):
         return False
 
     def makeMirroMode(self):
+        """This function makse server in mirror mode
+
+        Returns:
+            ldap modification result
+        """
         return self.conn.modify('olcDatabase={1}mdb,cn=config',
                                 {"olcMirrorMode": [MODIFY_ADD, ["TRUE"]]})
 
     def removeProvider(self, raddr):
+        """This function removes provider form server
+        
+        Args:
+            raddr (string): provider uri, for example: ldaps://ldp.foo.org:1636
+
+        Returns:
+            -1 if this server has no such provider else 
+            ldap modifcation result for removing provider
+        """
+        
         rmMirrorMode = False
 
         if len(self.getProviders()) <= 1:
             rmMirrorMode = True
 
+        #if there is no such privder return -1
         if not self.conn.response:
             return -1
 
+        #iterate all attributes to find basedn of olcSyncrepl
         for pr in self.conn.response:
             if pr["attributes"]["olcSyncrepl"]:
                 for pri in pr["attributes"]["olcSyncrepl"]:
@@ -262,6 +399,19 @@ class LdapOLC(object):
                                 return r
 
     def add_provider(self, rid, raddr, rbinddn, rcredentials):
+        """Adds provider to server for replication.
+
+        Args:
+            rid (int): provider server id
+            raddr (string): provider uri, for example: ldaps://ldp.foo.org:1636
+            rbindn (string): bind dn of replicator user
+            rcredentials (string): password for replicator user (rbinddn)
+
+        Returns:
+            modification result of adding provider
+        """
+
+        #this is rpvider information
         ridText = ('rid={0} provider={1} bindmethod=simple binddn="{2}" '
                    'tls_reqcert=never credentials={3} searchbase="o=gluu" '
                    'logbase="cn=accesslog" '
@@ -273,6 +423,7 @@ class LdapOLC(object):
                         rid, raddr, rbinddn, rcredentials)
                     )
 
+        #we should delete if such an entry exists, so search it
         self.conn.search(search_base='olcDatabase={1}mdb,cn=config',
                          search_filter='(objectClass=*)',
                          search_scope=BASE, attributes=["olcSyncRepl"])
@@ -290,15 +441,41 @@ class LdapOLC(object):
         return self.conn.modify('olcDatabase={1}mdb,cn=config', mod)
 
     def checkAccesslogDB(self):
+        """Checks if access logdb (cn=accesslog) entry exists
+        
+        Returns:
+            search results of cn=accesslog
+        """
+        
         return self.conn.search(search_base='cn=config',
                                 search_filter='(olcSuffix=cn=accesslog)',
                                 search_scope=SUBTREE, attributes=["*"])
 
     def addTestUser(self,  cn, sn, mail):
+        """Adds test user
+        
+        Args:
+            cn (string): common name for test user
+            sn (string): last name for test user
+            mail (string): mail address for test user
+            
+        Returns:
+            ldap add result
+        """
+
+
+        #get base dn
         self.checkBaseDN()
+        
+        #check if base for tests user exists 'ou=testusers,o=gluu'
         self.checkTestUserBase()
+        
+        #create a uid
         uid = '{0}@{1}'.format(time.time(), self.hostname)
+        
+        #make dn for test user
         dn = "uid={0},ou=testusers,o=gluu".format(uid)
+        
         return self.conn.add(dn,
                              attributes={
                                  'objectClass': ['top', 'inetOrgPerson'],
@@ -311,6 +488,14 @@ class LdapOLC(object):
                              )
 
     def checkTestUserBase(self):
+        """Checks if test user base (ou=testusers,o=gluu) exists. If not exists
+            creates it
+            
+        Returns:
+            None if not base dn exists else returns ldap add result
+            ldap add result
+        """
+        
         if not self.conn.search(search_base='ou=testusers,o=gluu',
                                 search_filter='(objectClass=inetOrgPerson)',
                                 search_scope=BASE,
@@ -323,7 +508,13 @@ class LdapOLC(object):
                           }
                           )
 
+
     def searchTestUsers(self):
+        """Searches test user
+            
+        Returns:
+            ldap search result for test users
+        """
         return self.conn.search(search_base='ou=testusers,o=gluu',
                                 search_filter='(title=gluuClusterMgrTestUser)',
                                 search_scope=LEVEL,
@@ -331,14 +522,32 @@ class LdapOLC(object):
                                 )
 
     def delDn(self, dn):
+        """Deltes given dn
+        
+        Args:
+            dn (string): dn to be deleted
+            
+        Returns:
+            ldap delete result
+        """
+
         return self.conn.delete(dn)
 
     def getProviders(self):
+        """Collects providers for this server
+
+        Returns:
+            provider dictionary.
+        """
+
         pDict = {}
+        
+        #Search provider entries
         if self.conn.search(search_base='olcDatabase={1}mdb,cn=config',
                             search_filter='(objectClass=*)',
                             search_scope=BASE, attributes=["olcSyncRepl"]):
-
+            
+            #Iterate all providers and parse it
             for pe in self.conn.response[0]['attributes']['olcSyncrepl']:
                 for e in pe.split():
                     es = e.split("=")
@@ -355,6 +564,12 @@ class LdapOLC(object):
         return pDict
 
     def getMMRStatus(self):
+        """Returns multi master replication status for this server
+
+        Returns:
+            dictionary includes replicator results
+        """
+        
         retDict = {}
         retDict["server_id"] = None
         if self.checkServerID():
@@ -371,6 +586,13 @@ class LdapOLC(object):
         return retDict
 
     def getMainDbDN(self):
+        """Returns dn of main db 
+
+        Returns:
+            dn of main db
+        """
+        
+        
         if self.conn.search(search_base="cn=config", search_scope=LEVEL,
                             search_filter="(olcDbDirectory=/opt/gluu/data/main_db)",
                             attributes='*'):
@@ -378,12 +600,37 @@ class LdapOLC(object):
                 return self.conn.response[0]['dn']
 
     def setLimitOnMainDb(self, replicator_dn):
+        """Sets limit for replicator dn
+        
+        Args:
+            replicator_dn (string): dn for replicator user
+
+        Returns:
+            ldap modification result
+        """
+
         main_db_dn = self.getMainDbDN()
         return self.conn.modify(main_db_dn, {'olcLimits': [MODIFY_ADD, 'dn.exact="{0}" time.soft=unlimited time.hard=unlimited size.soft=unlimited size.hard=unlimited'.format(replicator_dn)]})
 
     def addReplicatorUser(self, replicator_dn, passwd):
+        """Adds replicator user (dn)
+        
+        Args:
+            replicator_dn (string): dn for replicator user
+            passwd (string): password of replicator user
+
+        Returns:
+            ldap add/modification result
+        """
+
+
+        #Ckech if base dn exists
         self.checkBaseDN()
+
+        #get encoded password
         enc_passwd = ldap_encode(passwd)
+        
+        #check if replicator user exists
         self.conn.search(replicator_dn, search_filter='(objectClass=*)',
                          search_scope=BASE)
 
@@ -403,6 +650,11 @@ class LdapOLC(object):
             return self.conn.add(replicator_dn, attributes=attributes)
 
     def checkBaseDN(self):
+        """Checks id base dn exists. If not creates
+
+        Returns:
+            ldap add result
+        """
         r = self.conn.search(search_base="o=gluu", search_filter='(objectClass=top)', search_scope=BASE)
         if not self.conn.search(search_base="o=gluu", search_filter='(objectClass=top)', search_scope=BASE):
             logger.info("Adding base DN")
@@ -413,6 +665,15 @@ class LdapOLC(object):
             )
 
     def configureOxIDPAuthentication(self, servers):
+        """Makes gluu server aware of all ldap servers in the cluster
+
+        Args:
+            servers (list): list of server to add oxIDPAuthentication
+
+        Returns:
+            ldap modify result
+        """
+        
         if self.conn.search("ou=appliances,o=gluu", 
                         search_filter='(objectClass=gluuAppliance)',
                         search_scope=LEVEL, 
