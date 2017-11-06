@@ -198,3 +198,57 @@ def validate_license(cfg_file, sig_file):
         cfg.get("license_password"),
     )
     return license_data, err
+
+
+# TODO: move the code blocks below to other module?
+from functools import wraps
+
+from flask import redirect, url_for, flash, _app_ctx_stack
+
+
+class LicenseManager(object):
+    def __init__(self, app=None):
+        self.app = app
+        if app is not None:
+            self.init_app(app)
+
+    def init_app(self, app):
+        if self.app is None:
+            self.app = app
+
+        app.extensions = getattr(app, "extensions", {})
+        app.extensions["license_manager"] = self
+
+    def license_required(self, func):
+        app = self._get_app()
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            cfg_file = os.path.join(app.config["DATA_DIR"], "license.ini")
+            sig_file = os.path.join(app.config["DATA_DIR"], "signed_license.txt")
+            license_data, err = validate_license(cfg_file, sig_file)
+
+            if err or license_data.get("valid", False) is False:
+                flash("The previously requested URL requires a valid license. "
+                      "Please make sure you have a valid license by entering "
+                      "the correct license settings.",
+                      "warning")
+                return redirect(url_for("license.settings"))
+            return func(*args, **kwargs)
+        return wrapper
+
+    def _get_app(self):
+        if self.app:
+            return self.app
+
+        ctx = _app_ctx_stack.top
+        if ctx:
+            return ctx.app
+
+        raise RuntimeError("application not registered on license_manager "
+                           "instance and no application bound "
+                           "to current context")
+
+
+# create an instance so we can import it globally
+license_manager = LicenseManager()

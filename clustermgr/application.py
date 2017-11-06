@@ -8,6 +8,8 @@ from clustermgr.extensions import db, csrf, migrate, wlogger
 
 from clustermgr.tasks.cluster import *
 
+from .core.license import license_manager
+
 
 def init_celery(app, celery):
     celery.conf.update(app.config)
@@ -46,6 +48,7 @@ def create_app():
     migrate.init_app(app, db, directory=os.path.join(os.path.dirname(__file__),
                                                      "migrations"))
     wlogger.init_app(app)
+    license_manager.init_app(app)
 
     # setup the instance's working directories
     if not os.path.isdir(app.config['SCHEMA_DIR']):
