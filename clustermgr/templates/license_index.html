@@ -15,18 +15,22 @@
         <h3 class="panel-title">Overview</h3>
     </div>
     <div class="box-body">
-        {% if err %}
-        <p>{{ err }}</p>
-        {% else %}
-        <dl>
+        <dl class="dl-horizontal">
             <dt>valid</dt>
-            <dd>{{ valid }}</dd>
-            {% for k, v in metadata.iteritems() %}
-            <dt>{{ k }}</dt>
-            <dd>{{ v }}</dd>
+            <dd>{{ license_data.valid }}</dd>
+            {% for k, v in license_data.metadata.iteritems() %}
+                <dt>{{ k }}</dt>
+                {% if k != "emails" %}
+                    <dd>{{ v }}</dd>
+                {% else %}
+                    <ul>
+                    {% for email in v %}
+                        <li>{{ email }}</li>
+                    {% endfor %}
+                    </ul>
+                {% endif %}
             {% endfor %}
         </dl>
-        {% endif %}
     </div>
     <div class="box-footer">
         <a href="{{ url_for('license.settings') }}" class="btn btn-primary pull-right">Settings</a>

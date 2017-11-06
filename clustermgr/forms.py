@@ -145,9 +145,16 @@ class InstallServerForm(FlaskForm):
     installPassport = BooleanField('Install Passport')
 
 
+def replace_pubkey_whitespace(value):
+    if value is not None and hasattr(value, "replace"):
+        return value.replace(" ", "")
+    return value
+
+
 class LicenseSettingsForm(FlaskForm):
     license_id = StringField("License ID", validators=[DataRequired()])
     license_password = StringField("License Password", validators=[DataRequired()])
     public_password = StringField("Public Password", validators=[DataRequired()])
-    public_key = StringField("Public Key", validators=[DataRequired()])
+    public_key = StringField("Public Key", validators=[DataRequired()],
+                             filters=[replace_pubkey_whitespace])
     update = SubmitField("Update")
