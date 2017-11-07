@@ -6,8 +6,6 @@ from flask import Flask
 
 from clustermgr.extensions import db, csrf, migrate, wlogger
 
-from clustermgr.tasks.cluster import *
-
 
 def init_celery(app, celery):
     celery.conf.update(app.config)
