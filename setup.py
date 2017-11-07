@@ -37,7 +37,8 @@ setup(
         "paramiko",
     ],
     entry_points={
-        "console_scripts": ["clustermgr-cli=clusterapp:cli"],
+        "console_scripts": ["clustermgr-cli=clusterapp:cli",
+                            "clustermgr-celery=clusterapp:run_celery"],
     },
     scripts=['clusterapp.py'],
 )
