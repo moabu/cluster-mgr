@@ -33,7 +33,7 @@ class BaseInstaller(object):
         function to install redis on that server.
 
         Returns:
-            boolean status of the installs
+            boolean status of the install process
         """
         try:
             self.rc.startup()
@@ -46,14 +46,16 @@ class BaseInstaller(object):
         files = cout.split()
         cin, cout, cerr = self.rc.run("cat " + files[0])
 
+        status = False
         if "Ubuntu" in cout:
-            return self.install_in_ubuntu()
-        if "CentOS" in cout:
-            return self.install_in_centos()
+            status = self.install_in_ubuntu()
+        elif "CentOS" in cout:
+            status = self.install_in_centos()
         else:
             wlogger.log(self.tid, "Server OS is not supported. {0}".format(
                 cout), "error", server_id=self.server.id)
-            return False
+        self.rc.close()
+        return status
 
     def install_in_ubuntu(self):
         """This method should be overridden by the sub classes. Run the
@@ -149,9 +151,12 @@ class StunnelInstaller(BaseInstaller):
             return False
 
 @celery.task(bind=True)
-def install_redis_stunnel(self):
-    """Celery task that installs the redis and stunnel software in the given
-    list of servers.
+def install_cache_components(self):
+    """Celery task that installs the redis, stunnel and twemproxy applications
+     in the required servers.
+
+     Redis and stunnel are installed in all the servers in the cluster.
+     Twemproxy is installed in the load-balancer/proxy server
 
     :return: the number of servers where both stunnel and redis were installed
         successfully
@@ -189,6 +194,43 @@ def install_redis_stunnel(self):
 
         if redis_installed and stunnel_installed:
             installed += 1
+
+    # Install twemproxy in the Nginx load balancing proxy server
+    wlogger.log(tid, "Installing Twemproxy in proxy server")
+    app_conf = AppConfiguration.query.first()
+    host = app_conf.nginx_host
+    rc = RemoteClient(host)
+    try:
+        rc.startup()
+    except Exception as e:
+        wlogger.log(tid, "Could not connect to {0}".format(e), "error")
+        return False
+
+    cin, cout, cerr = rc.run("ls /etc/*release")
+    files = cout.split()
+    cin, cout, cerr = rc.run("cat " + files[0])
+
+    if "Ubuntu" in cout:
+        run_and_log(rc, "add-apt-repository -y ppa:twemproxy/stable", tid,
+                    None)
+        run_and_log(rc, "apt-get update", tid, None)
+        cin, cout, cerr = rc.run("apt-get -y install twemproxy")
+        wlogger.log(tid, cout, "debug")
+        if cerr:
+            wlogger.log(tid, cerr, "cerror")
+        # Verifying installation by trying to reinstall
+        cin, cout, cerr = rc.run("apt-get -y install twemproxy")
+        if "twemproxy is already the newest version" in cout:
+            wlogger.log(tid, "Twemproxy aka nutcracker has been successfully"
+                        " installed.", "success")
+        else:
+            wlogger.log(tid, "Twemproxy installation failed.", "error")
+
+    elif "CentOS" in cout:
+        # TODO install twemproxy in centos
+        pass
+
+    rc.close()
     return installed
 
 
@@ -449,7 +491,7 @@ def run_and_log(rc, cmd, tid, server_id):
     if cout:
         wlogger.log(tid, cout, "debug", server_id=server_id)
     if cerr:
-        wlogger.log(tid, cerr, "warning", server_id=server_id)
+        wlogger.log(tid, cerr, "cerror", server_id=server_id)
 
 
 @celery.task(bind=True)
@@ -493,7 +535,7 @@ def restart_services(self, method):
             run_and_log(rc, 'service redis-server restart', tid, server.id)
             run_and_log(rc, 'service stunnel4 restart', tid, server.id)
             # sometime apache service is stopped (happened in Ubuntu 16)
-            # when install_redis_stunnel task is executed; hence we also need to
+            # when install_cache_components task is executed; hence we also need to
             # restart the service
             run_and_log(rc, get_cmd('service apache2 restart'), tid, server.id)
 

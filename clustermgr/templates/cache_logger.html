@@ -106,7 +106,6 @@ function updateLog(){
         for(var i=logged_msgs; i<logs.length; i++){
             var entry = logitem(logs[i].msg, logs[i].level);
             var s_id = parseInt(logs[i].server_id);
-            console.log(s_id);
 
             if (isNaN(s_id) || isNaN(logging_id)) {
                 $('#common_logger').append(entry);
