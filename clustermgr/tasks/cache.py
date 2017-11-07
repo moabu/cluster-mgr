@@ -9,6 +9,7 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, celery, wlogger
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import DBManager
+from clustermgr.tasks.cluster import get_os_type
 
 from ldap3.core.exceptions import LDAPSocketOpenError
 from flask import current_app as app
@@ -206,11 +207,9 @@ def install_cache_components(self):
         wlogger.log(tid, "Could not connect to {0}".format(e), "error")
         return False
 
-    cin, cout, cerr = rc.run("ls /etc/*release")
-    files = cout.split()
-    cin, cout, cerr = rc.run("cat " + files[0])
+    os = get_os_type(rc)
 
-    if "Ubuntu" in cout:
+    if os == "Ubuntu 16" or os == "Ubuntu 14":
         run_and_log(rc, "add-apt-repository -y ppa:twemproxy/stable", tid,
                     None)
         run_and_log(rc, "apt-get update", tid, None)
@@ -226,9 +225,18 @@ def install_cache_components(self):
         else:
             wlogger.log(tid, "Twemproxy installation failed.", "error")
 
-    elif "CentOS" in cout:
-        # TODO install twemproxy in centos
-        pass
+    elif os == "CentOS" or os == "RHEL":
+        wlogger.log(tid, "Cluster manager will now try to build Twemproxy")
+        run_and_log(rc, "yum install -y wget", tid, None)
+        run_and_log(rc, "yum group install -y 'Development Tools'", tid, None)
+        run_and_log(rc, "wget https://github.com/twitter/twemproxy/archive/v0.4.1.tar.gz",
+                    tid, None)
+        run_and_log(rc, "tar -xf v0.4.1.tar.gz", tid, None)
+        run_and_log(rc, "cd twemproxy-0.4.1", tid, None)
+        run_and_log(rc, "cd twemproxy-0.4.1 && autoreconf -fvi", tid, None)
+        run_and_log(rc, "cd twemproxy-0.4.1 && make", tid, None)
+        run_and_log(rc, "cd twemproxy-0.4.1 && make install", tid, None)
+
 
     rc.close()
     return installed
