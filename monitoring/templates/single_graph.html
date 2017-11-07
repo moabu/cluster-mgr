@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block header %}
+    <h1>{{title}}</h1>
+
+
+{% endblock %}
+
+
+{% block content %}
+
+<div id="chart_div"></div>
+
+{% endblock %}
+
+
+{% block js %}
+
+<script src="{{ url_for('static', filename='js/gstatic/loader.js') }}"></script>
+
+
+  <script>
+  
+google.charts.load('current', {'packages':['corechart']});
+    google.charts.setOnLoadCallback(drawChart);
+
+    function drawChart() {
+
+      var data = new google.visualization.DataTable();
+      data.addColumn('datetime', 'Time of Day');
+      
+      {% for h in hosts %}
+      data.addColumn('number', '{{h}}');
+      {% endfor %}
+
+
+      data.addRows([
+
+        {% for d in data %}
+        {{d}}
+        {% endfor %}
+      ]);
+
+      var options = {
+        width: 900,
+        height: 500,
+        
+        title: '{{title}}',
+
+        vAxis: {
+          title: '{{vaxis}}'
+        },
+        hAxis: {
+        title: 'Time',
+        }
+      };
+
+      var chart = new google.visualization.LineChart(
+        document.getElementById('chart_div'));
+
+      chart.draw(data, options);
+
+      var button = document.getElementById('change');
+      var isChanged = false;
+
+
+    }
+
+  
+  </script>
+
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+
