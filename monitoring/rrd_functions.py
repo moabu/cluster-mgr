@@ -69,17 +69,19 @@ def query_ldap_and_inject_db(addr, binddn, passwd):
         rrdtool.update(file_path, str(datas))
 
 
-def get_ldap_monitoring_data(hosts, option, period='d'):
+def get_ldap_monitoring_data(hosts, option, period='d', start=None, end=None):
 
-    sTime = { 'd': 60*60*24,
-                  'w': 60*60*24*7,
-                  'm': 60*60*24*30,
-                  'y': 60*60*24*365,
-                }
+    if not start:
+        sTime = { 'd': 60*60*24,
+                      'w': 60*60*24*7,
+                      'm': 60*60*24*30,
+                      'y': 60*60*24*365,
+                    }
 
-    start=int( time.time() - sTime[period] )
+        start=int( time.time() - sTime[period] )
+        end = int(time.time())
 
-    rrd_args = ['-s', str(start)]
+    rrd_args = ['-s', str(start), '-e', str(end)]
 
     for i, h in enumerate(hosts):
 
@@ -95,6 +97,7 @@ def get_ldap_monitoring_data(hosts, option, period='d'):
         rxport = "XPORT:data{0}:Data".format(i)
         rrd_args.append( rxport )
 
+    print "RRD ARGS", rrd_args
     rrd_data=rrdtool.xport(rrd_args)
 
     return rrd_data

@@ -11,10 +11,21 @@
 
 {% for p in ['d', 'w', 'm','y'] %}
 
+{% if opt %}
+<a href="{{url_for('single_graph',opt=opt, period=p)}}">{{periods[p]}}</a>
+{% else %}
 <a href="{{url_for('all_ldap', period=p)}}">{{periods[p]}}</a>
+{% endif %}
 
 {% endfor %}
+
 <br><br>
+<form method="GET">
+    Start Date: <input name="startdate" id="datepickers">
+    End Date: <input name="enddate" id="datepickere">
+<input type="submit" value="show">
+</form>
+<br>
 
 <table>
 
@@ -67,8 +78,8 @@
 
         var options = {
                 title: '{{opt.replace('_',' ').title()}}',
-                width: 600,
-                height: 350,
+                width: {{width}},
+                height: {{height}},
                 legend: { position: 'top' },
                 vAxis: { title: '{{options[opt][2]}}' },
                 hAxis: { title: 'Time' },
@@ -83,6 +94,20 @@
     {% endfor %}
   
 </script>
+
+
+
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+  
+  <script>
+  $(document).ready(function() {
+    $("#datepickers").datepicker();
+    $("#datepickere").datepicker();
+  });
+  </script>
+
 
 {% endblock %}
 

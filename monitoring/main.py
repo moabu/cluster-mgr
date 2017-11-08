@@ -16,9 +16,25 @@ def index():
 
     return render_template('intro.html', options=searchlist.keys())
 
-def get_chart_data(hosts, opt, period):
+
+def get_start_end_date():
+    start_date = request.args.get("startdate")
+    end_date = request.args.get("enddate")
+    print "START DATE END DATE", start_date, end_date
+    if start_date:
+        start_date = start_date + ' 00:00'
+        start_date = int(time.mktime(time.strptime(start_date,"%m/%d/%Y %H:%M")))
+        if end_date:
+            end_date = end_date + ' 23:59'
+            end_date = int(time.mktime(time.strptime(end_date,"%m/%d/%Y %H:%M")))
+        else:
+            end_date = int(time.time())
+
+    return start_date, end_date
+
+def get_chart_data(hosts, opt, period, start_date=None, end_date=None):
     
-    rrd_data = get_ldap_monitoring_data(hosts, opt.replace('_',''), period)
+    rrd_data = get_ldap_monitoring_data(hosts, opt.replace('_',''), period, start_date, end_date)
 
     start = rrd_data["meta"]["start"]
     step = rrd_data["meta"]["step"]
@@ -46,21 +62,33 @@ def single_graph(opt, period):
     hosts = ('c4.gluu.org','c5.gluu.org')
 
     title = opt.replace('_', ' ').title()
-
-
-
-    g_data = get_chart_data(hosts, opt, period)
-    vaxis = searchlist[opt][2]
+    period_s=periods[period]
+    start_date, end_date = get_start_end_date()
+   
+    if end_date < start_date:
+       flash("End Date must be greater than Start Date")
+       start_date = None
+       end_date = None
     
-    return render_template('single_graph.html', 
-                            options=searchlist.keys(),
-                            title=title,
-                            data=g_data,
-                            vaxis=vaxis,
-                            opt=opt,
-                            period=periods[period],
+    if start_date:
+        period_s='{} - {}'.format(time.ctime(start_date), time.ctime(end_date))
+
+    
+    data_dict={ opt: get_chart_data(hosts, opt, period, start_date, end_date)}
+        
+    
+    return render_template('graph.html', 
+                            options=searchlist,
+                            opt = opt,
+                            width=900,
+                            height=500,
+                            title= title,
+                            data=data_dict,
+                            opt_list = [opt],
+                            period=period_s,
                             periods=periods,
                             hosts=hosts)
+
 
 
 @app.route('/allldap/<period>')
@@ -75,6 +103,18 @@ def all_ldap(period):
                 ]
 
 
+    period_s=periods[period]
+    start_date, end_date = get_start_end_date()
+   
+    if end_date < start_date:
+       flash("End Date must be greater than Start Date")
+       start_date = None
+       end_date = None
+    
+    if start_date:
+        period_s='{} - {}'.format(time.ctime(start_date), time.ctime(end_date))
+
+
     data_dict =  {}
 
     for opt in opt_list:
@@ -84,10 +124,13 @@ def all_ldap(period):
 
     return render_template('graph.html', 
                             options=searchlist,
+                            opt = None,
+                            width=600,
+                            height=350,
                             title="Multi graph",
                             data=data_dict,
                             opt_list = opt_list,
-                            period=periods[period],
+                            period=period_s,
                             periods=periods,
                             hosts=hosts)
     
@@ -95,6 +138,7 @@ def all_ldap(period):
 if __name__ == '__main__':
 
     app.debug=True #!! WARNING: comment out this line in production !!
+    app.secret_key = 'this_is_secret_key_for_gluu_monitoring'
     app.run(host="0.0.0.0")
 
 
