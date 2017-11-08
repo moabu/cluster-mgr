@@ -24,9 +24,11 @@ def index():
     expired_at = ""
     expiration_date = license_data["metadata"].get("expiration_date")
     if expiration_date:
-        expired_at = datetime.utcfromtimestamp(int(expiration_date) / 1000).strftime("%Y-%m-%d %H:%M:%SZ")
+        expired_at = datetime.utcfromtimestamp(int(expiration_date) / 1000)
+        expired_at = expired_at.strftime("%Y-%m-%d %H:%M:%SZ")
 
-    return render_template("license_index.html", license_data=license_data, expired_at=expired_at)
+    return render_template("license_index.html", license_data=license_data,
+                           expired_at=expired_at)
 
 
 @license_bp.route("/settings/", methods=["GET", "POST"])
