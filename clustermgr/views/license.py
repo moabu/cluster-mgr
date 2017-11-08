@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 from flask import Blueprint
 from flask import flash
@@ -18,7 +19,14 @@ def index():
     license_data, err = license_manager.validate_license()
     if err:
         flash(err, "warning")
-    return render_template("license_index.html", license_data=license_data)
+
+    # determine when license will be expired
+    expired_at = ""
+    expiration_date = license_data["metadata"].get("expiration_date")
+    if expiration_date:
+        expired_at = datetime.utcfromtimestamp(int(expiration_date) / 1000).strftime("%Y-%m-%d %H:%M:%SZ")
+
+    return render_template("license_index.html", license_data=license_data, expired_at=expired_at)
 
 
 @license_bp.route("/settings/", methods=["GET", "POST"])
