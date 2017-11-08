@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block header %}
+    <h1>{{title}} - {{period}}</h1>
+    
+
+{% endblock %}
+
+
+{% block content %}
+
+{% for p in ['d', 'w', 'm','y'] %}
+
+<a href="{{url_for('all_ldap', period=p)}}">{{periods[p]}}</a>
+
+{% endfor %}
+<br><br>
+
+<table>
+
+{% for i in range(0, opt_list.__len__(),2) %}
+
+    <tr>
+    {% for j in range(2) %}
+        <td><div id="chart_div_{{opt_list[i+j]}}"></div></td>
+    
+    {% endfor %}
+    </tr>
+    
+{% endfor %}
+</table>
+
+{% endblock %}
+
+
+{% block js %}
+
+<script src="{{ url_for('static', filename='js/gstatic/loader.js') }}"></script>
+
+
+<script>
+  
+    google.charts.load('current', {'packages':['corechart']});
+    
+    
+    {% for opt in data  %}
+    
+    
+    google.charts.setOnLoadCallback(drawChart{{opt}});
+
+    function drawChart{{opt}}() {
+
+        var data = new google.visualization.DataTable();
+        data.addColumn('datetime', 'Time of Day');
+          
+        {% for h in hosts %}
+        data.addColumn('number', '{{h}}');
+        {% endfor %}
+
+
+        data.addRows([
+
+            {% for d in data[opt] %}
+            {{d}}
+            {% endfor %}
+          ]);
+
+        var options = {
+                title: '{{opt.replace('_',' ').title()}}',
+                width: 600,
+                height: 350,
+                legend: { position: 'top' },
+                vAxis: { title: '{{options[opt][2]}}' },
+                hAxis: { title: 'Time' },
+            };
+
+        var chart = new google.visualization.LineChart(document.getElementById('chart_div_{{opt}}'));
+        chart.draw(data, options);
+
+    }
+
+  
+    {% endfor %}
+  
+</script>
+
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+

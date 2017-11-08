@@ -1,13 +1,20 @@
 {% extends "base.html" %}
 
 {% block header %}
-    <h1>{{title}}</h1>
-
+    <h1>{{title}} - {{period}}</h1>
+    
 
 {% endblock %}
 
 
 {% block content %}
+
+{% for p in ['d', 'w', 'm','y'] %}
+
+<a href="{{url_for('single_graph',opt=opt, period=p)}}">{{periods[p]}}</a>
+
+{% endfor %}
+<br><br>
 
 <div id="chart_div"></div>
 
@@ -19,55 +26,46 @@
 <script src="{{ url_for('static', filename='js/gstatic/loader.js') }}"></script>
 
 
-  <script>
+<script>
   
-google.charts.load('current', {'packages':['corechart']});
+    google.charts.load('current', {'packages':['corechart']});
     google.charts.setOnLoadCallback(drawChart);
 
     function drawChart() {
 
-      var data = new google.visualization.DataTable();
-      data.addColumn('datetime', 'Time of Day');
-      
-      {% for h in hosts %}
-      data.addColumn('number', '{{h}}');
-      {% endfor %}
-
-
-      data.addRows([
-
-        {% for d in data %}
-        {{d}}
+        var data = new google.visualization.DataTable();
+        data.addColumn('datetime', 'Time of Day');
+          
+        {% for h in hosts %}
+        data.addColumn('number', '{{h}}');
         {% endfor %}
-      ]);
 
-      var options = {
-        width: 900,
-        height: 500,
-        
-        title: '{{title}}',
 
-        vAxis: {
-          title: '{{vaxis}}'
-        },
-        hAxis: {
-        title: 'Time',
-        }
-      };
+        data.addRows([
 
-      var chart = new google.visualization.LineChart(
+            {% for d in data %}
+            {{d}}
+            {% endfor %}
+          ]);
+
+        var options = {
+                width: 900,
+                height: 500,
+                legend: { position: 'top' },
+                vAxis: { title: '{{vaxis}}' },
+                hAxis: { title: 'Time' },
+            };
+
+        var chart = new google.visualization.LineChart(
         document.getElementById('chart_div'));
+        chart.draw(data, options);
 
-      chart.draw(data, options);
-
-      var button = document.getElementById('change');
-      var isChanged = false;
 
 
     }
 
   
-  </script>
+</script>
 
 {% endblock %}
 

@@ -47,9 +47,9 @@
                 </span>
               </a>
               <ul class="treeview-menu">
-                  
+                <li><a href="{{ url_for('all_ldap', period='d') }}"><i class="fa fa-plus-square"></i>All in one</a></li>
                 {% for opt in options %}
-                  <li><a href="{{ url_for('single_graph', opt=opt, dtype='d') }}"><i class="fa fa-plus-square"></i>{{opt.replace('_', ' ').title()}}</a></li>
+                  <li><a href="{{ url_for('single_graph', opt=opt, period='d') }}"><i class="fa fa-plus-square"></i>{{opt.replace('_', ' ').title()}}</a></li>
 
                 {% endfor %}
               </ul>
