@@ -6,8 +6,6 @@ from flask import Flask
 
 from clustermgr.extensions import db, csrf, migrate, wlogger
 
-from clustermgr.tasks.cluster import *
-
 from .core.license import license_manager
 
 
@@ -48,7 +46,7 @@ def create_app():
     migrate.init_app(app, db, directory=os.path.join(os.path.dirname(__file__),
                                                      "migrations"))
     wlogger.init_app(app)
-    license_manager.init_app(app)
+    license_manager.init_app(app, "license.settings")
 
     # setup the instance's working directories
     if not os.path.isdir(app.config['SCHEMA_DIR']):
@@ -84,7 +82,7 @@ def create_app():
             folder = os.path.join(app.root_path, 'static', directory)
             files = os.listdir(folder)
             for f in files:
-                regex = name+"\.[a-z0-9]+\."+extension
+                regex = name + "\.[a-z0-9]+\." + extension
                 if re.match(regex, f):
                     return os.path.join('/static', directory, f)
             return os.path.join('/static', filepath)
