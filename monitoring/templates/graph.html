@@ -27,6 +27,8 @@
 </form>
 <br>
 
+
+
 <table>
 
 {% for i in range(0, opt_list.__len__(),2) %}
@@ -40,6 +42,8 @@
     
 {% endfor %}
 </table>
+
+
 
 {% endblock %}
 
@@ -61,21 +65,20 @@
 
     function drawChart{{opt}}() {
 
-        var data = new google.visualization.DataTable();
-        data.addColumn('datetime', 'Time of Day');
-          
-        {% for h in hosts %}
-        data.addColumn('number', '{{h}}');
-        {% endfor %}
 
+   
+        {% for host in data[opt] %}
+        
+        var data{{loop.index0}} = new google.visualization.DataTable();
+        data{{loop.index0}}.addColumn('datetime', 'Time');
+        data{{loop.index0}}.addColumn('number', '{{host}}');
+        data{{loop.index0}}.addRows([
 
-        data.addRows([
-
-            {% for d in data[opt] %}
+            {% for d in data[opt][host] %}
             {{d}}
             {% endfor %}
           ]);
-
+        {% endfor %}
         var options = {
                 title: '{{opt.replace('_',' ').title()}}',
                 width: {{width}},
@@ -85,8 +88,17 @@
                 hAxis: { title: 'Time' },
             };
 
+        var joinedData = google.visualization.data.join(
+                                {% for host in data[opt] %}
+        
+                                data{{loop.index0}},
+                                {% endfor %}
+                                'full', [[0, 0]], [1], [1]
+                            
+                            );
+
         var chart = new google.visualization.LineChart(document.getElementById('chart_div_{{opt}}'));
-        chart.draw(data, options);
+        chart.draw(joinedData, options);
 
     }
 
