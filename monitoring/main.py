@@ -89,7 +89,7 @@ def single_graph(opt, period):
        end_date = None
     
     if start_date:
-        period_s='{} - {}'.format(time.ctime(start_date), time.ctime(end_date))
+        period_s='{} - {}'.format(start_date, end_date)
 
     rrd_data = get_chart_data(hosts, opt, period, start_date, end_date)
     
@@ -132,7 +132,7 @@ def all_ldap(period):
        end_date = None
     
     if start_date:
-        period_s='{} - {}'.format(time.ctime(start_date), time.ctime(end_date))
+        period_s='{} - {}'.format(start_date, end_date)
 
 
     data_dict =  {}
@@ -145,7 +145,7 @@ def all_ldap(period):
     return render_template('graph.html', 
                             options=searchlist,
                             opt = None,
-                            width=600,
+                            width=650,
                             height=350,
                             title="Multi graph",
                             data=data_dict,
