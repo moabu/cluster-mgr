@@ -123,7 +123,8 @@ def all_ldap(period):
 
 
     period_s=periods[period]
-    start_date, end_date = get_start_end_date()
+    start_date = request.args.get("startdate")
+    end_date = request.args.get("enddate")
    
     if end_date < start_date:
        flash("End Date must be greater than Start Date")
@@ -137,7 +138,7 @@ def all_ldap(period):
     data_dict =  {}
 
     for opt in opt_list:
-        g_data = get_chart_data(hosts, opt, period)
+        g_data = get_chart_data(hosts, opt, period, start_date, end_date)
         data_dict[opt] = g_data
 
 
