@@ -3,11 +3,14 @@ import json
 import os
 import time
 import uuid
+from datetime import datetime
+# from datetime import timedelta
 from functools import wraps
 
 import requests
 from flask import _app_ctx_stack
 from flask import flash
+from flask import g as fg
 from flask import redirect
 from flask import url_for
 
@@ -36,12 +39,11 @@ def current_date_millis():
 
     :returns: An integer of Unix timestamp in milliseconds.
     """
-    # TODO: fetch it from license server?
     # resp = requests.get(
     #     "https://license.gluu.org/oxLicense/rest/currentMilliseconds"
     # )
     # if resp.ok:
-    #     return resp.json()
+    #     return int(resp.json())
     return int(time.time() * 1000)
 
 
@@ -265,6 +267,31 @@ class LicenseManager(object):
         data = json.loads(meta)
         return data, err
 
-
 # create an instance so we can import it globally
 license_manager = LicenseManager()
+
+
+def license_reminder():
+    """Sets human-readable expiration date.
+
+    The value will be stored in ``flask.g`` object, so template can
+    obtain the value.
+    """
+    expired_at = ""
+    license_data, _ = license_manager.validate_license()
+
+    # determine when license will be expired
+    exp_date = license_data["metadata"].get("expiration_date")
+    if exp_date:
+        # expiration timestamp
+        exp_date = datetime.utcfromtimestamp(int(exp_date) / 1000)
+        # reminder should start a week before license expired
+        # exp_threshold = exp_date - timedelta(days=7)
+        # # current timestamp
+        # now = datetime.utcnow()
+
+        # if now >= exp_threshold:
+        expired_at = exp_date.strftime("%Y-%m-%d %H:%M:%SZ")
+
+    # store in global so template can fetch the value
+    fg.license_expired_at = expired_at
