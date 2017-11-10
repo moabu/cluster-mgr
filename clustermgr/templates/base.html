@@ -11,7 +11,7 @@
     <link href="{{ url_for('static', filename='css/bootstrap.min.css')}}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/animate.css')}}" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/AdminLTE.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/skin-green.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/skin-blue.min.css') }}">
     <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
     <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
@@ -20,19 +20,19 @@
       <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
       <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
-     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,700,300italic,400italic,600italic">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,700,300italic,400italic,600italic">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
   </head>
-  <body class="hold-transition skin-green sidebar-mini">
+  <body class="hold-transition skin-blue layout-top-nav mini-sidebar">
   <div class="wrapper">
       <header class="main-header">
-        <a href="#" class="logo">
-          <span class="logo-mini">GCM</span>
-          <span class="logo-lg">Gluu Cluster Manager</span>
-        </a>
-        <nav class="navbar navbar-static-top">
-          <a href="#" class="sidebar-toggle" data-toggle="push-menu" role="button">
-            <span class="sr-only">Toggle navigation</span>
-          </a>
+        <nav class="navbar navabar-static-top navbar-fixed-top">
+            <div class="navbar-header">
+              <a href="/" class="navbar-brand"><strong>Gluu</strong> Cluster Manager</a>
+              <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                <i class="fa fa-bars"></i>
+              </button>
+            </div>
         </nav>
       </header>
       <aside class="main-sidebar">
@@ -62,8 +62,7 @@
           </ul>
         </section>
       </aside>
-      <div class="content-wrapper">
-
+      <div class="content-wrapper" style="padding-left: 230px;">
           <section class="content-header">
             {% block header %}{% endblock %}
           </section>

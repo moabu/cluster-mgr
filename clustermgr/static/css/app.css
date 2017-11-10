@@ -2,6 +2,11 @@
     margin-top: 15px;
 }
 
+.main-sidebar{
+    position: fixed;
+    overflow: scroll;
+}
+
 
 /*
 Logger Styles
