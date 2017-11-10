@@ -1,5 +1,4 @@
 import os
-from datetime import datetime
 
 from flask import Blueprint
 from flask import flash
@@ -9,9 +8,11 @@ from flask import request
 from flask import url_for
 
 from ..core.license import license_manager
+from ..core.license import license_reminder
 from ..forms import LicenseSettingsForm
 
 license_bp = Blueprint("license", __name__)
+license_bp.before_request(license_reminder)
 
 
 @license_bp.route("/")
@@ -19,16 +20,7 @@ def index():
     license_data, err = license_manager.validate_license()
     if err:
         flash(err, "warning")
-
-    # determine when license will be expired
-    expired_at = ""
-    expiration_date = license_data["metadata"].get("expiration_date")
-    if expiration_date:
-        expired_at = datetime.utcfromtimestamp(int(expiration_date) / 1000)
-        expired_at = expired_at.strftime("%Y-%m-%d %H:%M:%SZ")
-
-    return render_template("license_index.html", license_data=license_data,
-                           expired_at=expired_at)
+    return render_template("license_index.html", license_data=license_data)
 
 
 @license_bp.route("/settings/", methods=["GET", "POST"])
@@ -51,7 +43,7 @@ def settings():
         try:
             os.unlink(license_manager.sig_file)
         except OSError:
+            # likely the file is not exist
             pass
-
         return redirect(url_for(".index"))
     return render_template("license_settings.html", form=form)

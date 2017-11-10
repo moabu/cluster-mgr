@@ -6,9 +6,11 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cache import get_cache_methods, install_redis_stunnel, \
     configure_cache_cluster, restart_services
+from ..core.license import license_reminder
 
 
 cache_mgr = Blueprint('cache_mgr', __name__, template_folder='templates')
+cache_mgr.before_request(license_reminder)
 
 
 @cache_mgr.route('/')

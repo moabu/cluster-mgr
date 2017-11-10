@@ -16,8 +16,10 @@ from clustermgr.tasks.all import rotate_pub_keys
 from clustermgr.core.utils import encrypt_text
 from clustermgr.core.utils import generate_random_key
 from clustermgr.core.utils import generate_random_iv
+from ..core.license import license_reminder
 
 index = Blueprint('index', __name__)
+index.before_request(license_reminder)
 
 
 @index.route('/')

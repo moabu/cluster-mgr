@@ -89,6 +89,13 @@
                 {% endfor %}
               {% endif %}
             {% endwith %}
+            {% if g.license_expired_at %}
+            <div class="alert alert-info alert-dismissable" role="alert">
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+                Your license will be expired at <strong>{{ g.license_expired_at }}</strong>.
+            </div>
+            {% endif %}
             {% block content %}{% endblock %}
           </section>
       </div><!-- end of content wrapper -->

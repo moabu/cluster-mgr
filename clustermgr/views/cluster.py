@@ -9,14 +9,16 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cluster import setup_ldap_replication, \
     InstallLdapServer, installGluuServer, remove_provider, \
     removeMultiMasterDeployement, installNGINX
+from ..core.license import license_reminder
 
 cluster = Blueprint('cluster', __name__, template_folder='templates')
+cluster.before_request(license_reminder)
 
 
 @cluster.route('/deploy_config/<int:server_id>', methods=['GET', 'POST'])
 def deploy_config(server_id):
     """Initiates replication deployement task
-    
+
     Args:
         server_id (integer): id of server to be deployed
     """
@@ -26,7 +28,7 @@ def deploy_config(server_id):
     if not s:
         flash("Server id {0} is not on database".format(server_id), 'warning')
         return redirect(url_for("index.multi_master_replication"))
-    
+
     #Start deployment celery task
     task = setup_ldap_replication.delay(server_id)
     head = "Setting up Replication on Server: " + s.hostname
@@ -38,7 +40,7 @@ def deploy_config(server_id):
 @cluster.route('/remove_deployment/<int:server_id>/')
 def remove_deployment(server_id):
     """Initiates removal of replication deployment and back to slapd.conf
-    
+
     Args:
         server_id (integer): id of server to be undeployed
     """
@@ -83,7 +85,7 @@ def remove_deployment(server_id):
 @cluster.route('/install_ldapserver')
 def install_ldap_server():
     """Initiates installation of non-gluu ldap server"""
-    
+
     #Start non-gluu ldap server installation celery task
     task = InstallLdapServer.delay(session['nongluuldapinfo'])
     print "TASK STARTED", task.id
@@ -98,11 +100,11 @@ def install_ldap_server():
 @cluster.route('/install_gluu_server/<int:server_id>/')
 def install_gluu_server(server_id):
     """Initiates installation of gluu server
-    
+
     Args:
         server_id (integer): id fo server to be installed
     """
-    
+
     server = Server.query.get(server_id)
     appconf = AppConfiguration.query.first()
 
