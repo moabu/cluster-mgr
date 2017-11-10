@@ -71,7 +71,11 @@ def get_chart_data(hosts, opt, period, start_date='', end_date=''):
 @app.route('/singlegraph/<opt>/<period>')
 def single_graph(opt, period):
 
-    hosts = ('c4.gluu.org','c5.gluu.org')
+    hosts = ('c4.gluu.org',
+            'c5.gluu.org',
+            #'localhost',
+            #'192.168.56.101',
+            )
 
     title = opt.replace('_', ' ').title()
     period_s=periods[period]
