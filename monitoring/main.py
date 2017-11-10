@@ -75,6 +75,7 @@ def single_graph(opt, period):
             'c5.gluu.org',
             #'localhost',
             #'192.168.56.101',
+            #'192.168.56.104',
             )
 
     title = opt.replace('_', ' ').title()
