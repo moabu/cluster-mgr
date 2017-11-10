@@ -1,6 +1,10 @@
 import os
 import time
-from flask import Flask, request, Response, make_response, render_template, redirect, url_for, flash
+import requests
+import json
+
+from flask import Flask, request, Response, make_response, render_template,\
+                    redirect, url_for, flash
 
 
 
@@ -17,44 +21,52 @@ def index():
     return render_template('intro.html', options=searchlist.keys())
 
 
-def get_start_end_date():
-    start_date = request.args.get("startdate")
-    end_date = request.args.get("enddate")
-    print "START DATE END DATE", start_date, end_date
-    if start_date:
-        start_date = start_date + ' 00:00'
-        start_date = int(time.mktime(time.strptime(start_date,"%m/%d/%Y %H:%M")))
-        if end_date:
-            end_date = end_date + ' 23:59'
-            end_date = int(time.mktime(time.strptime(end_date,"%m/%d/%Y %H:%M")))
-        else:
-            end_date = int(time.time())
-
-    return start_date, end_date
-
-def get_chart_data(hosts, opt, period, start_date=None, end_date=None):
+def get_chart_data(hosts, opt, period, start_date='', end_date=''):
     
-    rrd_data = get_ldap_monitoring_data(hosts, opt.replace('_',''), period, start_date, end_date)
+    if start_date== None:
+        start_date = ''
+    if end_date== None:
+        end_date = ''
+    
+    rrd_data = {}
 
-    start = rrd_data["meta"]["start"]
-    step = rrd_data["meta"]["step"]
+    for h in hosts:
 
-    g_data =[]
+        g_data =[]
 
-    for d in rrd_data['data']:
-        t = time.localtime(start)
-        di_l = []
-        for di in d:
-            did = str(di) if di else 'null'
-            di_l.append(did)
+        req_addr = 'http://{0}:10443/getldapmon/{1}?startdate={2}&enddate={3}&period={4}'.format(
+
+                                            h, opt,
+                                            start_date,
+                                            end_date,
+                                            period,
+                                            )
+        print(req_addr)
+        r = requests.get(req_addr)
         
-        tmp = "[new Date({}, {}, {}, {}, {}), {}],".format(
-                    t.tm_year, t.tm_mon, t.tm_mday,
-                    t.tm_hour, t.tm_min, ', '.join(di_l))
-        g_data.append(tmp)
-        start += step
+        r_tetx = r.text
+        r_tmp = json.loads(r.text)
+        r_rrd_data = r_tmp['data']
+
+        start = r_rrd_data["meta"]["start"]
+        step = r_rrd_data["meta"]["step"]
+
+        for d in r_rrd_data['data']:
+            t = time.localtime(start)
+            di_l = []
+            for di in d:
+                did = str(di) if di else 'null'
+                di_l.append(did)
+            
+            tmp = "[new Date({}, {}, {}, {}, {}), {}],".format(
+                        t.tm_year, t.tm_mon, t.tm_mday,
+                        t.tm_hour, t.tm_min, ', '.join(di_l))
+            g_data.append(tmp)
+            start += step
+
+        rrd_data[h] = g_data
     
-    return g_data
+    return rrd_data
 
 @app.route('/singlegraph/<opt>/<period>')
 def single_graph(opt, period):
@@ -63,7 +75,8 @@ def single_graph(opt, period):
 
     title = opt.replace('_', ' ').title()
     period_s=periods[period]
-    start_date, end_date = get_start_end_date()
+    start_date = request.args.get("startdate")
+    end_date = request.args.get("enddate")
    
     if end_date < start_date:
        flash("End Date must be greater than Start Date")
@@ -73,8 +86,9 @@ def single_graph(opt, period):
     if start_date:
         period_s='{} - {}'.format(time.ctime(start_date), time.ctime(end_date))
 
+    rrd_data = get_chart_data(hosts, opt, period, start_date, end_date)
     
-    data_dict={ opt: get_chart_data(hosts, opt, period, start_date, end_date)}
+    data_dict={ opt: rrd_data}
         
     
     return render_template('graph.html', 
@@ -87,7 +101,7 @@ def single_graph(opt, period):
                             opt_list = [opt],
                             period=period_s,
                             periods=periods,
-                            hosts=hosts)
+                            )
 
 
 
