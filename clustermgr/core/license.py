@@ -4,7 +4,7 @@ import os
 import time
 import uuid
 from datetime import datetime
-# from datetime import timedelta
+from datetime import timedelta
 from functools import wraps
 
 import requests
@@ -84,7 +84,10 @@ class LicenseManager(object):
         def wrapper(*args, **kwargs):
             license_data, err = self.validate_license()
 
-            if err or license_data.get("valid", False) is False:
+            invalid = license_data["valid"] is not True
+            expired = current_date_millis() > license_data["metadata"].get("expiration_date")
+
+            if err or invalid or expired:
                 flash("The previously requested URL requires a valid license. "
                       "Please make sure you have a valid license by entering "
                       "the correct license settings.",
@@ -277,7 +280,7 @@ def license_reminder():
     The value will be stored in ``flask.g`` object, so template can
     obtain the value.
     """
-    expired_at = ""
+    msg = ""
     license_data, _ = license_manager.validate_license()
 
     # determine when license will be expired
@@ -285,13 +288,20 @@ def license_reminder():
     if exp_date:
         # expiration timestamp
         exp_date = datetime.utcfromtimestamp(int(exp_date) / 1000)
-        # reminder should start a week before license expired
-        # exp_threshold = exp_date - timedelta(days=7)
-        # # current timestamp
-        # now = datetime.utcnow()
+        exp_date_str = exp_date.strftime("%Y-%m-%d %H:%M:%SZ")
 
-        # if now >= exp_threshold:
-        expired_at = exp_date.strftime("%Y-%m-%d %H:%M:%SZ")
+        # reminder should start 2 months before license expired
+        exp_threshold = exp_date - timedelta(days=60)
+
+        # current timestamp
+        now = datetime.utcfromtimestamp(current_date_millis() / 1000)
+
+        if now > exp_date:
+            # license has been expired
+            msg = "Your license has been expired since {}".format(exp_date_str)
+        elif now > exp_threshold:
+            # license will be expired soon
+            msg = "Your license will be expired at {}".format(exp_date_str)
 
     # store in global so template can fetch the value
-    fg.license_expired_at = expired_at
+    fg.license_reminder_msg = msg
