@@ -2,6 +2,11 @@
 {% from 'macros.html' import cache_process_steps %}
 {% block header %}
     <h1>Cache Clustering</h1>
+  <ol class="breadcrumb">
+    <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+    <li><a href="{{ url_for('cache_mgr.index') }}">Cache Management</a></li>
+    <li class="active">Setup</li>
+  </ol>
 {% endblock %}
 
 {% block content %}
