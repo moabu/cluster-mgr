@@ -43,8 +43,8 @@ def refresh_methods():
 @cache_mgr.route('/change/', methods=['GET', 'POST'])
 def change():
     servers = Server.query.all()
-    method = 'SHARDED'
-    task = install_cache_components.delay()
+    method = 'STANDALONE'
+    task = install_cache_components.delay(method)
     return render_template('cache_logger.html', method=method, step=1,
                            task_id=task.id, servers=servers)
 

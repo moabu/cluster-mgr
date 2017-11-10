@@ -1,0 +1,10 @@
+[Unit]
+Description=nutcracker/twemproxy
+
+[Service]
+EnvironmentFile=/etc/default/nutcracker
+
+ExecStart=/usr/sbin/nutcracker $DAEMON_ARGS
+
+[Install]
+WantedBy=multi-user.target
