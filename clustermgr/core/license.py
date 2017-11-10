@@ -251,6 +251,7 @@ class LicenseManager(object):
         )
 
         if code != 0:
+            err = "Unable to decode signed license. Please check the settings."
             return data, err
 
         # output example:
