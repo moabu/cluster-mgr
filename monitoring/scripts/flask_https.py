@@ -95,6 +95,9 @@ def get_cpu_info(opt):
     if not start_date:
         start=int( time.time() - sTime[period] )
         end = int(time.time())
+    else:
+        start = start_date
+        end = end_date
 
     data_f = os.path.join(data_dir, 'cpu_info.rrd')
     rrd_args = ['-s', str(start), '-e', str(end)]
