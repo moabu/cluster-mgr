@@ -110,6 +110,7 @@ def single_graph(opt, period):
     return render_template('graph.html', 
                             leftmenu = leftmenu,
                             options=searchlist,
+                            group='single_graph',
                             opt = opt,
                             width=900,
                             height=500,
@@ -153,12 +154,13 @@ def all_ldap(period):
 
     for opt in opt_list:
         g_data = get_chart_data(hosts, funct, opt, period, start_date, end_date)
-        data_dict[opt] = g_data
+        data_dict[opt] = g_data[0]
 
 
     return render_template('graph.html', 
                             options=searchlist,
                             leftmenu = leftmenu,
+                            group='all_ldap',
                             opt = None,
                             width=550,
                             height=325,
@@ -203,6 +205,7 @@ def system(opt, period):
     return render_template('graphs.html', 
                             leftmenu = leftmenu,
                             legends=rrd_data[1],
+                            group='system',
                             opt = opt,
                             width=600,
                             height=325,

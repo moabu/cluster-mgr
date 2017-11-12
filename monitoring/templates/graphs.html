@@ -11,11 +11,11 @@
 
 {% for p in ['d', 'w', 'm','y'] %}
 
-{% if opt %}
-<a href="{{url_for('single_graph',opt=opt, period=p)}}">{{periods[p]}}</a>
-{% else %}
-<a href="{{url_for('all_ldap', period=p)}}">{{periods[p]}}</a>
-{% endif %}
+    {% if opt %}
+    <a href="{{url_for(group,opt=opt, period=p)}}">{{periods[p]}}</a>
+    {% else %}
+    <a href="{{url_for(group, period=p)}}">{{periods[p]}}</a>
+    {% endif %}
 
 {% endfor %}
 
