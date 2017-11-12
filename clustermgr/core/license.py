@@ -86,11 +86,11 @@ class LicenseManager(object):
 
             invalid = license_data["valid"] is not True
             expired = current_date_millis() > license_data["metadata"].get("expiration_date")
+            inactive = license_data["metadata"].get("active") is False
 
-            if err or invalid or expired:
+            if err or invalid or expired or inactive:
                 flash("The previously requested URL requires a valid license. "
-                      "Please make sure you have a valid license by entering "
-                      "the correct license settings.",
+                      "Please make sure you have a valid license.",
                       "warning")
 
                 # determine where to redirect when license is invalid
@@ -256,7 +256,7 @@ class LicenseManager(object):
         )
 
         if code != 0:
-            err = "Unable to decode signed license. Please check the settings."
+            err = "Unable to decode signed license."
             return data, err
 
         # output example:
@@ -298,10 +298,10 @@ def license_reminder():
 
         if now > exp_date:
             # license has been expired
-            msg = "Your license has been expired since {}".format(exp_date_str)
+            msg = "Your license has been expired since {}.".format(exp_date_str)
         elif now > exp_threshold:
             # license will be expired soon
-            msg = "Your license will be expired at {}".format(exp_date_str)
+            msg = "Your license will be expired at {}.".format(exp_date_str)
 
     # store in global so template can fetch the value
     fg.license_reminder_msg = msg
