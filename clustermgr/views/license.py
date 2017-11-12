@@ -1,6 +1,7 @@
 import os
 
 from flask import Blueprint
+from flask import current_app
 from flask import flash
 from flask import redirect
 from flask import render_template
@@ -41,7 +42,7 @@ def settings():
         # removes old signed_license.txt (if any) as updating the settings
         # means we need to re-obtain and validate the license later
         try:
-            os.unlink(license_manager.sig_file)
+            os.unlink(current_app.config["LICENSE_SIGNED_FILE"])
         except OSError:
             # likely the file is not exist
             pass
