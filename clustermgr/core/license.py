@@ -16,14 +16,6 @@ from flask import url_for
 
 from .keygen import exec_cmd
 
-# Absolute path to external program which able to validate license.
-DEFAULT_VALIDATOR = os.path.join(
-    "/usr/share/oxlicense-validator/oxlicense-validator-3.1.1.jar"
-)
-
-# Default product name.
-DEFAULT_PRODUCT_NAME = "de"  # TODO: change it to another name?
-
 
 def get_mac_addr():
     """Gets MAC address according to standard IEEE EUI-48 format.
@@ -49,48 +41,50 @@ def current_date_millis():
 
 class LicenseManager(object):
     def __init__(self, app=None, redirect_endpoint=""):
-        self._cfg_file = None
-        self._sig_file = None
         self.redirect_endpoint = redirect_endpoint
-
         self.app = app
-        if app is not None:
+        if app:
             self.init_app(app, redirect_endpoint)
 
     def init_app(self, app, redirect_endpoint):
         self.app = app
         self.redirect_endpoint = redirect_endpoint
+
+        app.config.setdefault(
+            "LICENSE_CONFIG_FILE",
+            "/usr/share/oxlicense-validator/license.ini",
+        )
+        app.config.setdefault(
+            "LICENSE_SIGNED_FILE",
+            "/usr/share/oxlicense-validator/signed_license",
+        )
+        # Absolute path to external program which able to validate license.
+        app.config.setdefault(
+            "LICENSE_VALIDATOR",
+            "/usr/share/oxlicense-validator/oxlicense-validator-3.1.1.jar",
+        )
+        # Default product name.
+        app.config.setdefault(
+            "LICENSE_PRODUCT_NAME",
+            "de",  # TODO: change it to another name?
+        )
+
         app.extensions = getattr(app, "extensions", {})
         app.extensions["license_manager"] = self
-
-    @property
-    def cfg_file(self):
-        if not self._cfg_file:
-            app = self._get_app()
-            self._cfg_file = os.path.join(app.config["DATA_DIR"],
-                                          "license.ini")
-        return self._cfg_file
-
-    @property
-    def sig_file(self):
-        if not self._sig_file:
-            app = self._get_app()
-            self._sig_file = os.path.join(app.config["DATA_DIR"],
-                                          "signed_license.txt")
-        return self._sig_file
 
     def license_required(self, func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             license_data, err = self.validate_license()
+            now = current_date_millis()
 
             invalid = license_data["valid"] is not True
-            expired = current_date_millis() > license_data["metadata"].get("expiration_date")
+            expired = now > license_data["metadata"].get("expiration_date")
+            inactive = license_data["metadata"].get("active", False) is False
 
-            if err or invalid or expired:
+            if err or invalid or expired or inactive:
                 flash("The previously requested URL requires a valid license. "
-                      "Please make sure you have a valid license by entering "
-                      "the correct license settings.",
+                      "Please make sure you have a valid license.",
                       "warning")
 
                 # determine where to redirect when license is invalid
@@ -122,8 +116,6 @@ class LicenseManager(object):
         2. get the signed license
         3. decode the signed license to extract its data
 
-        :param cfg_file: Absolute path to config file.
-        :param sig_file: Absolute path to file contains signed license.
         :returns: A tuple of the data and error message from validation process.
         """
         license_data = {"valid": False, "metadata": {}}
@@ -177,7 +169,8 @@ class LicenseManager(object):
             parser.set(section, opt, val)
 
         # write the options into a file
-        with open(self.cfg_file, "wb") as fw:
+        app = self._get_app()
+        with open(app.config["LICENSE_CONFIG_FILE"], "wb") as fw:
             parser.write(fw)
 
     def load_license_config(self):
@@ -185,8 +178,9 @@ class LicenseManager(object):
 
         :returns: A ``dict`` of configuration items.
         """
+        app = self._get_app()
         parser = ConfigParser.SafeConfigParser()
-        parser.read(self.cfg_file)
+        parser.read(app.config["LICENSE_CONFIG_FILE"])
 
         try:
             cfg = dict(parser.items("license"))
@@ -202,8 +196,9 @@ class LicenseManager(object):
         """
         err = ""
         sig = ""
+        app = self._get_app()
 
-        if not os.path.isfile(self.sig_file):
+        if not os.path.isfile(app.config["LICENSE_SIGNED_FILE"]):
             # download signed license if we don't have one yet
             resp = requests.post(
                 "https://license.gluu.org/oxLicense/rest/generate",
@@ -220,11 +215,11 @@ class LicenseManager(object):
                 err = resp.text
 
             # save it for later use
-            with open(self.sig_file, "w") as fw:
+            with open(app.config["LICENSE_SIGNED_FILE"], "w") as fw:
                 fw.write(sig)
             return sig, err
 
-        with open(self.sig_file) as fr:
+        with open(app.config["LICENSE_SIGNED_FILE"]) as fr:
             return fr.read(), err
 
     def decode_signed_license(self, signed_license, public_key,
@@ -237,26 +232,30 @@ class LicenseManager(object):
         :param signed_license: Encoded signed license.
         :param public_key: Public key needed to validate the license.
         :param public_password: Public password needed to validate the license.
-        :param license_password: License password needed to validate the license.
+        :param license_password: License password needed to validate
+                                 the license.
         :param product: Product name as defined in license.
+        :returns: A tuple of ``dict`` contains license data and
+                  error message (if any).
         """
+        app = self._get_app()
         data = {"valid": False, "metadata": {}}
 
         # shell out and get the license data (if any)
         out, err, code = exec_cmd(
             "java -jar {} {} {} {} {} {} {}".format(
-                DEFAULT_VALIDATOR,
+                app.config["LICENSE_VALIDATOR"],
                 signed_license,
                 public_key,
                 public_password,
                 license_password,
-                DEFAULT_PRODUCT_NAME,
+                app.config["LICENSE_PRODUCT_NAME"],
                 current_date_millis(),
             )
         )
 
         if code != 0:
-            err = "Unable to decode signed license. Please check the settings."
+            err = "Unable to decode signed license."
             return data, err
 
         # output example:
@@ -298,10 +297,10 @@ def license_reminder():
 
         if now > exp_date:
             # license has been expired
-            msg = "Your license has been expired since {}".format(exp_date_str)
+            msg = "Your license has been expired since {}.".format(exp_date_str)
         elif now > exp_threshold:
             # license will be expired soon
-            msg = "Your license will be expired at {}".format(exp_date_str)
+            msg = "Your license will be expired at {}.".format(exp_date_str)
 
     # store in global so template can fetch the value
     fg.license_reminder_msg = msg
