@@ -1,16 +1,17 @@
+
 import os
 import time
 import rrdtool
 
-from ldap_monitor_options import searchlist
-import ldap_functions
+#from ldap_monitor_options import searchlist
+#import ldap_functions
 
 
 cur_dir=os.path.dirname(os.path.realpath(__file__))
 #change this to app path
 app_path = cur_dir
 output_path = cur_dir
-
+data_dir = '/var/monitoring'
 periods = { 'd': 'Daily',
             'w': 'Weekly',
             'm': 'Monthly',
@@ -22,10 +23,23 @@ def get_file_path(hostname):
     file_path = os.path.join(app_path, file_name)
     return file_path
 
+opt_fields = [  'RRA:MIN:0.5:1:576',
+                'RRA:MAX:0.5:1:576',
+                'RRA:MIN:0.5:6:432',
+                'RRA:MAX:0.5:6:432',
+                'RRA:MIN:0.5:24:540',
+                'RRA:MAX:0.5:24:540',
+                'RRA:MIN:0.5:288:450',
+                'RRA:MAX:0.5:288:450',
+                'RRA:AVERAGE:0.5:1:576',
+                'RRA:AVERAGE:0.5:6:432',
+                'RRA:AVERAGE:0.5:24:540',
+                'RRA:AVERAGE:0.5:288:450'
+            ]
 
-def create_ldasp_rrd_db(hostname):
+def create_ldap_rrd_db(hostname):
 
-    file_path = get_file_path(hostname)
+    file_path = os.path.join(data_dir, 'ldap.rrd')
 
     args = [
         file_path,
@@ -37,22 +51,9 @@ def create_ldasp_rrd_db(hostname):
 
     for opt in options:
         args.append('DS:{0}:COUNTER:600:U:U'.format(opt.replace('_','')))
-        args.append('RRA:MIN:0.5:1:576')
-        args.append('RRA:MAX:0.5:1:576')
-        args.append('RRA:MIN:0.5:6:432')
-        args.append('RRA:MAX:0.5:6:432')
-        args.append('RRA:MIN:0.5:24:540')
-        args.append('RRA:MAX:0.5:24:540')
-        args.append('RRA:MIN:0.5:288:450')
-        args.append('RRA:MAX:0.5:288:450')
-        args.append('RRA:AVERAGE:0.5:1:576')
-        args.append('RRA:AVERAGE:0.5:6:432')
-        args.append('RRA:AVERAGE:0.5:24:540')
-        args.append('RRA:AVERAGE:0.5:288:450')
+        args += opt_fields
 
     rrdtool.create(args)
-
-#create_ldasp_rrd_db('c5.gluu.org')
 
 
 def query_ldap_and_inject_db(addr, binddn, passwd):
@@ -68,6 +69,24 @@ def query_ldap_and_inject_db(addr, binddn, passwd):
         datas = ':'.join(data)
         rrdtool.update(file_path, str(datas))
 
+def create_cpu_info_rrd_db():
+    
+    file_path = os.path.join(data_dir, 'cpu_info.rrd')
+
+    args = [
+        file_path,
+        "--start", 'N',
+        "--step", "300",
+        ]
+    for opt in ('user', 'nice', 'system', 'idle', 
+                'iowait', 'irq', 'softirq',
+                 'steal', 'guest', 'guestnice',
+                ):
+        
+        args.append('DS:{0}:COUNTER:600:0:U'.format(opt))
+        args += opt_fields
+
+    rrdtool.create(args)
 
 def get_ldap_monitoring_data(hosts, option, period='d', start=None, end=None):
 
@@ -104,4 +123,4 @@ def get_ldap_monitoring_data(hosts, option, period='d', start=None, end=None):
 
 #query_ldap_and_inject_db('ldaps://mb1.mygluu.org:636', "cn=directory manager,o=gluu", "secret")
 
-#create_ldap_graphs(['mb1.mygluu.org', 'u1.mygluu.org'])
+create_cpu_info_rrd_db()

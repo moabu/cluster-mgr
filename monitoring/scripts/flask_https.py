@@ -19,6 +19,12 @@ data_dir = '/var/monitoring'
 #        return json.dumps({'data': 'Unauthorized'})
 
 
+sTime = { 'd': 60*60*24,
+              'w': 60*60*24*7,
+              'm': 60*60*24*30,
+              'y': 60*60*24*365,
+            }
+
 @app.errorhandler(404)
 def page_not_found(e):
     return json.dumps({'data': 'Not found'})
@@ -41,12 +47,6 @@ def get_start_end_date():
 def get_monitoring_data(rrd_file, options, period='d', start=None, end=None):
 
     if not start:
-        sTime = { 'd': 60*60*24,
-                      'w': 60*60*24*7,
-                      'm': 60*60*24*30,
-                      'y': 60*60*24*365,
-                    }
-
         start=int( time.time() - sTime[period] )
         end = int(time.time())
 
@@ -62,7 +62,7 @@ def get_monitoring_data(rrd_file, options, period='d', start=None, end=None):
                     )
         rrd_args.append( rdef )
 
-        rxport = "XPORT:data{0}:Data".format(i)
+        rxport = "XPORT:data{0}:{1}".format(i,o)
         rrd_args.append( rxport )
 
     rrd_data=rrdtool.xport(rrd_args)
@@ -88,7 +88,38 @@ def get_ldap_mon(opt):
     return json.dumps({'data': rrd_data})
 
 
+@app.route('/getsysinfo/<opt>')
+def get_cpu_info(opt):
+    start_date, end_date, period = get_start_end_date()
+    
+    if not start_date:
+        start=int( time.time() - sTime[period] )
+        end = int(time.time())
+
+    data_f = os.path.join(data_dir, 'cpu_info.rrd')
+    rrd_args = ['-s', str(start), '-e', str(end)]
+
+    for i, o in enumerate(('user', 'nice', 'system', 'idle', 
+                            'iowait', 'irq', 'softirq',
+                            'steal', 'guest', 'guestnice')):
+                                
+        rdef = 'DEF:data{0}={1}:{2}:AVERAGE'.format(
+                    i,
+                    data_f,
+                    o
+                    )
+        rrd_args.append( rdef )
+        
+        rxport = "XPORT:data{0}:{1}".format(i,o)
+        rrd_args.append( rxport )
+
+    print rrd_args
+
+    rrd_data=rrdtool.xport(rrd_args)
+
+    return json.dumps({'data': rrd_data})
+
 if __name__ == "__main__":
     app.debug = True
     #app.run(ssl_context='adhoc', port=10443)
-    app.run(port=10443)
+    app.run(host="0.0.0.0",port=10443)

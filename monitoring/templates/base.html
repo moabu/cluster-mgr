@@ -39,22 +39,26 @@
         <section class="sidebar">
           <ul class="sidebar-menu" data-widget="tree">
             <li><a href="/"><i class="fa fa-dashboard"></i><span>Home</span></a></li>
-            <li class="treeview">
-              <a href="#">
-                <i class="fa fa-cubes"></i><span>Ldap Monitoring</span>
-                <span class="pull-right-container">
-                  <i class="fa fa-angle-left pull-right"></i>
-                </span>
-              </a>
-              <ul class="treeview-menu">
-                <li><a href="{{ url_for('all_ldap', period='d') }}"><i class="fa fa-plus-square"></i>{% if not opt%}<span style="background-color:#394f58">All in one<span>{% else %}All in one {% endif %}</a></li>
-                {% for o in options %}
-                  <li><a href="{{ url_for('single_graph', opt=o, period='d') }}"><i class="fa fa-plus-square"></i>{% if o==opt%}<span style="background-color:#394f58">{{o.replace('_', ' ').title()}}</span>{% else %}{{o.replace('_', ' ').title()}}{% endif %}</a></li>
-
-                {% endfor %}
-              </ul>
-            </li>
-
+            
+            
+            {% for lm in leftmenu %}
+                <li class="treeview">
+                  <a href="#">
+                      
+                    <i class="fa fa-cubes"></i><span>{{lm}}</span>
+                    <span class="pull-right-container">
+                      <i class="fa fa-angle-left pull-right"></i>
+                    </span>
+                  </a>
+                  <ul class="treeview-menu">
+                    {% for o in leftmenu[lm][1] %}
+                        <li><a href="{{url_for(leftmenu[lm][0], opt=o, period='d')}}"><i class="fa fa-plus-square"></i>{% if o==opt%}<span style="background-color:#394f58">{{o.replace('_', ' ').title()}}</span>{% else %}{{o.replace('_', ' ').title()}}{% endif %}</a></li>
+                    {% endfor %}
+                  </ul>
+                </li>
+            {% endfor %}
+            
+            
         </section>
       </aside>
       <div class="content-wrapper">

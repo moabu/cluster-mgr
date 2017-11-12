@@ -1,6 +1,7 @@
 import rrdtool
 import os
 import time
+import psutil
 
 from ldap3 import Server, Connection, BASE
 
@@ -39,7 +40,9 @@ def query_ldap_and_inject_db(addr, binddn, passwd):
         b = searchlist[key][0]
         attr = searchlist[key][1]
 
-        conn.search(search_base=b, search_scope=BASE, search_filter='(objectClass=*)', attributes=['+'])
+        conn.search(search_base=b, search_scope=BASE,
+                    search_filter='(objectClass=*)',
+                    attributes=['+'])
 
         summary[key]=conn.response[0]['attributes'][attr][0]
 
@@ -48,6 +51,27 @@ def query_ldap_and_inject_db(addr, binddn, passwd):
     data = [ summary[o] for o in options]
     data.insert(0,'N')
     datas = ':'.join(data)
+    
     rrdtool.update(os.path.join(data_path, 'ldap.rrd'), str(datas))
 
-query_ldap_and_inject_db('ldaps://c4.gluu.org:1636', "cn=directory manager,o=gluu", "secret")
+def inject_cpu_info():
+    sl=open("/proc/stat").readline()
+    user, nice, system, idle, iowait, irq, softirq, steal, guest, guestnice = sl.strip().split()[1:]
+    file_path = os.path.join(data_path, 'cpu_info.rrd')
+    data = 'N:{0}:{1}:{2}:{3}:{4}:{5}:{6}:{7}:{8}:{9}'.format(
+                                        user,
+                                        nice,
+                                        system,
+                                        idle,
+                                        iowait,
+                                        irq,
+                                        softirq,
+                                        steal,
+                                        guest, 
+                                        guestnice,
+                                    )
+
+
+    rrdtool.update(file_path, data)
+#query_ldap_and_inject_db('ldaps://localhost:1636', "cn=directory manager,o=gluu", "secret")
+inject_cpu_info()
