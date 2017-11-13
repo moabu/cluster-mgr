@@ -22,7 +22,7 @@ Currently only supports installation on Ubuntu 14 and 16. It can, however, confi
 2) Install the necessary modules on the Gluu Cluster Manager machine:
 
 ```
-apt-get install build-essential libssl-dev libffi-dev python-dev redis-server python-setuptools libsasl2-dev  libldap2-dev redis-server python-pip
+apt-get install build-essential libssl-dev libffi-dev python-dev redis-server python-setuptools python-pip
 pip install --upgrade setuptools
 ```
 
