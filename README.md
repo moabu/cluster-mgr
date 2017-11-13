@@ -60,7 +60,7 @@ clustermgr-cli db upgrade
 6) Run celery worker on one terminal
 
 ```
-celery -A clusterapp.celery worker &
+clustermgr-celery &
 ```
 
 7) Open another terminal to run clustermgr-cli
