@@ -9,11 +9,9 @@ from flask import request
 from flask import url_for
 
 from ..core.license import license_manager
-from ..core.license import license_reminder
 from ..forms import LicenseSettingsForm
 
 license_bp = Blueprint("license", __name__)
-license_bp.before_request(license_reminder)
 
 
 @license_bp.route("/")
