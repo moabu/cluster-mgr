@@ -11,7 +11,7 @@
     <link href="{{ url_for('static', filename='css/bootstrap.min.css')}}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/animate.css')}}" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/AdminLTE.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/skin-green.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/skin-blue.min.css') }}">
     <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
     <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
@@ -20,124 +20,75 @@
       <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
       <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
-     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,700,300italic,400italic,600italic">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,700,300italic,400italic,600italic">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
   </head>
-  <body class="hold-transition skin-green sidebar-mini">
+  <body class="hold-transition skin-blue layout-top-nav mini-sidebar">
   <div class="wrapper">
-    <header class="main-header">
-      <a href="#" class="logo">
-        <span class="logo-mini">GCM</span>
-        <span class="logo-lg">Gluu Cluster Manager</span>
-      </a>
-      <nav class="navbar navbar-static-top">
-        <a href="#" class="sidebar-toggle" data-toggle="push-menu" role="button">
-          <span class="sr-only">Toggle navigation</span>
-        </a>
-
-        <div class="navbar-custom-menu">
-          <ul class="nav navbar-nav">
-            <li class="dropdown tasks-menu">
-              <a href="#" class="dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
-                <i class="fa fa-flag-o"></i>
-                  <span class="label label-danger">10</span>
+      <header class="main-header">
+        <nav class="navbar navabar-static-top navbar-fixed-top">
+            <div class="navbar-header">
+              <a href="/" class="navbar-brand"><strong>Gluu</strong> Cluster Manager</a>
+              <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                <i class="fa fa-bars"></i>
+              </button>
+            </div>
+        </nav>
+      </header>
+      <aside class="main-sidebar">
+        <section class="sidebar">
+          <ul class="sidebar-menu" data-widget="tree">
+            <li><a href="/"><i class="fa fa-dashboard"></i><span>Dashboard</span></a></li>
+            <li class="treeview">
+              <a href="#">
+                <i class="fa fa-cubes"></i><span>Cluster</span>
+                <span class="pull-right-container">
+                  <i class="fa fa-angle-left pull-right"></i>
+                </span>
               </a>
-              <ul class="dropdown-menu">
-                <li class="header">10 Tasks running in background</li>
-                <li>
-                  <ul class="menu">
-                    <li>
-                      <a href="#">
-                        <h3>Task Name <small class="pull-right">20%</small></h3>
-                        <div class="progress xs">
-                          <div class="progress-bar progress-bar-aqua" style="width: 20%" role="progressbar"></div>
-                        </div>
-                      </a>
-                    </li>
-                  </ul>
-                </li>
-                <li class="footer"><a href="#">View all tasks</a></li>
+              <ul class="treeview-menu">
+                <li><a href="{{ url_for('server.index') }}"><i class="fa fa-plus-square"></i>Add Server</a></li>
+                <li><a href="{{ url_for('cluster.install_nginx') }}"><i class="fa fa-plus-square"></i>Install Nginx</a></li>
               </ul>
             </li>
-            <li class="dropdown notifications-menu">
-              <a href="#" class="dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
-                <i class="fa fa-bell-o"></i>
-                  <span class="label label-warning">5</span>
-              </a>
+            <li><a href="{{ url_for('index.multi_master_replication') }}">
+              <i class="fa fa-database"></i><span>LDAP Replication</span></a>
             </li>
+            <li><a href="{{ url_for('cache_mgr.index') }}">
+              <i class="fa fa-microchip"></i><span>Cache Management</span></a>
+            </li>
+            <li><a href="{{ url_for('index.app_configuration') }}">
+              <i class="fa fa-cog"></i><span>Settings</span></a></li>
           </ul>
-        </div>
-
-      </nav>
-    </header>
-
-    <aside class="main-sidebar">
-      <section class="sidebar">
-        <ul class="sidebar-menu" data-widget="tree">
-          <li><a href="/"><i class="fa fa-dashboard"></i><span>Dashboard</span></a></li>
-          <li class="treeview">
-            <a href="#">
-              <i class="fa fa-cubes"></i><span>Cluster</span>
-              <span class="pull-right-container">
-                <i class="fa fa-angle-left pull-right"></i>
-              </span>
-            </a>
-            <ul class="treeview-menu">
-              <li><a href="{{ url_for('server.index') }}"><i class="fa fa-plus-square"></i>Add Server</a></li>
-              <li><a href="{{ url_for('cluster.install_nginx') }}"><i class="fa fa-plus-square"></i>Install Nginx</a></li>
-              <li><a href="{{ url_for('index.task_list') }}"><i class="fa fa-tasks"></i>Current Tasks</a></li>
-            </ul>
-          </li>
-          <li><a href="{{ url_for('index.multi_master_replication') }}">
-            <i class="fa fa-database"></i><span>LDAP Replication</span></a>
-          </li>
-          <li><a href="{{ url_for('cache_mgr.index') }}">
-            <i class="fa fa-microchip"></i><span>Cache Management</span></a>
-          </li>
-            <li><a href="{{ url_for('license.index') }}">
-              <i class="fa fa-drivers-license-o"></i><span>License</span></a></li>
-          <li><a href="{{ url_for('index.app_configuration') }}">
-            <i class="fa fa-cog"></i><span>Settings</span></a></li>
-        </ul>
-      </section>
-    </aside>
-
-    <div class="content-wrapper">
-      <section class="content-header">
-        {% block header %}{% endblock %}
-      </section>
-      <section class="content">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, message in messages %}
-            <div class="alert alert-{{ category }} alert-dismissible" role="alert">
-              <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-              </button>
-              {% if category == 'info' %}
-                <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
-              {% elif category == 'successs'%}
-                <span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span>
-              {% elif category == 'warning'%}
-                <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
-              {% elif category == 'danger'%}
-                <span class="glyphicon glyphicon-remove-sign" aria-hidden="true"></span>
+        </section>
+      </aside>
+      <div class="content-wrapper">
+          <section class="content-header">
+            {% block header %}{% endblock %}
+          </section>
+          <section class="content">
+              {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="alert alert-{{ category }} alert-dismissible" role="alert">
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    {% if category == 'info' %}
+                      <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+                    {% elif category == 'successs'%}
+                      <span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span>
+                    {% elif category == 'warning'%}
+                      <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
+                    {% elif category == 'danger'%}
+                      <span class="glyphicon glyphicon-remove-sign" aria-hidden="true"></span>
+                    {% endif %}
+                    {{ message }}
+                  </div>
+                {% endfor %}
               {% endif %}
-              {{ message }}
-            </div>
-          {% endfor %}
-        {% endif %}
-        {% endwith %}
-            {% if g.license_reminder_msg %}
-            <div class="alert alert-info alert-dismissable" role="alert">
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
-                <strong>{{ g.license_reminder_msg }}</strong>
-            </div>
-            {% endif %}
-        {% block content %}{% endblock %}
-      </section>
-    </div><!-- end of content wrapper -->
-
+            {% endwith %}
+            {% block content %}{% endblock %}
+          </section>
+      </div><!-- end of content wrapper -->
   </div><!-- end of wrapper -->
 
     {% block modals %} {% endblock modals %}
@@ -147,7 +98,7 @@
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/bootstrap-notify.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/adminlte.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/adminlte.min.js') }}"></script>
 
     {% block js %}{% endblock js %}
   </body>
