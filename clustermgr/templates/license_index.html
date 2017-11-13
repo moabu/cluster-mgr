@@ -15,9 +15,6 @@
         <h3 class="panel-title">Overview</h3>
     </div>
     <div class="box-body">
-        {% if expired_at %}
-        <p>Your license will be expired at: <strong>{{ expired_at }}</strong></p>
-        {% endif %}
         <dl class="dl-horizontal">
             <dt>valid</dt>
             <dd>{{ license_data.valid }}</dd>
