@@ -73,5 +73,13 @@ def inject_cpu_info():
 
 
     rrdtool.update(file_path, data)
+    
+def inject_load_average():  
+    file_path = os.path.join(data_path, 'load_average.rrd')
+    load_avg = os.getloadavg()
+    data = "N:{}".format(int(load_avg[0] * 100))
+    rrdtool.update(file_path, data)
+    
 #query_ldap_and_inject_db('ldaps://localhost:1636', "cn=directory manager,o=gluu", "secret")
-inject_cpu_info()
+#inject_cpu_info()
+inject_load_average()

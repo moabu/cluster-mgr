@@ -88,6 +88,22 @@ def create_cpu_info_rrd_db():
 
     rrdtool.create(args)
 
+
+def create_load_average_rrd_db():
+    
+    file_path = os.path.join(data_dir, 'load_average.rrd')
+
+    args = [
+        file_path,
+        "--start", 'N',
+        "--step", "300",
+        ]
+    args.append('DS:loadavg:GAUGE:600:0:U')
+    args += opt_fields
+
+    rrdtool.create(args)
+
+
 def get_ldap_monitoring_data(hosts, option, period='d', start=None, end=None):
 
     if not start:
@@ -123,4 +139,4 @@ def get_ldap_monitoring_data(hosts, option, period='d', start=None, end=None):
 
 #query_ldap_and_inject_db('ldaps://mb1.mygluu.org:636', "cn=directory manager,o=gluu", "secret")
 
-create_cpu_info_rrd_db()
+#create_cpu_info_rrd_db()
