@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 from flask import Blueprint
 from flask import current_app
@@ -14,9 +15,21 @@ from ..forms import LicenseSettingsForm
 license_bp = Blueprint("license", __name__)
 
 
+def _humanize_timestamp(ts):
+    dt = datetime.utcfromtimestamp(ts / 1000)
+    return dt.strftime("%Y:%m:%d %H:%M:%S GMT")
+
+
 @license_bp.route("/")
 def index():
     license_data, err = license_manager.validate_license()
+
+    ts_keys = ["creation_date", "expiration_date"]
+    for key in ts_keys:
+        if key in license_data["metadata"]:
+            license_data["metadata"][key] = _humanize_timestamp(
+                license_data["metadata"][key])
+
     if err:
         flash(err, "warning")
     return render_template("license_index.html", license_data=license_data)
