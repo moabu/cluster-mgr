@@ -765,10 +765,6 @@ def InstallLdapServer(self, ldap_info):
     db.session.commit()
 
 
-    if 'Red Hat Enterprise Linux' in cout and '7.':
-        return 'RHEL 7'
-
-
 def check_gluu_installation(c):
     """Checks if gluu server is installed
     

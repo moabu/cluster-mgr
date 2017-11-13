@@ -67,6 +67,7 @@ Logger Styles
 .log-item .msg{
     padding: 5px 0px 5px 0px;
     margin: 0;
+    font-size: 12px;
 }
 
 .log-item .msg-info{

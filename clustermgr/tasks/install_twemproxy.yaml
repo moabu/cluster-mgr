@@ -1,0 +1,67 @@
+twemproxy_install: &twemproxy
+  - name: get the source
+    command: wget https://github.com/twitter/twemproxy/archive/v0.4.1.tar.gz
+  - name: untar
+    command: tar -xf v0.4.1.tar.gz
+  - name: run autoconf
+    command: cd twemproxy-0.4.1 && autoreconf -fvi
+  - name: configure make
+    command: cd twemproxy-0.4.1 && ./configure --prefix=/usr
+  - name: compile twemproxy with make
+    command: cd twemproxy-0.4.1 && make
+  - name: install twemproxy
+    command: cd twemproxy-0.4.1 && make install
+  - name: add nutcracker user
+    command: useradd nutcracker
+  - name: setup logging
+    command: mkdir -p /var/log/nutcracker && touch /var/log/nutcracker/nutcracker.log
+  - name: set ownership for nutcracker logs
+    command: chown -R nutcracker:nutcracker /var/log/nutcracker
+  - name: setup log rotation
+    command: echo -e "/var/log/nutcracker/nutcracker*.log {\n\tweekly\n\tmissingok\n\trotate 12\n\tcompress\n\tnotifempty\n}" > /etc/logrotate.d/nutcracker
+  - name: setup nucracker config file
+    command: mkdir -p /etc/nutcracker && touch /etc/nutcracker/nutcracker.yml
+
+Ubuntu 14:
+  pre_tasks: &U14-pre
+    - name: update aptitude
+      command: apt-get update
+    - name: install Stunnel
+      command: apt-get install -y stunnel4
+    - name: install build tools
+      command: apt-get install -y build-essential autoconf libtool
+  tasks: *twemproxy
+
+Ubuntu 16:
+  pre_tasks: *U14-pre
+  tasks: *twemproxy
+
+CentOS 6:
+  pre_tasks: &C6
+    - name: install wget
+      command: yum install -y wget
+    - name: install stunnel
+      command: yum install -y stunnel
+    - name: install build tools
+      command: yum groupinstall -y 'Development tools'
+    - name: get autoconf latest version
+      command: wget http://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz
+    - name: untar the autoconf
+      command: tar xvfvz autoconf-2.69.tar.gz
+    - name: configure autoconf
+      command: cd autoconf-2.69 && ./configure
+    - name: build autoconf
+      command: cd autoconf-2.69 && make
+    - name: install autoconf
+      command: cd autoconf-2.69 && make install
+  tasks: *twemproxy
+
+CentOS 7:
+  pre_tasks:
+    - name: install wget
+      command: yum install -y wget
+    - name: install build tools
+      command: yum groupinstall -y 'Development tools'
+    - name: install Stunnel
+      command: yum install -y stunnel
+  tasks: *twemproxy

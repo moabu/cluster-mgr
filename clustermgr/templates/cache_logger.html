@@ -11,10 +11,12 @@
 
 {% block content %}
   <div class="row">
-    <div class="col-md-3">
+    <div class="col-md-3" style="position: static;">
       {{ cache_process_steps(step) }}
     </div>
-    <div class="col-md-9" style="overflow: scroll;">
+    <div class="col-md-9">
+      <div id="log_root"></div>
+      <!-- Logger items should come here -->
       {% if step == 1 %}
         <a href="{{ url_for('cache_mgr.configure', method=method) }}" class="btn btn-block btn-primary" id="next">
             Configure Cache Cluster</a>

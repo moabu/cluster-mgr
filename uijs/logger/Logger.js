@@ -42,7 +42,6 @@ class LogContainer extends Component {
                     />
                 );
             } else {
-                // TODO pass the the individual properties instead of itemInfo object
                 return (
                     <MessageItem
                         key={Math.random()}
@@ -56,7 +55,7 @@ class LogContainer extends Component {
         return (
             <div className={this.props.show ? "log-body" : "hidden"}>
                 {msgItems}
-                <div style={{ float:"left", clear: "both" }} ref={(el) => { this.logEnd = el; }}></div>
+                <div style={{ float:"left", clear: "both" }} ref={(el) => { this.logEnd = el; }}/>
             </div>
         )
     }

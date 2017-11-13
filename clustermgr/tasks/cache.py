@@ -9,6 +9,7 @@ from clustermgr.extensions import db, celery, wlogger
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import DBManager
 from clustermgr.core.task_runner import YAMLTaskRunner
+from clustermgr.core.utils import get_os_type
 
 from ldap3.core.exceptions import LDAPSocketOpenError
 from flask import current_app as app
@@ -46,9 +47,15 @@ def install_cache_components(self, method):
         # No need to install twemproxy for "SHARDED" configuration
         return True
 
-    # Install twemproxy in the Nginx load balancing proxy server
+    # Install twemproxy and stunnel in the Nginx load balancing proxy server
     app_conf = AppConfiguration.query.first()
     host = app_conf.nginx_host
+    task_file = os.path.join(app.root_path, "tasks", "install_twemproxy.yaml")
+    wlogger.log(tid, "Cluster manager will build and install Twemproxy")
+    tr = YAMLTaskRunner(task_file, host)
+    tr.run_tasks(weblog_id=tid)
+
+    # Setup auto start of twemproxy as a service
     rc = RemoteClient(host)
     try:
         rc.startup()
@@ -58,56 +65,6 @@ def install_cache_components(self, method):
 
     server_os = get_os_type(rc)
 
-    mock_server = Server()
-    mock_server.hostname = host
-    wlogger.log(tid, "Installing Stunnel in proxy server")
-    si = StunnelInstaller(mock_server, tid)
-    stunnel_installed = si.install()
-    if stunnel_installed:
-        wlogger.log(tid, "Stunnel install successful", "success")
-    else:
-        wlogger.log(tid, "Stunnel install failed", "fail")
-
-    wlogger.log(tid, "Cluster manager will now try to build Twemproxy")
-    # 1. Setup the development tools for installation
-    if server_os in ["Ubuntu 16", "Ubuntu 14"]:
-        run_and_log(rc, "apt-get update", tid)
-        run_and_log(rc, "apt-get install -y build-essential autoconf libtool",
-                    tid)
-    elif server_os in ["CentOS 6", "CentOS 7", "RHEL 7"]:
-        run_and_log(rc, "yum install -y wget", tid)
-        run_and_log(rc, "yum groupinstall -y 'Development tools'", tid)
-
-    if server_os == "CentOS 6":
-        run_and_log(rc, "wget http://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz",
-                    tid)
-        run_and_log(rc, "tar xvfvz autoconf-2.69.tar.gz", tid)
-        run_and_log(rc, "cd autoconf-2.69 && ./configure", tid)
-        run_and_log(rc, "cd autoconf-2.69 && make", tid)
-        run_and_log(rc, "cd autoconf-2.69 && make install", tid)
-
-    # 2. Get the source, build & install the nutcracker binaries
-    run_and_log(rc, "wget https://github.com/twitter/twemproxy/archive/v0.4.1.tar.gz",
-                tid)
-    run_and_log(rc, "tar -xf v0.4.1.tar.gz", tid)
-    run_and_log(rc, "cd twemproxy-0.4.1", tid)
-    run_and_log(rc, "cd twemproxy-0.4.1 && autoreconf -fvi", tid)
-    run_and_log(rc, "cd twemproxy-0.4.1 && ./configure --prefix=/usr", tid)
-    run_and_log(rc, "cd twemproxy-0.4.1 && make", tid)
-    run_and_log(rc, "cd twemproxy-0.4.1 && make install", tid)
-
-    # 3. Post installation - setup user and logging
-    run_and_log(rc, "useradd nutcracker", tid)
-    run_and_log(rc, "mkdir /var/log/nutcracker", tid)
-    run_and_log(rc, "touch /var/log/nutcracker.log", tid)
-    run_and_log(rc, "chown -R nutcracker:nutcracker /var/log/nutcracker",
-                tid)
-    logrotate_conf = ["/var/log/nutcracker/nutcracker*.log {", "\tweekly",
-                      "\tmissingok", "\trotate 12", "\tcompress",
-                      "\tnotifempty", "}" ]
-    rc.put_file("/etc/logrotate.d/nutcracker", "\n".join(logrotate_conf))
-
-    # 4. Add init/service scripts to run nutcracker as a service
     if server_os in ["Ubuntu 16", "CentOS 7", "RHEL 7"]:
         local = os.path.join(app.root_path, "templates", "twemproxy",
                                     "twemproxy.service")
@@ -131,10 +88,6 @@ def install_cache_components(self, method):
         run_and_log(rc, "chmod +x /etc/init.d/nutcracker", tid)
         run_and_log(rc, "chkconfig --add nutcracker", tid)
         run_and_log(rc, "chkconfig nutcracker on", tid)
-
-    # 5. Create the default configuration file referenced in the init scripts
-    run_and_log(rc, "mkdir -p /etc/nutcracker", tid)
-    run_and_log(rc, "touch /etc/nutcracker/nutcracker.yml", tid)
 
     rc.close()
 

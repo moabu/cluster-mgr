@@ -180,6 +180,9 @@ def get_os_type(c):
         return CENTOS_6
     if "CentOS" in cout and "release 7." in cout:
         return CENTOS_7
+    if 'Red Hat Enterprise Linux' in cout and '7.':
+        return 'RHEL 7'
+
     # TODO: add checks for other supported OSes
     else:
         return cout

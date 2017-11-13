@@ -151,6 +151,15 @@ class YAMLTaskRunner(object):
         os = get_os_type(self.rc)
         envs = yaml_dict[os].get('envs')
         tasks = yaml_dict[os].get('tasks')
+
+        pretasks = yaml_dict[os].get('pre_tasks')
+        if pretasks:
+            tasks = pretasks + tasks
+
+        post_tasks = yaml_dict[os].get('post_tasks')
+        if post_tasks:
+            tasks = tasks + post_tasks
+
         for task in tasks:
             task = self.__wrap_command_with_env(task, envs, requirements)
             self.task_queue.append(YAMLTask.from_dict(task))
