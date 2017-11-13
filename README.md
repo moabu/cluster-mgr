@@ -22,54 +22,38 @@ Currently only supports installation on Ubuntu 14 and 16. It can, however, confi
 2) Install the necessary modules on the Gluu Cluster Manager machine:
 
 ```
+apt-get update
 apt-get install build-essential libssl-dev libffi-dev python-dev redis-server python-setuptools python-pip
 pip install --upgrade setuptools
 ```
 
-3) Now clone the github repo on that same machine.
+3) Install cluster-mgr
 
 ```
-cd ~
-git clone https://github.com/GluuFederation/cluster-mgr.git
-```
-
-4) Install cluster-mgr
-
-```
-cd cluster-mgr/
-python setup.py install
+pip install https://github.com/GluuFederation/cluster-mgr/archive/master.zip
 ```
 
 - There may be a few innocuous warnings here, but this is normal.
 
-- A successful installation will install a tool called clustermgr-cli.
-
-```
-...
-Installed /usr/local/lib/python2.7/dist-packages/vine-1.1.4-py2.7.egg
-Finished processing dependencies for clustermgr==1.1.0
-root@ubuntu:~/cluster-mgr#
-```
-
-5) Prepare Databases
+4) Prepare Databases
 
 ```
 clustermgr-cli db upgrade
 ```
 
-6) Run celery worker on one terminal
+5) Run celery worker on one terminal
 
 ```
 clustermgr-celery &
 ```
 
-7) Open another terminal to run clustermgr-cli
+6) Open another terminal to run clustermgr-cli
 
 ```
 clustermgr-cli run
 ```
 
-8) Tunnel into cluster-mgr server
+7) Tunnel into cluster-mgr server
 
 ```
 ssh -L 9999:localhost:5000 root@server
@@ -77,7 +61,7 @@ ssh -L 9999:localhost:5000 root@server
 
 - If you're using a windows machine, like me, you can tunnel in with a saved PuTTY session that can already connect. Load that configuration in `PuTTY Configuration`, then on the left side go to `Connections` -> `SSH` -> `Tunnels`. In `Source port` input `9999` and in Destination input `localhost:5000`, then hit `Add`. This will create a tunnel from your machine, accessed through `localhost:9999`, into the server as `localhost:5000`.
 
-9) Navigate to the cluster-mgr web GUI
+8) Navigate to the cluster-mgr web GUI
 
 ```
 http://localhost:9999/
