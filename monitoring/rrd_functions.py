@@ -2,6 +2,8 @@
 import os
 import time
 import rrdtool
+import psutil
+
 
 #from ldap_monitor_options import searchlist
 #import ldap_functions
@@ -98,7 +100,7 @@ def create_load_average_rrd_db():
         "--start", 'N',
         "--step", "300",
         ]
-    args.append('DS:loadavg:GAUGE:600:0:U')
+    args.append('DS:loadavg:GAUGE:600:0:100')
     args += opt_fields
 
     rrdtool.create(args)
@@ -137,6 +139,26 @@ def get_ldap_monitoring_data(hosts, option, period='d', start=None, end=None):
 
     return rrd_data
 
+
+def create_disk_usage_rrd_db():
+    disks = psutil.disk_partitions()
+    file_path = os.path.join(data_dir, 'disk_usage.rrd')
+
+    args = [
+        file_path,
+        "--start", 'N',
+        "--step", "300",
+        ]        
+    
+    for d in disks:
+        ds_name = d.device.replace('/','_')
+
+        args.append('DS:{}:GAUGE:600:0:100'.format(ds_name))
+        args += opt_fields
+                        
+    rrdtool.create(args)
+
 #query_ldap_and_inject_db('ldaps://mb1.mygluu.org:636', "cn=directory manager,o=gluu", "secret")
 
-#create_cpu_info_rrd_db()
+create_cpu_info_rrd_db()
+create_disk_usage_rrd_db()

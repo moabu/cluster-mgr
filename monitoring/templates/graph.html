@@ -72,7 +72,7 @@
         data{{loop.index0}}.addColumn('number', '{{host}}');
         data{{loop.index0}}.addRows([
 
-            {% for d in data[opt][host] %}
+            {% for d in data[opt][host][:-1] %}
             {{d}}
             {% endfor %}
           ]);

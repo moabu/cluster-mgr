@@ -2,6 +2,7 @@ import rrdtool
 import os
 import time
 import psutil
+import re
 
 from ldap3 import Server, Connection, BASE
 
@@ -77,9 +78,45 @@ def inject_cpu_info():
 def inject_load_average():  
     file_path = os.path.join(data_path, 'load_average.rrd')
     load_avg = os.getloadavg()
-    data = "N:{}".format(int(load_avg[0] * 100))
+    data = "N:{}".format(load_avg[0])
     rrdtool.update(file_path, data)
+
+
+def get_rrd_indexes(rrd_file):
+    ds_list = []
+    inf = rrdtool.info(rrd_file)
+    for k in inf:
+        rs = re.search('ds\[(?P<ds>[\w?]+)\].index', k)
+        if rs:
+            ds = rs.group('ds')
+            ds_list.append((int(inf[k]), ds))
     
+    ds_list.sort()
+
+    return ds_list
+
+
+def inject_disk_usage():
+    rrd_file = os.path.join(data_path, 'disk_usage.rrd')
+    rrd_i = get_rrd_indexes(rrd_file)
+    disk_usage_data = ['N']
+    disks = psutil.disk_partitions()
+
+    for ri in rrd_i:
+        for d in disks:
+            if d.device == ri[1].replace('_','/'):
+                mp = d.mountpoint
+                du = psutil.disk_usage(mp)
+                disk_usage_data.append(str(du.percent))
+                break
+        else:
+            disk_usage_data.append('0')
+
+    datas = ':'.join(disk_usage_data)
+    rrdtool.update(rrd_file, datas)
+
+
 #query_ldap_and_inject_db('ldaps://localhost:1636', "cn=directory manager,o=gluu", "secret")
-#inject_cpu_info()
+inject_cpu_info()
 inject_load_average()
+inject_disk_usage()

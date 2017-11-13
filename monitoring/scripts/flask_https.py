@@ -2,6 +2,7 @@ import json
 import rrdtool
 import time
 import os
+import re
 
 from flask import Flask, request, redirect, url_for
 
@@ -24,6 +25,20 @@ sTime = { 'd': 60*60*24,
               'm': 60*60*24*30,
               'y': 60*60*24*365,
             }
+
+
+def get_rrd_indexes(rrd_file):
+    ds_list = []
+    inf = rrdtool.info(rrd_file)
+    for k in inf:
+        rs = re.search('ds\[(?P<ds>[\w?]+)\].index', k)
+        if rs:
+            ds = rs.group('ds')
+            ds_list.append((int(inf[k]), ds))
+    
+    ds_list.sort()
+
+    return ds_list
 
 @app.errorhandler(404)
 def page_not_found(e):
@@ -108,7 +123,12 @@ def get_sys_info(opt):
         db_file = 'load_average.rrd'
         fields = ('loadavg',)
         
+    elif opt== 'diskusage':
+        db_file = 'disk_usage.rrd'
         
+        ds_i = get_rrd_indexes(os.path.join(data_dir, db_file))
+        
+        fields = [di[1] for di in ds_i]
 
     data_f = os.path.join(data_dir, db_file)
     
@@ -123,17 +143,10 @@ def get_sys_info(opt):
         
         rxport = "XPORT:data{0}:{1}".format(i,o)
         rrd_args.append( rxport )
-        
-
 
     rrd_data=rrdtool.xport(rrd_args)
 
     return json.dumps({'data': rrd_data})
-
-
-@app.route('/getsysinfo/<opt>')
-def get_load_average(opt):
-    start, end, period = get_start_end_date()
 
 
 

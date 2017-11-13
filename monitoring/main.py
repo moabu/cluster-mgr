@@ -17,7 +17,7 @@ from rrd_functions import get_ldap_monitoring_data, periods
 
 
 leftmenu = { 'Ldap Monitoring': ('single_graph', ['all']+searchlist.keys()),
-             'System Monitoring': ('system', ['cpuinfo','loadavg']),
+             'System Monitoring': ('system', ['cpuinfo','loadavg','diskusage']),
             }
 
 @app.route('/')
@@ -35,6 +35,8 @@ def get_chart_data(hosts, funct, opt, period, start_date='', end_date=''):
     
     rrd_data = {}
 
+    legends = {}
+
     for h in hosts:
 
         g_data =[]
@@ -47,7 +49,7 @@ def get_chart_data(hosts, funct, opt, period, start_date='', end_date=''):
                                             period,
                                             funct,
                                             )
-        print(req_addr)
+
         r = requests.get(req_addr)
         
         r_tetx = r.text
@@ -56,6 +58,7 @@ def get_chart_data(hosts, funct, opt, period, start_date='', end_date=''):
 
         start = r_rrd_data["meta"]["start"]
         step = r_rrd_data["meta"]["step"]
+
 
         for d in r_rrd_data['data']:
             t = time.localtime(start)
@@ -69,10 +72,10 @@ def get_chart_data(hosts, funct, opt, period, start_date='', end_date=''):
                         t.tm_hour, t.tm_min, ', '.join(di_l))
             g_data.append(tmp)
             start += step
-
+            
         rrd_data[h] = g_data
-    
-    return rrd_data, r_rrd_data['meta']['legend']
+        legends[h] = r_rrd_data['meta']['legend']
+    return rrd_data, legends
 
 @app.route('/singlegraph/<opt>/<period>')
 def single_graph(opt, period):
@@ -176,7 +179,7 @@ def system(opt, period):
 
     hosts = ('c4.gluu.org',
             'c5.gluu.org',
-            #'localhost',
+            'localhost',
             #'192.168.56.101',
             #'192.168.56.104',
             )
@@ -197,20 +200,35 @@ def system(opt, period):
     funct = 'getsysinfo'
     rrd_data = get_chart_data(hosts, funct, opt, period, start_date, end_date)
     
-    data_dict={ opt: rrd_data[0]}
+    data_dict={ opt: rrd_data[0] }
 
-    options={'loadavg':(None,'5 Mins Load Average')}
+    options={'loadavg':(None, None, '5 Mins Load Average'),
+             'cpuinfo':(None,None, '%'),
+             'diskusage':(None,None, '%'),
+
+    }
 
     if opt=='cpuinfo':
         temp = 'graphs.html'
         data_g = data_dict[opt]
         width = 600
         height = 325
-    else:
+        title = 'Cpu Usage'
+    elif opt=='diskusage':
+        temp = 'graphm.html'
+        width = 600
+        height = 325
+        title = 'Disk Usage'
+        data_g = data_dict[opt]
+        
+    elif opt=='loadavg':
         temp = 'graph.html'
         data_g = data_dict
+        title = 'Load Average'
         width = 900
         height = 500
+    
+        
 
     return render_template(temp, 
                             leftmenu = leftmenu,
@@ -220,7 +238,7 @@ def system(opt, period):
                             opt = opt,
                             width=width,
                             height=height,
-                            title= opt.title(),
+                            title= title,
                             vAxis = '%',
                             data= data_g,
                             period=period_s,
