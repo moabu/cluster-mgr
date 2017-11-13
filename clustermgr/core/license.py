@@ -126,15 +126,21 @@ class LicenseManager(object):
 
         # step 2
         signed_license, err = self.get_signed_license(cfg.get("license_id"))
+        if err:
+            return license_data, err
 
-        if not err:
-            # step 3
-            license_data, err = self.decode_signed_license(
-                signed_license,
-                cfg.get("public_key"),
-                cfg.get("public_password"),
-                cfg.get("license_password"),
-            )
+        # step 3
+        license_data, err = self.decode_signed_license(
+            signed_license,
+            cfg.get("public_key"),
+            cfg.get("public_password"),
+            cfg.get("license_password"),
+        )
+        if err:
+            # error message returned from decode_signed_license is a long
+            # java program errors, hence replace them with user-friendly
+            # message
+            err = "Unable to validate license."
         return license_data, err
 
     def dump_license_config(self, data):
@@ -255,7 +261,6 @@ class LicenseManager(object):
         )
 
         if code != 0:
-            err = "Unable to decode signed license."
             return data, err
 
         # output example:
@@ -287,7 +292,7 @@ def license_reminder():
     if exp_date:
         # expiration timestamp
         exp_date = datetime.utcfromtimestamp(int(exp_date) / 1000)
-        exp_date_str = exp_date.strftime("%Y-%m-%d %H:%M:%SZ")
+        exp_date_str = exp_date.strftime("%Y-%m-%d %H:%M:%S")
 
         # reminder should start 2 months before license expired
         exp_threshold = exp_date - timedelta(days=60)
@@ -297,10 +302,10 @@ def license_reminder():
 
         if now > exp_date:
             # license has been expired
-            msg = "Your license has been expired since {}.".format(exp_date_str)
+            msg = "Your license has been expired since {} GMT.".format(exp_date_str)
         elif now > exp_threshold:
             # license will be expired soon
-            msg = "Your license will be expired at {}.".format(exp_date_str)
+            msg = "Your license will be expired at {} GMT.".format(exp_date_str)
 
     # store in global so template can fetch the value
     fg.license_reminder_msg = msg
