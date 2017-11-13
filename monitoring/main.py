@@ -17,7 +17,7 @@ from rrd_functions import get_ldap_monitoring_data, periods
 
 
 leftmenu = { 'Ldap Monitoring': ('single_graph', ['all']+searchlist.keys()),
-             'System Monitoring': ('system', ['cpuinfo']),
+             'System Monitoring': ('system', ['cpuinfo','loadavg']),
             }
 
 @app.route('/')
@@ -198,21 +198,33 @@ def system(opt, period):
     rrd_data = get_chart_data(hosts, funct, opt, period, start_date, end_date)
     
     data_dict={ opt: rrd_data[0]}
-        
-    
-    print data_dict['cpuinfo']['c4.gluu.org']
-    
-    return render_template('graphs.html', 
+
+    options={'loadavg':(None,'5 Mins Load Average')}
+
+    if opt=='cpuinfo':
+        temp = 'graphs.html'
+        data_g = data_dict[opt]
+        width = 600
+        height = 325
+    else:
+        temp = 'graph.html'
+        data_g = data_dict
+        width = 900
+        height = 500
+
+    return render_template(temp, 
                             leftmenu = leftmenu,
+                            options = options,
                             legends=rrd_data[1],
                             group='system',
                             opt = opt,
-                            width=600,
-                            height=325,
-                            title= 'Cpu Usage',
+                            width=width,
+                            height=height,
+                            title= opt.title(),
                             vAxis = '%',
-                            data=data_dict['cpuinfo'],
+                            data= data_g,
                             period=period_s,
+                            opt_list = [opt],
                             periods=periods,
                             )
 
