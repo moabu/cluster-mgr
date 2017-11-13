@@ -19,7 +19,7 @@ Currently only supports installation on Ubuntu 14 and 16. It can, however, confi
 - Now copy that key (default is `id_rsa.pub`) to the `/root/.ssh/authorized_keys` file of all servers in the cluster, including your NGINX server (if you're not going to use another load-balancing service). 
 - I prefer to open the `id_rsa.pub` file with `vi` then just copy the hash text into the bottom of `authorized_keys`
 
-2) Install the necessary modules on the Gluu Cluster Manager machine:
+2) Install the necessary dependencies on the Gluu Cluster Manager machine:
 
 ```
 apt-get update
