@@ -16,12 +16,15 @@ from clustermgr.tasks.all import rotate_pub_keys
 from clustermgr.core.utils import encrypt_text
 from clustermgr.core.utils import generate_random_key
 from clustermgr.core.utils import generate_random_iv
+from ..core.license import license_reminder
 
 index = Blueprint('index', __name__)
+index.before_request(license_reminder)
 
 
 @index.route('/')
 def home():
+    """This is the home view --dashboard--"""
     if 'nongluuldapinfo' in session:
         del session['nongluuldapinfo']
     appconf = AppConfiguration.query.first()
@@ -36,52 +39,69 @@ def home():
 
 @index.route('/configuration/', methods=['GET', 'POST'])
 def app_configuration():
+    """This view provides application configuration forms"""
+
+    #create forms
     conf_form = AppConfigForm()
     sch_form = SchemaForm()
     config = AppConfiguration.query.first()
     schemafiles = os.listdir(app.config['SCHEMA_DIR'])
 
+    #If the form is sumtted and password for replication user was not
+    #not supplied, make password "**dummu**", so don't change
+    #what we have before
     if request.method == 'POST' and not conf_form.replication_pw.data.strip():
         conf_form.replication_pw.data = '**dummy**'
         conf_form.replication_pw_confirm.data = '**dummy**'
 
+    #If form is submitted and ladidated process it
     if conf_form.update.data and conf_form.validate_on_submit():
-        replication_dn = "cn={},o=gluu".format(conf_form.replication_dn.data.strip())
+        #If prviously configured and admin changed replcation user (dn) and it's
+        #password .this will break replication, check and war admin.
+        replication_dn = "cn={},o=gluu".format(
+                                        conf_form.replication_dn.data.strip())
         if not config:
             config = AppConfiguration()
         else:
             if config.replication_dn != replication_dn:
                 flash("You changed Replication Manager dn. "
-                      "This will break replication. Please re-deploy all LDAP Servers.",
+                      "This will break replication. "
+                      "Please re-deploy all LDAP Servers.",
                        "danger")
 
 
-        if conf_form.replication_pw.data and conf_form.replication_pw_confirm.data is not '**dummy**':
+        if conf_form.replication_pw.data and \
+                conf_form.replication_pw_confirm.data is not '**dummy**':
             config.replication_pw = conf_form.replication_pw.data.strip()
             flash("You changed Replication Manager password. "
-                    "This will break replication. Please re-deploy all LDAP Servers.",
+                    "This will break replication. "
+                    "Please re-deploy all LDAP Servers.",
                     "danger")
-        
+
         config.replication_dn = replication_dn
         config.gluu_version = conf_form.gluu_version.data.strip()
         config.use_ip = conf_form.use_ip.data
         config.nginx_host = conf_form.nginx_host.data.strip()
-        
+
         purge_age_day = conf_form.purge_age_day.data
         purge_age_hour = conf_form.purge_age_hour.data
         purge_age_min = conf_form.purge_age_min.data
         purge_interval_day = conf_form.purge_interval_day.data
         purge_interval_hour = conf_form.purge_interval_hour.data
         purge_interval_min = conf_form.purge_interval_min.data
-        
-        log_purge = "{}:{}:{} {}:{}:{}".format(purge_age_day, purge_age_hour, purge_age_min,
-                                               purge_interval_day, purge_interval_hour, purge_interval_min)
+
+        log_purge = "{}:{}:{} {}:{}:{}".format(
+                                            purge_age_day, purge_age_hour,
+                                            purge_age_min, purge_interval_day,
+                                            purge_interval_hour,
+                                            purge_interval_min)
         config.log_purge = log_purge
-        print log_purge
         db.session.add(config)
         db.session.commit()
+
         flash("Gluu Replication Manager application configuration has been "
               "updated.", "success")
+
         if request.args.get('next'):
             return redirect(request.args.get('next'))
 
@@ -95,7 +115,8 @@ def app_configuration():
         f.save(os.path.join(app.config['SCHEMA_DIR'], filename))
         schemafiles.append(filename)
         flash("Schema: {0} has been uploaded sucessfully. "
-              "Please edit slapd.conf of primary server and re-deploy all servers.".format(filename),
+              "Please edit slapd.conf of primary server and "
+              "re-deploy all servers.".format(filename),
               "success")
 
     # request.method == GET gets processed here
@@ -223,6 +244,9 @@ def get_log(task_id):
 
 
 def getLdapConn(addr, dn, passwd):
+    """this function gets address, dn and password for ldap server, makes
+    connection and return LdapOLC object."""
+
     ldp = LdapOLC('ldaps://{}:1636'.format(addr), dn, passwd)
     r = None
     try:
@@ -240,6 +264,7 @@ def getLdapConn(addr, dn, passwd):
 
 @index.route('/install_ldapserver', methods=['GET', 'POST'])
 def install_ldap_server():
+    """This view provides installing non-gluu ldap server - depreceated"""
     if 'nongluuldapinfo' in session:
         del session['nongluuldapinfo']
     form = InstallServerForm()
@@ -278,6 +303,9 @@ def install_ldap_server():
 
 @index.route('/mmr/')
 def multi_master_replication():
+    """Multi Master Replication view"""
+
+    #Check if replication user (dn) and password has been configured
     app_config = AppConfiguration.query.first()
     if not app_config:
         flash("Repication user and/or password has not been defined."
@@ -293,6 +321,7 @@ def multi_master_replication():
     serverStats = {}
 
     # TODO move the calls to the LDAP servers to the background
+    #Collect replication information for all configured servers
     for ldp in ldaps:
         s = LdapOLC(
             "ldaps://{0}:1636".format(ldp.hostname), "cn=config",
@@ -301,18 +330,21 @@ def multi_master_replication():
         try:
             r = s.connect()
         except Exception as e:
-            ldap_errors.append("Connection to LDAPserver {0} at port 1636 was failed:"
-                  " {1}".format(ldp.hostname, e))
+            ldap_errors.append(
+                "Connection to LDAPserver {0} at port 1636 was failed:"
+                " {1}".format(ldp.hostname, e))
 
         if r:
             sstat = s.getMMRStatus()
             if sstat['server_id']:
                 serverStats[ldp.hostname] = sstat
+
+    #If there is no ldap server, return to home
     if not ldaps:
         flash("Please add ldap servers.", "warning")
         return redirect(url_for('index.home'))
-        
-    return render_template('multi_master.html', 
+
+    return render_template('multi_master.html',
                            ldapservers=ldaps,
                            serverStats=serverStats,
                            ldap_errors=ldap_errors,
@@ -321,16 +353,20 @@ def multi_master_replication():
 
 @index.route('/addtestuser/<int:server_id>', methods=['GET', 'POST'])
 def add_test_user(server_id):
-    print "SERVER ID", server_id
+    """This view provides adding test user UI"""
+
     server = Server.query.get(server_id)
 
     form = TestUser()
     header = 'Add Test User [{0}]'.format(server.hostname)
 
+    #If form is submitted and validated, add user to specified server_id
     if form.validate_on_submit():
+        #Make ldap connection
         ldp = getLdapConn(server.hostname, "cn=directory manager,o=gluu",
                           server.ldap_password)
 
+        #If connection was established try to add test user
         if ldp:
             if ldp.addTestUser(form.first_name.data.strip(), form.last_name.data.strip(),
                                form.email.data.strip()):
@@ -348,14 +384,19 @@ def add_test_user(server_id):
 
 @index.route('/searchtestusers/<int:server_id>')
 def search_test_users(server_id):
+    """This view provides searcing test user UI. Searched user on server
+    identified by server_id and displays within table"""
 
     print "SERVER ID", server_id
     server = Server.query.get(server_id)
 
     users = []
+
+    #Make ldap connection
     ldp = getLdapConn(server.hostname,
                       "cn=directory manager,o=gluu", server.ldap_password)
 
+    #If connection was established try to display test users
     if ldp:
 
         if not ldp.searchTestUsers():
@@ -377,11 +418,14 @@ def search_test_users(server_id):
 
 @index.route('/deletetestuser/<server_id>/<dn>')
 def delete_test_user(server_id, dn):
+    """This view delates test user"""
     server = Server.query.get(server_id)
 
+    #Make ldap connection
     ldp = getLdapConn(server.hostname,
                       "cn=directory manager,o=gluu", server.ldap_password)
 
+    #If connection was established try to delete test user
     if ldp:
         if ldp.delDn(dn):
             flash("Test User form {0} was deleted".format(
@@ -395,11 +439,14 @@ def delete_test_user(server_id, dn):
 
 @index.route('/removeprovider/<consumer_id>/<provider_addr>')
 def remove_provider_from_consumer(consumer_id, provider_addr):
+    """This view delates provider from consumer"""
 
     server = Server.query.get(consumer_id)
 
+    #Make ldap connection
     ldp = getLdapConn(server.hostname, "cn=config", server.ldap_password)
 
+    #If connection was established try to delete provider
     if ldp:
         r = ldp.removeProvider("ldaps://{0}:1636".format(provider_addr))
         if r:
@@ -414,13 +461,15 @@ def remove_provider_from_consumer(consumer_id, provider_addr):
 
 @index.route('/addprovidertocustomer/<int:consumer_id>/<int:provider_id>')
 def add_provider_to_consumer(consumer_id, provider_id):
-
+    """This view adds provider to consumer"""
     server = Server.query.get(consumer_id)
 
     app_config = AppConfiguration.query.first()
 
+    #Make ldap connection
     ldp = getLdapConn(server.hostname, "cn=config", server.ldap_password)
 
+    #If connection was established try to add provider
     if ldp:
         provider = Server.query.get(provider_id)
 
@@ -449,6 +498,7 @@ def add_provider_to_consumer(consumer_id, provider_id):
 
 @index.route('/removecustomschema/<schema_file>')
 def remove_custom_schema(schema_file):
+    """This view deletes custom schema file"""
     file_path = os.path.join(app.config['SCHEMA_DIR'], schema_file)
     if os.path.exists(file_path):
         os.remove(file_path)

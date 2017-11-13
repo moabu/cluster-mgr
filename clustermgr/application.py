@@ -6,7 +6,7 @@ from flask import Flask
 
 from clustermgr.extensions import db, csrf, migrate, wlogger
 
-from clustermgr.tasks.cluster import *
+from .core.license import license_manager
 
 
 def init_celery(app, celery):
@@ -46,6 +46,7 @@ def create_app():
     migrate.init_app(app, db, directory=os.path.join(os.path.dirname(__file__),
                                                      "migrations"))
     wlogger.init_app(app)
+    license_manager.init_app(app, "license.settings")
 
     # setup the instance's working directories
     if not os.path.isdir(app.config['SCHEMA_DIR']):
@@ -65,11 +66,13 @@ def create_app():
     from clustermgr.views.cluster import cluster
     from clustermgr.views.logserver import logserver
     from clustermgr.views.cache import cache_mgr
+    from clustermgr.views.license import license_bp
     app.register_blueprint(index, url_prefix="")
     app.register_blueprint(server_view, url_prefix="/server")
     app.register_blueprint(cluster, url_prefix="/cluster")
     app.register_blueprint(logserver, url_prefix="/logging_server")
     app.register_blueprint(cache_mgr, url_prefix="/cache")
+    app.register_blueprint(license_bp, url_prefix="/license")
 
     @app.context_processor
     def hash_processor():
@@ -79,7 +82,7 @@ def create_app():
             folder = os.path.join(app.root_path, 'static', directory)
             files = os.listdir(folder)
             for f in files:
-                regex = name+"\.[a-z0-9]+\."+extension
+                regex = name + "\.[a-z0-9]+\." + extension
                 if re.match(regex, f):
                     return os.path.join('/static', directory, f)
             return os.path.join('/static', filepath)

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block header %}
+    <h1>License</h1>
+    <ol class="breadcrumb">
+        <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+        <li><a href="{{ url_for('license.index') }}">License</a></li>
+        <li class="active">Settings</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+<div class="box box-primary">
+    <form action="{{ url_for("license.settings") }}" method="POST" class="form-horizontal">
+        <div class="box-header with-border">
+            <h3 class="panel-title">Settings</h3>
+        </div>
+        <div class="box-body">
+            {{ form.csrf_token }}
+
+            {# license id #}
+            <div class="form-group {{ 'has-error' if form.license_id.errors else '' }}">
+                {{ form.license_id.label(class="control-label col-md-3") }}
+                <div class="col-md-9">
+                    {{ form.license_id(class="form-control") }}
+                    {% for error in form.license_id.errors %}
+                        <p class="help-block">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {# license password #}
+            <div class="form-group {{ 'has-error' if form.license_password.errors else '' }}">
+                {{ form.license_password.label(class="control-label col-md-3") }}
+                <div class="col-md-9">
+                    {{ form.license_password(class="form-control") }}
+                    {% for error in form.license_password.errors %}
+                        <p class="help-block">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {# public password #}
+            <div class="form-group {{ 'has-error' if form.public_password.errors else '' }}">
+                {{ form.public_password.label(class="control-label col-md-3") }}
+                <div class="col-md-9">
+                    {{ form.public_password(class="form-control") }}
+                    {% for error in form.public_password.errors %}
+                        <p class="help-block">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {# public key #}
+            <div class="form-group {{ 'has-error' if form.public_key.errors else '' }}">
+                {{ form.public_key.label(class="control-label col-md-3") }}
+                <div class="col-md-9">
+                    {{ form.public_key(class="form-control") }}
+                    {% for error in form.public_key.errors %}
+                        <p class="help-block">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="box-footer">
+            {{ form.update(class="btn btn-primary pull-right") }}
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+
+{% block js %}
+{% endblock %}
