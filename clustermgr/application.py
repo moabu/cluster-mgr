@@ -8,7 +8,6 @@ from clustermgr.extensions import db, csrf, migrate, wlogger
 
 from .core.license import license_manager
 
-
 def init_celery(app, celery):
     celery.conf.update(app.config)
     TaskBase = celery.Task

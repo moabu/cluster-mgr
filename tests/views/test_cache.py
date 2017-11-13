@@ -36,7 +36,7 @@ class ServerViewTestCase(unittest.TestCase):
         mocktask.delay.assert_called_once()
         self.assertEqual(json.loads(rv.data)['task_id'], 'taskid')
 
-    @patch('clustermgr.views.cache.install_redis_stunnel')
+    @patch('clustermgr.views.cache.install_cache_components')
     def test_change_calls_celery_task_if_form_data_is_correct(self, mocktask):
         self.client.post('/cache/change/', data=dict(
             method="CLUSTER"))

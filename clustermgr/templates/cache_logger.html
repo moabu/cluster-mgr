@@ -2,26 +2,37 @@
 {% from 'macros.html' import cache_process_steps %}
 {% block header %}
     <h1>Cache Clustering</h1>
+  <ol class="breadcrumb">
+    <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+    <li><a href="{{ url_for('cache_mgr.index') }}">Cache Management</a></li>
+    <li class="active">Setup</li>
+  </ol>
 {% endblock %}
 
 {% block content %}
-    {{ cache_process_steps(step) }}
-
-    <div id="log_root"></div>
-
-    {% if step == 1 %}
+  <div class="row">
+    <div class="col-md-3">
+      {{ cache_process_steps(step) }}
+    </div>
+    <div class="col-md-9" style="overflow: scroll;">
+      {% if step == 1 %}
         <a href="{{ url_for('cache_mgr.configure', method=method) }}" class="btn btn-block btn-primary" id="next">
             Configure Cache Cluster</a>
-    {% elif step == 2 %}
+      {% elif step == 2 %}
         <a href="{{ url_for('cache_mgr.finish_clustering', method=method) }}" class="btn btn-block btn-primary" id="next">
             Finish Cache Clustering</a>
-    {% elif step == 3 %}
+      {% elif step == 3 %}
         <div id="next" class="jumbotron" style="display: none;">
             <h3>Redis Cache Setup Complete</h3>
             <p class="text-danger">The setup of a clustered cache using Redis is complete.</p>
             <p><a class="btn btn-info" href="/" role="button">Go to dashboard</a></p>
         </div>
-    {% endif %}
+      {% endif %}
+
+      <div id="dummy"></div>
+
+    </div>
+  </div>
 
 
 
