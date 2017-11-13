@@ -562,6 +562,13 @@ def setup_proxied(tid):
     prc.close()
     rc.upload(local, "/tmp/setup.properties")
 
+    twem_server_conf = [
+        "[twemproxy]",
+        "client = no",
+        "accept = {0}:8888".format(appconf.nginx_host),
+        "connect = 127.0.0.1:2222"
+    ]
+    proxy_stunnel_conf.extend(twem_server_conf)
     status = __configure_stunnel(tid, mock_server, proxy_stunnel_conf, None,
                                  "/tmp/setup.properties")
     if not status:
@@ -583,6 +590,8 @@ def setup_proxied(tid):
     twemproxy_conf.extend(twemproxy_servers)
     remote = "/etc/nutcracker/nutcracker.yml"
     rc.put_file(remote, "\n".join(twemproxy_conf))
+
+
     wlogger.log(tid, "Configuration complete", "success")
 
 
