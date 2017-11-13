@@ -34,21 +34,23 @@ def get_start_end_date():
     end_date = request.args.get("enddate")
     period = request.args.get("period",'d')
     if start_date:
-        start_date = start_date + ' 00:00'
-        start_date = int(time.mktime(time.strptime(start_date,"%m/%d/%Y %H:%M")))
+        start = start_date + ' 00:00'
+        start = int(time.mktime(time.strptime(start,"%m/%d/%Y %H:%M")))
         if end_date:
-            end_date = end_date + ' 23:59'
-            end_date = int(time.mktime(time.strptime(end_date,"%m/%d/%Y %H:%M")))
+            end = end_date + ' 23:59'
+            end = int(time.mktime(time.strptime(end,"%m/%d/%Y %H:%M")))
         else:
-            end_date = int(time.time())
+            end = int(time.time())
 
-    return start_date, end_date, period
+    else:
+        start=int( time.time() - sTime[period] )
+        end = int(time.time())
+
+    return start, end, period
 
 def get_monitoring_data(rrd_file, options, period='d', start=None, end=None):
 
-    if not start:
-        start=int( time.time() - sTime[period] )
-        end = int(time.time())
+    start, end, period = get_start_end_date()
 
     data_f = os.path.join(data_dir, rrd_file)
     rrd_args = ['-s', str(start), '-e', str(end)]
@@ -89,22 +91,28 @@ def get_ldap_mon(opt):
 
 
 @app.route('/getsysinfo/<opt>')
-def get_cpu_info(opt):
-    start_date, end_date, period = get_start_end_date()
+def get_sys_info(opt):
+    start, end, period = get_start_end_date()
     
-    if not start_date:
-        start=int( time.time() - sTime[period] )
-        end = int(time.time())
-    else:
-        start = start_date
-        end = end_date
+    print start, end, period
 
-    data_f = os.path.join(data_dir, 'cpu_info.rrd')
     rrd_args = ['-s', str(start), '-e', str(end)]
 
-    for i, o in enumerate(('user', 'nice', 'system', 'idle', 
-                            'iowait', 'irq', 'softirq',
-                            'steal', 'guest', 'guestnice')):
+    if opt == 'cpuinfo':
+        db_file = 'cpu_info.rrd'
+        fields = ('user', 'nice', 'system', 'idle', 
+                    'iowait', 'irq', 'softirq',
+                    'steal', 'guest', 'guestnice',)
+
+    elif opt == 'loadavg':
+        db_file = 'load_average.rrd'
+        fields = ('loadavg',)
+        
+        
+
+    data_f = os.path.join(data_dir, db_file)
+    
+    for i, o in enumerate(fields):
                                 
         rdef = 'DEF:data{0}={1}:{2}:AVERAGE'.format(
                     i,
@@ -115,12 +123,19 @@ def get_cpu_info(opt):
         
         rxport = "XPORT:data{0}:{1}".format(i,o)
         rrd_args.append( rxport )
+        
 
-    print rrd_args
 
     rrd_data=rrdtool.xport(rrd_args)
 
     return json.dumps({'data': rrd_data})
+
+
+@app.route('/getsysinfo/<opt>')
+def get_load_average(opt):
+    start, end, period = get_start_end_date()
+
+
 
 if __name__ == "__main__":
     app.debug = True
