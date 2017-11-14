@@ -23,6 +23,7 @@ def install_cache_components(self, method):
     Redis and stunnel are installed in all the servers in the cluster.
     Twemproxy is installed in the load-balancer/proxy server
 
+    :param self: the task object for request reference
     :param method: either STANDALONE, SHARDED
 
     :return: the number of servers where both stunnel and redis were installed
@@ -41,7 +42,6 @@ def install_cache_components(self, method):
         server.redis = True
         server.stunnel = True
         db.session.commit()
-
 
     if method != 'STANDALONE':
         # No need to install twemproxy for "SHARDED" configuration
@@ -67,10 +67,10 @@ def install_cache_components(self, method):
 
     if server_os in ["Ubuntu 16", "CentOS 7", "RHEL 7"]:
         local = os.path.join(app.root_path, "templates", "twemproxy",
-                                    "twemproxy.service")
+                             "twemproxy.service")
         remote = "/lib/systemd/system/nutcracker.service"
         rc.upload(local, remote)
-        run_and_log("systemctl enable nutcracker")
+        run_and_log(rc, "systemctl enable nutcracker", tid)
     elif server_os == "Ubuntu 14":
         local = os.path.join(app.root_path, "templates", "twemproxy",
                              "nutcracker.init")
@@ -88,6 +88,7 @@ def install_cache_components(self, method):
         run_and_log(rc, "chkconfig nutcracker on", tid)
 
     rc.close()
+
 
 @celery.task(bind=True)
 def configure_cache_cluster(self, method):
@@ -129,10 +130,7 @@ def setup_sharded(tid):
             stunnel_conf.append("connect = {0}:7777".format(s.ip))
 
         connect_to = ",".join(redis_instances)
-        stat = __update_LDAP_cache_method(tid, server, connect_to, 'SHARDED')
-        if not stat:
-            continue
-
+        __update_ldap_cache_method(tid, server, connect_to, 'SHARDED')
         stat = __configure_stunnel(tid, server, stunnel_conf, chdir)
         if not stat:
             continue
@@ -248,7 +246,7 @@ def __configure_stunnel(tid, server, stunnel_conf, chdir, setup_props=None):
     return True
 
 
-def __update_LDAP_cache_method(tid, server, server_string, method):
+def __update_ldap_cache_method(tid, server, server_string, method):
     """Connects to LDAP and updates the cache method and the cache servers
 
     :param tid: task id for log identification
@@ -307,16 +305,16 @@ def setup_proxied(tid):
 
     # Setup Stunnel and Redis in each server
     for server in servers:
-        __update_LDAP_cache_method(tid, server, 'localhost:7000', 'STANDALONE')
+        __update_ldap_cache_method(tid, server, 'localhost:7000', 'STANDALONE')
         stunnel_conf = [
            "[redis-server]",
-            "client = no",
-            "accept = {0}:7777".format(server.ip),
-            "connect = 127.0.0.1:6379",
-            "[twemproxy]",
-            "client = yes",
-            "accept = 127.0.0.1:7000",
-            "connect = {0}:8888".format(appconf.nginx_host)
+           "client = no",
+           "accept = {0}:7777".format(server.ip),
+           "connect = 127.0.0.1:6379",
+           "[twemproxy]",
+           "client = yes",
+           "accept = 127.0.0.1:7000",
+           "connect = {0}:8888".format(appconf.nginx_host)
         ]
         stunnel_conf = stunnel_base_conf + stunnel_conf
         status = __configure_stunnel(tid, server, stunnel_conf, chdir)
@@ -333,7 +331,6 @@ def setup_proxied(tid):
         ]
         proxy_stunnel_conf.extend(client_conf)
         twemproxy_servers.append("   - 127.0.0.1:{0}:1".format(7000+server.id))
-
 
     wlogger.log(tid, "Configuring the proxy server ...")
     # Setup Stunnel in the proxy server
@@ -383,7 +380,6 @@ def setup_proxied(tid):
     twemproxy_conf.extend(twemproxy_servers)
     remote = "/etc/nutcracker/nutcracker.yml"
     rc.put_file(remote, "\n".join(twemproxy_conf))
-
 
     wlogger.log(tid, "Configuration complete", "success")
 
