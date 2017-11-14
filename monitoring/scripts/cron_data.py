@@ -116,7 +116,15 @@ def inject_disk_usage():
     rrdtool.update(rrd_file, datas)
 
 
+def inject_mem_usage():  
+    file_path = os.path.join(data_path, 'mem_usage.rrd')
+    mem_usage = psutil.virtual_memory()
+    data = "N:{}".format(mem_usage.percent)
+    rrdtool.update(file_path, data)
+
+
 #query_ldap_and_inject_db('ldaps://localhost:1636', "cn=directory manager,o=gluu", "secret")
 inject_cpu_info()
 inject_load_average()
 inject_disk_usage()
+inject_mem_usage()

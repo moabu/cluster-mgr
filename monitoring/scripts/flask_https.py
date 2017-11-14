@@ -122,7 +122,11 @@ def get_sys_info(opt):
     elif opt == 'loadavg':
         db_file = 'load_average.rrd'
         fields = ('loadavg',)
-        
+    
+    elif opt == 'memusage':
+        db_file = 'mem_usage.rrd'
+        fields = ('memusage',)
+    
     elif opt== 'diskusage':
         db_file = 'disk_usage.rrd'
         
