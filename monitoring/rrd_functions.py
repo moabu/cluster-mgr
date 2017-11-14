@@ -173,9 +173,31 @@ def create_mem_usage_rrd_db():
 
     rrdtool.create(args)
 
+
+def create_net_io_rrd_db():
+    
+    net = psutil.net_io_counters(pernic=True)
+
+    file_path = os.path.join(data_dir, 'net_io.rrd')
+
+    args = [
+        file_path,
+        "--start", 'N',
+        "--step", "300",
+        ]        
+    
+    for nif in net:
+        for t in ('bytes_sent', 'bytes_recv'):
+            ds_name = '{}_{}'.format(nif, t)
+            args.append('DS:{}:COUNTER:600:0:U'.format(ds_name))
+            args += opt_fields
+
+    rrdtool.create(args)
+
 #query_ldap_and_inject_db('ldaps://mb1.mygluu.org:636', "cn=directory manager,o=gluu", "secret")
 
 #create_cpu_info_rrd_db()
 #create_disk_usage_rrd_db()
 
-create_mem_usage_rrd_db()
+#create_mem_usage_rrd_db()
+create_net_io_rrd_db()

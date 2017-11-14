@@ -20,7 +20,9 @@ leftmenu = { 'Ldap Monitoring': ('single_graph', ['all']+searchlist.keys()),
              'System Monitoring': ('system', ['cpuinfo',
                                                 'loadavg',
                                                 'diskusage', 
-                                                'memusage']),
+                                                'memusage', 
+                                                'netio',
+                                                ]),
             }
 
 @app.route('/')
@@ -205,10 +207,11 @@ def system(opt, period):
     
     data_dict={ opt: rrd_data[0] }
 
-    options={'loadavg':(None, None, '5 Mins Load Average'),
-             'cpuinfo':(None,None, '%'),
-             'diskusage':(None,None, '%'),
-             'memusage':(None,None, '%'),
+    options={'loadavg': (None, None, '5 Mins Load Average'),
+             'cpuinfo': (None,None, '%'),
+             'diskusage': (None,None, '%'),
+             'memusage': (None,None, '%'),
+             'netio': (None,None, 'Bytes/sec'),
 
     }
 
@@ -238,7 +241,14 @@ def system(opt, period):
         vMax = 100
         width = 900
         height = 500
-        
+
+    elif opt=='netio':
+        temp = 'graphm.html'
+        width = 600
+        height = 325
+        title = 'Network Traffic'
+        data_g = data_dict[opt]
+    
 
     return render_template(temp, 
                             leftmenu = leftmenu,

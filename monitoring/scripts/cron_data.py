@@ -123,8 +123,28 @@ def inject_mem_usage():
     rrdtool.update(file_path, data)
 
 
+def inject_ne_io():
+    rrd_file = os.path.join(data_path, 'net_io.rrd')
+    rrd_i = get_rrd_indexes(rrd_file)
+    disk_usage_data = ['N']
+    net = psutil.net_io_counters(pernic=True)
+    
+    for ri in rrd_i:
+        fa = ri[1].find('_')
+        nif = ri[1][:fa]
+        t = ri[1][fa+1:]
+        val = getattr(net[nif], t)
+        disk_usage_data.append( str(val) )
+
+    datas = ':'.join(disk_usage_data)
+    rrdtool.update(rrd_file, datas)
+
+
 #query_ldap_and_inject_db('ldaps://localhost:1636', "cn=directory manager,o=gluu", "secret")
+"""
 inject_cpu_info()
 inject_load_average()
 inject_disk_usage()
 inject_mem_usage()
+"""
+inject_ne_io()

@@ -129,10 +129,13 @@ def get_sys_info(opt):
     
     elif opt== 'diskusage':
         db_file = 'disk_usage.rrd'
-        
         ds_i = get_rrd_indexes(os.path.join(data_dir, db_file))
-        
         fields = [di[1] for di in ds_i]
+    elif opt== 'netio':
+        db_file = 'net_io.rrd'
+        ds_i = get_rrd_indexes(os.path.join(data_dir, db_file))
+        fields = [di[1] for di in ds_i]
+
 
     data_f = os.path.join(data_dir, db_file)
     
@@ -149,7 +152,27 @@ def get_sys_info(opt):
         rrd_args.append( rxport )
 
     rrd_data=rrdtool.xport(rrd_args)
-
+    
+    if opt== 'netio':
+        negative_l = []
+        for l in rrd_data['meta']['legend']:
+            if l.endswith('bytes_recv'):
+                negative_l.append(rrd_data['meta']['legend'].index(l))
+        
+        new_data =[]
+                
+        print rrd_data['meta']['legend'], negative_l
+        
+        print rrd_data['data']
+        
+        for d in rrd_data['data']:
+            tmp = list(d)
+            for i in negative_l:
+                if tmp[i]:
+                    tmp[i] = -1*tmp[i]
+            new_data.append(tmp)
+        rrd_data['data'] = new_data
+        
     return json.dumps({'data': rrd_data})
 
 
