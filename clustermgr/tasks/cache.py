@@ -269,7 +269,7 @@ def install_cache_components(self, method):
                                     "twemproxy.service")
         remote = "/lib/systemd/system/nutcracker.service"
         rc.upload(local, remote)
-        run_and_log("systemctl enable nutcracker")
+        run_and_log(rc, "systemctl enable nutcracker", tid, None)
     elif server_os == "Ubuntu 14":
         local = os.path.join(app.root_path, "templates", "twemproxy",
                              "nutcracker.init")
