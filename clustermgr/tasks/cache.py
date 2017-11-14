@@ -1,10 +1,10 @@
 import json
 import os
 import re
+import socket
 
 from StringIO import StringIO
 
-from clustermgr.core.utils import split_redis_cluster_slots
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, celery, wlogger
 from clustermgr.core.remote import RemoteClient
@@ -151,6 +151,7 @@ class StunnelInstaller(BaseInstaller):
         else:
             return False
 
+
 @celery.task(bind=True)
 def install_cache_components(self, method):
     """Celery task that installs the redis, stunnel and twemproxy applications
@@ -159,6 +160,7 @@ def install_cache_components(self, method):
     Redis and stunnel are installed in all the servers in the cluster.
     Twemproxy is installed in the load-balancer/proxy server
 
+    :param self: the celery task
     :param method: either STANDALONE, SHARDED
 
     :return: the number of servers where both stunnel and redis were installed
@@ -260,13 +262,13 @@ def install_cache_components(self, method):
                 tid)
     logrotate_conf = ["/var/log/nutcracker/nutcracker*.log {", "\tweekly",
                       "\tmissingok", "\trotate 12", "\tcompress",
-                      "\tnotifempty", "}" ]
+                      "\tnotifempty", "}"]
     rc.put_file("/etc/logrotate.d/nutcracker", "\n".join(logrotate_conf))
 
     # 4. Add init/service scripts to run nutcracker as a service
     if server_os in ["Ubuntu 16", "CentOS 7", "RHEL 7"]:
         local = os.path.join(app.root_path, "templates", "twemproxy",
-                                    "twemproxy.service")
+                             "twemproxy.service")
         remote = "/lib/systemd/system/nutcracker.service"
         rc.upload(local, remote)
         run_and_log(rc, "systemctl enable nutcracker", tid, None)
@@ -334,10 +336,7 @@ def setup_sharded(tid):
             stunnel_conf.append("connect = {0}:7777".format(s.ip))
 
         connect_to = ",".join(redis_instances)
-        stat = __update_LDAP_cache_method(tid, server, connect_to, 'SHARDED')
-        if not stat:
-            continue
-
+        __update_LDAP_cache_method(tid, server, connect_to, 'SHARDED')
         stat = __configure_stunnel(tid, server, stunnel_conf, chdir)
         if not stat:
             continue
@@ -505,23 +504,25 @@ def setup_proxied(tid):
     ]
     proxy_stunnel_conf = stunnel_base_conf
     twemproxy_servers = []
+    proxy_ip = socket.gethostbyname(appconf.nginx_host)
     primary = Server.query.filter(Server.primary_server.is_(True)).first()
     if not primary:
         wlogger.log(tid, "Primary Server is not setup yet. Cannot setup "
                     "clustered caching.", "error")
 
+
     # Setup Stunnel and Redis in each server
     for server in servers:
         __update_LDAP_cache_method(tid, server, 'localhost:7000', 'STANDALONE')
         stunnel_conf = [
-           "[redis-server]",
+            "[redis-server]",
             "client = no",
             "accept = {0}:7777".format(server.ip),
             "connect = 127.0.0.1:6379",
             "[twemproxy]",
             "client = yes",
             "accept = 127.0.0.1:7000",
-            "connect = {0}:8888".format(appconf.nginx_host)
+            "connect = {0}:8888".format(proxy_ip)
         ]
         stunnel_conf = stunnel_base_conf + stunnel_conf
         status = __configure_stunnel(tid, server, stunnel_conf, chdir)
@@ -544,6 +545,7 @@ def setup_proxied(tid):
     # Setup Stunnel in the proxy server
     mock_server = Server()
     mock_server.hostname = appconf.nginx_host
+    mock_server.ip = proxy_ip
     rc = __get_remote_client(mock_server, tid)
     if not rc:
         wlogger.log(tid, "Couldn't connect to proxy server. Twemproxy setup "
@@ -563,7 +565,7 @@ def setup_proxied(tid):
     twem_server_conf = [
         "[twemproxy]",
         "client = no",
-        "accept = {0}:8888".format(appconf.nginx_host),
+        "accept = {0}:8888".format(proxy_ip),
         "connect = 127.0.0.1:2222"
     ]
     proxy_stunnel_conf.extend(twem_server_conf)
@@ -588,7 +590,6 @@ def setup_proxied(tid):
     twemproxy_conf.extend(twemproxy_servers)
     remote = "/etc/nutcracker/nutcracker.yml"
     rc.put_file(remote, "\n".join(twemproxy_conf))
-
 
     wlogger.log(tid, "Configuration complete", "success")
 
