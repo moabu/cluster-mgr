@@ -15,6 +15,9 @@
         <h3 class="panel-title">Overview</h3>
     </div>
     <div class="box-body">
+        {% if err_msg %}
+        <p><strong>{{ err_msg }}</strong><br/>Please check the settings.</p>
+        {% else %}
         <dl class="dl-horizontal">
             <dt>valid</dt>
             <dd>{{ license_data.valid }}</dd>
@@ -31,6 +34,7 @@
                 {% endif %}
             {% endfor %}
         </dl>
+        {% endif %}
     </div>
     <div class="box-footer">
         <a href="{{ url_for('license.settings') }}" class="btn btn-primary pull-right">Settings</a>

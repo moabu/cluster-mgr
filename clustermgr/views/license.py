@@ -3,7 +3,7 @@ from datetime import datetime
 
 from flask import Blueprint
 from flask import current_app
-from flask import flash
+# from flask import flash
 from flask import redirect
 from flask import render_template
 from flask import request
@@ -15,24 +15,28 @@ from ..forms import LicenseSettingsForm
 license_bp = Blueprint("license", __name__)
 
 
-def _humanize_timestamp(ts):
+def _humanize_timestamp(ts, date_fmt="%Y:%m:%d %H:%M:%S GMT"):
+    """Formats Unix timestamp to use a user-friendly string.
+
+    :param ts: Unix timestamp in milliseconds.
+    :param date_fmt: Python's date time format string.
+    :returns: String of formatted timestamp.
+    """
     dt = datetime.utcfromtimestamp(ts / 1000)
-    return dt.strftime("%Y:%m:%d %H:%M:%S GMT")
+    return dt.strftime(date_fmt)
 
 
 @license_bp.route("/")
 def index():
     license_data, err = license_manager.validate_license()
 
-    ts_keys = ["creation_date", "expiration_date"]
+    ts_keys = ("creation_date", "expiration_date",)
     for key in ts_keys:
-        if key in license_data["metadata"]:
-            license_data["metadata"][key] = _humanize_timestamp(
-                license_data["metadata"][key])
-
-    if err:
-        flash(err, "warning")
-    return render_template("license_index.html", license_data=license_data)
+        if key not in license_data["metadata"]:
+            continue
+        ts = license_data["metadata"][key]
+        license_data["metadata"][key] = _humanize_timestamp(ts)
+    return render_template("license_index.html", license_data=license_data, err_msg=err)
 
 
 @license_bp.route("/settings/", methods=["GET", "POST"])

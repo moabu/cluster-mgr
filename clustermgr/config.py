@@ -36,7 +36,8 @@ class Config(object):
     LDIF_DIR = os.path.join(DATA_DIR, "ldif")
     LICENSE_CONFIG_FILE = os.path.join(DATA_DIR, "license.ini")
     LICENSE_SIGNED_FILE = os.path.join(DATA_DIR, "signed_license")
-    LICENSE_VALIDATOR = os.path.join(DATA_DIR, "oxlicense-validator-3.1.1.jar")
+    LICENSE_VALIDATOR = os.path.join(JAVALIBS_DIR, "oxlicense-validator-3.1.1.jar")
+    LICENSE_ENFORCEMENT_ENABLED = True
 
 
 class ProductionConfig(Config):
@@ -55,9 +56,11 @@ class DevelopmentConfig(Config):
     SQLALCHEMY_DATABASE_URI = "sqlite:///{}/clustermgr.dev.db".format(
         Config.DATA_DIR)
     SQLALCHEMY_TRACK_MODIFICATIONS = True
+    LICENSE_ENFORCEMENT_ENABLED = False
 
 
 class TestingConfig(Config):
     TESTING = True
     WTF_CSRF_ENABLED = False
     SQLALCHEMY_DATABASE_URI = 'sqlite://'
+    LICENSE_ENFORCEMENT_ENABLED = False
