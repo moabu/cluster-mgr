@@ -17,7 +17,10 @@ from rrd_functions import get_ldap_monitoring_data, periods
 
 
 leftmenu = { 'Ldap Monitoring': ('single_graph', ['all']+searchlist.keys()),
-             'System Monitoring': ('system', ['cpuinfo','loadavg','diskusage']),
+             'System Monitoring': ('system', ['cpuinfo',
+                                                'loadavg',
+                                                'diskusage', 
+                                                'memusage']),
             }
 
 @app.route('/')
@@ -205,6 +208,7 @@ def system(opt, period):
     options={'loadavg':(None, None, '5 Mins Load Average'),
              'cpuinfo':(None,None, '%'),
              'diskusage':(None,None, '%'),
+             'memusage':(None,None, '%'),
 
     }
 
@@ -227,7 +231,12 @@ def system(opt, period):
         title = 'Load Average'
         width = 900
         height = 500
-    
+    elif opt=='memusage':
+        temp = 'graph.html'
+        data_g = data_dict
+        title = 'Memory Usage'
+        width = 900
+        height = 500
         
 
     return render_template(temp, 

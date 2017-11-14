@@ -158,7 +158,24 @@ def create_disk_usage_rrd_db():
                         
     rrdtool.create(args)
 
+
+def create_mem_usage_rrd_db():
+    
+    file_path = os.path.join(data_dir, 'mem_usage.rrd')
+
+    args = [
+        file_path,
+        "--start", 'N',
+        "--step", "300",
+        ]
+    args.append('DS:memusage:GAUGE:600:0:100')
+    args += opt_fields
+
+    rrdtool.create(args)
+
 #query_ldap_and_inject_db('ldaps://mb1.mygluu.org:636', "cn=directory manager,o=gluu", "secret")
 
-create_cpu_info_rrd_db()
-create_disk_usage_rrd_db()
+#create_cpu_info_rrd_db()
+#create_disk_usage_rrd_db()
+
+create_mem_usage_rrd_db()
