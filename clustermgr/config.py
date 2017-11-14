@@ -36,7 +36,7 @@ class Config(object):
     LDIF_DIR = os.path.join(DATA_DIR, "ldif")
     LICENSE_CONFIG_FILE = os.path.join(DATA_DIR, "license.ini")
     LICENSE_SIGNED_FILE = os.path.join(DATA_DIR, "signed_license")
-    LICENSE_VALIDATOR = os.path.join(DATA_DIR, "oxlicense-validator-3.1.1.jar")
+    LICENSE_VALIDATOR = os.path.join(JAVALIBS_DIR, "oxlicense-validator-3.1.1.jar")
 
 
 class ProductionConfig(Config):
