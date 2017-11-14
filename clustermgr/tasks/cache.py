@@ -255,7 +255,7 @@ def install_cache_components(self, method):
     # 3. Post installation - setup user and logging
     run_and_log(rc, "useradd nutcracker", tid)
     run_and_log(rc, "mkdir /var/log/nutcracker", tid)
-    run_and_log(rc, "touch /var/log/nutcracker.log", tid)
+    run_and_log(rc, "touch /var/log/nutcracker/nutcracker.log", tid)
     run_and_log(rc, "chown -R nutcracker:nutcracker /var/log/nutcracker",
                 tid)
     logrotate_conf = ["/var/log/nutcracker/nutcracker*.log {", "\tweekly",
@@ -269,9 +269,7 @@ def install_cache_components(self, method):
                                     "twemproxy.service")
         remote = "/lib/systemd/system/nutcracker.service"
         rc.upload(local, remote)
-        deamon_flag = "DEAMON_FLAGS= -c /etc/nutcracker/nutcracker.yml"
-        deamon_flag += " -o /var/log/nutcracker/nutcracker.log"
-        rc.put_file("/etc/default/nutcracker", deamon_flag)
+        run_and_log("systemctl enable nutcracker")
     elif server_os == "Ubuntu 14":
         local = os.path.join(app.root_path, "templates", "twemproxy",
                              "nutcracker.init")
@@ -740,6 +738,27 @@ def restart_services(self, method):
         run_and_log(rc, get_cmd('service oxauth restart'), tid, server.id)
         run_and_log(rc, get_cmd('service identity restart'), tid, server.id)
         rc.close()
+
+    if method != 'STANDALONE':
+        wlogger.log(tid, "All services restarted.", "success")
+        return
+
+    host = appconf.nginx_host
+    mock_server = Server()
+    mock_server.hostname = host
+    rc = __get_remote_client(mock_server, tid)
+    if not rc:
+        wlogger.log(tid, "Couldn't connect to proxy server to restart services"
+                    "fail")
+        return
+    mock_server.os = get_os_type(rc)
+    if mock_server.os in ['Ubuntu 14', 'Ubuntu 16', 'CentOS 6']:
+        run_and_log(rc, "service stunnel4 restart", tid, None)
+        run_and_log(rc, "service nutcracker restart", tid, None)
+    if mock_server.os in ["CentOS 7", "RHEL 7"]:
+        run_and_log(rc, "systemctl restart stunnel", tid, None)
+        run_and_log(rc, "systemctl restart nutcracker", tid, None)
+    rc.close()
 
 
 @celery.task(bind=True)

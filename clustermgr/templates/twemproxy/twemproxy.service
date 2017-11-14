@@ -1,10 +1,12 @@
 [Unit]
-Description=nutcracker/twemproxy
+Description=nutcracker - High performance proxy server for memcached/redis
+After=network.target
 
 [Service]
-EnvironmentFile=/etc/default/nutcracker
-
-ExecStart=/usr/sbin/nutcracker $DAEMON_ARGS
+Type=simple
+ExecStartPre=/usr/sbin/nutcracker -t -c /etc/nutcracker/nutcracker.yml
+ExecStart=/usr/sbin/nutcracker -c /etc/nutcracker/nutcracker.yml -o /var/log/nutcracker/nutcracker.log
+ExecReload=/bin/kill -HUP $MAINPID
 
 [Install]
 WantedBy=multi-user.target
