@@ -151,11 +151,10 @@ function updateLog(){
                     title: '<h5><i class="glyphicon glyphicon-warning-sign"></i> Problems Found! Review Logs</h5>',
                     message: errors.toString()+' Errors and '+warnings+' Warnings were encountered during the process. Kindly review the log of each server before proceeding to the next step.',
                 },{
-                    type: "danger",
+                    type: "warning",
                     placement: {from: "bottom", align: "center"},
                     delay: 0,
-                    animate: {enter: 'animated fadeInUp', exit: 'animated fadeOutDown'},
-                    offset: {y: 300}
+                    animate: {enter: 'animated fadeInUp', exit: 'animated fadeOutDown'}
                 });
             }
         }
