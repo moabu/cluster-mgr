@@ -235,6 +235,7 @@ def system(opt, period):
         temp = 'graph.html'
         data_g = data_dict
         title = 'Memory Usage'
+        vMax = 100
         width = 900
         height = 500
         
@@ -248,7 +249,6 @@ def system(opt, period):
                             width=width,
                             height=height,
                             title= title,
-                            vAxis = '%',
                             data= data_g,
                             period=period_s,
                             opt_list = [opt],

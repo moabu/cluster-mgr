@@ -81,8 +81,9 @@
                 title: '{{opt.replace('_',' ').title()}}',
                 width: {{width}},
                 height: {{height}},
-                vAxis: { title: '{{options[opt][2]}}' },
+                vAxis: { title: '{{options[opt][2]}}', {% if options[opt][2]=='%' %} maxValue: 100, {% endif %} },
                 hAxis: { title: 'Time' },
+                
             };
 
         var joinedData = google.visualization.data.join(data0, data1, 'full', [[0, 0]], [1], [1]);
