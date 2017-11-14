@@ -13,6 +13,7 @@ from clustermgr.forms import ServerForm, InstallServerForm
 from clustermgr.tasks.cluster import remove_provider, collect_server_details
 from clustermgr.config import Config
 from clustermgr.core.remote import RemoteClient, ClientNotSetupException
+from ..core.license import license_manager
 from ..core.license import license_reminder
 
 server_view = Blueprint('server', __name__)
@@ -26,6 +27,7 @@ def sync_ldap_passwords(password):
     db.session.commit()
 
 @server_view.route('/', methods=['GET', 'POST'])
+@license_manager.license_required
 def index():
     """Route for URL /server/. GET returns ServerForm to add a server,
     POST accepts the ServerForm, validates and creates a new Server object
