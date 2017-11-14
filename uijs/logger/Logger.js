@@ -42,9 +42,10 @@ class LogContainer extends Component {
                     />
                 );
             } else {
+                const random_key = Math.Random();
                 return (
                     <MessageItem
-                        key={Math.random()}
+                        key={random_key}
                         level={itemInfo.level}
                         msg={itemInfo.msg}
                     />

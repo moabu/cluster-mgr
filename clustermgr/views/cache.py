@@ -5,7 +5,8 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
 
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cache import get_cache_methods, install_cache_components, \
-    configure_cache_cluster, restart_services
+    configure_cache_cluster, restart_services, install_redis_stunnel, \
+    install_twemproxy
 from ..core.license import license_reminder
 
 
@@ -42,13 +43,32 @@ def refresh_methods():
     return jsonify({'task_id': task.id})
 
 
-@cache_mgr.route('/change/', methods=['GET', 'POST'])
+@cache_mgr.route('/change/')
 def change():
-    servers = Server.query.all()
+    # NOTE cache configuration method selection will come here
     method = 'STANDALONE'
-    task = install_cache_components.delay(method)
+    return redirect(url_for('cache_mgr.install', method=method), code=307)
+
+
+@cache_mgr.route('/install_components/<method>/')
+def install(method):
+    servers = Server.query.all()
+    asyncs = list()
+    for server in servers:
+        asyncs.append(dict(
+            server=server, taskid=install_redis_stunnel.delay(server.id).id
+        ))
+
+    if method == 'STANDALONE':
+        appconf = AppConfiguration.query.first()
+        mock_server = Server()
+        mock_server.hostname = appconf.nginx_host
+        asyncs.append(dict(
+            server=mock_server, taskid=install_twemproxy.delay().id
+        ))
+
     return render_template('cache_logger.html', method=method, step=1,
-                           task_id=task.id, servers=servers)
+                           tasks=asyncs, servers=servers)
 
 
 @cache_mgr.route('/configure/<method>/')

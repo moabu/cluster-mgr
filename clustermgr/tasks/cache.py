@@ -16,6 +16,73 @@ from flask import current_app as app
 
 
 @celery.task(bind=True)
+def install_redis_stunnel(self, server_id):
+    """
+    
+    :param self: 
+    :param server_id: id of the :obj:`clustermgr.models.Server` object
+    :return: 
+    """
+    server = Server.query.get(server_id)
+    tid = self.request.id
+    task_file = os.path.join(app.root_path, "tasks", "install_redis_stunnel.yaml")
+    tr = YAMLTaskRunner(task_file, server.hostname, server.ip)
+    tr.run_tasks(weblog_id=tid)
+    server.redis = True
+    server.stunnel = True
+    db.session.commit()
+
+
+@celery.task(bind=True)
+def install_twemproxy(self):
+    """ Install twemproxy and stunnel in the Nginx load balancing proxy server
+    """
+    tid = self.request.id
+    app_conf = AppConfiguration.query.first()
+    host = app_conf.nginx_host
+    task_file = os.path.join(app.root_path, "tasks", "install_twemproxy.yaml")
+    wlogger.log(tid, "Cluster manager will build and install Twemproxy")
+    tr = YAMLTaskRunner(task_file, host)
+    tr.run_tasks(weblog_id=tid)
+
+    # Setup auto start of twemproxy as a service
+    rc = RemoteClient(host)
+    try:
+        rc.startup()
+    except Exception as e:
+        wlogger.log(tid, "Could not connect to {0}".format(e), "error")
+        return False
+
+    server_os = get_os_type(rc)
+
+    if server_os in ["Ubuntu 16", "CentOS 7", "RHEL 7"]:
+        local = os.path.join(app.root_path, "templates", "twemproxy",
+                             "twemproxy.service")
+        remote = "/lib/systemd/system/nutcracker.service"
+        rc.upload(local, remote)
+        run_and_log(rc, "systemctl enable nutcracker", tid)
+    elif server_os == "Ubuntu 14":
+        local = os.path.join(app.root_path, "templates", "twemproxy",
+                             "nutcracker.init")
+        remote = "/etc/init.d/nutcracker"
+        rc.upload(local, remote)
+        run_and_log(rc, 'chmod +x /etc/init.d/nutcracker', tid)
+        run_and_log(rc, "update-rc.d nutcracker defaults", tid)
+    elif server_os == "CentOS 6":
+        local = os.path.join(app.root_path, "templates", "twemproxy",
+                             "nutcracker.centos.init")
+        remote = "/etc/rc.d/init.d/nutcracker"
+        rc.upload(local, remote)
+        run_and_log(rc, "chmod +x /etc/init.d/nutcracker", tid)
+        run_and_log(rc, "chkconfig --add nutcracker", tid)
+        run_and_log(rc, "chkconfig nutcracker on", tid)
+
+    rc.close()
+
+
+
+
+@celery.task(bind=True)
 def install_cache_components(self, method):
     """Celery task that installs the redis, stunnel and twemproxy applications
     in the required servers.

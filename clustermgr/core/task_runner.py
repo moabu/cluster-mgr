@@ -160,7 +160,7 @@ class YAMLTaskRunner(object):
         if post_tasks:
             tasks = tasks + post_tasks
 
-        for task in tasks:
+        for i, task in enumerate(tasks):
             task = self.__wrap_command_with_env(task, envs, requirements)
             self.task_queue.append(YAMLTask.from_dict(task))
 

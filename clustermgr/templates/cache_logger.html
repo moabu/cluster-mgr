@@ -15,7 +15,37 @@
       {{ cache_process_steps(step) }}
     </div>
     <div class="col-md-9">
-      <div id="log_root"></div>
+      <div class="box">
+        <div class="box-body no-padding">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="width: 10%">ID</th>
+                <th style="width: 30%">Server</th>
+                <th style="width: 40%">Progress</th>
+                <th style="width: 20%">Logs</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for task in tasks %}
+              {% set server = task['server'] %}
+              <tr>
+                <td>{{ server.id }}</td>
+                <td>{{ server.hostname }}</td>
+                <td>
+                  <div class="progress progress-xs progress-striped active">
+                    <div class="progress-bar progress-bar-success" style="width: 100%"></div>
+                  </div>
+                </td>
+                <td>
+                  <button class="btn btn-xs btn-primary">View Log</button>
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
       <!-- Logger items should come here -->
       {% if step == 1 %}
         <a href="{{ url_for('cache_mgr.configure', method=method) }}" class="btn btn-block btn-primary" id="next">
@@ -36,15 +66,9 @@
     </div>
   </div>
 
-
-
 {% endblock %}
 
 {% block js %}
-    <script>
-        document.clustermgr = {};
-        document.clustermgr.task_id = "{{ task_id }}";
-    </script>
     <script type="text/javascript" src="{{ hashed_url('build/runtime.js') }}"></script>
     <script type="text/javascript" src="{{ hashed_url('build/vendor.js') }}"></script>
     <script type="text/javascript" src="{{ hashed_url('build/main.js') }}"></script>
