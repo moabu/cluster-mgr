@@ -68,6 +68,10 @@ class LicenseManager(object):
             "LICENSE_PRODUCT_NAME",
             "de",  # TODO: change it to another name?
         )
+        app.config.setdefault(
+            "LICENSE_ENFORCEMENT_ENABLED",
+            True,
+        )
 
         app.extensions = getattr(app, "extensions", {})
         app.extensions["license_manager"] = self
@@ -75,24 +79,26 @@ class LicenseManager(object):
     def license_required(self, func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            license_data, err = self.validate_license()
-            now = current_date_millis()
+            app = self._get_app()
+            if app.config["LICENSE_ENFORCEMENT_ENABLED"]:
+                license_data, err = self.validate_license()
+                now = current_date_millis()
 
-            invalid = license_data["valid"] is not True
-            expired = now > license_data["metadata"].get("expiration_date")
-            inactive = license_data["metadata"].get("active", False) is False
+                invalid = license_data["valid"] is not True
+                expired = now > license_data["metadata"].get("expiration_date")
+                inactive = license_data["metadata"].get("active", False) is False
 
-            if err or invalid or expired or inactive:
-                flash("The previously requested URL requires a valid license. "
-                      "Please make sure you have a valid license.",
-                      "warning")
+                if err or invalid or expired or inactive:
+                    flash("The previously requested URL requires a valid license. "
+                          "Please make sure you have a valid license.",
+                          "warning")
 
-                # determine where to redirect when license is invalid
-                if not self.redirect_endpoint:
-                    redirect_url = "/"
-                else:
-                    redirect_url = url_for(self.redirect_endpoint)
-                return redirect(redirect_url)
+                    # determine where to redirect when license is invalid
+                    if not self.redirect_endpoint:
+                        redirect_url = "/"
+                    else:
+                        redirect_url = url_for(self.redirect_endpoint)
+                    return redirect(redirect_url)
             return func(*args, **kwargs)
         return wrapper
 
@@ -140,7 +146,7 @@ class LicenseManager(object):
             # error message returned from decode_signed_license is a long
             # java program errors, hence replace them with user-friendly
             # message
-            err = "Unable to validate license."
+            err = "Unable to validate the license."
         return license_data, err
 
     def dump_license_config(self, data):

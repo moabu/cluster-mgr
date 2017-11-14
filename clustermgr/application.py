@@ -46,7 +46,7 @@ def create_app():
     migrate.init_app(app, db, directory=os.path.join(os.path.dirname(__file__),
                                                      "migrations"))
     wlogger.init_app(app)
-    license_manager.init_app(app, "license.settings")
+    license_manager.init_app(app, "license.index")
 
     # setup the instance's working directories
     if not os.path.isdir(app.config['SCHEMA_DIR']):
