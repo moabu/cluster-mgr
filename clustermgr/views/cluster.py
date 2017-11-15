@@ -10,12 +10,14 @@ from clustermgr.tasks.cluster import setup_ldap_replication, \
     InstallLdapServer, installGluuServer, remove_provider, \
     removeMultiMasterDeployement, installNGINX
 from ..core.license import license_reminder
+from ..core.license import license_manager
 
 cluster = Blueprint('cluster', __name__, template_folder='templates')
 cluster.before_request(license_reminder)
 
 
 @cluster.route('/deploy_config/<int:server_id>', methods=['GET', 'POST'])
+@license_manager.license_required
 def deploy_config(server_id):
     """Initiates replication deployement task
 
@@ -38,6 +40,7 @@ def deploy_config(server_id):
 
 
 @cluster.route('/remove_deployment/<int:server_id>/')
+@license_manager.license_required
 def remove_deployment(server_id):
     """Initiates removal of replication deployment and back to slapd.conf
 
@@ -83,6 +86,7 @@ def remove_deployment(server_id):
 
 
 @cluster.route('/install_ldapserver')
+@license_manager.license_required
 def install_ldap_server():
     """Initiates installation of non-gluu ldap server"""
 
@@ -98,6 +102,7 @@ def install_ldap_server():
 
 
 @cluster.route('/install_gluu_server/<int:server_id>/')
+@license_manager.license_required
 def install_gluu_server(server_id):
     """Initiates installation of gluu server
 
@@ -121,6 +126,7 @@ def install_gluu_server(server_id):
 
 
 @cluster.route('/installnginx/')
+@license_manager.license_required
 def install_nginx():
     """Initiates installation of nginx load balancer"""
     appconf = AppConfiguration.query.first()
