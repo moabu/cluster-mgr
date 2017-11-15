@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import socket
 
 from StringIO import StringIO
 
@@ -78,6 +79,7 @@ def install_twemproxy(self):
         run_and_log(rc, "chkconfig nutcracker on", tid)
 
     rc.close()
+
 
 
 
@@ -365,23 +367,25 @@ def setup_proxied(tid):
     ]
     proxy_stunnel_conf = stunnel_base_conf
     twemproxy_servers = []
+    proxy_ip = socket.gethostbyname(appconf.nginx_host)
     primary = Server.query.filter(Server.primary_server.is_(True)).first()
     if not primary:
         wlogger.log(tid, "Primary Server is not setup yet. Cannot setup "
                     "clustered caching.", "error")
 
+
     # Setup Stunnel and Redis in each server
     for server in servers:
         __update_ldap_cache_method(tid, server, 'localhost:7000', 'STANDALONE')
         stunnel_conf = [
-           "[redis-server]",
+            "[redis-server]",
            "client = no",
            "accept = {0}:7777".format(server.ip),
            "connect = 127.0.0.1:6379",
            "[twemproxy]",
            "client = yes",
            "accept = 127.0.0.1:7000",
-           "connect = {0}:8888".format(appconf.nginx_host)
+            "connect = {0}:8888".format(proxy_ip)
         ]
         stunnel_conf = stunnel_base_conf + stunnel_conf
         status = __configure_stunnel(tid, server, stunnel_conf, chdir)
@@ -403,6 +407,7 @@ def setup_proxied(tid):
     # Setup Stunnel in the proxy server
     mock_server = Server()
     mock_server.hostname = appconf.nginx_host
+    mock_server.ip = proxy_ip
     rc = __get_remote_client(mock_server, tid)
     if not rc:
         wlogger.log(tid, "Couldn't connect to proxy server. Twemproxy setup "
@@ -422,7 +427,7 @@ def setup_proxied(tid):
     twem_server_conf = [
         "[twemproxy]",
         "client = no",
-        "accept = {0}:8888".format(appconf.nginx_host),
+        "accept = {0}:8888".format(proxy_ip),
         "connect = 127.0.0.1:2222"
     ]
     proxy_stunnel_conf.extend(twem_server_conf)
