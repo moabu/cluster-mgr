@@ -445,8 +445,9 @@ def setup_proxied(tid):
         "  distribution: ketama",
         "  auto_eject_hosts: true",
         "  redis: true",
-        "  server_retry_timeout: 2000",
-        "  server_failure_limit: 1",
+        "  server_failure_limit: 2",
+        "  timeout: 400",
+        "  preconnect: true"
         "  servers:"
     ]
     twemproxy_conf.extend(twemproxy_servers)
