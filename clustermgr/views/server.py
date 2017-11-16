@@ -70,6 +70,7 @@ def index():
 
 
 @server_view.route('/edit/<int:server_id>/', methods=['GET', 'POST'])
+@license_manager.license_required
 def edit(server_id):
     server = Server.query.get(server_id)
     if not server:
@@ -107,6 +108,7 @@ def edit(server_id):
 
 
 @server_view.route('/remove/<int:server_id>/')
+@license_manager.license_required
 def remove(server_id):
     server = Server.query.filter_by(id=server_id).first()
     # remove its corresponding syncrepl configs from other servers
@@ -186,6 +188,7 @@ def get_setup_properties():
 
 
 @server_view.route('/installgluu/<int:server_id>/', methods=['GET', 'POST'])
+@license_manager.license_required
 def install_gluu(server_id):
     """Gluu server installation view. This function creates setup.properties
     file and redirects to install_gluu_server which does actual installation.
@@ -298,6 +301,7 @@ def install_gluu(server_id):
 
 
 @server_view.route('/editslapdconf/<int:server_id>/', methods=['GET', 'POST'])
+@license_manager.license_required
 def edit_slapd_conf(server_id):
     """This view  provides editing of slapd.conf file before depoloyments."""
 
