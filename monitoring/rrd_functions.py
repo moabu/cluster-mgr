@@ -194,10 +194,29 @@ def create_net_io_rrd_db():
 
     rrdtool.create(args)
 
+
+def create_gluu_auth_rrd_db():
+    
+    file_path = os.path.join(data_dir, 'gluu_auth.rrd')
+
+    args = [
+        file_path,
+        "--start", 'N',
+        "--step", "300",
+        ]
+    for t in ('success', 'failure'):
+
+        args.append('DS:{}:COUNTER:600:0:U'.format(t))
+        args += opt_fields
+
+    rrdtool.create(args)
+
+
 #query_ldap_and_inject_db('ldaps://mb1.mygluu.org:636', "cn=directory manager,o=gluu", "secret")
 
 #create_cpu_info_rrd_db()
 #create_disk_usage_rrd_db()
 
 #create_mem_usage_rrd_db()
-create_net_io_rrd_db()
+#create_net_io_rrd_db()
+create_gluu_auth_rrd_db()

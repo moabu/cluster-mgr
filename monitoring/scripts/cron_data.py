@@ -55,11 +55,35 @@ def query_ldap_and_inject_db(addr, binddn, passwd):
     
     rrdtool.update(os.path.join(data_path, 'ldap.rrd'), str(datas))
 
+
+    z=time.gmtime(time.time()-300)
+
+
+    ct = time.strftime("%Y%m%d%H%M%S.000Z",z)
+    
+    conn.search(search_base="o=gluu", search_filter='(&(&(objectClass=oxMetric)(creationDate>={}))(oxMetricType=user_authentication_failure))'.format(ct), attributes=["oxData"])
+
+    data_s=conn.response[-1]["attributes"]['oxData'][0]
+    m=re.search('{"count":(?P<count>\d+)}', data_s)
+    failure=m.group('count')
+
+    conn.search(search_base="o=gluu", search_filter='(&(&(objectClass=oxMetric)(creationDate>={}))(oxMetricType=user_authentication_success))'.format(ct), attributes=["oxData"])
+    data_s=conn.response[-1]["attributes"]['oxData'][0]
+    m=re.search('{"count":(?P<count>\d+)}', data_s)
+    success=m.group('count')
+
+    
+    datas = 'N:{}:{}'.format(success, failure)
+    print datas
+    rrdtool.update(os.path.join(data_path, 'gluu_auth.rrd'), datas)
+
+    conn.unbind()
+
 def inject_cpu_info():
     sl=open("/proc/stat").readline()
     user, nice, system, idle, iowait, irq, softirq, steal, guest, guestnice = sl.strip().split()[1:]
     file_path = os.path.join(data_path, 'cpu_info.rrd')
-    data = 'N:{0}:{1}:{2}:{3}:{4}:{5}:{6}:{7}:{8}:{9}'.format(
+    datas = 'N:{0}:{1}:{2}:{3}:{4}:{5}:{6}:{7}:{8}:{9}'.format(
                                         user,
                                         nice,
                                         system,
@@ -73,7 +97,7 @@ def inject_cpu_info():
                                     )
 
 
-    rrdtool.update(file_path, data)
+    rrdtool.update(file_path, datas)
     
 def inject_load_average():  
     file_path = os.path.join(data_path, 'load_average.rrd')
@@ -140,11 +164,11 @@ def inject_ne_io():
     rrdtool.update(rrd_file, datas)
 
 
-#query_ldap_and_inject_db('ldaps://localhost:1636', "cn=directory manager,o=gluu", "secret")
+query_ldap_and_inject_db('ldaps://c4.gluu.org:1636', "cn=directory manager,o=gluu", "secret")
 """
 inject_cpu_info()
 inject_load_average()
 inject_disk_usage()
 inject_mem_usage()
-"""
 inject_ne_io()
+"""

@@ -16,7 +16,7 @@ from ldap_monitor_options import searchlist
 from rrd_functions import get_ldap_monitoring_data, periods
 
 
-leftmenu = { 'Ldap Monitoring': ('single_graph', ['all']+searchlist.keys()),
+leftmenu = { 'Ldap Monitoring': ('single_graph', ['all', 'gluuauth']+searchlist.keys()),
              'System Monitoring': ('system', ['cpuinfo',
                                                 'loadavg',
                                                 'diskusage', 
@@ -54,7 +54,7 @@ def get_chart_data(hosts, funct, opt, period, start_date='', end_date=''):
                                             period,
                                             funct,
                                             )
-
+        print req_addr
         r = requests.get(req_addr)
         
         r_tetx = r.text
@@ -91,9 +91,6 @@ def single_graph(opt, period):
 
     hosts = ('c4.gluu.org',
             'c5.gluu.org',
-            #'localhost',
-            #'192.168.56.101',
-            #'192.168.56.104',
             )
 
     title = opt.replace('_', ' ').title()
@@ -108,20 +105,37 @@ def single_graph(opt, period):
     
     if start_date:
         period_s='{} - {}'.format(start_date, end_date)
-
+    options=searchlist
     funct = 'getldapmon'
-    rrd_data = get_chart_data(hosts, funct, opt, period, start_date, end_date)
+    temp = 'graph.html'
     
-    data_dict={ opt: rrd_data[0]}
+    
+    
+    
+    
+    
+    if opt=='gluuauth':
+        funct = 'getsysinfo'
+        opt = 'gluuauth'
+        temp = 'graphm.html'
         
+        hosts = ('c4.gluu.org',)
+        options={'gluuauth': (None, None, '#')}
     
-    return render_template('graph.html', 
+    
+    rrd_data = get_chart_data(hosts, funct, opt, period, start_date, end_date)
+    data_dict={ opt: rrd_data[0]}
+    if opt=='gluuauth':
+        data_dict = data_dict[opt]
+    
+    return render_template( temp, 
                             leftmenu = leftmenu,
-                            options=searchlist,
+                            options=options,
                             group='single_graph',
                             opt = opt,
                             width=900,
                             height=500,
+                            legends=rrd_data[1],
                             title= title,
                             data=data_dict,
                             opt_list = [opt],
@@ -183,10 +197,7 @@ def all_ldap(period):
 def system(opt, period):
 
     hosts = ('c4.gluu.org',
-            'c5.gluu.org',
-            'localhost',
-            #'192.168.56.101',
-            #'192.168.56.104',
+            #'c5.gluu.org',
             )
 
     title = opt.replace('_', ' ').title()
@@ -211,7 +222,7 @@ def system(opt, period):
              'cpuinfo': (None,None, '%'),
              'diskusage': (None,None, '%'),
              'memusage': (None,None, '%'),
-             'netio': (None,None, 'Bytes/sec'),
+             'netio': (None,None, 'bytes in(-)/out(+) per sec'),
 
     }
 

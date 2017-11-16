@@ -127,6 +127,11 @@ def get_sys_info(opt):
         db_file = 'mem_usage.rrd'
         fields = ('memusage',)
     
+    elif opt == 'gluuauth':
+        db_file = 'gluu_auth.rrd'
+        fields = ('success','failure')
+    
+    
     elif opt== 'diskusage':
         db_file = 'disk_usage.rrd'
         ds_i = get_rrd_indexes(os.path.join(data_dir, db_file))
@@ -151,6 +156,7 @@ def get_sys_info(opt):
         rxport = "XPORT:data{0}:{1}".format(i,o)
         rrd_args.append( rxport )
 
+    print rrd_args
     rrd_data=rrdtool.xport(rrd_args)
     
     if opt== 'netio':
@@ -172,7 +178,17 @@ def get_sys_info(opt):
                     tmp[i] = -1*tmp[i]
             new_data.append(tmp)
         rrd_data['data'] = new_data
-        
+    
+    elif opt== 'gluuauth':
+        new_data =[]
+        for d in rrd_data['data']:
+            tmp = list(d)
+            for i in range(len(tmp)):
+                if tmp[i]:
+                    tmp[i] = int(tmp[i] *  rrd_data['meta']['step'])
+            new_data.append(tmp)
+            rrd_data['data'] = new_data
+    
     return json.dumps({'data': rrd_data})
 
 
