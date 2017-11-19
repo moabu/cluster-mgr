@@ -1,17 +1,6 @@
 import os
-import shlex
-import subprocess
 
-
-def exec_cmd(cmd):
-    args = shlex.split(cmd)
-    popen = subprocess.Popen(args,
-                             stdin=subprocess.PIPE,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-    stdout, stderr = popen.communicate()
-    retcode = popen.returncode
-    return stdout, stderr, retcode
+from .utils import exec_cmd
 
 
 def generate_jks(passwd, javalibs_dir, jks_path, exp=365,

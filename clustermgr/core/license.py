@@ -2,7 +2,6 @@ import ConfigParser
 import json
 import os
 import time
-import uuid
 from datetime import datetime
 from datetime import timedelta
 from functools import wraps
@@ -14,16 +13,8 @@ from flask import g as fg
 from flask import redirect
 from flask import url_for
 
-from .keygen import exec_cmd
-
-
-def get_mac_addr():
-    """Gets MAC address according to standard IEEE EUI-48 format.
-
-    :returns: A string of uppercased MAC address.
-    """
-    mac_num = hex(uuid.getnode()).replace("0x", "").upper()
-    return "-".join(mac_num[i:i + 2] for i in range(0, 11, 2))
+from .utils import exec_cmd
+from .utils import get_mac_addr
 
 
 def current_date_millis():
