@@ -585,7 +585,7 @@ def setup_proxied(tid):
         "  redis: true",
         "  server_failure_limit: 2",
         "  timeout: 400",
-        "  preconnect: true"
+        "  preconnect: true",
         "  servers:"
     ]
     twemproxy_conf.extend(twemproxy_servers)
