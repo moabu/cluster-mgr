@@ -30,7 +30,7 @@ pip install --upgrade setuptools
 3) Install cluster-mgr
 
 ```
-pip install https://github.com/GluuFederation/cluster-mgr/archive/master.zip
+pip install clustermgr
 ```
 
 - There may be a few innocuous warnings here, but this is normal.
