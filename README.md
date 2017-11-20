@@ -23,7 +23,7 @@ Currently only supports installation on Ubuntu 14 and 16. It can, however, confi
 
 ```
 apt-get update
-apt-get install build-essential libssl-dev libffi-dev python-dev redis-server python-setuptools python-pip
+apt-get install python-pip python-dev libffi-dev libssl-dev redis-server
 pip install --upgrade setuptools
 ```
 
