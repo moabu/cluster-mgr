@@ -148,6 +148,12 @@ items = {
                     'aggr': 'DRV',
                     'chartType': 'LineChart',
                     'vAxis': 'bytes in(-)/out(+) per sec'},
+                    
+        'cpu_percent': {'end_point': 'index',
+                    'data_source': 'cpu_percent.*',
+                    'aggr': 'AVG',
+                    'chartType': 'AreaChart',
+                    'vAxis': '%'},
 }
 
 

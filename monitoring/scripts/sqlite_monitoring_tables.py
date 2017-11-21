@@ -18,6 +18,8 @@ monitoring_tables = {
                  'iowait', 'irq', 'softirq', 'steal',
                  'guest', 'guestnice'],
 
+    'cpu_percent': ['cpu_percent'],
+
     'ldap_mon': ['completed_operations', 'read_waiters',
                  'compare_operations', 'referrals_sent',
                  'search_operations', 'total_connections',

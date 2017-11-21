@@ -45,7 +45,21 @@ def get_period_text():
 
     return ret_text
 
-def getData(item):
+def get_mean_last(measurement, host):
+
+    client = InfluxDBClient('localhost', 8086, 'mbaser', 'qwerty',
+                            host.replace('.','_'))
+                            
+    querym = 'SELECT mean(*) FROM {}'.format(measurement)
+    resultm = client.query(querym, epoch='s')
+    queryl = 'SELECT * FROM {}  ORDER BY DESC LIMIT 1'.format(measurement)
+    resultl = client.query(queryl, epoch='s')
+    
+    print resultm.raw, resultl.raw
+    return resultm.raw['series'][0]['values'][0][1], resultl.raw['series'][0]['values'][0][1]
+    
+
+def getData(item, step=None):
 
     hosts = ('c4.gluu.org',
             'c5.gluu.org',
@@ -68,19 +82,22 @@ def getData(item):
             flash("End Date must be greater than Start Date",'warning')
             start = time.time() - periods[period]['seconds']
             end = time.time()
-            step = periods[period]['step']
+            if not step:
+                step = periods[period]['step']
         else:
             start = startdate + ' 00:00'
             start = int(time.mktime(time.strptime(start,"%m/%d/%Y %H:%M")))
             end = enddate + ' 23:59'
             end = int(time.mktime(time.strptime(end,"%m/%d/%Y %H:%M")))
             print "Calculate step"
-            step = int((end-start)/365)
+            if not step:
+                step = int((end-start)/365)
                 
     else:
         start = time.time() - periods[period]['seconds']
         end = time.time()
-        step = periods[period]['step']
+        if not step:
+            step = periods[period]['step']
     
     measurement, field = items[item]['data_source'].split('.')
 
@@ -164,7 +181,32 @@ def getData(item):
 @app.route('/')
 def index():
 
-    return render_template('intro.html', left_menu=left_menu, items=items)
+    hosts = ({'name':'c4.gluu.org', 'id': 1},
+             {'name':'c5.gluu.org', 'id': 3},
+    )
+
+    data = {}
+    
+    
+    data['cpu']= getData('cpu_percent', step=1200)
+    data['mem']= getData('memory_usage', step=1200)
+    
+    for host in hosts:
+        m,l = get_mean_last('cpu_percent', host['name'])
+        data['cpu'][host['name']]['mean']="%0.1f" % m
+        data['cpu'][host['name']]['last']="%0.1f" % l
+        
+        m,l = get_mean_last('mem_usage', host['name'])
+        data['mem'][host['name']]['mean']="%0.1f" % m
+        data['mem'][host['name']]['last']="%0.1f" % l
+        
+
+    return render_template('intro.html', 
+                            left_menu=left_menu,
+                            items=items,
+                            hosts=hosts,
+                            data=data,
+                            )
 
 
 @app.route('/ldap/<item>/')

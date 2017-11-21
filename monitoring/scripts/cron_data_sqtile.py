@@ -111,6 +111,10 @@ def collect_cpu_info():
     
     execute_query('cpu_info', data)
 
+def collect_cpu_percent():
+    data = [psutil.cpu_percent(interval=0.5)]
+    execute_query('cpu_percent', data)
+
 def collect_load_average():
     load_avg = os.getloadavg()
     data = [load_avg[0]]
@@ -168,6 +172,7 @@ def collect_ne_io():
 def do_collect():
     collect_ldap_monitoring('ldaps://c4.gluu.org:1636', "cn=directory manager,o=gluu", "secret")
     collect_cpu_info()
+    collect_cpu_percent()
     collect_load_average()
     collect_disk_usage()
     collect_mem_usage()
