@@ -119,29 +119,34 @@ items = {
         'cpu_usage': {'end_point': 'system',
                     'data_source': 'cpu_info.*',
                     'aggr': 'DIF',
+                    'chartType': 'AreaChart',
                     'vAxis': '%'},
 
         'load_average': {'end_point': 'system',
                     'data_source': 'load_average.*',
                     'aggr': 'AVG',
                     'vAxisMax': 1,
+                    'chartType': 'LineChart',
                     'vAxis': '5 Mins Load Average'},
 
         'disk_usage': {'end_point': 'system',
                     'data_source': 'disk_usage.*',
                     'aggr': 'AVG',
                     'vAxisMax': 100,
+                    'chartType': 'AreaChart',
                     'vAxis': '%'},
 
         'memory_usage': {'end_point': 'system',
                     'data_source': 'mem_usage.*',
                     'aggr': 'AVG',
                     'vAxisMax': 100,
+                    'chartType': 'AreaChart',
                     'vAxis': '%'}, 
 
         'network_i_o': {'end_point': 'system',
                     'data_source': 'net_io.*',
                     'aggr': 'DRV',
+                    'chartType': 'LineChart',
                     'vAxis': 'bytes in(-)/out(+) per sec'},
 }
 

@@ -59,9 +59,6 @@
     function drawChart{{loop.index0}}() {
 
 
-   
-        {% for host in data[opt] %}
-        
         var data{{loop.index0}} = new google.visualization.DataTable();
         data{{loop.index0}}.addColumn('datetime', 'Time');
         {% set parind = loop.index0 %}
@@ -75,7 +72,7 @@
             {% endfor %}
 
           ]);
-        {% endfor %}
+
         
         var options = {
                 title: '{{opt}}',
@@ -86,9 +83,7 @@
                 {% if opt in colors %} colors: {{colors[opt]|safe}}, {% endif %}
             };
 
-
-
-        var chart = new google.visualization.LineChart(document.getElementById('chart_div_{{loop.index0}}'));
+        var chart = new google.visualization.{{items[item]['chartType']}}(document.getElementById('chart_div_{{loop.index0}}'));
         chart.draw(data{{loop.index0}}, options);
 
     }
