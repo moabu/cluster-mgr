@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% from 'macros.html' import cache_process_steps %}
+
+{% block header %}
+  <h1>Installing Components</h1>
+  <ol class="breadcrumb">
+    <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+    <li class="active"><a href="{{  url_for('cache_mgr.index') }}">Cache Management</a></li>
+    <li class="active">Installing components</li>
+  </ol>
+{% endblock %}
+
+{% block content %}
+  <div class="row">
+    <div class="col-md-3">
+      {{ cache_process_steps(1) }}
+    </div>
+    <div class="col-md-9">
+      <div class="box box-primary">
+        <div class="box-header with-border">
+          <h3 class="box-title"><i class="fa fa-tasks"></i> Running installation tasks</h3>
+        </div>
+        <div class="box-body no-padding">
+          <table class="table">
+            <tbody>
+              <tr>
+                <th>ID</th>
+                <th>Server Hostname</th>
+                <th>Progress</th>
+                <th>Logs</th>
+                <th>Alerts</th>
+              </tr>
+              {% for task_item in tasks %}
+                <tr>
+                  <td>{{ task_item.server.id }}</td>
+                  <td>
+                    {{ task_item.server.hostname }}
+                    {% if task_item.server.primary_server %}
+                      <span class="badge bg-green">Primary</span>
+                    {% endif %}
+                    {% if not task_item.server.id %}
+                      <span class="badge bg-purple">Proxy</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="progress-group">
+                      <span id="latest_{{ task_item.task.id }}" class="progress-text"></span>
+                      <div class="progress progress-sm progress-striped active">
+                        <div id="progress_{{ task_item.task.id }}" class="progress-bar progress-bar-primary"></div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <a class="btn btn-xs btn-info" href="#" onClick="showTaskLogFor('{{ task_item.task.id }}')">View Log</a>
+                  </td>
+                  <td>
+                    <p><i class="fa fa-warning text-yellow"></i> <span id="warn_{{ task_item.task.id }}">0</span> <i class="fa fa-times-circle text-danger"></i> <span id="error_{{ task_item.task.id }}">0</span></p>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div id="logger">
+
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block js %}
+  <script>
+    var tasks = [ {% for item in tasks %} "{{ item.task.id }}", {% endfor %} ];
+    var intervalMap = {};
+
+    $(document).ready(function(){
+        $.each(tasks, function(idx, task){
+            intervalMap[task] = setInterval(updateProgress, 1000, task);
+        });
+    });
+
+    function updateProgress(task){
+        $.get('/cache/task_status/'+task, function(data){
+            $('#progress_'+task).width(data.progress + "%");
+            $('#warn_'+task).text(data.warnings);
+            $('#error_'+task).text(data.errors);
+            $('#latest_'+task).text(data.latest);
+            if ( data.progress === 100 ){
+                clearInterval( intervalMap[task] );
+            }
+        });
+    }
+
+    function getItem(msgItem){
+        var message = msgItem.msg,
+        level = msgItem.level,
+        item = $('<li class="list-group-item"></li>'),
+        icon = '<i class="glyphicon"></i>',
+        infoIcon = $(icon).addClass('glyphicon-tasks'),
+        warnIcon = $(icon).addClass('glyphicon-warning-sign'),
+        errorIcon = $(icon).addClass('glyphicon-remove-sign'),
+        successIcon = $(icon).addClass('glyphicon-ok-sign');
+
+        switch (level) {
+            case 'info':
+                item.addClass('list-group-item-info')
+                    .append(infoIcon, " " + message)
+                    .css('padding-right', '5px');
+                break;
+            case 'warning':
+                item.addClass('list-group-item-warning')
+                    .append(warnIcon, " " + message)
+                    .css('padding-right', '5px');
+                break;
+            case 'success':
+                item.addClass('text-success pull-right')
+                    .append(successIcon, " " + message);
+                break;
+            case 'error':
+            case 'fail':
+                item.addClass('text-danger')
+                    .append(errorIcon, " " + message)
+                    .css("padding-right", "5px");
+                break;
+            case 'debug':
+                item = $('<pre class="list-group-item">'+ message +'</pre>');
+                break;
+            case 'cerror':
+                item = $('<pre class="list-group-item list-group-item-warning">'+ message +'</pre>');
+                break;
+        }
+
+        return item;
+    }
+
+    function showTaskLogFor(task){
+      $.get('/log/'+task, function(data){
+          $('#logger').empty();
+          $.each(data.messages, function(idx, msgItem){
+              $('#logger').append(getItem(msgItem));
+          });
+      });
+    }
+
+  </script>
+{% endblock %}
+

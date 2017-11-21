@@ -5,7 +5,9 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
 
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cache import get_cache_methods, install_cache_components, \
-    configure_cache_cluster, restart_services
+    configure_cache_cluster, restart_services, install_redis_stunnel, \
+    install_twemproxy_stunnel
+from clustermgr.extensions import wlogger
 
 
 cache_mgr = Blueprint('cache_mgr', __name__, template_folder='templates')
@@ -44,9 +46,20 @@ def refresh_methods():
 def change():
     servers = Server.query.all()
     method = 'STANDALONE'
-    task = install_cache_components.delay(method)
-    return render_template('cache_logger.html', method=method, step=1,
-                           task_id=task.id, servers=servers)
+    tasks = list()
+    for server in servers:
+        tasks.append(dict(task=install_redis_stunnel.delay(server.id),
+                          server=server))
+
+    if method == 'STANDALONE':
+        appconf = AppConfiguration.query.first()
+        mock_server = Server()
+        mock_server.hostname = appconf.nginx_host
+        mock_server.id = 0
+        tasks.append(dict(task=install_twemproxy_stunnel.delay(),
+                          server=mock_server))
+
+    return render_template('cache_installs.html', tasks=tasks)
 
 
 @cache_mgr.route('/configure/<method>/')
@@ -65,3 +78,24 @@ def finish_clustering(method):
     task = restart_services.delay(method)
     return render_template('cache_logger.html', servers=servers, step=3,
                            task_id=task.id)
+
+
+@cache_mgr.route('/task_status/<task_id>/')
+def task_status(task_id):
+    meta = wlogger.get_all_meta(task_id)
+    status = dict()
+    status['progress'] = int(meta['complete']) / int(meta['todo']) * 100
+    status['errors'] = 0
+    status['warnings'] = 0
+    status['latest'] = 'Connecting to server ...'
+
+    msgs = wlogger.get_messages(task_id)
+    for msg in msgs:
+        if msg['level'] == 'info':
+            status['latest'] = msg['msg']
+        if msg['level'] == 'error' or msg['level'] == 'fail':
+            status['errors'] += 1
+        if msg['level'] == 'warning':
+            status['warnings'] += 1
+
+    return jsonify(status)

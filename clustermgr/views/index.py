@@ -240,7 +240,6 @@ def get_log(task_id):
     value = 0
     if result.state == 'SUCCESS' or result.state == 'FAILED':
         value = result.result
-        wlogger.clean(task_id)
     log = {'task_id': task_id, 'state': result.state, 'messages': msgs,
            'result': value}
     return jsonify(log)
