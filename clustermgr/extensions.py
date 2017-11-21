@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from celery import Celery
+from flask_login import LoginManager
 
 from .weblogger import WebLogger
 
@@ -20,3 +21,4 @@ wlogger = WebLogger()
 celery = Celery('clustermgr.application', backend=Config.CELERY_RESULT_BACKEND,
                 broker=Config.CELERY_BROKER_URL
                 )
+login_manager = LoginManager()

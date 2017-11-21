@@ -4,7 +4,7 @@ import re
 
 from flask import Flask
 
-from clustermgr.extensions import db, csrf, migrate, wlogger
+from clustermgr.extensions import db, csrf, migrate, wlogger, login_manager
 
 from .core.license import license_manager
 
@@ -47,6 +47,7 @@ def create_app():
                                                      "migrations"))
     wlogger.init_app(app)
     license_manager.init_app(app, "license.index")
+    login_manager.init_app(app)
 
     # setup the instance's working directories
     if not os.path.isdir(app.config['SCHEMA_DIR']):
@@ -67,12 +68,14 @@ def create_app():
     # from clustermgr.views.logserver import logserver
     from clustermgr.views.cache import cache_mgr
     from clustermgr.views.license import license_bp
+    from clustermgr.views.auth import auth_bp
     app.register_blueprint(index, url_prefix="")
     app.register_blueprint(server_view, url_prefix="/server")
     app.register_blueprint(cluster, url_prefix="/cluster")
     # app.register_blueprint(logserver, url_prefix="/logging_server")
     app.register_blueprint(cache_mgr, url_prefix="/cache")
     app.register_blueprint(license_bp, url_prefix="/license")
+    app.register_blueprint(auth_bp, url_prefix="/auth")
 
     @app.context_processor
     def hash_processor():
