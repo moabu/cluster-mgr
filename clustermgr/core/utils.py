@@ -3,6 +3,9 @@ import os
 import hashlib
 import string
 import random
+import shlex
+import subprocess
+import uuid
 
 from cryptography.hazmat.primitives.ciphers import Cipher
 from cryptography.hazmat.primitives.ciphers import algorithms
@@ -159,3 +162,29 @@ def split_redis_cluster_slots(nodes):
             ranges.append((allotted+1, allotted+parts))
         allotted += parts
     return ranges
+
+
+def exec_cmd(cmd):
+    """Executes shell command.
+
+    :param cmd: String of shell command.
+    :returns: A tuple consists of stdout, stderr, and return code
+              returned from shell command execution.
+    """
+    args = shlex.split(cmd)
+    popen = subprocess.Popen(args,
+                             stdin=subprocess.PIPE,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+    stdout, stderr = popen.communicate()
+    retcode = popen.returncode
+    return stdout, stderr, retcode
+
+
+def get_mac_addr():
+    """Gets MAC address according to standard IEEE EUI-48 format.
+
+    :returns: A string of uppercased MAC address.
+    """
+    mac_num = hex(uuid.getnode()).replace("0x", "").upper()
+    return "-".join(mac_num[i:i + 2] for i in range(0, 11, 2))
