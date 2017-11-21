@@ -81,6 +81,7 @@
                 vAxis: { title: '{{items[item]["vAxis"]}}', {% if items[item].get("vAxisMax") %} maxValue: {{items[item]["vAxisMax"]}} {% endif %}},
                 hAxis: { title: 'Time' },
                 {% if opt in colors %} colors: {{colors[opt]|safe}}, {% endif %}
+                interpolateNulls: true
             };
 
         var chart = new google.visualization.{{items[item]['chartType']}}(document.getElementById('chart_div_{{loop.index0}}'));
