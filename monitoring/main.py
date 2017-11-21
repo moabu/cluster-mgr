@@ -3,152 +3,191 @@ import time
 import requests
 import json
 
+
 from flask import Flask, request, Response, make_response, render_template,\
                     redirect, url_for, flash
 
 
 
+from influxdb import InfluxDBClient
+
+
+
+from defs import left_menu, items, periods
+
 
 
 app = Flask(__name__)
 
-from ldap_monitor_options import searchlist
-from rrd_functions import get_ldap_monitoring_data, periods
 
 
-leftmenu = { 'Ldap Monitoring': ('single_graph', ['all', 'gluuauth']+searchlist.keys()),
-             'System Monitoring': ('system', ['cpuinfo',
-                                                'loadavg',
-                                                'diskusage', 
-                                                'memusage', 
-                                                'netio',
-                                                ]),
-            }
+def get_legend(f):
+    acl = f.find('_')
+    if acl:
+        return f[:acl], f[acl+1:]
+    return f
 
-@app.route('/')
-def index():
+def get_period_text():
+    period = request.args.get('period','d')
+    startdate = request.args.get('startdate')
+    enddate = request.args.get('enddate')
 
-    return render_template('intro.html', leftmenu = leftmenu)
-
-
-def get_chart_data(hosts, funct, opt, period, start_date='', end_date=''):
+    if startdate:
+        print ("START DATE",startdate)
+        ret_text = startdate + ' - '
+        if enddate:
+            ret_text += enddate
+        else:
+            ret_text += 'Now'
+    else:
+        ret_text = periods[period]['title']
     
-    if start_date== None:
-        start_date = ''
-    if end_date== None:
-        end_date = ''
-    
-    rrd_data = {}
 
-    legends = {}
+    return ret_text
 
-    for h in hosts:
-
-        g_data =[]
-
-        req_addr = 'http://{0}:10443/{5}/{1}?startdate={2}&enddate={3}&period={4}'.format(
-
-                                            h, opt,
-                                            start_date,
-                                            end_date,
-                                            period,
-                                            funct,
-                                            )
-        print req_addr
-        r = requests.get(req_addr)
-        
-        r_tetx = r.text
-        r_tmp = json.loads(r.text)
-        r_rrd_data = r_tmp['data']
-
-        start = r_rrd_data["meta"]["start"]
-        step = r_rrd_data["meta"]["step"]
-
-
-        for d in r_rrd_data['data']:
-            t = time.localtime(start)
-            di_l = []
-            for di in d:
-                did = str(di) if di else 'null'
-                di_l.append(did)
-            
-            tmp = "[new Date({}, {}, {}, {}, {}), {}],".format(
-                        t.tm_year, t.tm_mon, t.tm_mday,
-                        t.tm_hour, t.tm_min, ', '.join(di_l))
-            g_data.append(tmp)
-            start += step
-            
-        rrd_data[h] = g_data
-        legends[h] = r_rrd_data['meta']['legend']
-    return rrd_data, legends
-
-@app.route('/singlegraph/<opt>/<period>')
-def single_graph(opt, period):
-
-    if opt=='all':
-        
-        return redirect(url_for('all_ldap', period=period))
+def getData(item):
 
     hosts = ('c4.gluu.org',
             'c5.gluu.org',
             )
 
-    title = opt.replace('_', ' ').title()
-    period_s=periods[period]
-    start_date = request.args.get("startdate")
-    end_date = request.args.get("enddate")
-   
-    if end_date < start_date:
-       flash("End Date must be greater than Start Date")
-       start_date = None
-       end_date = None
-    
-    if start_date:
-        period_s='{} - {}'.format(start_date, end_date)
-    options=searchlist
-    funct = 'getldapmon'
-    temp = 'graph.html'
-    
-    
-    
-    
-    
-    
-    if opt=='gluuauth':
-        funct = 'getsysinfo'
-        opt = 'gluuauth'
-        temp = 'graphm.html'
-        
+    # Gluu authentications will only be for primary server
+    if item == 'gluu_authentications':
         hosts = ('c4.gluu.org',)
-        options={'gluuauth': (None, None, '#')}
+
+    period = request.args.get('period','d')
+    startdate = request.args.get('startdate')
+    enddate = request.args.get('enddate')
     
+    if not enddate:
+        enddate = time.strftime('%m/%d/%Y', time.localtime())
+
+    if startdate:
+        print "Start date"
+        if enddate < startdate:
+            flash("End Date must be greater than Start Date",'warning')
+            start = time.time() - periods[period]['seconds']
+            end = time.time()
+            step = periods[period]['step']
+        else:
+            start = startdate + ' 00:00'
+            start = int(time.mktime(time.strptime(start,"%m/%d/%Y %H:%M")))
+            end = enddate + ' 23:59'
+            end = int(time.mktime(time.strptime(end,"%m/%d/%Y %H:%M")))
+            print "Calculate step"
+            step = int((end-start)/365)
+                
+    else:
+        start = time.time() - periods[period]['seconds']
+        end = time.time()
+        step = periods[period]['step']
     
-    rrd_data = get_chart_data(hosts, funct, opt, period, start_date, end_date)
-    data_dict={ opt: rrd_data[0]}
-    if opt=='gluuauth':
-        data_dict = data_dict[opt]
+    measurement, field = items[item]['data_source'].split('.')
+
+    ret_dict = {}
     
-    return render_template( temp, 
-                            leftmenu = leftmenu,
-                            options=options,
-                            group='single_graph',
-                            opt = opt,
-                            width=900,
+    for host in hosts:
+
+        client = InfluxDBClient('localhost', 8086, 'mbaser', 'qwerty',
+                                host.replace('.','_'))
+
+        print("AGGR FUNCT", items[item]['aggr'])
+        if items[item]['aggr'] == 'DRV':
+            aggr_f = 'derivative(mean({}),1s)'.format(field)
+        elif items[item]['aggr'] == 'DIF':
+            aggr_f = 'DIFFERENCE(FIRST({}))'.format(field)
+        elif items[item]['aggr'] == 'AVG':
+            aggr_f = 'mean({})'.format(field)
+        elif items[item]['aggr'] == 'SUM':
+            aggr_f = 'SUM({})'.format(field)
+        else:
+            aggr_f = 'mean({})'.format(field)
+
+
+        query = ('SELECT {} FROM {} WHERE '
+                  'time >= {}000000000 AND time <= {}000000000 '
+                  'GROUP BY time({}s)'.format(
+                    aggr_f,
+                    measurement,
+                    int(start),
+                    int(end),
+                    step,
+                    )
+                )
+        print query
+        result = client.query(query, epoch='s')
+
+        data_dict = {}
+
+        data = []
+
+        if measurement == 'cpu_info':
+            print "ARRANGE"
+            legends = ['system', 'user', 'nice', 'idle',
+                        'iowait', 'irq', 'softirq', 'steal',
+                        'guest', 'guestnice']
+
+            for d in result['cpu_info']:
+                tt = time.localtime(d['time'])
+                djformat = time.strftime('new Date(%Y, %m, %d, %H, %M)', tt)
+                tmp = [djformat]
+
+                for f in legends:
+                    tmp.append( d['difference_'+f] )
+
+                data.append(tmp)
+
+        else:
+            for s in result.raw['series'][0]['values']:
+                tt = time.localtime(s[0])
+                djformat = time.strftime('new Date(%Y, %m, %d, %H, %M)', tt)
+                tmp = [djformat]
+                for f in s[1:]:
+                    if f:
+                        tmp.append(f)
+                    else:
+                        tmp.append('null')
+                data.append(tmp)
+        
+                legends = []
+               
+            for f in result.raw['series'][0]['columns'][1:]:
+                legends.append( get_legend(f)[1])
+
+        data_dict = {'legends':legends, 'data':data}
+        ret_dict[host]=data_dict
+
+    return ret_dict
+
+
+
+@app.route('/')
+def index():
+
+    return render_template('intro.html', left_menu=left_menu, items=items)
+
+
+@app.route('/ldap/<item>/')
+def ldap_single(item):
+
+    data = getData(item)
+
+    return render_template( 'ldap_single.html', 
+                            left_menu = left_menu,
+                            items=items,
+                            width=1200,
                             height=500,
-                            legends=rrd_data[1],
-                            title= title,
-                            data=data_dict,
-                            opt_list = [opt],
-                            period=period_s,
+                            title= item.replace('_', ' ').title(),
+                            period = get_period_text(),
+                            data=data,
+                            item=item,
                             periods=periods,
                             )
 
-
-
-@app.route('/allldap/<period>')
-def all_ldap(period):
-    hosts = ('c4.gluu.org','c5.gluu.org')
-    opt_list = ['bytes_sent',
+@app.route('/allldap/<item>')
+def ldap_all(item):
+    
+    measurement_list = ['bytes_sent',
                 'entries_sent',
                 'search_operations',
                 'add_operations',
@@ -156,125 +195,68 @@ def all_ldap(period):
                 'modify_operations'
                 ]
 
-
-    period_s=periods[period]
-    start_date = request.args.get("startdate")
-    end_date = request.args.get("enddate")
-   
-    if end_date < start_date:
-       flash("End Date must be greater than Start Date")
-       start_date = None
-       end_date = None
-    
-    if start_date:
-        period_s='{} - {}'.format(start_date, end_date)
-
-
     data_dict =  {}
 
-    funct = 'getldapmon'
+    for measurement in measurement_list:
+        g_data = getData(measurement)
+        data_dict[measurement] = g_data
 
-    for opt in opt_list:
-        g_data = get_chart_data(hosts, funct, opt, period, start_date, end_date)
-        data_dict[opt] = g_data[0]
-
-
-    return render_template('graph.html', 
-                            options=searchlist,
-                            leftmenu = leftmenu,
-                            group='all_ldap',
-                            opt = None,
-                            width=550,
+    return render_template('graph_multi.html', 
+                            left_menu = left_menu,
+                            items=items,
+                            width=800,
                             height=325,
+                            item='summary',
                             title="Multi graph",
                             data=data_dict,
-                            opt_list = opt_list,
-                            period=period_s,
+                            period = get_period_text(),
                             periods=periods,
-                            hosts=hosts)
+                            opt_list=measurement_list
+                            )
 
-@app.route('/system/<opt>/<period>')
-def system(opt, period):
+@app.route('/system/<item>')
+def system(item):
 
-    hosts = ('c4.gluu.org',
-            #'c5.gluu.org',
-            )
+    data = getData(item)
 
-    title = opt.replace('_', ' ').title()
-    period_s=periods[period]
-    start_date = request.args.get("startdate")
-    end_date = request.args.get("enddate")
-   
-    if end_date < start_date:
-       flash("End Date must be greater than Start Date")
-       start_date = None
-       end_date = None
-    
-    if start_date:
-        period_s='{} - {}'.format(start_date, end_date)
+    temp = 'graphs.html'
+    title= item.replace('_', ' ').title()
+    data_g = data
+    colors={}
+    if not item == 'cpu_usage':
+        temp = 'graph_system.html'
 
-    funct = 'getsysinfo'
-    rrd_data = get_chart_data(hosts, funct, opt, period, start_date, end_date)
-    
-    data_dict={ opt: rrd_data[0] }
+    line_colors = ('#DC143C', '#DEB887',
+                   '#006400', '#E9967A', '#1E90FF')
 
-    options={'loadavg': (None, None, '5 Mins Load Average'),
-             'cpuinfo': (None,None, '%'),
-             'diskusage': (None,None, '%'),
-             'memusage': (None,None, '%'),
-             'netio': (None,None, 'bytes in(-)/out(+) per sec'),
+    if item == 'network_i_o':
+        for host in data:
+            for i, lg in enumerate(data[host]['legends']):
+                if 'bytes_recv' in lg:
+                    for d in data[host]['data']:
+                        d[i+1]= -1 * d[i+1]
+        for host in data:
+            colors[host]=[]
 
-    }
+            for i in range(len(data[host]['legends'])/2):
+                colors[host].append(line_colors[i])
+                colors[host].append(line_colors[i])
 
-    if opt=='cpuinfo':
-        temp = 'graphs.html'
-        data_g = data_dict[opt]
-        width = 600
-        height = 325
-        title = 'Cpu Usage'
-    elif opt=='diskusage':
-        temp = 'graphm.html'
-        width = 600
-        height = 325
-        title = 'Disk Usage'
-        data_g = data_dict[opt]
-        
-    elif opt=='loadavg':
-        temp = 'graph.html'
-        data_g = data_dict
-        title = 'Load Average'
-        width = 900
-        height = 500
-    elif opt=='memusage':
-        temp = 'graph.html'
-        data_g = data_dict
-        title = 'Memory Usage'
-        vMax = 100
-        width = 900
-        height = 500
-
-    elif opt=='netio':
-        temp = 'graphm.html'
-        width = 600
-        height = 325
-        title = 'Network Traffic'
-        data_g = data_dict[opt]
-    
 
     return render_template(temp, 
-                            leftmenu = leftmenu,
-                            options = options,
-                            legends=rrd_data[1],
-                            group='system',
-                            opt = opt,
-                            width=width,
-                            height=height,
-                            title= title,
-                            data= data_g,
-                            period=period_s,
-                            opt_list = [opt],
-                            periods=periods,
-                            )
+                        left_menu = left_menu,
+                        items=items,
+                        width=650,
+                        height=324,
+                        title= title,
+                        data= data_g,
+                        item=item,
+                        period = get_period_text(),
+                        periods=periods,
+                        colors=colors
+                        )
+
+
 
 if __name__ == '__main__':
 
