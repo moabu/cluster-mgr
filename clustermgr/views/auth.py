@@ -1,5 +1,4 @@
 import ConfigParser
-import os
 
 from flask import current_app
 from flask import Blueprint
@@ -12,14 +11,15 @@ from flask_login import UserMixin
 from flask_login import login_user
 from flask_login import logout_user
 from flask_login import current_user
-from flask_login import login_required
 
 from ..extensions import login_manager
 from ..forms import LoginForm
 
 
 auth_bp = Blueprint("auth", __name__)
+
 login_manager.login_view = "auth.login"
+login_manager.login_message_category = "warning"
 
 
 class User(UserMixin):
@@ -49,32 +49,27 @@ def user_from_config(cfg_file, username):
 
 @login_manager.user_loader
 def load_user(username):
-    cfg_file = os.path.join(current_app.config["DATA_DIR"], "auth.ini")
+    cfg_file = current_app.config["AUTH_CONFIG_FILE"]
     user = user_from_config(cfg_file, username)
     return user
 
 
-@auth_bp.route("/protected/")
-@login_required
-def protected():
-    return 'Logged in as: ' + current_user.username
-
-
 @auth_bp.route("/login/", methods=["GET", "POST"])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for("index.home"))
+
     form = LoginForm()
     if form.validate_on_submit():
-        # Login and validate the user.
-        # user should be an instance of your `User` class
-        cfg_file = os.path.join(current_app.config["DATA_DIR"], "auth.ini")
+        cfg_file = current_app.config["AUTH_CONFIG_FILE"]
         user = user_from_config(cfg_file, form.username.data)
 
         if user and form.password.data == user.password:
+            next_ = request.values.get('next')
             login_user(user)
-            next_ = request.args.get('next')
             return redirect(next_ or url_for('index.home'))
 
-        flash("invalid username or password", "warning")
+        flash("Invalid username or password.", "warning")
     return render_template('auth_login.html', form=form)
 
 

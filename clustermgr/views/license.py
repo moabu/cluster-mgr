@@ -3,11 +3,11 @@ from datetime import datetime
 
 from flask import Blueprint
 from flask import current_app
-# from flask import flash
 from flask import redirect
 from flask import render_template
 from flask import request
 from flask import url_for
+from flask_login import login_required
 
 from ..core.license import license_manager
 from ..forms import LicenseSettingsForm
@@ -27,6 +27,7 @@ def _humanize_timestamp(ts, date_fmt="%Y:%m:%d %H:%M:%S GMT"):
 
 
 @license_bp.route("/")
+@login_required
 def index():
     license_data, err = license_manager.validate_license()
 
@@ -40,6 +41,7 @@ def index():
 
 
 @license_bp.route("/settings/", methods=["GET", "POST"])
+@login_required
 def settings():
     form = LicenseSettingsForm()
 

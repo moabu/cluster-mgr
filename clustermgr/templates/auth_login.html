@@ -32,6 +32,7 @@
                 </div>
             </div>
         </div>
+        <input type="hidden" value="{{ request.values.get('next') }}" name="next">
         <div class="box-footer">
             {{ form.login(class="btn btn-primary pull-right") }}
         </div>

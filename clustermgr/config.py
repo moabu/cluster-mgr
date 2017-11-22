@@ -38,6 +38,7 @@ class Config(object):
     LICENSE_SIGNED_FILE = os.path.join(DATA_DIR, "signed_license")
     LICENSE_VALIDATOR = os.path.join(JAVALIBS_DIR, "oxlicense-validator-3.1.1.jar")
     LICENSE_ENFORCEMENT_ENABLED = True
+    AUTH_CONFIG_FILE = os.path.join(DATA_DIR, "auth.ini")
 
 
 class ProductionConfig(Config):

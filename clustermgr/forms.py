@@ -161,6 +161,6 @@ class LicenseSettingsForm(FlaskForm):
 
 
 class LoginForm(FlaskForm):
-    username = StringField("username", validators=[DataRequired()])
-    password = PasswordField("password", validators=[DataRequired()])
+    username = StringField("Username", validators=[DataRequired()])
+    password = PasswordField("Password", validators=[DataRequired()])
     login = SubmitField("Login")
