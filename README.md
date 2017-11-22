@@ -2,11 +2,11 @@
 
 GUI tool for managing Gluu Server and OpenLDAP replication.
 
-Currently only supports installation on Ubuntu 14 and 16. It can, however, configure cluster replication on Debian and CentOS.
+Cluster Manager currently only supports installation on Ubuntu 14 and 16. It can, however, be used to configure Gluu Server clusters on Ubuntu, Debian, and CentOS.
 
-#### The Gluu Cluster Manager should preferably be installed on a secure adminstrators computer or a VM as it will have SSH access to all the servers in the cluster.
+**Gluu Cluster Manager should be installed on a secure adminstrators computer or a VM as it will have SSH access to all servers in the cluster.**
 
-- After configuration, the Gluu Cluster Manager no longer needs to be actively connected to the cluster for them to work properly. It can however be used to monitor and manage your cluster for modifications at any time.
+After configuration, Cluster Manager no longer needs to be actively connected to the cluster for them to work properly. It can however be used to monitor and manage your cluster for modifications at any time.
 
 ## Installing Cluster Manager
 
