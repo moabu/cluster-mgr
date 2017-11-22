@@ -1,11 +1,11 @@
-import json
-import rrdtool
+import psutil
 import time
 import os
 import re
 
-from flask import Flask, request, redirect, url_for
+from flask import Flask, request, redirect, url_for, jsonify
 import sqlite3
+
 
 app = Flask(__name__)
 
@@ -24,7 +24,7 @@ data_dir = '/var/monitoring'
 
 @app.errorhandler(404)
 def page_not_found(e):
-    return json.dumps({'data': 'Not found'})
+    return jsonify({'data': 'Not found'})
 
 
 @app.route('/getsqlite/<measurement>/<start>')
@@ -37,10 +37,12 @@ def get_sqlite_stats(measurement, start):
         feilds = [ d[0] for d in cur.description ]
         data = result
 
-    return json.dumps({'data':{'fields':feilds, 'data': data}})
+    return jsonify({'data':{'fields':feilds, 'data': data}})
 
-
-
+@app.route('/uptime')
+def get_age():
+    uptime = int(time.time() - psutil.boot_time())
+    return jsonify({'data':{'uptime': uptime}})
 
 if __name__ == "__main__":
     app.debug = True

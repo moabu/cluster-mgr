@@ -11,11 +11,19 @@
 
 <table class="table table-hover">
 <thead>
-<tr><th>Server</th><th>Status</th><th>Age</th><th>CPU</th><th>CPU Average</th><th>Memory</th><th>Memory Average</th></tr>
+<tr><th>Server</th><th>Status</th><th>Uptime</th><th>CPU (%)</th><th>CPU Avg (%)</th><th>Memory (%)</th><th>Memory Avg (%)</th></tr>
 </thead>
 {% for host in hosts %}
 
-<tr><td>{{host['name']}}</td><td></td><td></td><td><div id="chart_cpu{{host['id']}}"></div> <td align="left">{{data['cpu'][host['name']]['mean']}}</td></td><td><div id="chart_mem{{host['id']}}"> </div></td><td>{{data['mem'][host['name']]['mean']}}</td></tr>
+<tr>
+    <td>{{host['name']}}</td>
+    <td>{% if data['uptime'][host['name']] %}Running {% else %} Failed to Connect {% endif %} </td>
+    <td>{{data['uptime'][host['name']]}}</td>
+    <td><div id="chart_cpu{{host['id']}}"></div></td>
+    <td>{{data['cpu'][host['name']]['mean']}}</td>
+    <td><div id="chart_mem{{host['id']}}"> </div></td>
+    <td>{{data['mem'][host['name']]['mean']}}</td>
+</tr>
 
 {% endfor %}
 

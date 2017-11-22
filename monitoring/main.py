@@ -3,6 +3,7 @@ import time
 import requests
 import json
 
+from datetime import timedelta
 
 from flask import Flask, request, Response, make_response, render_template,\
                     redirect, url_for, flash
@@ -44,6 +45,9 @@ def get_period_text():
     
 
     return ret_text
+
+def get_max_value(measurement):
+    pass
 
 def get_mean_last(measurement, host):
 
@@ -177,6 +181,15 @@ def getData(item, step=None):
     return ret_dict
 
 
+def get_uptime(host):
+    try:
+        url = "http://{}:10443/uptime".format(host)
+        r = requests.get(url, verify=False)
+        data = json.loads(r.text)
+
+        return str(timedelta(seconds=data['data']['uptime']))
+    except:
+        return ''
 
 @app.route('/')
 def index():
@@ -185,7 +198,7 @@ def index():
              {'name':'c5.gluu.org', 'id': 3},
     )
 
-    data = {}
+    data = {'uptime':{}}
     
     
     data['cpu']= getData('cpu_percent', step=1200)
@@ -199,7 +212,7 @@ def index():
         m,l = get_mean_last('mem_usage', host['name'])
         data['mem'][host['name']]['mean']="%0.1f" % m
         data['mem'][host['name']]['last']="%0.1f" % l
-        
+        data['uptime'][host['name']] = get_uptime(host['name'])
 
     return render_template('intro.html', 
                             left_menu=left_menu,
