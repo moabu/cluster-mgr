@@ -13,6 +13,7 @@
     <a href="{{url_for(items[item]['end_point'], item=item, period=p)}}">{{periods[p]['title']}}</a>
 {% endfor %}
 
+
 <br><br>
 <form method="GET">
     Start Date: <input name="startdate" id="datepickers">
@@ -49,36 +50,45 @@
   
     google.charts.load('current', {'packages':['corechart']});
     
-
-    {% for h in data %}
+    
+    {% for opt in data  %}
+    
+    
     google.charts.setOnLoadCallback(drawChart{{loop.index0}});
-      function drawChart{{loop.index0}}() {
-        var data = google.visualization.arrayToDataTable([
-          ['datetime', {% for l in data[h]['legends'] %}'{{l}}',{%endfor%}],
+
+    function drawChart{{loop.index0}}() {
 
 
-           {% for d in data[h]['data'] %}
-           
-           [{% for i in d %}{{i}},{%endfor%}],
-           
-           {% endfor %}
+        var data{{loop.index0}} = new google.visualization.DataTable();
+        data{{loop.index0}}.addColumn('datetime', 'Time');
+        {% set parind = loop.index0 %}
+        {% for lg in data[opt]['legends'] %}
+        data{{parind}}.addColumn('number', '{{lg.replace("_"," ")}}');
+        {% endfor %}
+        data{{loop.index0}}.addRows([
 
+            {% for d in data[opt]['data'] %}
+            [{{d[0]}},{% for di in d[1:] %}{{di}},{% endfor %}],
+            {% endfor %}
 
-        ]);
+          ]);
 
+        
         var options = {
-          title: '{{title}} - {{h}}',
-          hAxis: {title: 'Time',  titleTextStyle: {color: '#333'}},
-          vAxis: {minValue: 0, title: ''},
-          height: {{height}},
-          width: {{width}},
-          isStacked: 'percent',
+                title: '{{opt}}',
+                width: {{width}},
+                height: {{height}},
+                vAxis: { title: '{{items[item]["vAxis"]}}', {% if items[item].get("vAxisMax") %} maxValue: {{items[item]["vAxisMax"]}} {% endif %}},
+                hAxis: { title: 'Time' },
+                {% if opt in colors %} colors: {{colors[opt]|safe}}, {% endif %}
+                interpolateNulls: true
+            };
 
-        };
+        var chart = new google.visualization.{{items[item]['chartType']}}(document.getElementById('chart_div_{{loop.index0}}'));
+        chart.draw(data{{loop.index0}}, options);
 
-        var chart = new google.visualization.SteppedAreaChart(document.getElementById('chart_div_{{loop.index0}}'));
-        chart.draw(data, options);
-      }
+    }
+
   
     {% endfor %}
   

@@ -10,14 +10,9 @@
 {% block content %}
 
 {% for p in ['d', 'w', 'm','y'] %}
-
-    {% if opt %}
-    <a href="{{url_for(group,opt=opt, period=p)}}">{{periods[p]}}</a>
-    {% else %}
-    <a href="{{url_for(group, period=p)}}">{{periods[p]}}</a>
-    {% endif %}
-
+    <a href="{{url_for(items[item]['end_point'], item=item, period=p)}}">{{periods[p]['title']}}</a>
 {% endfor %}
+
 
 <br><br>
 <form method="GET">
@@ -72,8 +67,9 @@
         data{{loop.index0}}.addColumn('number', '{{host}}');
         data{{loop.index0}}.addRows([
 
-            {% for d in data[opt][host][:-1] %}
-            {{d}}
+            
+            {% for d in data[opt][host]['data'] %}
+            [{{d[0]}},{% for di in d[1:] %}{{di}},{% endfor %}],
             {% endfor %}
           ]);
         {% endfor %}
@@ -81,10 +77,11 @@
                 title: '{{opt.replace('_',' ').title()}}',
                 width: {{width}},
                 height: {{height}},
-                vAxis: { title: '{{options[opt][2]}}', {% if options[opt][2]=='%' %} maxValue: 100, {% endif %} },
+                vAxis: { title: '{{items[opt]["vAxis"]}}', {% if '%' in items[opt]['vAxis'] %} maxValue: 100, {% endif %} },
                 hAxis: { title: 'Time' },
                 
             };
+
 
         var joinedData = google.visualization.data.join(data0, data1, 'full', [[0, 0]], [1], [1]);
         

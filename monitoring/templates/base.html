@@ -41,7 +41,7 @@
             <li><a href="/"><i class="fa fa-dashboard"></i><span>Home</span></a></li>
             
             
-            {% for lm in leftmenu %}
+            {% for lm in left_menu %}
                 <li class="treeview">
                   <a href="#">
                       
@@ -51,8 +51,8 @@
                     </span>
                   </a>
                   <ul class="treeview-menu">
-                    {% for o in leftmenu[lm][1] %}
-                        <li><a href="{{url_for(leftmenu[lm][0], opt=o, period='d')}}"><i class="fa fa-plus-square"></i>{% if o==opt%}<span style="background-color:#394f58">{{o.replace('_', ' ').title()}}</span>{% else %}{{o.replace('_', ' ').title()}}{% endif %}</a></li>
+                    {% for item in left_menu[lm] %}
+                        <li><a href="{{url_for(items[item]['end_point'], item=item)}}"><i class="fa fa-plus-square"></i>{% if item == request.path.split('/')[2] %}<span style="background-color:#394f58">{{item.replace('_', ' ').title()}}</span>{% else %}{{item.replace('_', ' ').title()}}{% endif %}</a></li>
                     {% endfor %}
                   </ul>
                 </li>
@@ -101,5 +101,6 @@
   <script src="{{ url_for('static', filename='js/adminlte.min.js') }}"></script>
 
     {% block js %}{% endblock js %}
+    
   </body>
 </html>
