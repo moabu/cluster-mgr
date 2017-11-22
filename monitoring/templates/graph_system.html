@@ -78,7 +78,7 @@
                 title: '{{opt}}',
                 width: {{width}},
                 height: {{height}},
-                vAxis: { title: '{{items[item]["vAxis"]}}', {% if items[item].get("vAxisMax") %} maxValue: {{items[item]["vAxisMax"]}} {% endif %}},
+                vAxis: { title: '{{items[item]["vAxis"]}}', {% if v_axis_max %} viewWindow: { min: {{v_min_value}}, max: {{v_axis_max}} } {% endif %} } ,
                 hAxis: { title: 'Time' },
                 {% if opt in colors %} colors: {{colors[opt]|safe}}, {% endif %}
                 interpolateNulls: true
