@@ -1,7 +1,8 @@
 """A Flask blueprint with the views and logic dealing with the Cache Management
 of Gluu Servers"""
 from flask import Blueprint, render_template, url_for, flash, redirect, \
-    request, session, jsonify
+    jsonify
+from flask_login import login_required
 
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cache import get_cache_methods, install_redis_stunnel, \
@@ -15,6 +16,7 @@ cache_mgr.before_request(license_reminder)
 
 
 @cache_mgr.route('/')
+@login_required
 @license_manager.license_required
 def index():
     servers = Server.query.all()
@@ -39,6 +41,7 @@ def index():
 
 
 @cache_mgr.route('/refresh_methods')
+@login_required
 @license_manager.license_required
 def refresh_methods():
     task = get_cache_methods.delay()
@@ -46,6 +49,7 @@ def refresh_methods():
 
 
 @cache_mgr.route('/change/', methods=['GET', 'POST'])
+@login_required
 @license_manager.license_required
 def change():
     servers = Server.query.all()
@@ -56,6 +60,7 @@ def change():
 
 
 @cache_mgr.route('/configure/<method>/')
+@login_required
 @license_manager.license_required
 def configure(method):
     task = configure_cache_cluster.delay(method)
@@ -66,6 +71,7 @@ def configure(method):
 
 
 @cache_mgr.route('/finish_clustering/<method>/')
+@login_required
 @license_manager.license_required
 def finish_clustering(method):
     servers = Server.query.filter(Server.redis.is_(True)).filter(

@@ -3,19 +3,20 @@ import os
 from flask import Blueprint, render_template, redirect, url_for, flash, \
     request, jsonify, session
 from flask import current_app as app
+from flask_login import login_required
 from werkzeug.utils import secure_filename
 from celery.result import AsyncResult
 
 from clustermgr.extensions import db, wlogger, celery
-from clustermgr.models import AppConfiguration, KeyRotation, Server
-from clustermgr.forms import AppConfigForm, KeyRotationForm, SchemaForm, \
+from clustermgr.models import AppConfiguration, Server
+from clustermgr.forms import AppConfigForm, SchemaForm, \
     TestUser, InstallServerForm
 
 from clustermgr.core.ldap_functions import LdapOLC
-from clustermgr.tasks.all import rotate_pub_keys
-from clustermgr.core.utils import encrypt_text
-from clustermgr.core.utils import generate_random_key
-from clustermgr.core.utils import generate_random_iv
+# from clustermgr.tasks.all import rotate_pub_keys
+# from clustermgr.core.utils import encrypt_text
+# from clustermgr.core.utils import generate_random_key
+# from clustermgr.core.utils import generate_random_iv
 from ..core.license import license_reminder
 
 index = Blueprint('index', __name__)
@@ -23,6 +24,7 @@ index.before_request(license_reminder)
 
 
 @index.route('/')
+@login_required
 def home():
     """This is the home view --dashboard--"""
     if 'nongluuldapinfo' in session:
@@ -31,35 +33,37 @@ def home():
     if not appconf:
         return render_template('intro.html', setup='cluster')
 
-    servers  = Server.query.all()
+    servers = Server.query.all()
     if not servers:
         return render_template('intro.html', setup='server')
 
     return render_template('dashboard.html', servers=servers, app_conf=appconf)
 
+
 @index.route('/configuration/', methods=['GET', 'POST'])
+@login_required
 def app_configuration():
     """This view provides application configuration forms"""
 
-    #create forms
+    # create forms
     conf_form = AppConfigForm()
     sch_form = SchemaForm()
     config = AppConfiguration.query.first()
     schemafiles = os.listdir(app.config['SCHEMA_DIR'])
 
-    #If the form is sumtted and password for replication user was not
-    #not supplied, make password "**dummu**", so don't change
-    #what we have before
+    # If the form is sumtted and password for replication user was not
+    # not supplied, make password "**dummu**", so don't change
+    # what we have before
     if request.method == 'POST' and not conf_form.replication_pw.data.strip():
         conf_form.replication_pw.data = '**dummy**'
         conf_form.replication_pw_confirm.data = '**dummy**'
 
-    #If form is submitted and ladidated process it
+    # If form is submitted and ladidated process it
     if conf_form.update.data and conf_form.validate_on_submit():
-        #If prviously configured and admin changed replcation user (dn) and it's
-        #password .this will break replication, check and war admin.
+        # If prviously configured and admin changed replcation user (dn) and it's
+        # password .this will break replication, check and war admin.
         replication_dn = "cn={},o=gluu".format(
-                                        conf_form.replication_dn.data.strip())
+            conf_form.replication_dn.data.strip())
         if not config:
             config = AppConfiguration()
         else:
@@ -67,16 +71,15 @@ def app_configuration():
                 flash("You changed Replication Manager dn. "
                       "This will break replication. "
                       "Please re-deploy all LDAP Servers.",
-                       "danger")
-
+                      "danger")
 
         if conf_form.replication_pw.data and \
                 conf_form.replication_pw_confirm.data is not '**dummy**':
             config.replication_pw = conf_form.replication_pw.data.strip()
             flash("You changed Replication Manager password. "
-                    "This will break replication. "
-                    "Please re-deploy all LDAP Servers.",
-                    "danger")
+                  "This will break replication. "
+                  "Please re-deploy all LDAP Servers.",
+                  "danger")
 
         config.replication_dn = replication_dn
         config.gluu_version = conf_form.gluu_version.data.strip()
@@ -96,10 +99,10 @@ def app_configuration():
         purge_interval_min = conf_form.purge_interval_min.data
 
         log_purge = "{}:{}:{} {}:{}:{}".format(
-                                            purge_age_day, purge_age_hour,
-                                            purge_age_min, purge_interval_day,
-                                            purge_interval_hour,
-                                            purge_interval_min)
+            purge_age_day, purge_age_hour,
+            purge_age_min, purge_interval_day,
+            purge_interval_hour,
+            purge_interval_min)
         config.log_purge = log_purge
         db.session.add(config)
         db.session.commit()
@@ -145,94 +148,93 @@ def app_configuration():
             conf_form.purge_interval_hour.data = pi[1]
             conf_form.purge_interval_min.data = pi[2]
 
-
     return render_template('app_config.html', cform=conf_form, sform=sch_form,
                            config=config, schemafiles=schemafiles,
                            next=request.args.get('next'))
 
 
-@index.route("/key_rotation", methods=["GET", "POST"])
-def key_rotation():
-    kr = KeyRotation.query.first()
-    form = KeyRotationForm()
-    oxauth_servers = [server for server in Server.query]
+# @index.route("/key_rotation", methods=["GET", "POST"])
+# def key_rotation():
+#     kr = KeyRotation.query.first()
+#     form = KeyRotationForm()
+#     oxauth_servers = [server for server in Server.query]
 
-    if request.method == "GET" and kr is not None:
-        form.interval.data = kr.interval
-        form.type.data = kr.type
-        form.oxeleven_url.data = kr.oxeleven_url
-        form.inum_appliance.data = kr.inum_appliance
+#     if request.method == "GET" and kr is not None:
+#         form.interval.data = kr.interval
+#         form.type.data = kr.type
+#         form.oxeleven_url.data = kr.oxeleven_url
+#         form.inum_appliance.data = kr.inum_appliance
 
-    if form.validate_on_submit():
-        if not kr:
-            kr = KeyRotation()
+#     if form.validate_on_submit():
+#         if not kr:
+#             kr = KeyRotation()
 
-        kr.interval = form.interval.data
-        kr.type = form.type.data
-        kr.oxeleven_url = form.oxeleven_url.data
-        kr.inum_appliance = form.inum_appliance.data
-        kr.oxeleven_token_key = generate_random_key()
-        kr.oxeleven_token_iv = generate_random_iv()
-        kr.oxeleven_token = encrypt_text(
-            b"{}".format(form.oxeleven_token.data),
-            kr.oxeleven_token_key,
-            kr.oxeleven_token_iv,
-        )
-        db.session.add(kr)
-        db.session.commit()
-        # rotate the keys immediately
-        rotate_pub_keys.delay()
-        return redirect(url_for("key_rotation"))
-    return render_template("key_rotation.html",
-                           form=form,
-                           rotation=kr,
-                           oxauth_servers=oxauth_servers)
-
-
-@index.route("/api/oxauth_server", methods=["GET", "POST"])
-def oxauth_server():
-    if request.method == "POST":
-        hostname = request.form.get("hostname")
-        gluu_server = request.form.get("gluu_server")
-
-        if gluu_server == "true":
-            gluu_server = True
-        else:
-            gluu_server = False
-
-        if not hostname:
-            return jsonify({
-                "status": 400,
-                "message": "Invalid data",
-                "params": "hostname can't be empty",
-            }), 400
-
-        server = Server()
-        server.hostname = hostname
-        server.gluu_server = gluu_server
-        db.session.add(server)
-        db.session.commit()
-        return jsonify({
-            "id": server.id,
-            "hostname": server.hostname,
-            "gluu_server": server.gluu_server,
-        }), 201
-
-    servers = [{
-        "id": srv.id,
-        "hostname": srv.hostname,
-        "gluu_server": srv.gluu_server,
-    } for srv in Server.query]
-    return jsonify(servers)
+#         kr.interval = form.interval.data
+#         kr.type = form.type.data
+#         kr.oxeleven_url = form.oxeleven_url.data
+#         kr.inum_appliance = form.inum_appliance.data
+#         kr.oxeleven_token_key = generate_random_key()
+#         kr.oxeleven_token_iv = generate_random_iv()
+#         kr.oxeleven_token = encrypt_text(
+#             b"{}".format(form.oxeleven_token.data),
+#             kr.oxeleven_token_key,
+#             kr.oxeleven_token_iv,
+#         )
+#         db.session.add(kr)
+#         db.session.commit()
+#         # rotate the keys immediately
+#         rotate_pub_keys.delay()
+#         return redirect(url_for("key_rotation"))
+#     return render_template("key_rotation.html",
+#                            form=form,
+#                            rotation=kr,
+#                            oxauth_servers=oxauth_servers)
 
 
-@index.route("/api/oxauth_server/<id>", methods=["POST"])
-def delete_oxauth_server(id):
-    server = Server.query.get(id)
-    if server:
-        db.session.delete(server)
-        db.session.commit()
-    return jsonify({}), 204
+# @index.route("/api/oxauth_server", methods=["GET", "POST"])
+# def oxauth_server():
+#     if request.method == "POST":
+#         hostname = request.form.get("hostname")
+#         gluu_server = request.form.get("gluu_server")
+
+#         if gluu_server == "true":
+#             gluu_server = True
+#         else:
+#             gluu_server = False
+
+#         if not hostname:
+#             return jsonify({
+#                 "status": 400,
+#                 "message": "Invalid data",
+#                 "params": "hostname can't be empty",
+#             }), 400
+
+#         server = Server()
+#         server.hostname = hostname
+#         server.gluu_server = gluu_server
+#         db.session.add(server)
+#         db.session.commit()
+#         return jsonify({
+#             "id": server.id,
+#             "hostname": server.hostname,
+#             "gluu_server": server.gluu_server,
+#         }), 201
+
+#     servers = [{
+#         "id": srv.id,
+#         "hostname": srv.hostname,
+#         "gluu_server": srv.gluu_server,
+#     } for srv in Server.query]
+#     return jsonify(servers)
+
+
+# @index.route("/api/oxauth_server/<id>", methods=["POST"])
+# def delete_oxauth_server(id):
+#     server = Server.query.get(id)
+#     if server:
+#         db.session.delete(server)
+#         db.session.commit()
+#     return jsonify({}), 204
 
 
 @index.route('/log/<task_id>')
@@ -303,14 +305,14 @@ def install_ldap_server():
 
             return redirect(url_for('cluster.install_ldap_server'))
 
-    return render_template('new_server.html', form=form,  data=data)
+    return render_template('new_server.html', form=form, data=data)
 
 
 @index.route('/mmr/')
 def multi_master_replication():
     """Multi Master Replication view"""
 
-    #Check if replication user (dn) and password has been configured
+    # Check if replication user (dn) and password has been configured
     app_config = AppConfiguration.query.first()
     if not app_config:
         flash("Repication user and/or password has not been defined."
@@ -325,8 +327,7 @@ def multi_master_replication():
     ldaps = Server.query.all()
     serverStats = {}
 
-
-    #Collect replication information for all configured servers
+    # Collect replication information for all configured servers
     for ldp in ldaps:
 
         s = LdapOLC(
@@ -345,7 +346,7 @@ def multi_master_replication():
             if sstat['server_id']:
                 serverStats[ldp.hostname] = sstat
 
-    #If there is no ldap server, return to home
+    # If there is no ldap server, return to home
     if not ldaps:
         flash("Please add ldap servers.", "warning")
         return redirect(url_for('index.home'))
@@ -366,13 +367,13 @@ def add_test_user(server_id):
     form = TestUser()
     header = 'Add Test User [{0}]'.format(server.hostname)
 
-    #If form is submitted and validated, add user to specified server_id
+    # If form is submitted and validated, add user to specified server_id
     if form.validate_on_submit():
-        #Make ldap connection
+        # Make ldap connection
         ldp = getLdapConn(server.hostname, "cn=directory manager,o=gluu",
                           server.ldap_password)
 
-        #If connection was established try to add test user
+        # If connection was established try to add test user
         if ldp:
             if ldp.addTestUser(form.first_name.data.strip(), form.last_name.data.strip(),
                                form.email.data.strip()):
@@ -385,7 +386,7 @@ def add_test_user(server_id):
 
             return redirect(url_for('index.multi_master_replication'))
 
-    return render_template('new_server.html', form=form,  header=header)
+    return render_template('new_server.html', form=form, header=header)
 
 
 @index.route('/searchtestusers/<int:server_id>')
@@ -398,11 +399,11 @@ def search_test_users(server_id):
 
     users = []
 
-    #Make ldap connection
+    # Make ldap connection
     ldp = getLdapConn(server.hostname,
                       "cn=directory manager,o=gluu", server.ldap_password)
 
-    #If connection was established try to display test users
+    # If connection was established try to display test users
     if ldp:
 
         if not ldp.searchTestUsers():
@@ -427,11 +428,11 @@ def delete_test_user(server_id, dn):
     """This view delates test user"""
     server = Server.query.get(server_id)
 
-    #Make ldap connection
+    # Make ldap connection
     ldp = getLdapConn(server.hostname,
                       "cn=directory manager,o=gluu", server.ldap_password)
 
-    #If connection was established try to delete test user
+    # If connection was established try to delete test user
     if ldp:
         if ldp.delDn(dn):
             flash("Test User form {0} was deleted".format(
@@ -449,10 +450,10 @@ def remove_provider_from_consumer(consumer_id, provider_addr):
 
     server = Server.query.get(consumer_id)
 
-    #Make ldap connection
+    # Make ldap connection
     ldp = getLdapConn(server.hostname, "cn=config", server.ldap_password)
 
-    #If connection was established try to delete provider
+    # If connection was established try to delete provider
     if ldp:
         r = ldp.removeProvider("ldaps://{0}:1636".format(provider_addr))
         if r:
@@ -472,10 +473,10 @@ def add_provider_to_consumer(consumer_id, provider_id):
 
     app_config = AppConfiguration.query.first()
 
-    #Make ldap connection
+    # Make ldap connection
     ldp = getLdapConn(server.hostname, "cn=config", server.ldap_password)
 
-    #If connection was established try to add provider
+    # If connection was established try to add provider
     if ldp:
         provider = Server.query.get(provider_id)
 
@@ -500,6 +501,7 @@ def add_provider_to_consumer(consumer_id, provider_id):
             ldp.makeMirroMode()
 
     return redirect(url_for('index.multi_master_replication'))
+
 
 @index.route('/removecustomschema/<schema_file>')
 def remove_custom_schema(schema_file):

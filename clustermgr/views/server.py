@@ -5,6 +5,7 @@ import uuid
 
 from flask import Blueprint, render_template, redirect, url_for, flash, \
     request
+from flask_login import login_required
 
 from clustermgr.extensions import db
 from clustermgr.models import Server, AppConfiguration
@@ -19,14 +20,17 @@ from ..core.license import license_reminder
 server_view = Blueprint('server', __name__)
 server_view.before_request(license_reminder)
 
+
 def sync_ldap_passwords(password):
     non_primary_servers = Server.query.filter(
-                        Server.primary_server.isnot(True)).all()
+        Server.primary_server.isnot(True)).all()
     for server in non_primary_servers:
         server.ldap_password = password
     db.session.commit()
 
+
 @server_view.route('/', methods=['GET', 'POST'])
+@login_required
 @license_manager.license_required
 def index():
     """Route for URL /server/. GET returns ServerForm to add a server,
@@ -39,7 +43,7 @@ def index():
         return redirect(url_for('index.app_configuration', next="/server/"))
 
     form = ServerForm()
-    header="New Server"
+    header = "New Server"
     primary_server = Server.query.filter(
         Server.primary_server.is_(True)).first()
 
@@ -70,6 +74,7 @@ def index():
 
 
 @server_view.route('/edit/<int:server_id>/', methods=['GET', 'POST'])
+@login_required
 @license_manager.license_required
 def edit(server_id):
     server = Server.query.get(server_id)
@@ -78,9 +83,9 @@ def edit(server_id):
         return redirect(url_for('index.home'))
 
     form = ServerForm()
-    header="Update Server Details"
+    header = "Update Server Details"
     if server.primary_server:
-        header="Update Primary Server Details"
+        header = "Update Primary Server Details"
         if request.method == 'POST' and not form.ldap_password.data.strip():
             form.ldap_password.data = '**dummy**'
             form.ldap_password_confirm.data = '**dummy**'
@@ -108,6 +113,7 @@ def edit(server_id):
 
 
 @server_view.route('/remove/<int:server_id>/')
+@login_required
 @license_manager.license_required
 def remove(server_id):
     server = Server.query.filter_by(id=server_id).first()
@@ -141,7 +147,7 @@ def get_inums():
 def get_setup_properties():
     """This fucntion returns properties for setup.properties file."""
 
-    #We are goint to deal with these properties with cluster-mgr
+    # We are goint to deal with these properties with cluster-mgr
     setup_prop = {
         'hostname': '',
         'orgName': '',
@@ -153,33 +159,33 @@ def get_setup_properties():
         'inumAppliance': '',
         'admin_email': '',
         'ip': '',
-        'installOxAuth':True,
-        'installOxTrust':True,
-        'installLDAP':True,
-        'installHTTPD':True,
-        'installJce':True,
-        'installSaml':False,
-        'installAsimba':False,
-        #'installCas':False,
-        'installOxAuthRP':False,
-        'installPassport':False,
-        }
+        'installOxAuth': True,
+        'installOxTrust': True,
+        'installLDAP': True,
+        'installHTTPD': True,
+        'installJce': True,
+        'installSaml': False,
+        'installAsimba': False,
+        # 'installCas':False,
+        'installOxAuthRP': False,
+        'installPassport': False,
+    }
 
-    #Check if there exists a previously created setup.properties file.
-    #If exists, modify properties with content of this file.
+    # Check if there exists a previously created setup.properties file.
+    # If exists, modify properties with content of this file.
     setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
     if os.path.exists(setup_properties_file):
         for l in open(setup_properties_file):
             ls = l.strip().split('=')
             if ls:
-                k,v = tuple(ls)
+                k, v = tuple(ls)
                 if v == 'True':
                     v = True
                 elif v == 'False':
                     v = False
                 setup_prop[k] = v
 
-    #Every time this function is called, create new inum
+    # Every time this function is called, create new inum
     inum_org, inum_appliance = get_inums()
     setup_prop['inumOrg'] = inum_org
     setup_prop['inumAppliance'] = inum_appliance
@@ -188,57 +194,58 @@ def get_setup_properties():
 
 
 @server_view.route('/installgluu/<int:server_id>/', methods=['GET', 'POST'])
+@login_required
 @license_manager.license_required
 def install_gluu(server_id):
     """Gluu server installation view. This function creates setup.properties
     file and redirects to install_gluu_server which does actual installation.
     """
 
-    #If current server is not primary server, first we should identify
-    #primary server. If primary server is not installed then redirect
-    #to home to install primary.
+    # If current server is not primary server, first we should identify
+    # primary server. If primary server is not installed then redirect
+    # to home to install primary.
     pserver = Server.query.filter_by(primary_server=True).first()
     if not pserver:
         flash("Please identify primary server before starting to install Gluu "
               "Server.", "warning")
         return redirect(url_for('index.home'))
 
-    #If current server is not primary server, and primary server was installed,
-    #start installation redirecting to cluster.install_gluu_server
+    # If current server is not primary server, and primary server was installed,
+    # start installation redirecting to cluster.install_gluu_server
     server = Server.query.get(server_id)
     if not server.primary_server:
         return redirect(url_for('cluster.install_gluu_server',
                                 server_id=server_id))
 
-    #We need os type to perform installation. If it was not identified,
-    #return to home and wait until it is identifed.
+    # We need os type to perform installation. If it was not identified,
+    # return to home and wait until it is identifed.
     if not server.os:
         flash("Server OS version hasn't been identified yet. Checking Now",
               "warning")
         collect_server_details.delay(server_id)
         return redirect(url_for('index.home'))
 
-    #If we come up here, it is primary server and we will ask admin which
-    #components will be installed. So prepare form by InstallServerForm
+    # If we come up here, it is primary server and we will ask admin which
+    # components will be installed. So prepare form by InstallServerForm
     appconf = AppConfiguration.query.first()
     form = InstallServerForm()
 
-    #We don't require these for server installation. These fields are required
-    #for adding new server.
+    # We don't require these for server installation. These fields are required
+    # for adding new server.
     del form.hostname
     del form.ip_address
     del form.ldap_password
 
     header = 'Install Gluu Server on {0}'.format(server.hostname)
 
-    #Get default setup properties.
+    # Get default setup properties.
     setup_prop = get_setup_properties()
 
     setup_prop['hostname'] = appconf.nginx_host
     setup_prop['ip'] = server.ip
     setup_prop['ldapPass'] = server.ldap_password
 
-    #If form is submitted and validated, create setup.properties file.
+    # If form is submitted and validated, create setup.properties file.
     if form.validate_on_submit():
         setup_prop['countryCode'] = form.countryCode.data.strip()
         setup_prop['state'] = form.state.data.strip()
@@ -248,19 +255,16 @@ def install_gluu(server_id):
         setup_prop['inumOrg'] = form.inumOrg.data.strip()
         setup_prop['inumAppliance'] = form.inumAppliance.data.strip()
         for o in ('installOxAuth',
-                    'installOxTrust',
-                    'installLDAP',
-                    'installHTTPD',
-                    'installJce',
-                    'installSaml',
-                    'installAsimba',
-                    #'installCas',
-                    'installOxAuthRP',
-                    'installPassport',
-
-                    ):
+                  'installOxTrust',
+                  'installLDAP',
+                  'installHTTPD',
+                  'installJce',
+                  'installSaml',
+                  'installAsimba',
+                  # 'installCas',
+                  'installOxAuthRP',
+                  'installPassport'):
             setup_prop[o] = getattr(form, o).data
-
 
         setup_properties_file = os.path.join(Config.DATA_DIR,
                                              'setup.properties')
@@ -269,12 +273,12 @@ def install_gluu(server_id):
             for k, v in setup_prop.items():
                 f.write('{0}={1}\n'.format(k, v))
 
-        #Redirect to cluster.install_gluu_server to start installation.
+        # Redirect to cluster.install_gluu_server to start installation.
         return redirect(url_for('cluster.install_gluu_server',
                                 server_id=server_id))
 
-    #If this is view is requested, rather than post, display form to
-    #admin to determaine which elements to be installed.
+    # If this is view is requested, rather than post, display form to
+    # admin to determaine which elements to be installed.
     if request.method == 'GET':
         form.countryCode.data = setup_prop['countryCode']
         form.state.data = setup_prop['state']
@@ -285,22 +289,22 @@ def install_gluu(server_id):
         form.inumAppliance.data = setup_prop['inumAppliance']
 
         for o in ('installOxAuth',
-                    'installOxTrust',
-                    'installLDAP',
-                    'installHTTPD',
-                    'installJce',
-                    'installSaml',
-                    'installAsimba',
-                    #'installCas',
-                    'installOxAuthRP',
-                    'installPassport',
-                    ):
+                  'installOxTrust',
+                  'installLDAP',
+                  'installHTTPD',
+                  'installJce',
+                  'installSaml',
+                  'installAsimba',
+                  # 'installCas',
+                  'installOxAuthRP',
+                  'installPassport'):
             getattr(form, o).data = setup_prop[o]
 
-    return render_template('new_server.html', form=form,  header=header)
+    return render_template('new_server.html', form=form, header=header)
 
 
 @server_view.route('/editslapdconf/<int:server_id>/', methods=['GET', 'POST'])
+@login_required
 @license_manager.license_required
 def edit_slapd_conf(server_id):
     """This view  provides editing of slapd.conf file before depoloyments."""
@@ -308,7 +312,7 @@ def edit_slapd_conf(server_id):
     server = Server.query.get(server_id)
     appconf = AppConfiguration.query.first()
 
-    #If there is no server with server_id return to home
+    # If there is no server with server_id return to home
     if not server:
         flash("No such server.", "warning")
         return redirect(url_for('index.home'))
@@ -318,8 +322,8 @@ def edit_slapd_conf(server_id):
     else:
         chroot = '/opt/gluu-server-' + appconf.gluu_version
 
-    #slapd.conf file will be downloaded from server. Make ssh connection
-    #and download it
+    # slapd.conf file will be downloaded from server. Make ssh connection
+    # and download it
     c = RemoteClient(server.hostname, ip=server.ip)
     try:
         c.startup()
@@ -340,7 +344,7 @@ def edit_slapd_conf(server_id):
                                                      server.hostname))
             return redirect(url_for('index.home'))
 
-    #After editing, slapd.conf file will be uploaded to server via ssh
+    # After editing, slapd.conf file will be uploaded to server via ssh
     r = c.get_file(slapd_conf_file)
 
     if not r[0]:
