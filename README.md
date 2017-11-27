@@ -173,3 +173,11 @@ And lastly click `Finish Cache Clustering` to reload all the modules and intake 
 ![Restart_Services](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_11-09-47.png)
 
 That's it. Your cluster is fully configured. Please navigate to the hostname you identified as your load balancer. Log in with your administrator and password.
+
+# LOGGING
+
+Aside from the standard logs inside the Cluster Manager GUI, the terminal you run `clustermgr-celery &` on will present logs and any errors or complications. Below is an example where I didn't properly configure my Cluster Manager machine to ssh in to one of the nodes of my cluster:
+
+![Failed_Connection](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_13-35-13.png)
+
+You can also see that after I corrected the problem, public key access was successful (I had to click install Gluu twice before it updated).
