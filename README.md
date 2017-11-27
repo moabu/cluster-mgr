@@ -4,7 +4,7 @@ GUI tool for managing Gluu Server and OpenLDAP replication.
 
 Cluster Manager currently only supports installation on Ubuntu 14 and 16. It can, however, be used to configure Gluu Server clusters on Ubuntu, Debian, and CentOS.
 
-##### Gluu Cluster Manager should be installed on a secure adminstrators computer or a VM as it will have SSH access to all servers in the cluster.
+##### Gluu Cluster Manager should be installed on a secure administrators computer or a VM as it will have SSH access to all servers in the cluster.
 
 After configuration, Cluster Manager no longer needs to be actively connected to the cluster for them to work properly. It can however be used to monitor and manage your cluster for modifications at any time.
 
@@ -14,7 +14,7 @@ After configuration, Cluster Manager no longer needs to be actively connected to
 
 `ssh-keygen -t rsa`
 
-- This will provide you with a prompt to create a key-pair. Make sure that you **do not input a password here**, so cluster-mgr can open connections to the servers.
+- This will provide you with a prompt to create a key-pair. Make sure that you **do not input a password here**, so Cluster Manager can open connections to the servers.
 
 - Now copy that key (default is `id_rsa.pub`) to the `/root/.ssh/authorized_keys` file of all servers in the cluster, including your NGINX server (if you're not going to use another load-balancing service). 
 - I prefer to open the `id_rsa.pub` file with `vi` then just copy the hash text into the bottom of `authorized_keys`
@@ -27,7 +27,7 @@ sudo apt-get install python-pip python-dev libffi-dev libssl-dev redis-server
 sudo pip install --upgrade setuptools
 ```
 
-3) Install cluster-mgr
+3) Install Cluster Manager
 
 ```
 sudo pip install --pre clustermgr
@@ -72,7 +72,7 @@ http://localhost:9999/
 
 ![Start](https://github.com/GluuFederation/cluster-mgr/raw/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-29-55.png)
 
-This is the intial screen you will see. From here click `Setup Cluster`.
+This is the initial screen you will see. From here click `Setup Cluster`.
 
 ![Settings](https://github.com/GluuFederation/cluster-mgr/raw/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-30-08.png)
 
@@ -104,7 +104,7 @@ After hitting `submit` you will be taken to the Dashboard page. Here you can add
 
 The term `Primary` next to my first servers hostname, is to identify the base server where replication and settings will be configured from. After everything is setup, all the servers will serve the same function.
 
-It is recommended that you add all the servers for your cluster at this time, before continuing with installation and further configuraiton.
+It is recommended that you add all the servers for your cluster at this time, before continuing with installation and further configuration.
 
 
 ![Add_Server_2](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-31-55.png)
@@ -127,7 +127,7 @@ Install all the servers and your dashboard should look like this:
 
 ![Dashboard_Installed](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-49-49.png)
 
-###### Note that cluster manager can install NGINX with the necessary default configurations to proxy your connections. That option is located unded the `Cluster` option as seen here:
+###### Note that cluster manager can install NGINX with the necessary default configurations to proxy your connections. That option is located under the `Cluster` option as seen here:
 
 ![Install_NGINX](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-50-01_Cropped.png)
 
@@ -135,9 +135,9 @@ Install NGINX now, or click the `LDAP Replication` menu and you'll be taken to t
 
 ![LDAP_Replication](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-51-05.png)
 
-Deploy the configuration on the first server. A succsseful installation looks like this:
+Deploy the configuration on the first server. A successful installation looks like this:
 
-![Successfull_Replication_Configuration](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-54-43.png)
+![Successful_Replication_Configuration](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-54-43.png)
 
 Once you deploy all configurations, you'll see something similar to this screen:
 
@@ -151,7 +151,9 @@ You'll need to click `Add` on all the providers that are crossed out. This shoul
 
 ###### A rare issue is that sometimes the providers aren't replicating properly. Please `Remove` all the providers and then add them back. This usually fixes the problem.
 
-### If you're using 3.0.2, you're done here. If you're using 3.1.x, you will have to configure your cache for replication. Click the `Cache Management` menu option on th left. You'll see this screen:
+### If you're using 3.0.2, you're done here. If you're using 3.1.x, you will have to configure your cache for replication. 
+
+Click the `Cache Management` menu option on the left. You'll see this screen:
 
 ![Cache_Management_1](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-59-15.png)
 
