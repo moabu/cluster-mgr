@@ -22,15 +22,15 @@ After configuration, Cluster Manager no longer needs to be actively connected to
 2) Install the necessary dependencies on the Gluu Cluster Manager machine:
 
 ```
-apt-get update
-apt-get install python-pip python-dev libffi-dev libssl-dev redis-server
-pip install --upgrade setuptools
+sudo apt-get update
+sudo apt-get install python-pip python-dev libffi-dev libssl-dev redis-server
+sudo pip install --upgrade setuptools
 ```
 
 3) Install cluster-mgr
 
 ```
-pip install --pre clustermgr
+sudo pip install --pre clustermgr
 ```
 
 - There may be a few innocuous warnings here, but this is normal.
