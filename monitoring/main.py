@@ -3,6 +3,7 @@ import time
 import requests
 import json
 
+from datetime import timedelta
 
 from flask import Flask, request, Response, make_response, render_template,\
                     redirect, url_for, flash
@@ -16,9 +17,7 @@ from influxdb import InfluxDBClient
 from defs import left_menu, items, periods
 
 
-
 app = Flask(__name__)
-
 
 
 def get_legend(f):
@@ -45,9 +44,10 @@ def get_period_text():
 
     return ret_text
 
+
 def get_mean_last(measurement, host):
 
-    client = InfluxDBClient('localhost', 8086, 'mbaser', 'qwerty',
+    client = InfluxDBClient('localhost', 8086, 'root', 'secret',
                             host.replace('.','_'))
                             
     querym = 'SELECT mean(*) FROM {}'.format(measurement)
@@ -57,7 +57,7 @@ def get_mean_last(measurement, host):
     
     print resultm.raw, resultl.raw
     return resultm.raw['series'][0]['values'][0][1], resultl.raw['series'][0]['values'][0][1]
-    
+
 
 def getData(item, step=None):
 
@@ -177,6 +177,15 @@ def getData(item, step=None):
     return ret_dict
 
 
+def get_uptime(host):
+    try:
+        url = "http://{}:10443/uptime".format(host)
+        r = requests.get(url, verify=False)
+        data = json.loads(r.text)
+
+        return str(timedelta(seconds=data['data']['uptime']))
+    except:
+        return ''
 
 @app.route('/')
 def index():
@@ -185,7 +194,7 @@ def index():
              {'name':'c5.gluu.org', 'id': 3},
     )
 
-    data = {}
+    data = {'uptime':{}}
     
     
     data['cpu']= getData('cpu_percent', step=1200)
@@ -199,7 +208,7 @@ def index():
         m,l = get_mean_last('mem_usage', host['name'])
         data['mem'][host['name']]['mean']="%0.1f" % m
         data['mem'][host['name']]['last']="%0.1f" % l
-        
+        data['uptime'][host['name']] = get_uptime(host['name'])
 
     return render_template('intro.html', 
                             left_menu=left_menu,
@@ -285,6 +294,28 @@ def system(item):
                 colors[host].append(line_colors[i])
 
 
+    max_value = 0
+    min_value = 0
+    print "TEST", '%' in items[item]['vAxis']
+
+    if '%' in items[item]['vAxis']:
+        max_value = 100
+    
+    elif items[item].get('vAxisMax'):
+        max_value = items[item].get('vAxisMax')
+    else:
+        for h in data:
+            for d in data[h]['data']:
+                for v in d[1:]:
+                    if not v=='null':
+                        if v > max_value:
+                            max_value = v
+                        if v < min_value:
+                            min_value = v
+        max_value = int(1.1 * max_value)
+        min_value = int(1.1 * min_value)
+
+
     return render_template(temp, 
                         left_menu = left_menu,
                         items=items,
@@ -295,6 +326,8 @@ def system(item):
                         item=item,
                         period = get_period_text(),
                         periods=periods,
+                        v_axis_max = max_value,
+                        v_min_value = min_value,
                         colors=colors
                         )
 

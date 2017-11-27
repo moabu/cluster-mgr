@@ -125,7 +125,6 @@ items = {
         'load_average': {'end_point': 'system',
                     'data_source': 'load_average.*',
                     'aggr': 'AVG',
-                    'vAxisMax': 1,
                     'chartType': 'LineChart',
                     'vAxis': '5 Mins Load Average'},
 
