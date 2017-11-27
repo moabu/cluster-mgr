@@ -82,15 +82,15 @@ There are several options:
 
 Gluu Server version (3.0.1, 3.0.2, 3.1.1)
 
-Replication Manager DN: This will be the domain name of the domain name which manages replication in OpenLDAP. You can name this anything you want.
+- Replication Manager DN: This will be the domain name of the domain name which manages replication in OpenLDAP. You can name this anything you want.
 
-Password: The password will be used only for the replication DN. Your administrator password for oxAuth will be identified elsewhere.
+- Password: The password will be used only for the replication DN. Your administrator password for oxAuth will be identified elsewhere.
 
-Load Balancer Hostname: You will need to put the Fully Qualified Domain Name (FQDN) of the server that will be handling proxying between all of your nodes. If you are going to use NGINX as your proxy, this will be where Cluster Manager installs NGINX to.
+- Load Balancer Hostname: You will need to put the Fully Qualified Domain Name (FQDN) of the server that will be handling proxying between all of your nodes. If you are going to use NGINX as your proxy, this will be where Cluster Manager installs NGINX to.
 
-Access Log Purge: The access log is where all the changes made on the OpenLDAP servers are stored. OpenLDAP monitors the access log to determine whether an entry should be replicated or not. The default purging parameter is set to check 24 hours for any entry that is older than 24 hours.
+- Access Log Purge: The access log is where all the changes made on the OpenLDAP servers are stored. OpenLDAP monitors the access log to determine whether an entry should be replicated or not. The default purging parameter is set to check 24 hours for any entry that is older than 24 hours.
 
-IP address for replication hostname: You can click this radio box to change from using a FQDN to IP addresses in the OpenLDAP replication configuration.
+- IP address for replication hostname: You can click this radio box to change from using a FQDN to IP addresses in the OpenLDAP replication configuration.
 
 Once you have everything filled out click `Update Configuration` and you will be taken to the following screen to add a server.
 
