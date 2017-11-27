@@ -1,12 +1,30 @@
 # Cluster Manager
 
-GUI tool for managing Gluu Server and OpenLDAP replication.
+#### GUI tool for managing Gluu Server and OpenLDAP replication.
 
 Cluster Manager currently only supports installation on Ubuntu 14 and 16. It can, however, be used to configure Gluu Server clusters on Ubuntu, Debian, and CentOS.
 
 ##### Gluu Cluster Manager should be installed on a secure administrators computer or a VM as it will have SSH access to all servers in the cluster.
 
 After configuration, Cluster Manager no longer needs to be actively connected to the cluster for them to work properly. It can however be used to monitor and manage your cluster for modifications at any time.
+
+##### The necessary ports that need to be opened in a default cluster installation are as follows:
+
+<table>
+<tr><th> Gluu Servers </th><th> Load Balancer </th></tr>
+<tr><td>
+
+|22| 80 | 443|
+|--|--|--|
+|1636| 7777 |  |
+
+</td><td>
+
+|22|80| 
+|--|--|
+|443|22|
+
+</td></tr> </table>
 
 ## Installing Cluster Manager
 
@@ -183,3 +201,30 @@ Aside from the standard logs inside the Cluster Manager GUI, the terminal you ru
 ![Failed_Connection](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_13-35-13.png)
 
 You can also see that after I corrected the problem, public key access was successful (I had to click install Gluu twice before it updated).
+
+# Configuration
+
+By default the installation of a cluster on 3.1.1 installs 5 services. These services are:
+
+1) Gluu Server
+
+2) Redis-Server 
+
+###### Installed outside the chroot on all servers.
+###### A value key-store known for it's high performance.
+###### Configuration file located at /etc/redis/redis.conf or /etc/redis.conf on the **Gluu** servers.
+
+3) Stunnel
+
+###### Used to protect communications between oxAuth and the caching services, Redis and Twemproxy.
+###### Configuration file located at /etc/stunnel/stunnel.conf on **all** servers
+
+4) NGINX
+
+###### Used to proxy communication to the instances of Gluu
+###### Configuration file located at /etc/nginx/nginx.conf on the load balancing server (if installed).
+
+5) Twemproxy 
+
+###### Used for cache failover, round-robin proxying and caching performance with Redis.
+###### The configuration file for this program can be found in /etc/nutcracker/nutcracker.yml on the proxy server
