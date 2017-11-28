@@ -12,7 +12,7 @@ from flask import Flask, request, Response, make_response, render_template,\
 
 from influxdb import InfluxDBClient
 
-
+from ldap_functions import LdapOLC
 
 from defs import left_menu, items, periods
 
@@ -155,21 +155,23 @@ def getData(item, step=None):
                 data.append(tmp)
 
         else:
-            for s in result.raw['series'][0]['values']:
-                tt = time.localtime(s[0])
-                djformat = time.strftime('new Date(%Y, %m, %d, %H, %M)', tt)
-                tmp = [djformat]
-                for f in s[1:]:
-                    if f:
-                        tmp.append(f)
-                    else:
-                        tmp.append('null')
-                data.append(tmp)
-        
-                legends = []
-               
-            for f in result.raw['series'][0]['columns'][1:]:
-                legends.append( get_legend(f)[1])
+            legends = []
+            if result.raw.get('series'):
+                for s in result.raw['series'][0]['values']:
+                    tt = time.localtime(s[0])
+                    djformat = time.strftime('new Date(%Y, %m, %d, %H, %M)', tt)
+                    tmp = [djformat]
+                    for f in s[1:]:
+                        if f:
+                            tmp.append(f)
+                        else:
+                            tmp.append('null')
+                    data.append(tmp)
+            
+                    
+                   
+                for f in result.raw['series'][0]['columns'][1:]:
+                    legends.append( get_legend(f)[1])
 
         data_dict = {'legends':legends, 'data':data}
         ret_dict[host]=data_dict
@@ -331,7 +333,52 @@ def system(item):
                         colors=colors
                         )
 
+@app.route('/replicationstatus')
+def replication_status():
+    hosts = ('c1.gluu.org',
+             'c2.gluu.org',
+             'c3.gluu.org',
+            )
+    
+    rep_status = []
+    
+    for host in hosts:
+        ldap_uri = "ldaps://{}:1636".format(host)
+        olc = LdapOLC(ldap_uri, "cn=directory manager,o=gluu", "secret")
+        olc.connect()
+        host_stat = olc.getReplicationStatus()
+        rep_status.append(host_stat)
+    
+    tt=[]
 
+    for r in range(len(hosts)):
+        for c in range(len(hosts)):
+            if r == c:
+                tt.append(rep_status[c][r])
+    
+    reps = []
+    
+    for r in range(len(hosts)):
+        rreps = []
+        for c in range(len(hosts)):
+        
+            if not r==c:
+                if abs(rep_status[r][c]-tt[c]) <= 60:
+                    rreps.append(True)
+                else:
+                    rreps.append(False)
+            else:
+                rreps.append(None)
+
+        reps.append(rreps)
+        print reps
+    
+    return render_template('replication_status.html',
+                            left_menu=left_menu,
+                            items=items,
+                            hosts=hosts,
+                            reps=reps,
+                            )
 
 if __name__ == '__main__':
 
