@@ -1,4 +1,5 @@
 import ConfigParser
+import os
 
 from flask import current_app
 from flask import Blueprint
@@ -11,6 +12,7 @@ from flask_login import UserMixin
 from flask_login import login_user
 from flask_login import logout_user
 from flask_login import current_user
+from oxdpython import Client
 
 from ..extensions import login_manager
 from ..forms import LoginForm
@@ -49,8 +51,7 @@ def user_from_config(cfg_file, username):
 
 @login_manager.user_loader
 def load_user(username):
-    cfg_file = current_app.config["AUTH_CONFIG_FILE"]
-    user = user_from_config(cfg_file, username)
+    user = User(username, "")
     return user
 
 
@@ -76,4 +77,43 @@ def login():
 @auth_bp.route("/logout/")
 def logout():
     logout_user()
+    return redirect(url_for("index.home"))
+
+
+@auth_bp.route("/oxd/")
+def oxd():
+    if current_user.is_authenticated:
+        return redirect(url_for("index.home"))
+
+    config = os.path.join(current_app.config["DATA_DIR"], "oxd-client.ini")
+    oxc = Client(config)
+
+    oxd_id = oxc.config.get("oxd", "id")
+    client_id = oxc.config.get("client", "client_id")
+    client_secret = oxc.config.get("client", "client_secret")
+
+    if not all([oxd_id, client_id, client_secret]):
+        oxc.setup_client()
+
+    response = oxc.get_client_token()
+    auth_url = oxc.get_authorization_url(protection_access_token=response.access_token)
+    return redirect(auth_url)
+
+
+@auth_bp.route("/userinfo/")
+def userinfo():
+    config = os.path.join(current_app.config["DATA_DIR"], "oxd-client.ini")
+    oxc = Client(config)
+    response = oxc.get_client_token()
+    code = request.args.get('code')
+    state = request.args.get('state')
+
+    try:
+        tokens = oxc.get_tokens_by_code(code, state, response.access_token)
+        resp = oxc.get_user_info(tokens.access_token, response.access_token)
+    except RuntimeError:
+        return "Failed to get user info from Gluu Server."
+
+    user = User(resp.preferred_username[0], "")
+    login_user(user)
     return redirect(url_for("index.home"))
