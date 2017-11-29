@@ -93,6 +93,7 @@ def oxd():
     client_secret = oxc.config.get("client", "client_secret")
 
     if not all([oxd_id, client_id, client_secret]):
+        # TODO: bugs in oxdpython makes the client/site registered twice
         oxc.setup_client()
 
     response = oxc.get_client_token()
@@ -109,11 +110,20 @@ def userinfo():
     state = request.args.get('state')
 
     try:
+        # these following API calls may raise RuntimeError caused by internal
+        # error in oxd server.
         tokens = oxc.get_tokens_by_code(code, state, response.access_token)
         resp = oxc.get_user_info(tokens.access_token, response.access_token)
-    except RuntimeError:
-        return "Failed to get user info from Gluu Server."
 
-    user = User(resp.preferred_username[0], "")
-    login_user(user)
+        # ``preferred_username`` attribute is in ``profile`` scope, hence
+        # accessing this attribute may raise AttributeError
+        username = resp.preferred_username[0]
+
+        # all's good, let's log the user in.
+        user = User(username, "")
+        login_user(user)
+    except AttributeError:
+        flash("Profile scope is not enabled in Gluu Server.", "warning")
+    except RuntimeError:
+        flash("Failed to get user info from Gluu Server.", "warning")
     return redirect(url_for("index.home"))
