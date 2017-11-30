@@ -96,6 +96,22 @@
                 </div>
             </div>
         </div>
+
+        <div class="box-header with-border">
+            <h3 class="panel-title">Notification</h3>
+        </div>
+        <div class="box-body">
+            <div class="form-group {{ 'has-error' if cform.admin_email.errors else '' }}">
+                {{ cform.admin_email.label(class="control-label col-md-3") }}
+                <div class="col-md-9">
+                    {{ cform.admin_email(class="form-control") }}
+                    {% for error in cform.admin_email.errors %}
+                        <p class="help-block">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
         <div class="box-footer">
             {{ cform.update(class="btn btn-primary pull-right") }}
         </div>

@@ -65,10 +65,13 @@ class AppConfiguration(db.Model):
 
     # use ip for replication
     use_ip = db.Column(db.Boolean())
-    
+
     nginx_host = db.Column(db.String(250))
 
     log_purge = db.Column(db.String(50))
+
+    admin_email = db.Column(db.String())
+
 
 class KeyRotation(db.Model):
     __tablename__ = "keyrotation"
