@@ -5,7 +5,7 @@ except ImportError:
 from wtforms import StringField, SelectField, BooleanField, IntegerField, \
     PasswordField, RadioField, SubmitField, validators
 from wtforms.validators import DataRequired, Regexp, AnyOf, \
-    ValidationError, URL, IPAddress, Email, Length, Optional
+    ValidationError, URL, IPAddress, Email, Length  # , Optional
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 
 
@@ -33,7 +33,7 @@ class AppConfigForm(FlaskForm):
     purge_interval_hour = SelectField(choices=[(str(h), str(h)) for h in range(0, 25)])
     purge_interval_min = SelectField(choices=[(str(m), str(m)) for m in range(0, 60)])
 
-    admin_email = StringField("Admin Email", validators=[Optional(), Email("Please enter valid email address")])
+    # admin_email = StringField("Admin Email", validators=[Optional(), Email("Please enter valid email address")])
 
     update = SubmitField("Update Configuration")
 

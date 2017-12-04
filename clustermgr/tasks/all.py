@@ -1,15 +1,20 @@
 import json
-import requests
-
 from datetime import datetime
+from datetime import timedelta
+
+import requests
 from ldap3 import Connection, BASE, MODIFY_REPLACE
 from ldap3 import Server as Ldap3Server
+from flask_mail import Message
 
 from clustermgr.extensions import celery, db
 from clustermgr.models import Server, KeyRotation, OxelevenKeyID
 from clustermgr.core.utils import decrypt_text, random_chars
 from clustermgr.core.ox11 import generate_key, delete_key
 from clustermgr.core.keygen import generate_jks
+from clustermgr.core.license import license_manager
+from clustermgr.core.license import current_date_millis
+from clustermgr.extensions import mailer
 
 
 def starttls(server):
@@ -87,7 +92,7 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass=""):
     return True
 
 
-@celery.task(bind=True)
+# @celery.task(bind=True)
 def rotate_pub_keys(t):
     javalibs_dir = celery.conf["JAVALIBS_DIR"]
     jks_path = celery.conf["JKS_PATH"]
@@ -167,7 +172,7 @@ def _rotate_keys(kr, javalibs_dir, jks_path):
                 c.close()
 
 
-@celery.task
+# @celery.task
 def schedule_key_rotation():
     kr = KeyRotation.query.first()
 
@@ -187,10 +192,72 @@ def schedule_key_rotation():
 
 
 # disabled for backward-compatibility with celery 3.x
-#@celery.on_after_configure.connect
-def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(
-        celery.conf['SCHEDULE_REFRESH'],
-        schedule_key_rotation.s(),
-        name='add every 30',
-    )
+# @celery.on_after_configure.connect
+# def setup_periodic_tasks(sender, **kwargs):
+#     sender.add_periodic_task(
+#         celery.conf['SCHEDULE_REFRESH'],
+#         schedule_key_rotation.s(),
+#         name='add every 30',
+#     )
+
+
+EMAIL_BODY = """
+Hi {admin_name},
+
+Your Gluu enterprise license is set to expire in {day} days.
+
+If you have already renewed your Gluu support contract, you can ignore this message.
+
+Otherwise please email sales@gluu.org to initiate your organization's support renewal.
+
+Thank you!
+
+Gluu, Inc."""
+
+
+@celery.task
+def send_reminder_email():
+    data, _ = license_manager.validate_license()
+
+    # license is not exist or invalid
+    if "expiration_date" not in data["metadata"]:
+        return
+
+    # get expiration_date of license
+    exp_date = datetime.utcfromtimestamp(
+        data["metadata"]["expiration_date"] / 1000)
+
+    # get current timestamp
+    now = datetime.utcfromtimestamp(current_date_millis() / 1000)
+
+    try:
+        with open(celery.conf["LICENSE_EMAIL_THRESHOLD_FILE"], "r") as fp:
+            last_sent = fp.read()
+    except IOError:
+        last_sent = ""
+
+    # threshold when email should be send to admin
+    # 0, 30, 60, 90 days before license expired
+    for day in [0, 30, 60, 90]:
+        t = exp_date - timedelta(days=day)
+
+        # if current day+month+year matches the threshold, send the email
+        if all([now.day == t.day, now.month == t.month, now.year == t.year]):
+            # email must be send only once
+            if last_sent == t.strftime("%Y-%m-%d"):
+                return
+
+            subject = "License expiration reminder"
+            msg = Message(
+                subject,
+                recipients=celery.conf["MAIL_DEFAULT_RECIPIENT_ADDRESS"],
+            )
+            msg.body = EMAIL_BODY.format(
+                admin_name=celery.conf["MAIL_DEFAULT_RECIPIENT_USERNAME"],
+                day=day,
+            )
+            mailer.send(msg)
+
+            with open(celery.conf["LICENSE_EMAIL_THRESHOLD_FILE"], "wb") as fp:
+                fp.write(t.strftime("%Y-%m-%d"))
+            break

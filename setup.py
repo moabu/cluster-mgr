@@ -35,6 +35,7 @@ setup(
         "flask-migrate",
         "ldap3",
         "paramiko",
+        "Flask-Mail",
     ],
     entry_points={
         "console_scripts": ["clustermgr-cli=clusterapp:cli"],

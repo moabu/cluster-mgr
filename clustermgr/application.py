@@ -4,7 +4,7 @@ import re
 
 from flask import Flask
 
-from clustermgr.extensions import db, csrf, migrate, wlogger
+from clustermgr.extensions import db, csrf, migrate, wlogger, mailer
 
 from .core.license import license_manager
 
@@ -47,6 +47,7 @@ def create_app():
                                                      "migrations"))
     wlogger.init_app(app)
     license_manager.init_app(app, "license.index")
+    mailer.init_app(app)
 
     # setup the instance's working directories
     if not os.path.isdir(app.config['SCHEMA_DIR']):

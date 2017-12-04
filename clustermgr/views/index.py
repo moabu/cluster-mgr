@@ -87,6 +87,7 @@ def app_configuration():
         config.gluu_version = conf_form.gluu_version.data.strip()
         config.use_ip = conf_form.use_ip.data
         config.nginx_host = conf_form.nginx_host.data.strip()
+        # config.admin_email = conf_form.admin_email.data.strip()
 
         purge_age_day = conf_form.purge_age_day.data
         purge_age_hour = conf_form.purge_age_hour.data
