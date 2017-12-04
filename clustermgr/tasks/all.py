@@ -241,23 +241,25 @@ def send_reminder_email():
     for day in [0, 30, 60, 90]:
         t = exp_date - timedelta(days=day)
 
-        # if current day+month+year matches the threshold, send the email
+        # if current day+month+year doesn't match the threshold, continue
         if all([now.day == t.day, now.month == t.month, now.year == t.year]):
-            # email must be send only once
-            if last_sent == t.strftime("%Y-%m-%d"):
-                return
+            continue
 
-            subject = "License expiration reminder"
-            msg = Message(
-                subject,
-                recipients=celery.conf["MAIL_DEFAULT_RECIPIENT_ADDRESS"],
-            )
-            msg.body = EMAIL_BODY.format(
-                admin_name=celery.conf["MAIL_DEFAULT_RECIPIENT_USERNAME"],
-                day=day,
-            )
-            mailer.send(msg)
+        # email must be send only once
+        if last_sent == t.strftime("%Y-%m-%d"):
+            return
 
-            with open(celery.conf["LICENSE_EMAIL_THRESHOLD_FILE"], "wb") as fp:
-                fp.write(t.strftime("%Y-%m-%d"))
-            break
+        msg = Message(
+            "License expiration reminder",
+            recipients=celery.conf["MAIL_DEFAULT_RECIPIENT_ADDRESS"],
+        )
+        msg.body = EMAIL_BODY.format(
+            admin_name=celery.conf["MAIL_DEFAULT_RECIPIENT_USERNAME"],
+            day=day,
+        )
+        mailer.send(msg)
+
+        # mark last sent email
+        with open(celery.conf["LICENSE_EMAIL_THRESHOLD_FILE"], "wb") as fp:
+            fp.write(t.strftime("%Y-%m-%d"))
+        break
