@@ -38,7 +38,8 @@ setup(
         "Flask-Mail",
     ],
     entry_points={
-        "console_scripts": ["clustermgr-cli=clusterapp:cli"],
+        "console_scripts": ["clustermgr-cli=clusterapp:cli",
+                            "clustermgr-beat=clusterapp:run_celerybeat"],
     },
     scripts=['clusterapp.py'],
 )
