@@ -6,8 +6,9 @@ import requests
 from ldap3 import Connection, BASE, MODIFY_REPLACE
 from ldap3 import Server as Ldap3Server
 from flask_mail import Message
+from celery import current_app as celery
 
-from clustermgr.extensions import celery, db
+from clustermgr.extensions import db
 from clustermgr.models import Server, KeyRotation, OxelevenKeyID
 from clustermgr.core.utils import decrypt_text, random_chars
 from clustermgr.core.ox11 import generate_key, delete_key

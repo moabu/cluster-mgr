@@ -2,6 +2,7 @@
 import os
 import re
 
+from celery import Celery
 from flask import Flask
 
 from clustermgr.extensions import db, csrf, migrate, wlogger, mailer
@@ -9,7 +10,14 @@ from clustermgr.extensions import db, csrf, migrate, wlogger, mailer
 from .core.license import license_manager
 
 
-def init_celery(app, celery):
+def init_celery(app, celery=None):
+    if not celery:
+        celery = Celery(
+            app.import_name,
+            backend=app.config['CELERY_RESULT_BACKEND'],
+            broker=app.config['CELERY_BROKER_URL'],
+        )
+
     celery.conf.update(app.config)
     TaskBase = celery.Task
 
@@ -19,7 +27,9 @@ def init_celery(app, celery):
         def __call__(self, *args, **kwargs):
             with app.app_context():
                 return TaskBase.__call__(self, *args, **kwargs)
+
     celery.Task = ContextTask
+    return celery
 
 
 def create_app():
@@ -48,6 +58,7 @@ def create_app():
     wlogger.init_app(app)
     license_manager.init_app(app, "license.index")
     mailer.init_app(app)
+    init_celery(app)
 
     # setup the instance's working directories
     if not os.path.isdir(app.config['SCHEMA_DIR']):

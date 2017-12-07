@@ -5,8 +5,9 @@ from flask import Blueprint, render_template, redirect, url_for, flash, \
 from flask import current_app as app
 from werkzeug.utils import secure_filename
 from celery.result import AsyncResult
+from celery import current_app as celery
 
-from clustermgr.extensions import db, wlogger, celery
+from clustermgr.extensions import db, wlogger
 from clustermgr.models import AppConfiguration, KeyRotation, Server
 from clustermgr.forms import AppConfigForm, KeyRotationForm, SchemaForm, \
     TestUser, InstallServerForm

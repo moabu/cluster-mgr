@@ -5,10 +5,9 @@ from flask.cli import FlaskGroup
 from celery.bin import beat
 
 from clustermgr.application import create_app, init_celery
-from clustermgr.extensions import celery
 
 app = create_app()
-init_celery(app, celery)
+celery = init_celery(app)
 
 
 def create_cluster_app(info):
@@ -22,8 +21,6 @@ def cli():
 
 
 def run_celerybeat():
-    app = create_app()
-    init_celery(app, celery)
     runner = beat.beat(app=celery)
     config = {
         "loglevel": "INFO",

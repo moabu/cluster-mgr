@@ -4,14 +4,14 @@ import re
 
 from StringIO import StringIO
 
-from clustermgr.core.utils import split_redis_cluster_slots
 from clustermgr.models import Server, AppConfiguration
-from clustermgr.extensions import db, celery, wlogger
+from clustermgr.extensions import db, wlogger
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import DBManager
 
 from ldap3.core.exceptions import LDAPSocketOpenError
 from flask import current_app as app
+from celery import current_app as celery
 
 
 class BaseInstaller(object):
@@ -147,6 +147,7 @@ class StunnelInstaller(BaseInstaller):
             return True
         else:
             return False
+
 
 @celery.task(bind=True)
 def install_redis_stunnel(self):
