@@ -243,7 +243,7 @@ def send_reminder_email():
         t = exp_date - timedelta(days=day)
 
         # if current day+month+year doesn't match the threshold, continue
-        if all([now.day == t.day, now.month == t.month, now.year == t.year]):
+        if not all([now.day == t.day, now.month == t.month, now.year == t.year]):
             continue
 
         # email must be send only once
