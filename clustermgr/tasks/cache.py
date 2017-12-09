@@ -6,13 +6,14 @@ import socket
 from StringIO import StringIO
 
 from clustermgr.models import Server, AppConfiguration
-from clustermgr.extensions import db, celery, wlogger
+from clustermgr.extensions import db, wlogger
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import DBManager
 from clustermgr.tasks.cluster import get_os_type
 
 from ldap3.core.exceptions import LDAPSocketOpenError
 from flask import current_app as app
+from celery import current_app as celery
 
 
 class BaseInstaller(object):

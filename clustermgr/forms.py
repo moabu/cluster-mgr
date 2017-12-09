@@ -5,12 +5,12 @@ except ImportError:
 from wtforms import StringField, SelectField, BooleanField, IntegerField, \
     PasswordField, RadioField, SubmitField, validators
 from wtforms.validators import DataRequired, Regexp, AnyOf, \
-    ValidationError, URL, IPAddress, Email, Length
+    ValidationError, URL, IPAddress, Email, Length  # , Optional
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 
 
 class AppConfigForm(FlaskForm):
-    versions = ['3.1.1','3.0.2', '3.0.1']
+    versions = ['3.1.1', '3.0.2', '3.0.1']
     gluu_version = SelectField('Gluu Server Version',
                                choices=[(v, v) for v in versions])
     use_ip = BooleanField('Use IP Address in place of Hostname for replication')
@@ -18,20 +18,22 @@ class AppConfigForm(FlaskForm):
         DataRequired(),
         Regexp('^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$',
                message="Only alphabets and space allowed; cannot end with space.")])  # noqa
-    replication_pw = PasswordField('Replication Manager Password',validators=[
+    replication_pw = PasswordField('Replication Manager Password', validators=[
         DataRequired(), validators.EqualTo(
             'replication_pw_confirm', message='Passwords must match')])
     replication_pw_confirm = PasswordField(
         'Re-enter Password', validators=[DataRequired()])
     nginx_host = StringField('Load Balancer Hostname', validators=[DataRequired()])
 
-    purge_age_day = SelectField(choices=[(str(d), str(d)) for d in range(0,31)])
-    purge_age_hour = SelectField(choices=[(str(h), str(h)) for h in range(0,25)], default="24")
-    purge_age_min = SelectField(choices=[(str(m), str(m)) for m in range(0,60)])
-    
-    purge_interval_day = SelectField(choices=[(str(d), str(d)) for d in range(0,31)], default="1")
-    purge_interval_hour = SelectField(choices=[(str(h), str(h)) for h in range(0,25)])
-    purge_interval_min = SelectField(choices=[(str(m), str(m)) for m in range(0,60)])
+    purge_age_day = SelectField(choices=[(str(d), str(d)) for d in range(0, 31)])
+    purge_age_hour = SelectField(choices=[(str(h), str(h)) for h in range(0, 25)], default="24")
+    purge_age_min = SelectField(choices=[(str(m), str(m)) for m in range(0, 60)])
+
+    purge_interval_day = SelectField(choices=[(str(d), str(d)) for d in range(0, 31)], default="1")
+    purge_interval_hour = SelectField(choices=[(str(h), str(h)) for h in range(0, 25)])
+    purge_interval_min = SelectField(choices=[(str(m), str(m)) for m in range(0, 60)])
+
+    # admin_email = StringField("Admin Email", validators=[Optional(), Email("Please enter valid email address")])
 
     update = SubmitField("Update Configuration")
 
@@ -140,7 +142,21 @@ class InstallServerForm(FlaskForm):
     installJce = BooleanField('Install JCE 1.8')
     installSaml = BooleanField('Install Shibboleth SAML IDP')
     installAsimba = BooleanField('Install Asimba SAML Proxy')
-    #installCas = BooleanField('Install CAS')
+    # installCas = BooleanField('Install CAS')
     installOxAuthRP = BooleanField('Install oxAuth RP')
     installPassport = BooleanField('Install Passport')
 
+
+def replace_pubkey_whitespace(value):
+    if value is not None and hasattr(value, "replace"):
+        return value.replace(" ", "")
+    return value
+
+
+class LicenseSettingsForm(FlaskForm):
+    license_id = StringField("License ID", validators=[DataRequired()])
+    license_password = StringField("License Password", validators=[DataRequired()])
+    public_password = StringField("Public Password", validators=[DataRequired()])
+    public_key = StringField("Public Key", validators=[DataRequired()],
+                             filters=[replace_pubkey_whitespace])
+    update = SubmitField("Update")

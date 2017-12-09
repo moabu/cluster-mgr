@@ -57,6 +57,8 @@
             <li><a href="{{ url_for('cache_mgr.index') }}">
               <i class="fa fa-microchip"></i><span>Cache Management</span></a>
             </li>
+            <li><a href="{{ url_for('license.index') }}">
+              <i class="fa fa-drivers-license-o"></i><span>License</span></a></li>
             <li><a href="{{ url_for('index.app_configuration') }}">
               <i class="fa fa-cog"></i><span>Settings</span></a></li>
           </ul>
@@ -86,6 +88,13 @@
                 {% endfor %}
               {% endif %}
             {% endwith %}
+            {% if g.license_reminder_msg %}
+            <div class="alert alert-info alert-dismissable" role="alert">
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+                <strong>{{ g.license_reminder_msg }}</strong>
+            </div>
+            {% endif %}
             {% block content %}{% endblock %}
           </section>
       </div><!-- end of content wrapper -->

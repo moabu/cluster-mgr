@@ -16,7 +16,7 @@ Currently only supports installation on Ubuntu 14 and 16. It can, however, confi
 
 - This will provide you with a prompt to create a key-pair. Make sure that you **do not input a password here**, so cluster-mgr can open connections to the servers.
 
-- Now copy that key (default is `id_rsa.pub`) to the `/root/.ssh/authorized_keys` file of all servers in the cluster, including your NGINX server (if you're not going to use another load-balancing service). 
+- Now copy that key (default is `id_rsa.pub`) to the `/root/.ssh/authorized_keys` file of all servers in the cluster, including your NGINX server (if you're not going to use another load-balancing service).
 - I prefer to open the `id_rsa.pub` file with `vi` then just copy the hash text into the bottom of `authorized_keys`
 
 2) Install the necessary dependencies on the Gluu Cluster Manager machine:
@@ -41,19 +41,26 @@ pip install https://github.com/GluuFederation/cluster-mgr/archive/master.zip
 clustermgr-cli db upgrade
 ```
 
-5) Run celery worker on one terminal
+6) Prepare oxlicense-validator
+
+```
+mkdir -p $HOME/.clustermgr/javalibs
+wget https://ox.gluu.org/maven/org/xdi/oxlicense-validator/3.1.1.Final/oxlicense-validator-3.1.1.Final-jar-with-dependencies.jar -O $HOME/.clustermgr/javalibs/oxlicense-validator-3.1.1.jar
+```
+
+7) Run celery worker on one terminal
 
 ```
 clustermgr-celery &
 ```
 
-6) Open another terminal to run clustermgr-cli
+8) Open another terminal to run clustermgr-cli
 
 ```
 clustermgr-cli run
 ```
 
-7) Tunnel into cluster-mgr server
+9) Tunnel into cluster-mgr server
 
 ```
 ssh -L 9999:localhost:5000 root@server
@@ -61,9 +68,8 @@ ssh -L 9999:localhost:5000 root@server
 
 - If you're using a windows machine, like me, you can tunnel in with a saved PuTTY session that can already connect. Load that configuration in `PuTTY Configuration`, then on the left side go to `Connections` -> `SSH` -> `Tunnels`. In `Source port` input `9999` and in Destination input `localhost:5000`, then hit `Add`. This will create a tunnel from your machine, accessed through `localhost:9999`, into the server as `localhost:5000`.
 
-8) Navigate to the cluster-mgr web GUI
+10) Navigate to the cluster-mgr web GUI
 
 ```
 http://localhost:9999/
 ```
-
