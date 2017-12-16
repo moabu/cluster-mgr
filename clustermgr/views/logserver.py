@@ -10,8 +10,10 @@ from clustermgr.models import LoggingServer
 from clustermgr.forms import LoggingServerForm
 from clustermgr.core.msgcon import get_audit_logs, get_server_logs, \
     get_server_log_item, get_audit_log_item, LogCollection, LogItem
+from ..core.license import license_reminder
 
 logserver = Blueprint('logserver', __name__, template_folder='templates')
+logserver.before_request(license_reminder)
 
 
 @logserver.route("/", methods=["GET", "POST"])

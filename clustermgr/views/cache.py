@@ -6,12 +6,16 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cache import get_cache_methods, install_cache_components, \
     configure_cache_cluster, restart_services
+from ..core.license import license_reminder
+from ..core.license import license_manager
 
 
 cache_mgr = Blueprint('cache_mgr', __name__, template_folder='templates')
+cache_mgr.before_request(license_reminder)
 
 
 @cache_mgr.route('/')
+@license_manager.license_required
 def index():
     servers = Server.query.all()
     appconf = AppConfiguration.query.first()
@@ -35,12 +39,14 @@ def index():
 
 
 @cache_mgr.route('/refresh_methods')
+@license_manager.license_required
 def refresh_methods():
     task = get_cache_methods.delay()
     return jsonify({'task_id': task.id})
 
 
 @cache_mgr.route('/change/', methods=['GET', 'POST'])
+@license_manager.license_required
 def change():
     servers = Server.query.all()
     method = 'STANDALONE'
@@ -50,6 +56,7 @@ def change():
 
 
 @cache_mgr.route('/configure/<method>/')
+@license_manager.license_required
 def configure(method):
     task = configure_cache_cluster.delay(method)
     servers = Server.query.filter(Server.redis.is_(True)).filter(
@@ -59,6 +66,7 @@ def configure(method):
 
 
 @cache_mgr.route('/finish_clustering/<method>/')
+@license_manager.license_required
 def finish_clustering(method):
     servers = Server.query.filter(Server.redis.is_(True)).filter(
         Server.stunnel.is_(True)).all()

@@ -37,13 +37,14 @@ setup(
         "flask-migrate",
         "ldap3",
         "paramiko",
+        "Flask-Mail",
         "cryptography",
         "ipaddress",
         "enum34",
     ],
     entry_points={
         "console_scripts": ["clustermgr-cli=clusterapp:cli",
-                            "clustermgr-celery=clusterapp:run_celery"],
+                            "clustermgr-beat=clusterapp:run_celerybeat"],
     },
     scripts=['clusterapp.py'],
     classifiers=[

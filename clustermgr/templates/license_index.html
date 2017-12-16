@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from 'macros.html' import render_field, render_checkbox_field, render_form %}
+
+{% block header %}
+    <h1>License</h1>
+    <ol class="breadcrumb">
+        <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+        <li class="active">License</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+<div class="box box-primary">
+    <div class="box-header with-border">
+        <h3 class="panel-title">Overview</h3>
+    </div>
+    <div class="box-body">
+        {% if err_msg %}
+        <p><strong>{{ err_msg }}</strong><br/>Please check the settings.</p>
+        {% else %}
+        <dl class="dl-horizontal">
+            <dt>valid</dt>
+            <dd>{{ license_data.valid }}</dd>
+            {% for k, v in license_data.metadata.iteritems() %}
+                <dt>{{ k }}</dt>
+                {% if k != "emails" %}
+                    <dd>{{ v }}</dd>
+                {% else %}
+                    <ul>
+                    {% for email in v %}
+                        <li>{{ email }}</li>
+                    {% endfor %}
+                    </ul>
+                {% endif %}
+            {% endfor %}
+        </dl>
+        {% endif %}
+    </div>
+    <div class="box-footer">
+        <a href="{{ url_for('license.settings') }}" class="btn btn-primary pull-right">Settings</a>
+    </div>
+</div>
+
+{% endblock %}
+
+
+{% block js %}
+{% endblock %}

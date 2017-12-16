@@ -15,14 +15,6 @@ class Config(object):
     REDIS_PORT = 6379
     REDIS_LOG_DB = 0
     OX11_PORT = '8190'
-    SCHEDULE_REFRESH = 30.0
-    CELERYBEAT_SCHEDULE = {
-        'add-every-30-seconds': {
-            'task': 'clustermgr.tasks.schedule_key_rotation',
-            'schedule': timedelta(seconds=SCHEDULE_REFRESH),
-            'args': (),
-        },
-    }
     DATA_DIR = os.environ.get(
         "DATA_DIR",
         os.path.join(os.path.expanduser("~"), ".clustermgr"),
@@ -34,6 +26,30 @@ class Config(object):
     SLAPDCONF_DIR = os.path.join(DATA_DIR, "slapdconf")
     CERTS_DIR = os.path.join(DATA_DIR, "certs")
     LDIF_DIR = os.path.join(DATA_DIR, "ldif")
+
+    LICENSE_CONFIG_FILE = os.path.join(DATA_DIR, "license.ini")
+    LICENSE_SIGNED_FILE = os.path.join(DATA_DIR, "signed_license")
+    LICENSE_VALIDATOR = os.path.join(JAVALIBS_DIR, "oxlicense-validator-3.1.1.jar")
+    LICENSE_EMAIL_THRESHOLD_FILE = os.path.join(DATA_DIR, ".license_email")
+    LICENSE_ENFORCEMENT_ENABLED = True
+
+    CELERYBEAT_SCHEDULE = {
+        'send_reminder_email': {
+            'task': 'clustermgr.tasks.all.send_reminder_email',
+            'schedule': timedelta(seconds=60 * 60),
+            'args': (),
+        },
+    }
+
+    MAIL_SERVER = "localhost"
+    MAIL_PORT = 25
+    MAIL_USE_TLS = False
+    MAIL_USE_SSL = False
+    MAIL_USERNAME = None
+    MAIL_PASSWORD = None
+    MAIL_DEFAULT_SENDER = ("Cluster Manager", "no-reply@localhost")
+    MAIL_DEFAULT_RECIPIENT_NAME = "Admin"
+    MAIL_DEFAULT_RECIPIENT_ADDRESS = ["admin@localhost"]
 
 
 class ProductionConfig(Config):
@@ -52,9 +68,11 @@ class DevelopmentConfig(Config):
     SQLALCHEMY_DATABASE_URI = "sqlite:///{}/clustermgr.dev.db".format(
         Config.DATA_DIR)
     SQLALCHEMY_TRACK_MODIFICATIONS = True
+    LICENSE_ENFORCEMENT_ENABLED = False
 
 
 class TestingConfig(Config):
     TESTING = True
     WTF_CSRF_ENABLED = False
     SQLALCHEMY_DATABASE_URI = 'sqlite://'
+    LICENSE_ENFORCEMENT_ENABLED = False

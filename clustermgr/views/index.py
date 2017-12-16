@@ -5,8 +5,9 @@ from flask import Blueprint, render_template, redirect, url_for, flash, \
 from flask import current_app as app
 from werkzeug.utils import secure_filename
 from celery.result import AsyncResult
+from celery import current_app as celery
 
-from clustermgr.extensions import db, wlogger, celery
+from clustermgr.extensions import db, wlogger
 from clustermgr.models import AppConfiguration, KeyRotation, Server
 from clustermgr.forms import AppConfigForm, KeyRotationForm, SchemaForm, \
     TestUser, InstallServerForm
@@ -16,8 +17,10 @@ from clustermgr.tasks.all import rotate_pub_keys
 from clustermgr.core.utils import encrypt_text
 from clustermgr.core.utils import generate_random_key
 from clustermgr.core.utils import generate_random_iv
+from ..core.license import license_reminder
 
 index = Blueprint('index', __name__)
+index.before_request(license_reminder)
 
 
 @index.route('/')
@@ -38,7 +41,7 @@ def home():
 @index.route('/configuration/', methods=['GET', 'POST'])
 def app_configuration():
     """This view provides application configuration forms"""
-    
+
     #create forms
     conf_form = AppConfigForm()
     sch_form = SchemaForm()
@@ -46,7 +49,7 @@ def app_configuration():
     schemafiles = os.listdir(app.config['SCHEMA_DIR'])
 
     #If the form is sumtted and password for replication user was not
-    #not supplied, make password "**dummu**", so don't change 
+    #not supplied, make password "**dummu**", so don't change
     #what we have before
     if request.method == 'POST' and not conf_form.replication_pw.data.strip():
         conf_form.replication_pw.data = '**dummy**'
@@ -75,28 +78,29 @@ def app_configuration():
                     "This will break replication. "
                     "Please re-deploy all LDAP Servers.",
                     "danger")
-        
+
         config.replication_dn = replication_dn
         config.gluu_version = conf_form.gluu_version.data.strip()
         config.use_ip = conf_form.use_ip.data
         config.nginx_host = conf_form.nginx_host.data.strip()
-        
+
         config.replication_dn = replication_dn
         config.gluu_version = conf_form.gluu_version.data.strip()
         config.use_ip = conf_form.use_ip.data
         config.nginx_host = conf_form.nginx_host.data.strip()
-        
+        # config.admin_email = conf_form.admin_email.data.strip()
+
         purge_age_day = conf_form.purge_age_day.data
         purge_age_hour = conf_form.purge_age_hour.data
         purge_age_min = conf_form.purge_age_min.data
         purge_interval_day = conf_form.purge_interval_day.data
         purge_interval_hour = conf_form.purge_interval_hour.data
         purge_interval_min = conf_form.purge_interval_min.data
-        
-        log_purge = "{}:{}:{} {}:{}:{}".format( 
+
+        log_purge = "{}:{}:{} {}:{}:{}".format(
                                             purge_age_day, purge_age_hour,
-                                            purge_age_min, purge_interval_day, 
-                                            purge_interval_hour, 
+                                            purge_age_min, purge_interval_day,
+                                            purge_interval_hour,
                                             purge_interval_min)
         config.log_purge = log_purge
         db.session.add(config)
@@ -249,7 +253,7 @@ def get_log(task_id):
 def getLdapConn(addr, dn, passwd):
     """this function gets address, dn and password for ldap server, makes
     connection and return LdapOLC object."""
-    
+
     ldp = LdapOLC('ldaps://{}:1636'.format(addr), dn, passwd)
     r = None
     try:
@@ -307,7 +311,7 @@ def install_ldap_server():
 @index.route('/mmr/')
 def multi_master_replication():
     """Multi Master Replication view"""
-    
+
     #Check if replication user (dn) and password has been configured
     app_config = AppConfiguration.query.first()
     if not app_config:
@@ -347,8 +351,8 @@ def multi_master_replication():
     if not ldaps:
         flash("Please add ldap servers.", "warning")
         return redirect(url_for('index.home'))
-        
-    return render_template('multi_master.html', 
+
+    return render_template('multi_master.html',
                            ldapservers=ldaps,
                            serverStats=serverStats,
                            ldap_errors=ldap_errors,
@@ -358,9 +362,9 @@ def multi_master_replication():
 @index.route('/addtestuser/<int:server_id>', methods=['GET', 'POST'])
 def add_test_user(server_id):
     """This view provides adding test user UI"""
-    
+
     server = Server.query.get(server_id)
-    
+
     form = TestUser()
     header = 'Add Test User [{0}]'.format(server.hostname)
 
@@ -388,14 +392,14 @@ def add_test_user(server_id):
 
 @index.route('/searchtestusers/<int:server_id>')
 def search_test_users(server_id):
-    """This view provides searcing test user UI. Searched user on server 
+    """This view provides searcing test user UI. Searched user on server
     identified by server_id and displays within table"""
 
     print "SERVER ID", server_id
     server = Server.query.get(server_id)
 
     users = []
-    
+
     #Make ldap connection
     ldp = getLdapConn(server.hostname,
                       "cn=directory manager,o=gluu", server.ldap_password)
@@ -444,7 +448,7 @@ def delete_test_user(server_id, dn):
 @index.route('/removeprovider/<consumer_id>/<provider_addr>')
 def remove_provider_from_consumer(consumer_id, provider_addr):
     """This view delates provider from consumer"""
-    
+
     server = Server.query.get(consumer_id)
 
     #Make ldap connection
@@ -502,7 +506,7 @@ def add_provider_to_consumer(consumer_id, provider_id):
 @index.route('/removecustomschema/<schema_file>')
 def remove_custom_schema(schema_file):
     """This view deletes custom schema file"""
-    
+
     file_path = os.path.join(app.config['SCHEMA_DIR'], schema_file)
     if os.path.exists(file_path):
         os.remove(file_path)

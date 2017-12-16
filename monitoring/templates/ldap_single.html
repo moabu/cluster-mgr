@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block header %}
+    <h1>{{title}} : {{period}}</h1>
+    
+
+{% endblock %}
+
+
+{% block content %}
+
+{% for p in ['d', 'w', 'm','y'] %}
+    <a href="{{url_for(items[item]['end_point'], item=item, period=p)}}">{{periods[p]['title']}}</a>
+{% endfor %}
+
+
+<br><br>
+<form method="GET">
+    Start Date: <input name="startdate" id="datepickers">
+    End Date: <input name="enddate" id="datepickere">
+<input type="submit" value="show">
+</form>
+<br>
+
+<td><div id="chart_div"></div></td>
+
+
+{% endblock %}
+
+
+{% block js %}
+
+<script src="{{ url_for('static', filename='js/gstatic/loader.js') }}"></script>
+
+
+<script>
+  
+    google.charts.load('current', {'packages':['corechart']});
+    
+    google.charts.setOnLoadCallback(drawChart);
+
+    function drawChart() {
+
+        {% for host in data %}
+        {% set parcounter =  loop.index0 %}
+        var data{{loop.index0}} = new google.visualization.DataTable();
+        data{{loop.index0}}.addColumn('datetime', 'Time');
+        {% if data[host]['legends'].__len__() > 1 %}
+            {% for legend in data[host]['legends'] %}
+                data{{parcounter}}.addColumn('number', '{{legend}}');
+            {% endfor %}
+            
+        {% else %}
+            data{{loop.index0}}.addColumn('number', '{{host}}');
+        {% endif %}
+        data{{loop.index0}}.addRows([
+            {% for d in data[host]['data'] %}
+            [{{d[0]}},{% for di in d[1:] %}{{di}},{% endfor %}],
+            {% endfor %}
+        ]);
+        {% endfor %}
+        
+        var options = {
+                title: '{{title}}',
+                width: {{width}},
+                height: {{height}},
+                vAxis: { title: '{{items[item]["vAxis"]}}'},
+                hAxis: { title: 'Time' },
+                
+            };
+
+        {% if data.__len__() > 1 %}
+            var joinedData = google.visualization.data.join(data0, data1, 'full', [[0, 0]], [1], [1]);
+        {% else %}
+            var joinedData = data0;
+        {% endif %}
+        
+        {% if data.__len__() > 2 %}
+            {% for i in range(2, data.__len__()) %}
+                var joinedData = google.visualization.data.join(joinedData,
+                                                                data{{i}},
+                                                                'full', 
+                                                                [[0, 0]], 
+                                                                [{% for j in range(1,i+1) %}{{j}},{% endfor %}],
+                                                                [1]);
+            {% endfor %}
+        {% endif %}
+        var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
+        chart.draw(joinedData, options);
+
+    }
+
+
+</script>
+
+
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+  
+  <script>
+  $(document).ready(function() {
+    $("#datepickers").datepicker();
+    $("#datepickere").datepicker();
+  });
+  </script>
+
+
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+
