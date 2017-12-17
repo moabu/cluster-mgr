@@ -66,9 +66,13 @@ mkdir -p $HOME/.clustermgr/javalibs
 wget https://ox.gluu.org/maven/org/xdi/oxlicense-validator/3.1.1.Final/oxlicense-validator-3.1.1.Final-jar-with-dependencies.jar -O $HOME/.clustermgr/javalibs/oxlicense-validator-3.1.1.jar
 ```
 
-7) Run celery worker on one terminal
+7) Run celery scheduler and workers in separate terminals
 
 ```
+# Terminal 1
+clustermgr-beat &
+
+# Terminal 2
 clustermgr-celery &
 ```
 
