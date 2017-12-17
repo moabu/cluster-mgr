@@ -780,6 +780,10 @@ def get_os_type(c):
         return "CentOS 7"
     if 'Red Hat Enterprise Linux' in cout and '7.':
         return 'RHEL 7'
+    if 'Debian' in cout and "(jessie)" in cout:
+        return 'Debian 8'
+    if 'Debian' in cout and "(stretch)" in cout:
+        return 'Debian 9'
 
 
 def check_gluu_installation(c):
@@ -973,18 +977,27 @@ def installGluuServer(self, server_id):
     enable_command = None
 
     #add gluu server repo and imports signatures
-    if 'Ubuntu' in server.os:
+    if ('Ubuntu' in server.os) or ('Debian' in server.os):
 
         if server.os == 'Ubuntu 14':
             dist = 'trusty'
         elif server.os == 'Ubuntu 16':
             dist = 'xenial'
 
-        cmd = 'curl https://repo.gluu.org/ubuntu/gluu-apt.key | apt-key add -'
+
+        if 'Ubuntu' in server.os:
+            cmd = 'curl https://repo.gluu.org/ubuntu/gluu-apt.key | apt-key add -'
+        elif 'Debian' in server.os:
+            cmd = 'curl https://repo.gluu.org/debian/gluu-apt.key | apt-key add -'
+
         run_command(tid, c, cmd, no_error='debug')
 
-        cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
+        if 'Ubuntu' in server.os:
+            cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
                '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
+        elif 'Debian' in server.os:
+            cmd = ('echo "deb https://repo.gluu.org/debian/ stable main" '
+               '> /etc/apt/sources.list.d/gluu-repo.list')
 
         run_command(tid, c, cmd)
 
@@ -1077,7 +1090,7 @@ def installGluuServer(self, server_id):
     #If previous installation was broken, make a re-installation. This sometimes
     #occur on ubuntu installations
     if 'half-installed' in cout + cerr:
-        if 'Ubuntu' in server.os:
+        if ('Ubuntu' in server.os) or  ('Debian' in server.os):
             cmd = 'apt-get install --reinstall -y '+ gluu_server
             run_command(tid, c, cmd, no_error='debug')
 
