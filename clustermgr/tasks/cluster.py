@@ -474,26 +474,28 @@ def setup_ldap_replication(self, server_id):
                         "warning")
 
 
-            pc = RemoteClient(p.hostname, ip=p.ip)
-            try:
-                pc.startup()
-            except:
-                pc = None
-                wlogger.log(tid, "Can't establish SSH connection to provider server: ".format(p.hostname), 'fail')
-                #wlogger.log(tid, "Ending server installation process.", "error")
+                pc = RemoteClient(p.hostname, ip=p.ip)
+                try:
+                    pc.startup()
+                except:
+                    pc = None
+                    wlogger.log(tid, "Can't establish SSH connection to provider server: ".format(p.hostname), 'fail')
+                    #wlogger.log(tid, "Ending server installation process.", "error")
 
-                return
+                    return
 
-            modifyOxLdapProperties(p, pc, tid, pDict, chroot)
+                modifyOxLdapProperties(p, pc, tid, pDict, chroot)
 
 
-            if not server_id == 'all':
-                wlogger.log(tid, 'Restarting Gluu Server on provider {0}'.format(p.hostname))
-                wlogger.log(tid, "SSH connection to provider server: {0}".format(p.hostname), 'success')
+                if not server_id == 'all':
+                    wlogger.log(tid, 'Restarting Gluu Server on provider {0}'.format(p.hostname))
+                    wlogger.log(tid, "SSH connection to provider server: {0}".format(p.hostname), 'success')
 
-                if pc:
-                    run_command(tid, pc, restart_gluu_cmd, no_error='debug')
+                    if pc:
+                        run_command(tid, pc, restart_gluu_cmd, no_error='debug')
 
+                pc.close()
+                
         #If this is not primary server, we need it to run in mirror mode.
         if not server.primary_server:
             # 15. Enable Mirrormode in the server
@@ -508,12 +510,10 @@ def setup_ldap_replication(self, server_id):
                     wlogger.log(tid, 'LDAP Server is already in mirror mode', 'debug')
 
 
-        if pc:
-            if not server_id == 'all':
-                run_command(tid, pc, restart_gluu_cmd, no_error='debug')
-                wlogger.log(tid, 'Restarting Gluu Server')
-                run_command(tid, c, restart_gluu_cmd, no_error='debug')
-                pc.close()
+            
+        if not server_id == 'all':
+            wlogger.log(tid, 'Restarting Gluu Server on this server: {0}'.format(server.hostname))
+            run_command(tid, c, restart_gluu_cmd, no_error='debug')
                 
         # 16. Set the mmr flag to True to indicate it has been configured
         server.mmr = True
