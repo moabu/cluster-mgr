@@ -528,7 +528,45 @@ def setup_ldap_replication(self, server_id):
             wlogger.log(tid, 'Restarting Gluu Server: ' + server.hostname)
             run_command(tid, c, restart_gluu_cmd, no_error='debug')
             c.close()
-            
+        
+        #Adding providers for primary server
+        pproviders = Server.query.filter(
+                                    Server.primary_server.isnot(True)
+                                ).all()
+    
+        primary = Server.query.filter(Server.primary_server==True).first()
+        
+        ldp_primary = LdapOLC('ldaps://{}:1636'.format(primary.hostname),
+                                'cn=config', server.ldap_password)
+        ldp_primary.connect()
+        
+        for provider in pproviders:
+            paddr = provider.ip if app_config.use_ip else provider.hostname
+            status = ldp_primary.add_provider(
+                        provider.id, "ldaps://{0}:1636".format(paddr), 
+                        app_config.replication_dn,
+                        app_config.replication_pw
+                    )
+            if status:
+                wlogger.log(tid, '>> Making LDAP of {0} listen to {1}'.format(
+                        primary.hostname, provider.hostname), 'success')
+            else:
+                wlogger.log(tid, '>> Making {0} listen to {1} failed: {2}'.format(
+                        primary.hostname, provider.hostname, 
+                        ldp_primary.conn.result['description']), "warning")
+                        
+        if pproviders:
+            if not ldp_primary.checkMirroMode():
+                if ldp_primary.makeMirroMode():
+                    wlogger.log(tid, 'Enabling mirror mode', 'success')
+                else:
+                    wlogger.log(tid, "Enabling mirror mode failed: {0}".format(
+                        ldp_primary.conn.result['description']), "warning")
+            else:
+                wlogger.log(tid, 'LDAP Server is already in mirror mode', 'debug')
+                        
+        ldp_primary.close()
+
     wlogger.log(tid, "Deployment is successful")
 
 
