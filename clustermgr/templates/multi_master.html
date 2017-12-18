@@ -116,6 +116,9 @@
                 {% endfor %}
             </tbody>
         </table>
+        <br>
+        <a class="btn pull-right btn-primary btn-xs" href="{{ url_for('cluster.deploy_config', server_id='all') }}">Deploy All</a>
+        
     </div>
 </div>
 

@@ -131,6 +131,14 @@ def modifyOxLdapProperties(server, c, tid, pDict, chroot):
                 'warning')
 
 @celery.task(bind=True)
+def setup_ldap_replication_all(self):
+    servers = Server.query.all()
+    
+    for server in servers:
+        setup_ldap_replication
+    
+
+@celery.task(bind=True)
 def setup_ldap_replication(self, server_id):
     """Deploys ldap replicaton
 
@@ -138,374 +146,396 @@ def setup_ldap_replication(self, server_id):
         server_id (integer): id of server to be deployed replication
     """
 
-
     tid = self.request.id
-    server = Server.query.get(server_id)
-    conn_addr = server.hostname
     app_config = AppConfiguration.query.first()
 
-
-    # 1. Ensure that server id is valid
-    if not server:
-        wlogger.log(tid, "Server is not on database", "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return False
-
-    # determine chroot
-    if not server.gluu_server:
-        chroot = '/'
+    servers_to_deploy = []
+        
+    if not server_id == 'all':
+        server = Server.query.get(server_id)
+        servers_to_deploy.append(server)
     else:
-        chroot = '/opt/gluu-server-' + app_config.gluu_version
+        servers_to_deploy = Server.query.all()
+        
+    for server in servers_to_deploy:
+        conn_addr = server.hostname
 
-    # 2. Make SSH Connection to the remote server
-    wlogger.log(tid, "Making SSH connection to the server %s" %
-                server.hostname)
-    c = RemoteClient(server.hostname, ip=server.ip)
-    try:
-        c.startup()
-    except Exception as e:
-        wlogger.log(
-            tid, "Cannot establish SSH connection {0}".format(e), "warning")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return False
+        wlogger.log(tid, "Setting up replication on server %s" % server.hostname)
 
 
-    # 3. For Gluu server, ensure that chroot directory is available
-    if server.gluu_server:
-        if c.exists(chroot):
-            wlogger.log(tid, 'Checking if remote is gluu server', 'success')
-        else:
-            wlogger.log(tid, "Remote is not a gluu server.", "error")
+        # 1. Ensure that server id is valid
+        if not server:
+            wlogger.log(tid, "Server is not on database", "error")
             wlogger.log(tid, "Ending server setup process.", "error")
             return False
 
-    # 3.1 Ensure the data directories are available
-    accesslog_dir = '/opt/gluu/data/accesslog'
-    if not c.exists(chroot + accesslog_dir):
-        run_command(tid, c, "mkdir -p {0}".format(accesslog_dir), chroot)
-        run_command(tid, c, "chown -R ldap:ldap {0}".format(accesslog_dir),
-                    chroot)
-
-    # 4. Ensure Openldap is installed on the server
-    if c.exists(os.path.join(chroot, 'opt/symas/bin/slaptest')):
-        wlogger.log(tid, "Checking OpenLDAP is installed", "success")
-    else:
-        wlogger.log(tid, "Cannot find directory /opt/symas/bin. OpenLDAP is "
-                         "not installed. Cannot setup replication.", "error")
-        return False
-
-    # 5. Upload symas-openldap.conf with remote access and slapd.d enabled
-    syconf = os.path.join(chroot, 'opt/symas/etc/openldap/symas-openldap.conf')
-
-    #symas-openldap.conf template filename
-    confile = os.path.join(app.root_path, "templates", "slapd",
-                           "symas-openldap.conf")
-
-    ldap_bind_addr = server.hostname
-    if app_config.use_ip:
-        ldap_bind_addr = server.ip
-
-
-    # prepare valus dictinory to be used for updating symas-openldap.conf
-    # template. This file will make ldapserver listen outbond interface and
-    # make ldapserver to run with olc
-    values = dict(
-        hosts="ldaps://127.0.0.1:1636/ ldaps://{0}:1636/".format(
-            ldap_bind_addr),
-        extra_args="-F /opt/symas/etc/openldap/slapd.d"
-    )
-
-    #read and update symas-openldap.conf file
-    confile_content = open(confile).read()
-    confile_content = confile_content.format(**values)
-
-    #write symas-openldap.conf to server
-    r = c.put_file(syconf, confile_content)
-
-    if r[0]:
-        wlogger.log(tid, 'symas-openldap.conf file uploaded', 'success')
-    else:
-        wlogger.log(tid, 'An error occured while uploading symas-openldap.conf'
-                    ': {0}'.format(r[1]), "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    # 6. Generate OLC slapd.d
-    wlogger.log(tid, "Convert slapd.conf to slapd.d OLC")
-
-    # we need to stop ldapserver (solserver) to make it run with olc
-    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-        run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver stop'")
-    else:
-        run_command(tid, c, 'service solserver stop', chroot)
-
-    # remove slapd.d directory if it previously exist
-    run_command(tid, c, "rm -rf /opt/symas/etc/openldap/slapd.d", chroot)
-    # make slapd.d direcotory
-    run_command(tid, c, "mkdir -p /opt/symas/etc/openldap/slapd.d", chroot)
-    # convert convert slapd.conf to slapd.d
-    run_command(tid, c, "/opt/symas/bin/slaptest -f /opt/symas/etc/openldap/"
-                "slapd.conf -F /opt/symas/etc/openldap/slapd.d", chroot)
-    # make owner of slapd.d to ldap
-    run_command(tid, c,
-                "chown -R ldap:ldap /opt/symas/etc/openldap/slapd.d", chroot)
-
-    # 7. Restart the solserver with the new OLC configuration
-    wlogger.log(tid, "Restarting LDAP server with OLC configuration")
-
-    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-        log= run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start'")
-    else:
-        log = run_command(tid, c, "service solserver start", chroot)
-    if 'failed' in log:
-        wlogger.log(tid, "Couldn't restart solserver.", "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-
-        if 'CentOS' in server.os or 'RHEL' in server.os:
-            run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start -d 1'")
+        # determine chroot
+        if not server.gluu_server:
+            chroot = '/'
         else:
-            run_command(tid, c, "service solserver start -d 1", chroot)
-        return
+            chroot = '/opt/gluu-server-' + app_config.gluu_version
 
-    # 8. Connect to the OLC config
-    ldp = LdapOLC('ldaps://{}:1636'.format(conn_addr), 'cn=config',
-                  server.ldap_password)
-    try:
-        ldp.connect()
-        wlogger.log(tid, 'Successfully connected to LDAPServer ', 'success')
-    except Exception as e:
-        wlogger.log(tid, "Connection to LDAPserver {0} at port 1636 was failed:"
-                    " {1}".format(conn_addr, e), "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    # 9. Set the server ID
-    if ldp.setServerID(server.id):
-        wlogger.log(tid, 'Setting Server ID: {0}'.format(server.id), 'success')
-    else:
-        wlogger.log(tid, "Stting Server ID failed: {0}".format(
-            ldp.conn.result['description']), "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    # 10. Enable the syncprov and load accesslog modules
-    # load "syncprov", "accesslog" modules
-    r = ldp.loadModules("syncprov", "accesslog")
-    if r == -1:
-        wlogger.log(
-            tid, 'Syncprov and accesslog modlues already exist', 'debug')
-    else:
-        if r:
-            wlogger.log(
-                tid, 'Syncprov and accesslog modlues were loaded', 'success')
-        else:
-            wlogger.log(tid, "Loading syncprov & accesslog failed: {0}".format(
-                ldp.conn.result['description']), "error")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return
-    # if cccesslogDB entry not exists, create it
-    if not ldp.checkAccesslogDBEntry():
-        if ldp.accesslogDBEntry(app_config.replication_dn, accesslog_dir):
-            wlogger.log(tid, 'Creating accesslog entry', 'success')
-        else:
-            wlogger.log(tid, "Creating accesslog entry failed: {0}".format(
-                ldp.conn.result['description']), "error")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return
-    else:
-        wlogger.log(tid, 'Accesslog entry already exists.', 'debug')
-
-    # !WARNING UNBIND NECASSARY - I DON'T KNOW WHY.*****
-    ldp.conn.unbind()
-    ldp.conn.bind()
-
-    #if not SyncprovOverlays exists on first database, create it
-    if not ldp.checkSyncprovOverlaysDB1():
-        if ldp.syncprovOverlaysDB1():
-            wlogger.log(
-                tid, 'SyncprovOverlays entry on main database was created',
-                'success')
-        else:
-            wlogger.log(
-                tid, "Creating SyncprovOverlays entry on main database failed:"
-                " {0}".format(ldp.conn.result['description']), "error")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return
-    else:
-        wlogger.log(
-            tid, 'SyncprovOverlays entry on main database already exists.',
-            'debug')
-    #if not SyncprovOverlays exists on second database, create it
-    if not ldp.checkSyncprovOverlaysDB2():
-        if ldp.syncprovOverlaysDB2():
-            wlogger.log(
-                tid, 'SyncprovOverlay entry on accasslog database was created',
-                'success')
-        else:
-            wlogger.log(
-                tid, "Creating SyncprovOverlays entry on accasslog database"
-                " failed: {0}".format(ldp.conn.result['description']), "error")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return
-    else:
-        wlogger.log(
-            tid, 'SyncprovOverlay entry on accasslog database already exists.',
-            'debug')
-    #if not accesslog purge entry exists on second database, create it
-    if not ldp.checkAccesslogPurge():
-        if ldp.accesslogPurge(app_config.log_purge):
-            wlogger.log(tid, 'Creating accesslog purge entry', 'success')
-        else:
-            wlogger.log(tid, "Creating accesslog purge entry failed: {0}".format(
-                ldp.conn.result['description']), "warning")
-
-    else:
-        wlogger.log(tid, 'Accesslog purge entry already exists.', 'debug')
-
-    #if not limits exists on main database, create it
-    if ldp.setLimitOnMainDb(app_config.replication_dn):
-        wlogger.log(
-            tid, 'Setting size limit on main database for replicator user',
-            'success')
-    else:
-        wlogger.log(tid, "Setting size limit on main database for replicator"
-                    " user failed: {0}".format(ldp.conn.result['description']),
-                    "warning")
-
-    #replication user (dn) will be created only on primary server,
-    #others will replicate it.
-    if server.primary_server:
-        # 11. Add replication user to the o=gluu
-        wlogger.log(tid, 'Creating replicator user: {0}'.format(
-            app_config.replication_dn))
-
-        adminOlc = LdapOLC('ldaps://{}:1636'.format(conn_addr),
-                           'cn=directory manager,o=gluu', server.ldap_password)
+        # 2. Make SSH Connection to the remote server
+        wlogger.log(tid, "Making SSH connection to the server %s" %
+                    server.hostname)
+        c = RemoteClient(server.hostname, ip=server.ip)
         try:
-            adminOlc.connect()
+            c.startup()
         except Exception as e:
             wlogger.log(
-                tid, "Connection to LDAPserver as direcory manager at port 1636"
-                " has failed: {0}".format(e), "error")
+                tid, "Cannot establish SSH connection {0}".format(e), "warning")
             wlogger.log(tid, "Ending server setup process.", "error")
-            return
+            return False
 
-        if adminOlc.addReplicatorUser(app_config.replication_dn,
-                                      app_config.replication_pw):
-            wlogger.log(tid, 'Replicator user created.', 'success')
-        else:
-            wlogger.log(tid, "Creating replicator user failed: {0}".format(
-                adminOlc.conn.result), "warning")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return
-
-    #If admin sets "use ip for replication, we will use ip address of server
-    saddr = server.ip if app_config.use_ip else server.hostname
-
-
-    # Prepare pDict for modifying ox-ldap.properties file.
-    allproviders = Server.query.all()
-    pDict = {}
-    oxIDP=['localhost:1636']
-
-    # we need to modify ox-ldap.properties on each server
-    for ri in allproviders:
-
-        laddr = ri.ip if app_config.use_ip else ri.hostname
-        oxIDP.append(laddr+':1636')
-
-        ox_auth = [ laddr+':1636' ]
-
-        for rj in  allproviders:
-            if not ri == rj:
-                laddr = rj.ip if app_config.use_ip else rj.hostname
-                ox_auth.append(laddr+':1636')
-
-        pDict[ri.hostname]= ','.join(ox_auth)
-
-    #If this is primary server, we need to modify OxIDPAuthentication entry
-    #to include all servers in cluster. Others will replicate this.
-    if server.primary_server:
-        if adminOlc.configureOxIDPAuthentication(oxIDP):
-            wlogger.log(tid, 'oxIDPAuthentication entry is modified to include all privders','success')
-        else:
-            wlogger.log(tid, 'Modifying oxIDPAuthentication entry is failed: {}'.format(
-                    adminOlc.conn.result['description']), 'success')
-
-    modifyOxLdapProperties(server, c, tid, pDict, chroot)
-
-
-
-
-    #we need to restart gluu server after modifying oxIDPAuthentication entry
-    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-        restart_gluu_cmd = '/sbin/gluu-serverd-{0} restart'.format(app_config.gluu_version)
-    else:
-        restart_gluu_cmd = 'service gluu-server-{0} restart'.format(app_config.gluu_version)
-
-    # 12. Make this server to listen to all other providers
-    providers = Server.query.filter(Server.id.isnot(server.id)).filter().all()
-
-    if providers:
-        wlogger.log(tid, "Adding Syncrepl to integrate the server in cluster")
-    for p in providers:
-
-        paddr = p.ip if app_config.use_ip else p.hostname
-
-        if not server.primary_server:
-
-            status = ldp.add_provider(
-                p.id, "ldaps://{0}:1636".format(paddr), app_config.replication_dn,
-                app_config.replication_pw)
-            if status:
-                wlogger.log(tid, '>> Making LDAP of {0} listen to {1}'.format(
-                    server.hostname, p.hostname), 'success')
+        # 3. For Gluu server, ensure that chroot directory is available
+        if server.gluu_server:
+            if c.exists(chroot):
+                wlogger.log(tid, 'Checking if remote is gluu server', 'success')
             else:
-                wlogger.log(tid, '>> Making {0} listen to {1} failed: {2}'.format(
-                    p.hostname, server.hostname, ldp.conn.result['description']),
-                    "warning")
+                wlogger.log(tid, "Remote is not a gluu server.", "error")
+                wlogger.log(tid, "Ending server setup process.", "error")
+                return False
+
+        # 3.1 Ensure the data directories are available
+        accesslog_dir = '/opt/gluu/data/accesslog'
+        if not c.exists(chroot + accesslog_dir):
+            run_command(tid, c, "mkdir -p {0}".format(accesslog_dir), chroot)
+            run_command(tid, c, "chown -R ldap:ldap {0}".format(accesslog_dir),
+                        chroot)
+
+        # 4. Ensure Openldap is installed on the server
+        if c.exists(os.path.join(chroot, 'opt/symas/bin/slaptest')):
+            wlogger.log(tid, "Checking OpenLDAP is installed", "success")
+        else:
+            wlogger.log(tid, "Cannot find directory /opt/symas/bin. OpenLDAP is "
+                             "not installed. Cannot setup replication.", "error")
+            return False
+
+        # 5. Upload symas-openldap.conf with remote access and slapd.d enabled
+        syconf = os.path.join(chroot, 'opt/symas/etc/openldap/symas-openldap.conf')
+
+        #symas-openldap.conf template filename
+        confile = os.path.join(app.root_path, "templates", "slapd",
+                               "symas-openldap.conf")
+
+        ldap_bind_addr = server.hostname
+        if app_config.use_ip:
+            ldap_bind_addr = server.ip
 
 
-        pc = RemoteClient(p.hostname, ip=p.ip)
-        try:
-            pc.startup()
-        except:
-            pc = None
-            wlogger.log(tid, "Can't establish SSH connection to provider server: ".format(p.hostname), 'fail')
-            #wlogger.log(tid, "Ending server installation process.", "error")
+        # prepare valus dictinory to be used for updating symas-openldap.conf
+        # template. This file will make ldapserver listen outbond interface and
+        # make ldapserver to run with olc
+        values = dict(
+            hosts="ldaps://127.0.0.1:1636/ ldaps://{0}:1636/".format(
+                ldap_bind_addr),
+            extra_args="-F /opt/symas/etc/openldap/slapd.d"
+        )
 
+        #read and update symas-openldap.conf file
+        confile_content = open(confile).read()
+        confile_content = confile_content.format(**values)
+
+        #write symas-openldap.conf to server
+        r = c.put_file(syconf, confile_content)
+
+        if r[0]:
+            wlogger.log(tid, 'symas-openldap.conf file uploaded', 'success')
+        else:
+            wlogger.log(tid, 'An error occured while uploading symas-openldap.conf'
+                        ': {0}'.format(r[1]), "error")
+            wlogger.log(tid, "Ending server setup process.", "error")
             return
 
-        modifyOxLdapProperties(p, pc, tid, pDict, chroot)
+        # 6. Generate OLC slapd.d
+        wlogger.log(tid, "Convert slapd.conf to slapd.d OLC")
+
+        # we need to stop ldapserver (solserver) to make it run with olc
+        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+            run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver stop'")
+        else:
+            run_command(tid, c, 'service solserver stop', chroot)
+
+        # remove slapd.d directory if it previously exist
+        run_command(tid, c, "rm -rf /opt/symas/etc/openldap/slapd.d", chroot)
+        # make slapd.d direcotory
+        run_command(tid, c, "mkdir -p /opt/symas/etc/openldap/slapd.d", chroot)
+        # convert convert slapd.conf to slapd.d
+        run_command(tid, c, "/opt/symas/bin/slaptest -f /opt/symas/etc/openldap/"
+                    "slapd.conf -F /opt/symas/etc/openldap/slapd.d", chroot)
+        # make owner of slapd.d to ldap
+        run_command(tid, c,
+                    "chown -R ldap:ldap /opt/symas/etc/openldap/slapd.d", chroot)
+
+        # 7. Restart the solserver with the new OLC configuration
+        wlogger.log(tid, "Restarting LDAP server with OLC configuration")
+
+        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+            log= run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start'")
+        else:
+            log = run_command(tid, c, "service solserver start", chroot)
+        if 'failed' in log:
+            wlogger.log(tid, "Couldn't restart solserver.", "error")
+            wlogger.log(tid, "Ending server setup process.", "error")
+
+            if 'CentOS' in server.os or 'RHEL' in server.os:
+                run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start -d 1'")
+            else:
+                run_command(tid, c, "service solserver start -d 1", chroot)
+            return
+
+        # 8. Connect to the OLC config
+        ldp = LdapOLC('ldaps://{}:1636'.format(conn_addr), 'cn=config',
+                      server.ldap_password)
+        try:
+            ldp.connect()
+            wlogger.log(tid, 'Successfully connected to LDAPServer ', 'success')
+        except Exception as e:
+            wlogger.log(tid, "Connection to LDAPserver {0} at port 1636 was failed:"
+                        " {1}".format(conn_addr, e), "error")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return
+
+        # 9. Set the server ID
+        if ldp.setServerID(server.id):
+            wlogger.log(tid, 'Setting Server ID: {0}'.format(server.id), 'success')
+        else:
+            wlogger.log(tid, "Stting Server ID failed: {0}".format(
+                ldp.conn.result['description']), "error")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return
+
+        # 10. Enable the syncprov and load accesslog modules
+        # load "syncprov", "accesslog" modules
+        r = ldp.loadModules("syncprov", "accesslog")
+        if r == -1:
+            wlogger.log(
+                tid, 'Syncprov and accesslog modlues already exist', 'debug')
+        else:
+            if r:
+                wlogger.log(
+                    tid, 'Syncprov and accesslog modlues were loaded', 'success')
+            else:
+                wlogger.log(tid, "Loading syncprov & accesslog failed: {0}".format(
+                    ldp.conn.result['description']), "error")
+                wlogger.log(tid, "Ending server setup process.", "error")
+                return
+        # if cccesslogDB entry not exists, create it
+        if not ldp.checkAccesslogDBEntry():
+            if ldp.accesslogDBEntry(app_config.replication_dn, accesslog_dir):
+                wlogger.log(tid, 'Creating accesslog entry', 'success')
+            else:
+                wlogger.log(tid, "Creating accesslog entry failed: {0}".format(
+                    ldp.conn.result['description']), "error")
+                wlogger.log(tid, "Ending server setup process.", "error")
+                return
+        else:
+            wlogger.log(tid, 'Accesslog entry already exists.', 'debug')
+
+        # !WARNING UNBIND NECASSARY - I DON'T KNOW WHY.*****
+        ldp.conn.unbind()
+        ldp.conn.bind()
+
+        #if not SyncprovOverlays exists on first database, create it
+        if not ldp.checkSyncprovOverlaysDB1():
+            if ldp.syncprovOverlaysDB1():
+                wlogger.log(
+                    tid, 'SyncprovOverlays entry on main database was created',
+                    'success')
+            else:
+                wlogger.log(
+                    tid, "Creating SyncprovOverlays entry on main database failed:"
+                    " {0}".format(ldp.conn.result['description']), "error")
+                wlogger.log(tid, "Ending server setup process.", "error")
+                return
+        else:
+            wlogger.log(
+                tid, 'SyncprovOverlays entry on main database already exists.',
+                'debug')
+        #if not SyncprovOverlays exists on second database, create it
+        if not ldp.checkSyncprovOverlaysDB2():
+            if ldp.syncprovOverlaysDB2():
+                wlogger.log(
+                    tid, 'SyncprovOverlay entry on accasslog database was created',
+                    'success')
+            else:
+                wlogger.log(
+                    tid, "Creating SyncprovOverlays entry on accasslog database"
+                    " failed: {0}".format(ldp.conn.result['description']), "error")
+                wlogger.log(tid, "Ending server setup process.", "error")
+                return
+        else:
+            wlogger.log(
+                tid, 'SyncprovOverlay entry on accasslog database already exists.',
+                'debug')
+        #if not accesslog purge entry exists on second database, create it
+        if not ldp.checkAccesslogPurge():
+            if ldp.accesslogPurge(app_config.log_purge):
+                wlogger.log(tid, 'Creating accesslog purge entry', 'success')
+            else:
+                wlogger.log(tid, "Creating accesslog purge entry failed: {0}".format(
+                    ldp.conn.result['description']), "warning")
+
+        else:
+            wlogger.log(tid, 'Accesslog purge entry already exists.', 'debug')
+
+        #if not limits exists on main database, create it
+        if ldp.setLimitOnMainDb(app_config.replication_dn):
+            wlogger.log(
+                tid, 'Setting size limit on main database for replicator user',
+                'success')
+        else:
+            wlogger.log(tid, "Setting size limit on main database for replicator"
+                        " user failed: {0}".format(ldp.conn.result['description']),
+                        "warning")
+
+        #replication user (dn) will be created only on primary server,
+        #others will replicate it.
+        if server.primary_server:
+            # 11. Add replication user to the o=gluu
+            wlogger.log(tid, 'Creating replicator user: {0}'.format(
+                app_config.replication_dn))
+
+            adminOlc = LdapOLC('ldaps://{}:1636'.format(conn_addr),
+                               'cn=directory manager,o=gluu', server.ldap_password)
+            try:
+                adminOlc.connect()
+            except Exception as e:
+                wlogger.log(
+                    tid, "Connection to LDAPserver as direcory manager at port 1636"
+                    " has failed: {0}".format(e), "error")
+                wlogger.log(tid, "Ending server setup process.", "error")
+                return
+
+            if adminOlc.addReplicatorUser(app_config.replication_dn,
+                                          app_config.replication_pw):
+                wlogger.log(tid, 'Replicator user created.', 'success')
+            else:
+                wlogger.log(tid, "Creating replicator user failed: {0}".format(
+                    adminOlc.conn.result), "warning")
+                wlogger.log(tid, "Ending server setup process.", "error")
+                return
+
+        #If admin sets "use ip for replication, we will use ip address of server
+        saddr = server.ip if app_config.use_ip else server.hostname
 
 
-        wlogger.log(tid, 'Restarting Gluu Server on provider {0}'.format(p.hostname))
-        wlogger.log(tid, "SSH connection to provider server: {0}".format(p.hostname), 'success')
+        # Prepare pDict for modifying ox-ldap.properties file.
+        allproviders = Server.query.all()
+        pDict = {}
+        oxIDP=['localhost:1636']
+
+        # we need to modify ox-ldap.properties on each server
+        for ri in allproviders:
+
+            laddr = ri.ip if app_config.use_ip else ri.hostname
+            oxIDP.append(laddr+':1636')
+
+            ox_auth = [ laddr+':1636' ]
+
+            for rj in  allproviders:
+                if not ri == rj:
+                    laddr = rj.ip if app_config.use_ip else rj.hostname
+                    ox_auth.append(laddr+':1636')
+
+            pDict[ri.hostname]= ','.join(ox_auth)
+
+        #If this is primary server, we need to modify OxIDPAuthentication entry
+        #to include all servers in cluster. Others will replicate this.
+        if server.primary_server:
+            if adminOlc.configureOxIDPAuthentication(oxIDP):
+                wlogger.log(tid, 'oxIDPAuthentication entry is modified to include all privders','success')
+            else:
+                wlogger.log(tid, 'Modifying oxIDPAuthentication entry is failed: {}'.format(
+                        adminOlc.conn.result['description']), 'success')
+
+        modifyOxLdapProperties(server, c, tid, pDict, chroot)
+
+        #we need to restart gluu server after modifying oxIDPAuthentication entry
+        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+            restart_gluu_cmd = '/sbin/gluu-serverd-{0} restart'.format(app_config.gluu_version)
+        else:
+            restart_gluu_cmd = 'service gluu-server-{0} restart'.format(app_config.gluu_version)
+
+        # 12. Make this server to listen to all other providers
+        providers = Server.query.filter(Server.id.isnot(server.id)).filter().all()
+
+        if providers:
+            wlogger.log(tid, "Adding Syncrepl to integrate the server in cluster")
+
+        for p in providers:
+
+            paddr = p.ip if app_config.use_ip else p.hostname
+
+            if not server.primary_server:
+
+                status = ldp.add_provider(
+                    p.id, "ldaps://{0}:1636".format(paddr), app_config.replication_dn,
+                    app_config.replication_pw)
+                if status:
+                    wlogger.log(tid, '>> Making LDAP of {0} listen to {1}'.format(
+                        server.hostname, p.hostname), 'success')
+                else:
+                    wlogger.log(tid, '>> Making {0} listen to {1} failed: {2}'.format(
+                        p.hostname, server.hostname, ldp.conn.result['description']),
+                        "warning")
+
+
+            pc = RemoteClient(p.hostname, ip=p.ip)
+            try:
+                pc.startup()
+            except:
+                pc = None
+                wlogger.log(tid, "Can't establish SSH connection to provider server: ".format(p.hostname), 'fail')
+                #wlogger.log(tid, "Ending server installation process.", "error")
+
+                return
+
+            modifyOxLdapProperties(p, pc, tid, pDict, chroot)
+
+
+            if not server_id == 'all':
+                wlogger.log(tid, 'Restarting Gluu Server on provider {0}'.format(p.hostname))
+                wlogger.log(tid, "SSH connection to provider server: {0}".format(p.hostname), 'success')
+
+                if pc:
+                    run_command(tid, pc, restart_gluu_cmd, no_error='debug')
+
+        #If this is not primary server, we need it to run in mirror mode.
+        if not server.primary_server:
+            # 15. Enable Mirrormode in the server
+            if providers:
+                if not ldp.checkMirroMode():
+                    if ldp.makeMirroMode():
+                        wlogger.log(tid, 'Enabling mirror mode', 'success')
+                    else:
+                        wlogger.log(tid, "Enabling mirror mode failed: {0}".format(
+                            ldp.conn.result['description']), "warning")
+                else:
+                    wlogger.log(tid, 'LDAP Server is already in mirror mode', 'debug')
+
 
         if pc:
-            run_command(tid, pc, restart_gluu_cmd, no_error='debug')
-
-    #If this is not primary server, we need it to run in mirror mode.
-    if not server.primary_server:
-        # 15. Enable Mirrormode in the server
-        if providers:
-            if not ldp.checkMirroMode():
-                if ldp.makeMirroMode():
-                    wlogger.log(tid, 'Enabling mirror mode', 'success')
-                else:
-                    wlogger.log(tid, "Enabling mirror mode failed: {0}".format(
-                        ldp.conn.result['description']), "warning")
-            else:
-                wlogger.log(tid, 'LDAP Server is already in mirror mode', 'debug')
-
-
-    wlogger.log(tid, 'Restarting Gluu Server')
-    run_command(tid, c, restart_gluu_cmd, no_error='debug')
-
-    # 16. Set the mmr flag to True to indicate it has been configured
-    server.mmr = True
-    db.session.commit()
-
+            if not server_id == 'all':
+                run_command(tid, pc, restart_gluu_cmd, no_error='debug')
+                wlogger.log(tid, 'Restarting Gluu Server')
+                run_command(tid, c, restart_gluu_cmd, no_error='debug')
+                pc.close()
+                
+        # 16. Set the mmr flag to True to indicate it has been configured
+        server.mmr = True
+        db.session.commit()
+        c.close()
+        
+    #Restarting all gluu servers
+    if server_id == 'all':
+        for server in servers_to_deploy:
+            c = RemoteClient(server.hostname, ip=server.ip)
+            c.startup()
+            wlogger.log(tid, 'Restarting Gluu Server: ' + server.hostname)
+            run_command(tid, c, restart_gluu_cmd, no_error='debug')
+            c.close()
+            
     wlogger.log(tid, "Deployment is successful")
 
 
@@ -910,6 +940,7 @@ def delete_key(suffix, hostname, gluu_version, tid, c, sos):
         cin, cout, cerr = c.run(command)
         wlogger.log(tid, cmd, 'debug')
         wlogger.log(tid, cout+cerr, 'debug')
+
 
 
 @celery.task(bind=True)
