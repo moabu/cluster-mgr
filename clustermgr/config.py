@@ -36,7 +36,7 @@ class Config(object):
     CELERYBEAT_SCHEDULE = {
         'send_reminder_email': {
             'task': 'clustermgr.tasks.all.send_reminder_email',
-            'schedule': timedelta(seconds=30.0),
+            'schedule': timedelta(seconds=60 * 60),
             'args': (),
         },
     }
