@@ -6,9 +6,11 @@ from celery.bin import beat
 from celery.bin import worker
 
 from clustermgr.application import create_app, init_celery
+from clustermgr.extensions import celery
 
 app = create_app()
-celery = init_celery(app)
+init_celery(app, celery)
+
 
 def create_cluster_app(info):
     return create_app()

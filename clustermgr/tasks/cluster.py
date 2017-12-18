@@ -5,10 +5,9 @@ import re
 import time
 
 from flask import current_app as app
-from celery import current_app as celery
 
 from clustermgr.models import Server, AppConfiguration
-from clustermgr.extensions import wlogger, db
+from clustermgr.extensions import wlogger, db, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.core.olc import CnManager

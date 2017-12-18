@@ -5,7 +5,6 @@ from flask import Blueprint, render_template, redirect, url_for, flash, \
 from flask import current_app as app
 from werkzeug.utils import secure_filename
 from celery.result import AsyncResult
-from celery import current_app as celery
 
 from clustermgr.extensions import db, wlogger
 from clustermgr.models import AppConfiguration, KeyRotation, Server
@@ -18,6 +17,7 @@ from clustermgr.core.utils import encrypt_text
 from clustermgr.core.utils import generate_random_key
 from clustermgr.core.utils import generate_random_iv
 from ..core.license import license_reminder
+from clustermgr.extensions import celery
 
 index = Blueprint('index', __name__)
 index.before_request(license_reminder)
