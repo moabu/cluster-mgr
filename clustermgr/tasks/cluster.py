@@ -153,7 +153,7 @@ def setup_ldap_replication(self, server_id):
     for server in servers_to_deploy:
         conn_addr = server.hostname
 
-        wlogger.log(tid, "Setting up replication on server %s" % server.hostname)
+        wlogger.log(tid, "Setting up replication on server %s" % server.hostname, 'head')
 
 
         # 1. Ensure that server id is valid

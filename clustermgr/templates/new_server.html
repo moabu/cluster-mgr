@@ -14,6 +14,25 @@
 <div class="box box-primary">
     <div class="box-body">
         {{ render_form(form, action_url='', btn_class='btn btn-primary') }}
+        
     </div>
+
+    {% if server_id %}
+        <div class="panel-body">
+
+            <form id="upload_setup_properties" action="{{url_for('server.upload_setup_properties', server_id=server_id)}}" method="POST" enctype="multipart/form-data">
+                {{ setup_properties_form.csrf_token }}
+                <div class="row">
+                    <div class="col-md-3">
+                        {{ setup_properties_form.setup_properties }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ setup_properties_form.upload(class="btn btn-success") }}
+                    </div>
+                </div>
+            </form>
+        </div>
+    {% endif %}
+    
 </div>
 {% endblock %}

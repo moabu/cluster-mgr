@@ -9,7 +9,8 @@ from flask import Blueprint, render_template, redirect, url_for, flash, \
 from clustermgr.extensions import db
 from clustermgr.models import Server, AppConfiguration
 
-from clustermgr.forms import ServerForm, InstallServerForm
+from clustermgr.forms import ServerForm, InstallServerForm, \
+        SetupPropertiesLastForm
 from clustermgr.tasks.cluster import remove_provider, collect_server_details
 from clustermgr.config import Config
 from clustermgr.core.remote import RemoteClient, ClientNotSetupException
@@ -66,7 +67,10 @@ def index():
         collect_server_details.delay(server.id)
         return redirect(url_for('index.home'))
 
-    return render_template('new_server.html', form=form, header=header)
+    return render_template('new_server.html',
+                            form=form,
+                            header=header,
+                            server_id=None)
 
 
 @server_view.route('/edit/<int:server_id>/', methods=['GET', 'POST'])
@@ -137,6 +141,32 @@ def get_inums():
     inum_appliance = '%s!0002!%s' % (base_inum, appliance_two_quads)
     return inum_org, inum_appliance
 
+def parse_setup_properties(content):
+    setup_prop = dict()
+    for l in content:
+        ls = l.strip()
+        if not ls[0] == '#':
+            eq_loc = ls.find('=')
+            
+            if eq_loc > 0:
+                k = ls[:eq_loc]
+                v = ls[eq_loc+1:]
+                if v == 'True':
+                    v = True
+                elif v == 'False':
+                    v = False
+                setup_prop[k] = v
+
+    return setup_prop
+
+def write_setup_properties_file(setup_prop):
+    
+    setup_properties_file = os.path.join(Config.DATA_DIR,
+                                         'setup.properties')
+
+    with open(setup_properties_file, 'w') as f:
+        for k, v in setup_prop.items():
+            f.write('{0}={1}\n'.format(k, v))
 
 def get_setup_properties():
     """This fucntion returns properties for setup.properties file."""
@@ -168,16 +198,12 @@ def get_setup_properties():
     #Check if there exists a previously created setup.properties file.
     #If exists, modify properties with content of this file.
     setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
+    
     if os.path.exists(setup_properties_file):
-        for l in open(setup_properties_file):
-            ls = l.strip().split('=')
-            if ls:
-                k,v = tuple(ls)
-                if v == 'True':
-                    v = True
-                elif v == 'False':
-                    v = False
-                setup_prop[k] = v
+        setup_prop_f = parse_setup_properties(
+                                open(setup_properties_file).readlines())
+    
+        setup_prop.update(setup_prop_f)
 
     #Every time this function is called, create new inum
     inum_org, inum_appliance = get_inums()
@@ -203,12 +229,8 @@ def install_gluu(server_id):
               "Server.", "warning")
         return redirect(url_for('index.home'))
 
-    #If current server is not primary server, and primary server was installed,
-    #start installation redirecting to cluster.install_gluu_server
+
     server = Server.query.get(server_id)
-    if not server.primary_server:
-        return redirect(url_for('cluster.install_gluu_server',
-                                server_id=server_id))
 
     #We need os type to perform installation. If it was not identified,
     #return to home and wait until it is identifed.
@@ -217,6 +239,14 @@ def install_gluu(server_id):
               "warning")
         collect_server_details.delay(server_id)
         return redirect(url_for('index.home'))
+
+
+    #If current server is not primary server, and primary server was installed,
+    #start installation by redirecting to cluster.install_gluu_server
+    if not server.primary_server:
+        return redirect(url_for('cluster.install_gluu_server',
+                                server_id=server_id))
+
 
     #If we come up here, it is primary server and we will ask admin which
     #components will be installed. So prepare form by InstallServerForm
@@ -262,18 +292,13 @@ def install_gluu(server_id):
             setup_prop[o] = getattr(form, o).data
 
 
-        setup_properties_file = os.path.join(Config.DATA_DIR,
-                                             'setup.properties')
-
-        with open(setup_properties_file, 'w') as f:
-            for k, v in setup_prop.items():
-                f.write('{0}={1}\n'.format(k, v))
+        write_setup_properties_file(setup_prop)
 
         #Redirect to cluster.install_gluu_server to start installation.
         return redirect(url_for('cluster.install_gluu_server',
                                 server_id=server_id))
 
-    #If this is view is requested, rather than post, display form to
+    #If this view is requested, rather than post, display form to
     #admin to determaine which elements to be installed.
     if request.method == 'GET':
         form.countryCode.data = setup_prop['countryCode']
@@ -297,7 +322,68 @@ def install_gluu(server_id):
                     ):
             getattr(form, o).data = setup_prop[o]
 
-    return render_template('new_server.html', form=form,  header=header)
+    setup_properties_form = SetupPropertiesLastForm()
+
+    return render_template('new_server.html',
+                            form=form,
+                            server_id=server_id,
+                            setup_properties_form = setup_properties_form,
+                            header=header)
+
+
+@server_view.route('/uploadsetupproperties/<int:server_id>', methods=['POST'])
+@license_manager.license_required
+def upload_setup_properties(server_id):
+    setup_properties_form = SetupPropertiesLastForm()
+    if setup_properties_form.upload.data and \
+            setup_properties_form.validate_on_submit():
+        
+        f = setup_properties_form.setup_properties.data
+
+ 
+        setup_prop = parse_setup_properties(f.stream)
+        
+        print setup_prop
+        
+        for rf in ( 'oxauthClient_encoded_pw',
+                    'encoded_ldap_pw',
+                    'scim_rp_client_jks_pass',
+                    'passport_rp_client_jks_pass',
+                    'asimbaJksPass',
+                    'encoded_ox_ldap_pw',
+                    'oxauthClient_pw',
+                    'encoded_shib_jks_pw',
+                    'encoded_openldapJksPass',
+                    'pairwiseCalculationSalt',
+                    'openldapKeyPass',
+                    'pairwiseCalculationKey',
+                    'httpdKeyPass',
+                    'scim_rs_client_jks_pass_encoded',
+                    'encode_salt',
+                    'scim_rs_client_jks_pass',
+                    'shibJksPass',                    
+                    ):
+            del setup_prop[rf]
+        
+        
+        appconf = AppConfiguration.query.first()
+        server = Server.query.get(server_id)
+        
+        setup_prop['hostname'] = appconf.nginx_host
+        setup_prop['ip'] = server.ip
+        setup_prop['ldapPass'] = server.ldap_password
+
+        write_setup_properties_file(setup_prop)
+        
+        flash("Setup properties file has been uploaded sucessfully. ",
+                    "success")
+        
+        return redirect(url_for('cluster.install_gluu_server',
+                                server_id=server_id))
+    else:
+        flash("Please upload valid setup properties file", "danger")
+        
+        return redirect(url_for('server.install_gluu', server_id=server_id))
 
 
 @server_view.route('/editslapdconf/<int:server_id>/', methods=['GET', 'POST'])
