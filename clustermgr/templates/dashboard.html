@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block header %}
 <h1>Dashboard</h1>
+  <ol class="breadcrumb">
+    <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home / Dashboard</a></li>
+  </ol>
 {% endblock %}
 {% block content %}
 

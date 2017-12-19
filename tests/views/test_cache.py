@@ -57,7 +57,7 @@ class ServerViewTestCase(unittest.TestCase):
                               follow_redirects=True)
         self.assertIn('No servers have been selected', rv.data)
 
-    @patch('clustermgr.views.cache.install_redis_stunnel')
+    @patch('clustermgr.views.cache.install_cache_components')
     def test_change_calls_celery_task_if_form_data_is_correct(self, mocktask):
         self.client.post('/cache/change/', data=dict(
             method="CLUSTER", servers=[1,2,3]))

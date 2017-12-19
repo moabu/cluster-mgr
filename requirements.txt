@@ -11,3 +11,5 @@ Flask-Migrate==2.0.3
 paramiko==2.1.2
 ldap3==2.3
 Flask-Login==0.4.0
+Flask-Mail==0.9.1
+oxdpython==3.1.1.2

@@ -2,14 +2,20 @@
 {% from 'macros.html' import cache_process_steps %}
 {% block header %}
     <h1>Cache Clustering</h1>
+  <ol class="breadcrumb">
+    <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+    <li><a href="{{ url_for('cache_mgr.index') }}">Cache Management</a></li>
+    <li class="active">Setup</li>
+  </ol>
 {% endblock %}
 
 {% block content %}
-    {{ cache_process_steps(step) }}
-
-    <div id="log_root"></div>
-
-    <div class="panel-group" id="accordion" role="tablist">
+  <div class="row">
+    <div class="col-md-3">
+      {{ cache_process_steps(step) }}
+    </div>
+    <div class="col-md-9" style="overflow: scroll;">
+      <div class="panel-group" id="accordion" role="tablist">
         {% for server in servers %}
             <div class="panel panel-default">
             <div class="panel-heading">
@@ -26,24 +32,29 @@
             </div>
 
         {% endfor %}
-    </div>
+      </div>
 
-    <ul id="common_logger" class="list-group">
-    </ul>
+      <ul id="common_logger" class="list-group">
+      </ul>
 
-    {% if step == 1 %}
+      {% if step == 1 %}
         <a href="{{ url_for('cache_mgr.configure', method=method) }}" class="btn btn-block btn-primary" style="display: none;" id="next">
             Configure Cache Cluster</a>
-    {% elif step == 2 %}
+      {% elif step == 2 %}
         <a href="{{ url_for('cache_mgr.finish_clustering', method=method) }}" class="btn btn-block btn-primary" style="display: none;" id="next">
             Finish Cache Clustering</a>
-    {% elif step == 3 %}
+      {% elif step == 3 %}
         <div id="next" class="jumbotron" style="display: none;">
             <h3>Redis Cache Setup Complete</h3>
             <p class="text-danger">The setup of a clustered cache using Redis is complete.</p>
             <p><a class="btn btn-info" href="/" role="button">Go to dashboard</a></p>
         </div>
-    {% endif %}
+      {% endif %}
+
+      <div id="dummy"></div>
+
+    </div>
+  </div>
 
 
 
@@ -86,11 +97,12 @@ function logitem(message, state){
         item.setAttribute('class', 'list-group-item list-group-item-warning');
         warnings++;
     } else if ( state === 'debug' ){
-        item = document.createElement('pre')
+        item = document.createElement('pre');
         item.setAttribute('class', 'list-group-item');
     } else if (state === 'cerror' ){
-        item = document.createElement('pre')
+        item = document.createElement('pre');
         item.setAttribute('class', 'list-group-item list-group-item-warning');
+        warnings++;
     }
     item.appendChild(icon);
     var msgtext = document.createTextNode(message);
@@ -106,14 +118,14 @@ function updateLog(){
         for(var i=logged_msgs; i<logs.length; i++){
             var entry = logitem(logs[i].msg, logs[i].level);
             var s_id = parseInt(logs[i].server_id);
-            console.log(s_id);
 
             if (isNaN(s_id) || isNaN(logging_id)) {
                 $('#common_logger').append(entry);
             } else {
                 $('#logger_'+s_id).append(entry);
             }
-            entry.scrollIntoView({behavior: "smooth", block: "end"});
+
+            document.getElementById('dummy').scrollIntoView({behavior: "smooth", block: "end"});
 
             // auto hide on logger change
             if (logging_id !== s_id) {
@@ -134,14 +146,13 @@ function updateLog(){
                 .find('h4')
                 .append('<span class="glyphicon glyphicon-ok pull-right"></span>');
 
-            if(errors !== 0 || warnings !== 0) {
+            if(errors || warnings) {
                 $.notify({
-                    icon: 'glyphicon glyphicon-warning-sign',
-                    title: 'Problems Found! Review Logs',
+                    title: '<h5><i class="glyphicon glyphicon-warning-sign"></i> Problems Found! Review Logs</h5>',
                     message: errors.toString()+' Errors and '+warnings+' Warnings were encountered during the process. Kindly review the log of each server before proceeding to the next step.',
                 },{
-                    type: "danger",
-                    placement: {from: "botton", align: "center"},
+                    type: "warning",
+                    placement: {from: "bottom", align: "center"},
                     delay: 0,
                     animate: {enter: 'animated fadeInUp', exit: 'animated fadeOutDown'}
                 });

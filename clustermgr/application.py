@@ -4,7 +4,8 @@ import re
 
 from flask import Flask
 
-from clustermgr.extensions import db, csrf, migrate, wlogger, login_manager
+from clustermgr.extensions import db, csrf, migrate, wlogger, \
+    login_manager, mailer
 
 from .core.license import license_manager
 
@@ -19,6 +20,7 @@ def init_celery(app, celery):
         def __call__(self, *args, **kwargs):
             with app.app_context():
                 return TaskBase.__call__(self, *args, **kwargs)
+
     celery.Task = ContextTask
 
 
@@ -48,6 +50,7 @@ def create_app():
     wlogger.init_app(app)
     license_manager.init_app(app, "license.index")
     login_manager.init_app(app)
+    mailer.init_app(app)
 
     # setup the instance's working directories
     if not os.path.isdir(app.config['SCHEMA_DIR']):

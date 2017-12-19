@@ -75,14 +75,14 @@
                 <div class="col-md-9">
                     <div class="row">
                         <div class="col-md-2 text-right"><label>Age</label></div>
-                        <div class="col-md-1">{{ cform.purge_age_day(class='form-control') }} Days</div>
-                        <div class="col-md-1">{{ cform.purge_age_hour(class='form-control') }} Hours</div>
-                        <div class="col-md-1">{{ cform.purge_age_min (class='form-control')}} Minutes</div>
+                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_age_day(class='form-control') }} Days</div>
+                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_age_hour(class='form-control') }} Hours</div>
+                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_age_min (class='form-control')}} Minutes</div>
                         <div class="col-md-1"></div>
                         <div class="col-md-2 text-right"><label>Interval</label></div>
-                        <div class="col-md-1">{{ cform.purge_interval_day(class='form-control') }} Days</div>
-                        <div class="col-md-1">{{ cform.purge_interval_hour(class='form-control') }} Hours</div>
-                        <div class="col-md-1">{{ cform.purge_interval_min (class='form-control')}} Minutes</div>
+                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_interval_day(class='form-control') }} Days</div>
+                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_interval_hour(class='form-control') }} Hours</div>
+                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_interval_min (class='form-control')}} Minutes</div>
                         <div class="col-md-1"></div>
                     </div>
                     <p class="help-block">Defines both the maximum age for log entries to be retained in the database and how often to scan the database for old entries.</p>
@@ -96,6 +96,24 @@
                 </div>
             </div>
         </div>
+
+        {#
+        <div class="box-header with-border">
+            <h3 class="panel-title">Notification</h3>
+        </div>
+        <div class="box-body">
+            <div class="form-group {{ 'has-error' if cform.admin_email.errors else '' }}">
+                {{ cform.admin_email.label(class="control-label col-md-3") }}
+                <div class="col-md-9">
+                    {{ cform.admin_email(class="form-control") }}
+                    {% for error in cform.admin_email.errors %}
+                        <p class="help-block">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        #}
+
         <div class="box-footer">
             {{ cform.update(class="btn btn-primary pull-right") }}
         </div>

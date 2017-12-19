@@ -7,7 +7,7 @@ from flask_login import login_required
 from werkzeug.utils import secure_filename
 from celery.result import AsyncResult
 
-from clustermgr.extensions import db, wlogger, celery
+from clustermgr.extensions import db, wlogger
 from clustermgr.models import AppConfiguration, Server
 from clustermgr.forms import AppConfigForm, SchemaForm, \
     TestUser, InstallServerForm
@@ -18,6 +18,7 @@ from clustermgr.core.ldap_functions import LdapOLC
 # from clustermgr.core.utils import generate_random_key
 # from clustermgr.core.utils import generate_random_iv
 from ..core.license import license_reminder
+from clustermgr.extensions import celery
 
 index = Blueprint('index', __name__)
 index.before_request(license_reminder)
@@ -90,6 +91,7 @@ def app_configuration():
         config.gluu_version = conf_form.gluu_version.data.strip()
         config.use_ip = conf_form.use_ip.data
         config.nginx_host = conf_form.nginx_host.data.strip()
+        # config.admin_email = conf_form.admin_email.data.strip()
 
         purge_age_day = conf_form.purge_age_day.data
         purge_age_hour = conf_form.purge_age_hour.data

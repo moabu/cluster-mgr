@@ -1,5 +1,6 @@
 left_menu = { 
     'Ldap Monitoring': (
+                        'replication_status',
                         'summary',
                         'gluu_authentications',
                         'completed_operations',
@@ -153,6 +154,9 @@ items = {
                     'aggr': 'AVG',
                     'chartType': 'AreaChart',
                     'vAxis': '%'},
+                    
+        'replication_status': {'end_point': 'replication_status'},
+        
 }
 
 

@@ -5,7 +5,7 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
 from flask_login import login_required
 
 from clustermgr.models import Server, AppConfiguration
-from clustermgr.tasks.cache import get_cache_methods, install_redis_stunnel, \
+from clustermgr.tasks.cache import get_cache_methods, install_cache_components, \
     configure_cache_cluster, restart_services
 from ..core.license import license_reminder
 from ..core.license import license_manager
@@ -53,8 +53,8 @@ def refresh_methods():
 @license_manager.license_required
 def change():
     servers = Server.query.all()
-    method = 'SHARDED'
-    task = install_redis_stunnel.delay()
+    method = 'STANDALONE'
+    task = install_cache_components.delay(method)
     return render_template('cache_logger.html', method=method, step=1,
                            task_id=task.id, servers=servers)
 
