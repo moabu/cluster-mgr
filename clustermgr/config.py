@@ -33,6 +33,7 @@ class Config(object):
     LICENSE_EMAIL_THRESHOLD_FILE = os.path.join(DATA_DIR, ".license_email")
     LICENSE_ENFORCEMENT_ENABLED = True
     AUTH_CONFIG_FILE = os.path.join(DATA_DIR, "auth.ini")
+    OXD_CLIENT_CONFIG_FILE = os.path.join(DATA_DIR, "oxd-client.ini")
 
     CELERYBEAT_SCHEDULE = {
         'send_reminder_email': {

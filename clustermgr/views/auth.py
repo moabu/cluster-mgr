@@ -1,5 +1,4 @@
 import ConfigParser
-import os
 
 from flask import current_app
 from flask import Blueprint
@@ -13,6 +12,7 @@ from flask_login import login_user
 from flask_login import logout_user
 from flask_login import current_user
 from oxdpython import Client
+from oxdpython.exceptions import OxdServerError
 
 from ..extensions import login_manager
 from ..forms import LoginForm
@@ -80,50 +80,68 @@ def logout():
     return redirect(url_for("index.home"))
 
 
-@auth_bp.route("/oxd/")
-def oxd():
+@auth_bp.route("/oxd_login/")
+def oxd_login():
     if current_user.is_authenticated:
         return redirect(url_for("index.home"))
 
-    config = os.path.join(current_app.config["DATA_DIR"], "oxd-client.ini")
+    config = current_app.config["OXD_CLIENT_CONFIG_FILE"]
     oxc = Client(config)
 
-    oxd_id = oxc.config.get("oxd", "id")
-    client_id = oxc.config.get("client", "client_id")
-    client_secret = oxc.config.get("client", "client_secret")
-
-    if not all([oxd_id, client_id, client_secret]):
-        # TODO: bugs in oxdpython makes the client/site registered twice
-        oxc.setup_client()
-
-    response = oxc.get_client_token()
-    auth_url = oxc.get_authorization_url(protection_access_token=response.access_token)
-    return redirect(auth_url)
+    try:
+        auth_url = oxc.get_authorization_url()
+    except OxdServerError as exc:
+        print exc  # TODO: use logging
+        flash("Failed to process the request due to error in OXD server.", "warning")
+    else:
+        return redirect(auth_url)
+    return redirect(url_for("index.home"))
 
 
-@auth_bp.route("/userinfo/")
-def userinfo():
-    config = os.path.join(current_app.config["DATA_DIR"], "oxd-client.ini")
+@auth_bp.route("/oxd_login_callback/")
+def oxd_login_callback():
+    """Callback for OXD authorization_callback.
+    """
+    config = current_app.config["OXD_CLIENT_CONFIG_FILE"]
     oxc = Client(config)
-    response = oxc.get_client_token()
     code = request.args.get('code')
     state = request.args.get('state')
 
     try:
         # these following API calls may raise RuntimeError caused by internal
         # error in oxd server.
-        tokens = oxc.get_tokens_by_code(code, state, response.access_token)
-        resp = oxc.get_user_info(tokens.access_token, response.access_token)
+        tokens = oxc.get_tokens_by_code(code, state)
+        resp = oxc.get_user_info(tokens["access_token"])
 
         # ``preferred_username`` attribute is in ``profile`` scope, hence
         # accessing this attribute may raise AttributeError
-        username = resp.preferred_username[0]
+        username = resp["preferred_username"][0]
 
         # all's good, let's log the user in.
         user = User(username, "")
         login_user(user)
-    except AttributeError:
+    except AttributeError as exc:
+        print exc  # TODO: use logging
         flash("Profile scope is not enabled in Gluu Server.", "warning")
-    except RuntimeError:
-        flash("Failed to get user info from Gluu Server.", "warning")
+    except OxdServerError as exc:
+        print exc  # TODO: use logging
+        flash("Failed to process the request due to error in OXD server.", "warning")
+    return redirect(url_for("index.home"))
+
+
+@auth_bp.route("/oxd_logout_callback")
+def oxd_logout_callback():
+    """Callback for OXD client_frontchannel.
+    """
+    # TODO: decide whether we need this callback
+    logout_user()
+    return redirect(url_for("index.home"))
+
+
+@auth_bp.route("/oxd_post_logout")
+def oxd_post_logout():
+    """Callback for OXD post_logout.
+    """
+    # TODO: decide whether we need this callback
+    logout_user()
     return redirect(url_for("index.home"))
