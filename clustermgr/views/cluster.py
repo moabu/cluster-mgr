@@ -7,8 +7,7 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
 from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cluster import setup_ldap_replication, \
-    installGluuServer, remove_provider, \
-    removeMultiMasterDeployement, installNGINX
+    installGluuServer, removeMultiMasterDeployement, installNGINX
     
 from ..core.license import license_reminder
 from ..core.license import license_manager

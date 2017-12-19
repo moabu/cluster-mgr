@@ -70,7 +70,7 @@
                         <ul>
                             {% for p in serverStats[server.hostname]['providers'] %}
                                 <li>{{ serverStats[server.hostname]['providers'][p][0] }} &nbsp;{{ p }}:{{ serverStats[server.hostname]['providers'][p][1] }}
-                                    <a class="btn btn-danger btn-xs" href="{{ url_for('index.remove_provider_from_consumer', consumer_id=server.id, provider_addr=serverStats[server.hostname]['providers'][p][2]) }}">
+                                    <a class="btn btn-danger btn-xs" href="{{ url_for('server.remove_provider_from_consumer', consumer_id=server.id, provider_addr=serverStats[server.hostname]['providers'][p][2]) }}">
                                         Remove
                                     </a>
                                 </li>

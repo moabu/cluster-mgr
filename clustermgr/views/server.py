@@ -9,9 +9,11 @@ from flask import Blueprint, render_template, redirect, url_for, flash, \
 from clustermgr.extensions import db
 from clustermgr.models import Server, AppConfiguration
 
+from index import getLdapConn
+
 from clustermgr.forms import ServerForm, InstallServerForm, \
         SetupPropertiesLastForm
-from clustermgr.tasks.cluster import remove_provider, collect_server_details
+from clustermgr.tasks.cluster import collect_server_details
 from clustermgr.config import Config
 from clustermgr.core.remote import RemoteClient, ClientNotSetupException
 from ..core.license import license_manager
@@ -111,13 +113,53 @@ def edit(server_id):
     return render_template('new_server.html', form=form, header=header)
 
 
+
+def remove_provider_from_consumer_f(consumer_id, provider_addr):
+    server = Server.query.get(consumer_id)
+
+    #Make ldap connection
+    ldp = getLdapConn(server.hostname, "cn=config", server.ldap_password)
+
+    success = False
+
+    #If connection was established try to delete provider
+    if ldp:
+        r = ldp.removeProvider("ldaps://{0}:1636".format(provider_addr))
+        if r:
+            if ldp.conn.result['description'] == 'success':
+                flash('Provder {0} from {1} is removed'.format(
+                    provider_addr, server.hostname), 'success')
+                success = True
+
+    if not success:
+        flash("Removing provider was failed: {0}".format(
+                ldp.conn.result['description']), "danger")
+
+
+
+@server_view.route('/removeprovider/<consumer_id>/<provider_addr>')
+@license_manager.license_required
+def remove_provider_from_consumer(consumer_id, provider_addr):
+    """This view delates provider from consumer"""
+
+    remove_provider_from_consumer_f(consumer_id, provider_addr)
+
+    return redirect(url_for('index.multi_master_replication'))
+
+
+
 @server_view.route('/remove/<int:server_id>/')
 @license_manager.license_required
 def remove(server_id):
+    appconfig = AppConfiguration.query.first()
     server = Server.query.filter_by(id=server_id).first()
+    provider_addr = server.ip if appconfig.use_ip else server.hostname
     # remove its corresponding syncrepl configs from other servers
     if server.mmr:
-        remove_provider.delay(server.id)
+        consumers = Server.query.filter(Server.id.isnot(server_id)).all()
+        for consumer in consumers:
+            remove_provider_from_consumer_f(consumer.id, provider_addr)
+        
     # TODO LATER perform checks on ther flags and add their cleanup tasks
     db.session.delete(server)
     db.session.commit()

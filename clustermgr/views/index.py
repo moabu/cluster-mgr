@@ -445,27 +445,6 @@ def delete_test_user(server_id, dn):
     return redirect(url_for('index.search_test_users', server_id=server_id))
 
 
-@index.route('/removeprovider/<consumer_id>/<provider_addr>')
-def remove_provider_from_consumer(consumer_id, provider_addr):
-    """This view delates provider from consumer"""
-
-    server = Server.query.get(consumer_id)
-
-    #Make ldap connection
-    ldp = getLdapConn(server.hostname, "cn=config", server.ldap_password)
-
-    #If connection was established try to delete provider
-    if ldp:
-        r = ldp.removeProvider("ldaps://{0}:1636".format(provider_addr))
-        if r:
-            flash('Provder {0} from {1} is removed'.format(
-                provider_addr, server.hostname), 'success')
-        else:
-            flash("Removing provider was failed: {0}".format(
-                ldp.conn.result['description']), "danger")
-
-    return redirect(url_for('index.multi_master_replication'))
-
 
 @index.route('/addprovidertocustomer/<int:consumer_id>/<int:provider_id>')
 def add_provider_to_consumer(consumer_id, provider_id):

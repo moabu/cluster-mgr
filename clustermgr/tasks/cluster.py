@@ -10,7 +10,6 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import wlogger, db, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import LdapOLC
-from clustermgr.core.olc import CnManager
 from clustermgr.core.utils import ldap_encode
 from clustermgr.config import Config
 import uuid
@@ -569,20 +568,6 @@ def setup_ldap_replication(self, server_id):
 
     wlogger.log(tid, "Deployment is successful")
 
-
-@celery.task
-def remove_provider(server_id):
-    """Task to remove the syncrepl config of the given server from all other
-    servers in the LDAP cluster.
-    """
-    appconfig = AppConfiguration.query.first()
-    server = Server.query.get(server_id)
-    receivers = Server.query.filter(Server.id.isnot(server_id)).all()
-    for receiver in receivers:
-        addr = receiver.ip if appconfig.use_ip else receiver.hostname
-        c = CnManager(addr, 1636, True, 'cn=config', receiver.ldap_password)
-        c.remove_olcsyncrepl(server_id)
-        c.close()
 
 
 def get_os_type(c):
