@@ -306,3 +306,9 @@ def license_reminder():
 
     # store in global so template can fetch the value
     fg.license_reminder_msg = msg
+
+
+def prompt_license_ack():
+    from flask import render_template
+
+    return render_template("license_prompt.html")

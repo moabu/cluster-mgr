@@ -10,9 +10,11 @@ from flask import request
 from flask import url_for
 
 from ..core.license import license_manager
+from ..core.license import prompt_license_ack
 from ..forms import LicenseSettingsForm
 
 license_bp = Blueprint("license", __name__)
+license_bp.before_request(prompt_license_ack)
 
 
 def _humanize_timestamp(ts, date_fmt="%Y:%m:%d %H:%M:%S GMT"):
