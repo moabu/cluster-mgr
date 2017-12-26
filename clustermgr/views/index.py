@@ -5,7 +5,6 @@ from flask import Blueprint, render_template, redirect, url_for, flash, \
 from flask import current_app as app
 from werkzeug.utils import secure_filename
 from celery.result import AsyncResult
-from celery import current_app as celery
 
 from clustermgr.extensions import db, wlogger
 from clustermgr.models import AppConfiguration, KeyRotation, Server
@@ -18,6 +17,7 @@ from clustermgr.core.utils import encrypt_text
 from clustermgr.core.utils import generate_random_key
 from clustermgr.core.utils import generate_random_iv
 from ..core.license import license_reminder
+from clustermgr.extensions import celery
 
 index = Blueprint('index', __name__)
 index.before_request(license_reminder)
@@ -443,27 +443,6 @@ def delete_test_user(server_id, dn):
 
     return redirect(url_for('index.search_test_users', server_id=server_id))
 
-
-@index.route('/removeprovider/<consumer_id>/<provider_addr>')
-def remove_provider_from_consumer(consumer_id, provider_addr):
-    """This view delates provider from consumer"""
-
-    server = Server.query.get(consumer_id)
-
-    #Make ldap connection
-    ldp = getLdapConn(server.hostname, "cn=config", server.ldap_password)
-
-    #If connection was established try to delete provider
-    if ldp:
-        r = ldp.removeProvider("ldaps://{0}:1636".format(provider_addr))
-        if r:
-            flash('Provder {0} from {1} is removed'.format(
-                provider_addr, server.hostname), 'success')
-        else:
-            flash("Removing provider was failed: {0}".format(
-                ldp.conn.result['description']), "danger")
-
-    return redirect(url_for('index.multi_master_replication'))
 
 
 @index.route('/addprovidertocustomer/<int:consumer_id>/<int:provider_id>')

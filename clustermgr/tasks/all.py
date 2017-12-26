@@ -6,7 +6,6 @@ import requests
 from ldap3 import Connection, BASE, MODIFY_REPLACE
 from ldap3 import Server as Ldap3Server
 from flask_mail import Message
-from celery import current_app as celery
 
 from clustermgr.extensions import db
 from clustermgr.models import Server, KeyRotation, OxelevenKeyID
@@ -15,7 +14,7 @@ from clustermgr.core.ox11 import generate_key, delete_key
 from clustermgr.core.keygen import generate_jks
 from clustermgr.core.license import license_manager
 from clustermgr.core.license import current_date_millis
-from clustermgr.extensions import mailer
+from clustermgr.extensions import mailer, celery
 
 
 def starttls(server):

@@ -7,8 +7,8 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
 from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cluster import setup_ldap_replication, \
-    InstallLdapServer, installGluuServer, remove_provider, \
-    removeMultiMasterDeployement, installNGINX
+    installGluuServer, removeMultiMasterDeployement, installNGINX
+    
 from ..core.license import license_reminder
 from ..core.license import license_manager
 
@@ -16,7 +16,7 @@ cluster = Blueprint('cluster', __name__, template_folder='templates')
 cluster.before_request(license_reminder)
 
 
-@cluster.route('/deploy_config/<int:server_id>', methods=['GET', 'POST'])
+@cluster.route('/deploy_config/<server_id>', methods=['GET', 'POST'])
 @license_manager.license_required
 def deploy_config(server_id):
     """Initiates replication deployement task
@@ -24,16 +24,34 @@ def deploy_config(server_id):
     Args:
         server_id (integer): id of server to be deployed
     """
-    s = Server.query.get(server_id)
+
     nextpage = 'index.multi_master_replication'
     whatNext = "LDAP Replication"
-    if not s:
-        flash("Server id {0} is not on database".format(server_id), 'warning')
-        return redirect(url_for("index.multi_master_replication"))
 
-    #Start deployment celery task
-    task = setup_ldap_replication.delay(server_id)
-    head = "Setting up Replication on Server: " + s.hostname
+    s = None
+
+    if not server_id == 'all':
+        if server_id.isalnum():
+            server_id = int(server_id)
+            s = Server.query.get(server_id)
+            if not s:
+                flash("Server id {0} is not on database".format(server_id), 'warning')
+                return redirect(url_for("index.multi_master_replication"))
+
+            #Start deployment celery task
+            task = setup_ldap_replication.delay(server_id)
+            head = "Setting up Replication on Server: " + s.hostname
+
+        else:
+            flash("Invalid Server id {0}".format(server_id), 'warning')
+            return redirect(url_for("index.multi_master_replication"))
+        
+    else:
+        #Start deployment celery task
+        task = setup_ldap_replication.delay(server_id)
+        head = "Setting up Replication on All Servers"
+
+
 
     return render_template("logger.html", heading=head, server=s,
                            task=task, nextpage=nextpage, whatNext=whatNext)

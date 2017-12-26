@@ -104,6 +104,12 @@
                             {% if not server.gluu_server %}
                             <br>
                             <a class="btn btn-default btn-xs" href="{{ url_for('server.install_gluu', server_id=server.id) }}">Install Gluu</a>
+                            {% else %}
+                            <br>
+                            
+                           <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#reinstall_alert_modal"
+                               data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Re-install</a>
+                           
                             {% endif %}
 
                             {% if server.gluu_server and server.primary_server %}
@@ -152,6 +158,35 @@
     </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
 
+
+
+<!-- Alert Reinstallation before installing Gluu an allready installed server -->
+<div id="reinstall_alert_modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"
+                        aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">Re-install Gluu Server</h4>
+            </div>
+            <div class="modal-body">
+                <p>This will remove existing installation and install a f
+                    resh Gluu Server. You will loose all data on existing Gluu
+                    container. Are you sure you want to RE-INSTALL?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default"
+                        data-dismiss="modal">Close
+                </button>
+                <a id="reinstall_url" class="btn btn-danger" href="#">Confirm</a>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+
+
 {% endblock %}
 
 {% block js %}
@@ -165,6 +200,17 @@
         var modal = $(this);
         modal.find('.modal-title').text('Remove ' + hostname);
         $('#remove_url').attr('href', remove_server_url);
+    });
+
+    $('#reinstall_alert_modal').on('show.bs.modal', function (event) {
+        var button = $(event.relatedTarget);
+        var server_id = button.data('serverid');
+        var hostname = button.data('hostname');
+        var reinstall_server_url = '{{ url_for("server.install_gluu", server_id=9999) }}';
+        reinstall_server_url = reinstall_server_url.replace('9999', server_id);
+        var modal = $(this);
+        modal.find('.modal-title').text('Re-install ' + hostname);
+        $('#reinstall_url').attr('href', reinstall_server_url);
     });
 
 </script>

@@ -58,6 +58,10 @@ class LdapOLC(object):
             self.server, user=self.binddn, password=self.passwd)
         return self.conn.bind()
 
+    def close(self):
+        """Closes ldap connection"""
+        self.conn.unbind()
+
     def loadModules(self, *modules):
         """This function creates ldap entry on server for loading nodules.
         

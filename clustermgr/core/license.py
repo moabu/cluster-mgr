@@ -291,8 +291,8 @@ def license_reminder():
         exp_date = datetime.utcfromtimestamp(int(exp_date) / 1000)
         exp_date_str = exp_date.strftime("%Y-%m-%d %H:%M:%S")
 
-        # reminder should start 2 months before license expired
-        exp_threshold = exp_date - timedelta(days=60)
+        # reminder should start 3 months before license expired
+        exp_threshold = exp_date - timedelta(days=90)
 
         # current timestamp
         now = datetime.utcfromtimestamp(current_date_millis() / 1000)
