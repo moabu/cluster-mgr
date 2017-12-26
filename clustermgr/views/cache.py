@@ -2,12 +2,13 @@
 of Gluu Servers"""
 from flask import Blueprint, render_template, url_for, flash, redirect, \
     request, session, jsonify
+from celery.result import AsyncResult
 
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cache import get_cache_methods, install_cache_components, \
     configure_cache_cluster, restart_services, install_redis_stunnel, \
     install_twemproxy_stunnel
-from clustermgr.extensions import wlogger
+from clustermgr.extensions import wlogger, celery
 from ..core.license import license_reminder
 from ..core.license import license_manager
 
@@ -65,7 +66,7 @@ def change():
         tasks.append(dict(task=install_twemproxy_stunnel.delay(),
                           server=mock_server))
 
-    return render_template('cache_installs.html', tasks=tasks)
+    return render_template('cache_installs.html', tasks=tasks, method=method)
 
 
 @cache_mgr.route('/configure/<method>/')
@@ -91,17 +92,20 @@ def finish_clustering(method):
 @cache_mgr.route('/task_status/<task_id>/')
 def task_status(task_id):
     meta = wlogger.get_all_meta(task_id)
-    status = dict()
-    status['progress'] = int(meta['complete']) / int(meta['todo']) * 100
+    msgs = wlogger.get_messages(task_id)
+    result = AsyncResult(id=task_id, app=celery)
+
+    status = dict(state=result.state)
+    status['progress'] = float(meta['complete']) / float(meta['todo']) * 100.0 or 5
     status['errors'] = 0
     status['warnings'] = 0
     status['latest'] = 'Connecting to server ...'
 
-    msgs = wlogger.get_messages(task_id)
     for msg in msgs:
         if msg['level'] == 'info':
             status['latest'] = msg['msg']
         if msg['level'] == 'error' or msg['level'] == 'fail':
+            status['latest'] = msg['msg']
             status['errors'] += 1
         if msg['level'] == 'warning':
             status['warnings'] += 1

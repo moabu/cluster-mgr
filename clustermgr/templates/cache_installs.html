@@ -46,7 +46,7 @@
                     <div class="progress-group">
                       <span id="latest_{{ task_item.task.id }}" class="progress-text"></span>
                       <div class="progress progress-sm progress-striped active">
-                        <div id="progress_{{ task_item.task.id }}" class="progress-bar progress-bar-primary"></div>
+                        <div id="progress_{{ task_item.task.id }}" class="progress-bar progress-bar-primary" style="width: 5%"></div>
                       </div>
                     </div>
                   </td>
@@ -63,7 +63,10 @@
         </div>
       </div>
       <div id="logger">
-
+      </div>
+      <div id="next" style="display: none;">
+        <a href="{{ url_for('cache_mgr.configure', method=method) }}" class="btn btn-block btn-primary">Configure components <i class="fa fa-arrow-circle-right"></i>
+        </a>
       </div>
     </div>
   </div>
@@ -72,6 +75,11 @@
 {% block js %}
   <script>
     var tasks = [ {% for item in tasks %} "{{ item.task.id }}", {% endfor %} ];
+    var tracker = {
+        clearance: tasks.length*100,
+        completed: 0,
+        errors: 0,
+    };
     var intervalMap = {};
 
     $(document).ready(function(){
@@ -81,13 +89,17 @@
     });
 
     function updateProgress(task){
-        $.get('/cache/task_status/'+task, function(data){
+        $.get('/cache/task_status/'+task+'/', function(data){
             $('#progress_'+task).width(data.progress + "%");
             $('#warn_'+task).text(data.warnings);
             $('#error_'+task).text(data.errors);
             $('#latest_'+task).text(data.latest);
-            if ( data.progress === 100 ){
+            if ( data.progress === 100 || data.state === 'FAILED' || data.state === 'SUCCESS' ){
                 clearInterval( intervalMap[task] );
+                tracker.completed += data.progress;
+                if( tracker.clearance === tracker.completed ){
+                    $('#next').show()
+                }
             }
         });
     }

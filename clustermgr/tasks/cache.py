@@ -817,10 +817,10 @@ def install_redis_stunnel(self, server_id):
     wlogger.set_meta(tid, complete=2)
 
     if server.redis and server.stunnel:
-        wlogger.log(tid, "Install complete")
+        wlogger.log(tid, "Redis, Stunnel install complete")
         return True
     else:
-        wlogger.log(tid, "Install failed")
+        wlogger.log(tid, "Redis, Stunnel install failed")
         return False
 
 
