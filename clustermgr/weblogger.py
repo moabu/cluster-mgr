@@ -98,6 +98,7 @@ class WebLogger(object):
             logitem[k] = v
 
         self.r.rpush(self.__key(taskid), json.dumps(logitem))
+        self.r.expire(self.__key(taskid), 86400)  # TODO make this configurable
 
     def get_messages(self, taskid):
         """Returns all the messages pushed by a task.
@@ -121,3 +122,47 @@ class WebLogger(object):
             taskid (string) - the unique id of the task
         """
         self.r.delete(self.__key(taskid))
+
+    def set_meta(self, taskid, **kwargs):
+        """Adds metadata for a task
+
+        :param taskid: the unique id of the task
+        :param kwargs: keyword arguments for the metadata key and value
+        """
+        key = self.__key(taskid) + ":meta"
+        for (k, v) in kwargs.iteritems():
+            self.r.set(key + ":" + k, v)
+
+    def get_meta(self, taskid, key):
+        """Retrieves a particular metadata for a task
+
+        :param taskid: the unique id of the task
+        :param key: the key of the metadata
+        :return: the metadata value
+        """
+        key = self.__key(taskid) + ":meta:" + key
+        return self.r.get(key)
+
+    def get_all_meta(self, taskid):
+        """Retrieves all the metadata stored under a task id
+
+        :param taskid: the unique id of the task
+        :return: a dict of the metadata keys and their values
+        """
+        keys = self.r.keys(self.__key(taskid) + ":meta:*")
+        data = dict()
+        for k in keys:
+            meta_key = k.replace(self.__key(taskid) + ":meta:", "")
+            data[meta_key] = self.r.get(k)
+        return data
+
+    def clean_later(self, taskid, timeout):
+        """Cleans the given key after the given timeout. Equivalent ot EXPIRE
+        command in redis.
+
+        :param taskid: the unique of the task
+        :param timeout: the number of seconds after which the task's logs have
+            to be cleaned up
+        """
+        self.r.expire(self.__key(taskid), timeout)
+

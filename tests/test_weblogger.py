@@ -49,6 +49,10 @@ class WebLoggerTestCase(unittest.TestCase):
         self.wlog.clean('test-id')
         self.r.delete.assert_called_with('weblogger:test-id')
 
+    def test_set_meta(self):
+        self.wlog.set_meta('dummy_id', total_tasks=10)
+        assert self.r.set.call_args[0][0] == 'weblogger:dummy_id:meta:total_tasks'
+
 
 if __name__ == "__main__":
     unittest.main()
