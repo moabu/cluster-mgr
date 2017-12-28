@@ -47,8 +47,11 @@ SOFTWARE.</pre>
 
     <div class="box-footer">
         <p>Do you acknowledge that use of the Gluu Cluster Manager is under the <strong>GLUU-SUPPORT</strong> license?</p>
-        <input type="submit" value="Accept" class="btn btn-success" />
-        <input type="submit" value="Decline" class="btn btn-danger" />
+        <form action="{{ url_for('license.prompt') }}" method="POST">
+            {{ form.csrf_token }}
+            {{ form.accept(class="btn btn-success") }}
+            {{ form.decline(class="btn btn-danger") }}
+        </form>
     </div>
 </div>
 {% endblock %}

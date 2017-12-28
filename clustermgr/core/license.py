@@ -12,6 +12,8 @@ from flask import flash
 from flask import g as fg
 from flask import redirect
 from flask import url_for
+from flask import current_app
+from flask import request
 
 from .utils import exec_cmd
 from .utils import get_mac_addr
@@ -150,6 +152,7 @@ class LicenseManager(object):
             license_password = lpasswd
             public_password = ppasswd
             public_key = pkey
+            accepted = true
 
         :param data: A ``dict`` of data to save to config file.
         """
@@ -160,6 +163,7 @@ class LicenseManager(object):
             "license_password",
             "public_password",
             "public_key",
+            "accepted",
         )
 
         parser = ConfigParser.SafeConfigParser()
@@ -308,7 +312,19 @@ def license_reminder():
     fg.license_reminder_msg = msg
 
 
-def prompt_license_ack():
-    from flask import render_template
+def prompt_license():
+    # license enforcement disabled
+    if not current_app.config["LICENSE_ENFORCEMENT_ENABLED"]:
+        return
 
-    return render_template("license_prompt.html")
+    # avoid redirect loop
+    if request.url_rule.__dict__["endpoint"] == "license.prompt":
+        return
+
+    # if license already accepted
+    cfg = license_manager.load_license_config()
+    if cfg.get("accepted", "false").lower() == "true":
+        return
+
+    # prompt for license ack
+    return redirect(url_for("license.prompt"))

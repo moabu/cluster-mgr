@@ -170,3 +170,8 @@ class LicenseSettingsForm(FlaskForm):
     public_key = StringField("Public Key", validators=[DataRequired()],
                              filters=[replace_pubkey_whitespace])
     update = SubmitField("Update")
+
+
+class LicenseAckForm(FlaskForm):
+    accept = SubmitField("Accept")
+    decline = SubmitField("Decline")
