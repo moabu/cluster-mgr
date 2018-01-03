@@ -1,4 +1,5 @@
 import ConfigParser
+import socket
 
 from flask import current_app
 from flask import Blueprint
@@ -93,6 +94,9 @@ def oxd_login():
     except OxdServerError as exc:
         print exc  # TODO: use logging
         flash("Failed to process the request due to error in OXD server.", "warning")
+    except socket.error as exc:
+        print exc  # TODO: use logging
+        flash("Unable to connect to OXD server.", "warning")
     else:
         return redirect(auth_url)
     return redirect(url_for("index.home"))
@@ -126,6 +130,9 @@ def oxd_login_callback():
     except OxdServerError as exc:
         print exc  # TODO: use logging
         flash("Failed to process the request due to error in OXD server.", "warning")
+    except socket.error as exc:
+        print exc  # TODO: use logging
+        flash("Unable to connect to OXD server.", "warning")
     return redirect(url_for("index.home"))
 
 
