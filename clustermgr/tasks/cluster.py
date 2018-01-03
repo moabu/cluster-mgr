@@ -1267,7 +1267,7 @@ def installNGINX(self, nginx_host):
             run_command(tid, c, 'yum install -y epel-release')
             cmd = 'yum install -y nginx'
         else:
-            run_command(tid, c, 'DEBIAN_FRONTEND=noninteractive  apt-get update')
+            run_command(tid, c, 'DEBIAN_FRONTEND=noninteractive apt-get update')
             cmd = 'DEBIAN_FRONTEND=noninteractive apt-get install -y nginx'
 
         wlogger.log(tid, cmd, 'debug')
