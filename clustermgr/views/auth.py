@@ -116,6 +116,7 @@ def oxd_login_callback():
         # error in oxd server.
         tokens = oxc.get_tokens_by_code(code, state)
         resp = oxc.get_user_info(tokens["access_token"])
+        print resp
 
         # ``preferred_username`` attribute is in ``profile`` scope, hence
         # accessing this attribute may raise AttributeError
@@ -124,9 +125,9 @@ def oxd_login_callback():
         # all's good, let's log the user in.
         user = User(username, "")
         login_user(user)
-    except AttributeError as exc:
+    except (AttributeError, KeyError) as exc:
         print exc  # TODO: use logging
-        flash("Profile scope is not enabled in Gluu Server.", "warning")
+        flash("Profile scope is not enabled in OpenID Connect client configuration.", "warning")
     except OxdServerError as exc:
         print exc  # TODO: use logging
         flash("Failed to process the request due to error in OXD server.", "warning")
