@@ -2,17 +2,19 @@
 the servers managed in the cluster-manager
 """
 from flask import Blueprint, render_template, url_for, flash, redirect, \
-    request, session
+    session
 
 from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cluster import setup_ldap_replication, \
     installGluuServer, removeMultiMasterDeployement, installNGINX
-    
+
 from ..core.license import license_reminder
 from ..core.license import license_manager
+from ..core.license import prompt_license
 
 cluster = Blueprint('cluster', __name__, template_folder='templates')
+cluster.before_request(prompt_license)
 cluster.before_request(license_reminder)
 
 
@@ -45,7 +47,7 @@ def deploy_config(server_id):
         else:
             flash("Invalid Server id {0}".format(server_id), 'warning')
             return redirect(url_for("index.multi_master_replication"))
-        
+
     else:
         #Start deployment celery task
         task = setup_ldap_replication.delay(server_id)

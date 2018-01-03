@@ -18,8 +18,10 @@ from clustermgr.config import Config
 from clustermgr.core.remote import RemoteClient, ClientNotSetupException
 from ..core.license import license_manager
 from ..core.license import license_reminder
+from ..core.license import prompt_license
 
 server_view = Blueprint('server', __name__)
+server_view.before_request(prompt_license)
 server_view.before_request(license_reminder)
 
 def sync_ldap_passwords(password):
@@ -162,7 +164,7 @@ def remove(server_id):
         consumers = Server.query.filter(Server.id.isnot(server_id)).all()
         for consumer in consumers:
             remove_provider_from_consumer_f(consumer.id, provider_addr)
-        
+
     # TODO LATER perform checks on ther flags and add their cleanup tasks
     db.session.delete(server)
     db.session.commit()
@@ -192,7 +194,7 @@ def parse_setup_properties(content):
         ls = l.strip()
         if not ls[0] == '#':
             eq_loc = ls.find('=')
-            
+
             if eq_loc > 0:
                 k = ls[:eq_loc]
                 v = ls[eq_loc+1:]
@@ -205,7 +207,7 @@ def parse_setup_properties(content):
     return setup_prop
 
 def write_setup_properties_file(setup_prop):
-    
+
     setup_properties_file = os.path.join(Config.DATA_DIR,
                                          'setup.properties')
 
@@ -243,11 +245,11 @@ def get_setup_properties():
     #Check if there exists a previously created setup.properties file.
     #If exists, modify properties with content of this file.
     setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
-    
+
     if os.path.exists(setup_properties_file):
         setup_prop_f = parse_setup_properties(
                                 open(setup_properties_file).readlines())
-    
+
         setup_prop.update(setup_prop_f)
 
     #Every time this function is called, create new inum
@@ -382,14 +384,14 @@ def upload_setup_properties(server_id):
     setup_properties_form = SetupPropertiesLastForm()
     if setup_properties_form.upload.data and \
             setup_properties_form.validate_on_submit():
-        
+
         f = setup_properties_form.setup_properties.data
 
- 
+
         setup_prop = parse_setup_properties(f.stream)
-        
+
         print setup_prop
-        
+
         for rf in ( 'oxauthClient_encoded_pw',
                     'encoded_ldap_pw',
                     'scim_rp_client_jks_pass',
@@ -406,28 +408,28 @@ def upload_setup_properties(server_id):
                     'scim_rs_client_jks_pass_encoded',
                     'encode_salt',
                     'scim_rs_client_jks_pass',
-                    'shibJksPass',                    
+                    'shibJksPass',
                     ):
             del setup_prop[rf]
-        
-        
+
+
         appconf = AppConfiguration.query.first()
         server = Server.query.get(server_id)
-        
+
         setup_prop['hostname'] = appconf.nginx_host
         setup_prop['ip'] = server.ip
         setup_prop['ldapPass'] = server.ldap_password
 
         write_setup_properties_file(setup_prop)
-        
+
         flash("Setup properties file has been uploaded sucessfully. ",
                     "success")
-        
+
         return redirect(url_for('cluster.install_gluu_server',
                                 server_id=server_id))
     else:
         flash("Please upload valid setup properties file", "danger")
-        
+
         return redirect(url_for('server.install_gluu', server_id=server_id))
 
 

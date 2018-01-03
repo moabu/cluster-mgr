@@ -22,6 +22,7 @@
     <![endif]-->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,700,300italic,400italic,600italic">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    {% block css %}{% endblock css %}
   </head>
   <body class="hold-transition skin-blue layout-top-nav mini-sidebar">
   <div class="wrapper">
@@ -35,6 +36,7 @@
             </div>
         </nav>
       </header>
+        {% block sidebar %}
       <aside class="main-sidebar">
         <section class="sidebar">
           <ul class="sidebar-menu" data-widget="tree">
@@ -64,6 +66,7 @@
           </ul>
         </section>
       </aside>
+        {% endblock %}
       <div class="content-wrapper">
           <section class="content-header">
             {% block header %}{% endblock %}
