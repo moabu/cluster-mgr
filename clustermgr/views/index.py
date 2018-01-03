@@ -7,19 +7,21 @@ from werkzeug.utils import secure_filename
 from celery.result import AsyncResult
 
 from clustermgr.extensions import db, wlogger
-from clustermgr.models import AppConfiguration, KeyRotation, Server
-from clustermgr.forms import AppConfigForm, KeyRotationForm, SchemaForm, \
-    TestUser, InstallServerForm
+from clustermgr.models import AppConfiguration, Server  # , KeyRotation
+from clustermgr.forms import AppConfigForm, SchemaForm, \
+    TestUser, InstallServerForm  # , KeyRotationForm
 
 from clustermgr.core.ldap_functions import LdapOLC
-from clustermgr.tasks.all import rotate_pub_keys
-from clustermgr.core.utils import encrypt_text
-from clustermgr.core.utils import generate_random_key
-from clustermgr.core.utils import generate_random_iv
-from ..core.license import license_reminder
+# from clustermgr.tasks.all import rotate_pub_keys
+# from clustermgr.core.utils import encrypt_text
+# from clustermgr.core.utils import generate_random_key
+# from clustermgr.core.utils import generate_random_iv
+from clustermgr.core.license import license_reminder
 from clustermgr.extensions import celery
+from clustermgr.core.license import prompt_license
 
 index = Blueprint('index', __name__)
+index.before_request(prompt_license)
 index.before_request(license_reminder)
 
 
@@ -153,88 +155,88 @@ def app_configuration():
                            next=request.args.get('next'))
 
 
-@index.route("/key_rotation", methods=["GET", "POST"])
-def key_rotation():
-    kr = KeyRotation.query.first()
-    form = KeyRotationForm()
-    oxauth_servers = [server for server in Server.query]
+# @index.route("/key_rotation", methods=["GET", "POST"])
+# def key_rotation():
+#     kr = KeyRotation.query.first()
+#     form = KeyRotationForm()
+#     oxauth_servers = [server for server in Server.query]
 
-    if request.method == "GET" and kr is not None:
-        form.interval.data = kr.interval
-        form.type.data = kr.type
-        form.oxeleven_url.data = kr.oxeleven_url
-        form.inum_appliance.data = kr.inum_appliance
+#     if request.method == "GET" and kr is not None:
+#         form.interval.data = kr.interval
+#         form.type.data = kr.type
+#         form.oxeleven_url.data = kr.oxeleven_url
+#         form.inum_appliance.data = kr.inum_appliance
 
-    if form.validate_on_submit():
-        if not kr:
-            kr = KeyRotation()
+#     if form.validate_on_submit():
+#         if not kr:
+#             kr = KeyRotation()
 
-        kr.interval = form.interval.data
-        kr.type = form.type.data
-        kr.oxeleven_url = form.oxeleven_url.data
-        kr.inum_appliance = form.inum_appliance.data
-        kr.oxeleven_token_key = generate_random_key()
-        kr.oxeleven_token_iv = generate_random_iv()
-        kr.oxeleven_token = encrypt_text(
-            b"{}".format(form.oxeleven_token.data),
-            kr.oxeleven_token_key,
-            kr.oxeleven_token_iv,
-        )
-        db.session.add(kr)
-        db.session.commit()
-        # rotate the keys immediately
-        rotate_pub_keys.delay()
-        return redirect(url_for("key_rotation"))
-    return render_template("key_rotation.html",
-                           form=form,
-                           rotation=kr,
-                           oxauth_servers=oxauth_servers)
-
-
-@index.route("/api/oxauth_server", methods=["GET", "POST"])
-def oxauth_server():
-    if request.method == "POST":
-        hostname = request.form.get("hostname")
-        gluu_server = request.form.get("gluu_server")
-
-        if gluu_server == "true":
-            gluu_server = True
-        else:
-            gluu_server = False
-
-        if not hostname:
-            return jsonify({
-                "status": 400,
-                "message": "Invalid data",
-                "params": "hostname can't be empty",
-            }), 400
-
-        server = Server()
-        server.hostname = hostname
-        server.gluu_server = gluu_server
-        db.session.add(server)
-        db.session.commit()
-        return jsonify({
-            "id": server.id,
-            "hostname": server.hostname,
-            "gluu_server": server.gluu_server,
-        }), 201
-
-    servers = [{
-        "id": srv.id,
-        "hostname": srv.hostname,
-        "gluu_server": srv.gluu_server,
-    } for srv in Server.query]
-    return jsonify(servers)
+#         kr.interval = form.interval.data
+#         kr.type = form.type.data
+#         kr.oxeleven_url = form.oxeleven_url.data
+#         kr.inum_appliance = form.inum_appliance.data
+#         kr.oxeleven_token_key = generate_random_key()
+#         kr.oxeleven_token_iv = generate_random_iv()
+#         kr.oxeleven_token = encrypt_text(
+#             b"{}".format(form.oxeleven_token.data),
+#             kr.oxeleven_token_key,
+#             kr.oxeleven_token_iv,
+#         )
+#         db.session.add(kr)
+#         db.session.commit()
+#         # rotate the keys immediately
+#         rotate_pub_keys.delay()
+#         return redirect(url_for("key_rotation"))
+#     return render_template("key_rotation.html",
+#                            form=form,
+#                            rotation=kr,
+#                            oxauth_servers=oxauth_servers)
 
 
-@index.route("/api/oxauth_server/<id>", methods=["POST"])
-def delete_oxauth_server(id):
-    server = Server.query.get(id)
-    if server:
-        db.session.delete(server)
-        db.session.commit()
-    return jsonify({}), 204
+# @index.route("/api/oxauth_server", methods=["GET", "POST"])
+# def oxauth_server():
+#     if request.method == "POST":
+#         hostname = request.form.get("hostname")
+#         gluu_server = request.form.get("gluu_server")
+
+#         if gluu_server == "true":
+#             gluu_server = True
+#         else:
+#             gluu_server = False
+
+#         if not hostname:
+#             return jsonify({
+#                 "status": 400,
+#                 "message": "Invalid data",
+#                 "params": "hostname can't be empty",
+#             }), 400
+
+#         server = Server()
+#         server.hostname = hostname
+#         server.gluu_server = gluu_server
+#         db.session.add(server)
+#         db.session.commit()
+#         return jsonify({
+#             "id": server.id,
+#             "hostname": server.hostname,
+#             "gluu_server": server.gluu_server,
+#         }), 201
+
+#     servers = [{
+#         "id": srv.id,
+#         "hostname": srv.hostname,
+#         "gluu_server": srv.gluu_server,
+#     } for srv in Server.query]
+#     return jsonify(servers)
+
+
+# @index.route("/api/oxauth_server/<id>", methods=["POST"])
+# def delete_oxauth_server(id):
+#     server = Server.query.get(id)
+#     if server:
+#         db.session.delete(server)
+#         db.session.commit()
+#     return jsonify({}), 204
 
 
 @index.route('/log/<task_id>')
