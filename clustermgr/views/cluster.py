@@ -8,14 +8,14 @@ from flask_login import login_required
 from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cluster import setup_ldap_replication, \
-    InstallLdapServer, installGluuServer, remove_provider, \
-    removeMultiMasterDeployement, installNGINX, \
-    setup_ldap_replication_all
+    installGluuServer, removeMultiMasterDeployement, installNGINX
 
 from ..core.license import license_reminder
 from ..core.license import license_manager
+from ..core.license import prompt_license
 
 cluster = Blueprint('cluster', __name__, template_folder='templates')
+cluster.before_request(prompt_license)
 cluster.before_request(license_reminder)
 
 

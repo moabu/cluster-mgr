@@ -37,6 +37,10 @@ function logitem(message, state){
         icon.setAttribute('style', 'padding-right: 5px')
         icon.setAttribute('class', 'glyphicon glyphicon-tasks')
         item.setAttribute('class', 'list-group-item list-group-item-info');
+    } else if ( state === 'head' ){
+        icon.setAttribute('style', 'padding-right: 5px')
+        icon.setAttribute('class', 'glyphicon glyphicon glyphicon-hand-right')
+        item.setAttribute('class', 'list-group-item active');
     } else if ( state === 'warning' ){
         icon.setAttribute('style', 'padding-right: 5px')
         icon.setAttribute('class', 'glyphicon glyphicon-warning-sign')

@@ -1,3 +1,5 @@
+Licensed under the [GLUU SUPPORT LICENSE](./LICENSE). Copyright Gluu 2017.
+
 # Cluster Manager
 
 #### GUI tool for managing Gluu Server and OpenLDAP replication.

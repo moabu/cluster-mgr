@@ -9,9 +9,11 @@ from clustermgr.tasks.cache import get_cache_methods, install_cache_components, 
     configure_cache_cluster, restart_services
 from ..core.license import license_reminder
 from ..core.license import license_manager
+from ..core.license import prompt_license
 
 
 cache_mgr = Blueprint('cache_mgr', __name__, template_folder='templates')
+cache_mgr.before_request(prompt_license)
 cache_mgr.before_request(license_reminder)
 
 

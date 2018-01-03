@@ -48,6 +48,16 @@ class SchemaForm(FlaskForm):
     upload = SubmitField("Upload Schema")
 
 
+class SetupPropertiesLastForm(FlaskForm):
+    setup_properties = FileField(validators=[
+        FileRequired(),
+        FileAllowed(
+            ['last'],
+            'Upload only setup.properties.last files with .last extension.')
+    ])
+    upload = SubmitField("Upload Setup Properties")
+
+
 class LDIFForm(FlaskForm):
     ldif = FileField(validators=[
         FileRequired(),
@@ -166,3 +176,8 @@ class LoginForm(FlaskForm):
     username = StringField("Username", validators=[DataRequired()])
     password = PasswordField("Password", validators=[DataRequired()])
     login = SubmitField("Login")
+
+
+class LicenseAckForm(FlaskForm):
+    accept = SubmitField("Accept")
+    decline = SubmitField("Decline")

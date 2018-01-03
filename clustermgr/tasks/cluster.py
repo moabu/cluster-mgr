@@ -10,7 +10,6 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import wlogger, db, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import LdapOLC
-from clustermgr.core.olc import CnManager
 from clustermgr.core.utils import ldap_encode
 from clustermgr.config import Config
 import uuid
@@ -130,13 +129,6 @@ def modifyOxLdapProperties(server, c, tid, pDict, chroot):
                 'include all providers: {1}'.format(server.hostname, temp),
                 'warning')
 
-@celery.task(bind=True)
-def setup_ldap_replication_all(self):
-    servers = Server.query.all()
-    
-    for server in servers:
-        setup_ldap_replication
-    
 
 @celery.task(bind=True)
 def setup_ldap_replication(self, server_id):
@@ -160,7 +152,7 @@ def setup_ldap_replication(self, server_id):
     for server in servers_to_deploy:
         conn_addr = server.hostname
 
-        wlogger.log(tid, "Setting up replication on server %s" % server.hostname)
+        wlogger.log(tid, "Setting up replication on server %s" % server.hostname, 'head')
 
 
         # 1. Ensure that server id is valid
@@ -481,26 +473,28 @@ def setup_ldap_replication(self, server_id):
                         "warning")
 
 
-            pc = RemoteClient(p.hostname, ip=p.ip)
-            try:
-                pc.startup()
-            except:
-                pc = None
-                wlogger.log(tid, "Can't establish SSH connection to provider server: ".format(p.hostname), 'fail')
-                #wlogger.log(tid, "Ending server installation process.", "error")
+                pc = RemoteClient(p.hostname, ip=p.ip)
+                try:
+                    pc.startup()
+                except:
+                    pc = None
+                    wlogger.log(tid, "Can't establish SSH connection to provider server: ".format(p.hostname), 'fail')
+                    #wlogger.log(tid, "Ending server installation process.", "error")
 
-                return
+                    return
 
-            modifyOxLdapProperties(p, pc, tid, pDict, chroot)
+                modifyOxLdapProperties(p, pc, tid, pDict, chroot)
 
 
-            if not server_id == 'all':
-                wlogger.log(tid, 'Restarting Gluu Server on provider {0}'.format(p.hostname))
-                wlogger.log(tid, "SSH connection to provider server: {0}".format(p.hostname), 'success')
+                if not server_id == 'all':
+                    wlogger.log(tid, 'Restarting Gluu Server on provider {0}'.format(p.hostname))
+                    wlogger.log(tid, "SSH connection to provider server: {0}".format(p.hostname), 'success')
 
-                if pc:
-                    run_command(tid, pc, restart_gluu_cmd, no_error='debug')
+                    if pc:
+                        run_command(tid, pc, restart_gluu_cmd, no_error='debug')
 
+                pc.close()
+                
         #If this is not primary server, we need it to run in mirror mode.
         if not server.primary_server:
             # 15. Enable Mirrormode in the server
@@ -515,12 +509,10 @@ def setup_ldap_replication(self, server_id):
                     wlogger.log(tid, 'LDAP Server is already in mirror mode', 'debug')
 
 
-        if pc:
-            if not server_id == 'all':
-                run_command(tid, pc, restart_gluu_cmd, no_error='debug')
-                wlogger.log(tid, 'Restarting Gluu Server')
-                run_command(tid, c, restart_gluu_cmd, no_error='debug')
-                pc.close()
+            
+        if not server_id == 'all':
+            wlogger.log(tid, 'Restarting Gluu Server on this server: {0}'.format(server.hostname))
+            run_command(tid, c, restart_gluu_cmd, no_error='debug')
                 
         # 16. Set the mmr flag to True to indicate it has been configured
         server.mmr = True
@@ -535,262 +527,48 @@ def setup_ldap_replication(self, server_id):
             wlogger.log(tid, 'Restarting Gluu Server: ' + server.hostname)
             run_command(tid, c, restart_gluu_cmd, no_error='debug')
             c.close()
-            
+        
+        #Adding providers for primary server
+        pproviders = Server.query.filter(
+                                    Server.primary_server.isnot(True)
+                                ).all()
+    
+        primary = Server.query.filter(Server.primary_server==True).first()
+        
+        ldp_primary = LdapOLC('ldaps://{}:1636'.format(primary.hostname),
+                                'cn=config', server.ldap_password)
+        ldp_primary.connect()
+        
+        for provider in pproviders:
+            paddr = provider.ip if app_config.use_ip else provider.hostname
+            status = ldp_primary.add_provider(
+                        provider.id, "ldaps://{0}:1636".format(paddr), 
+                        app_config.replication_dn,
+                        app_config.replication_pw
+                    )
+            if status:
+                wlogger.log(tid, '>> Making LDAP of {0} listen to {1}'.format(
+                        primary.hostname, provider.hostname), 'success')
+            else:
+                wlogger.log(tid, '>> Making {0} listen to {1} failed: {2}'.format(
+                        primary.hostname, provider.hostname, 
+                        ldp_primary.conn.result['description']), "warning")
+                        
+        if pproviders:
+            if not ldp_primary.checkMirroMode():
+                if ldp_primary.makeMirroMode():
+                    wlogger.log(tid, 'Enabling mirror mode', 'success')
+                else:
+                    wlogger.log(tid, "Enabling mirror mode failed: {0}".format(
+                        ldp_primary.conn.result['description']), "warning")
+            else:
+                wlogger.log(tid, 'LDAP Server is already in mirror mode', 'debug')
+                        
+        ldp_primary.close()
+
     wlogger.log(tid, "Deployment is successful")
 
 
-@celery.task
-def remove_provider(server_id):
-    """Task to remove the syncrepl config of the given server from all other
-    servers in the LDAP cluster.
-    """
-    appconfig = AppConfiguration.query.first()
-    server = Server.query.get(server_id)
-    receivers = Server.query.filter(Server.id.isnot(server_id)).all()
-    for receiver in receivers:
-        addr = receiver.ip if appconfig.use_ip else receiver.hostname
-        c = CnManager(addr, 1636, True, 'cn=config', receiver.ldap_password)
-        c.remove_olcsyncrepl(server_id)
-        c.close()
-
-
-
-
-@celery.task(bind=True)
-def InstallLdapServer(self, ldap_info):
-    """Install ldap server on non-gluu server
-
-    Args:
-        ldap_info (dictionary): contains information about ldap server
-
-    """
-    tid = self.request.id
-
-    wlogger.log(tid, "Making SSH connection to the server %s" %
-                ldap_info['fqn_hostname'])
-    # Make ssh connection to remote server
-    c = RemoteClient(ldap_info['fqn_hostname'], ip=ldap_info['ip_address'])
-
-    try:
-        c.startup()
-    except Exception as e:
-        wlogger.log(
-            tid, "Cannot establish SSH connection {0}".format(e), "warning")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return False
-
-    # check if debian clone
-    if c.exists('/usr/bin/dpkg'):
-        wlogger.log(tid, 'Checking if /usr/bin/dpkg exists', 'success')
-    else:
-        wlogger.log(tid, '/usr/bin/dpkg nout found on this server', 'fail')
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    wlogger.log(tid, "Downloading and installing Symas Open-Ldap Server")
-
-    #Download symas-ldap debian package
-    cmd = "wget http://104.237.133.194/pkg/GLUU/UB14/symas-openldap-gluu.amd64_2.4.45-2_amd64.deb -O /tmp/symas-openldap-gluu.amd64_2.4.45-2_amd64.deb"
-    cin, cout, cerr = c.run(cmd)
-
-    if "‘/tmp/symas-openldap-gluu.amd64_2.4.45-2_amd64.deb’ saved" in cerr:
-        wlogger.log(tid, 'Symas open-ldap package downloaded.', 'success')
-    else:
-        wlogger.log(tid, 'Downloading Symas open-ldap package failed', 'fail')
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    #Intsall downloaded symas-ldap debian package
-    cmd = "dpkg -i /tmp/symas-openldap-gluu.amd64_2.4.45-2_amd64.deb"
-    cin, cout, cerr = c.run(cmd)
-
-    if "Setting up symas-openldap-gluu" in cout:
-        wlogger.log(tid, 'Symas open-ldap package installed.', 'success')
-    else:
-        wlogger.log(tid, 'Installing Symas open-ldap package failed', 'fail')
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    # create ldap user and group on the server
-    wlogger.log(tid, "Creating ldap user and group")
-
-    cmd = "adduser --system --no-create-home --group ldap"
-    cin, cout, cerr = c.run(cmd)
-    if "Adding system user" not in cout:
-        wlogger.log(tid, "Can not add ldap user: {0}".format(
-            cout.strip()), "warning")
-        if "already exists. Exiting" not in cout:
-            wlogger.log(tid, 'Creating ldap user failed', 'fail')
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return
-
-    # need to upload condig file and gluu schemas to new server
-    wlogger.log(tid, "Uploading config file and gluu schemas")
-
-    # make /opt/gluu/schema/openldap/ directory
-    cmd = "mkdir -p /opt/gluu/schema/openldap/"
-    c.run(cmd)
-    if not c.exists('/opt/gluu/schema/openldap/'):
-        wlogger.log(tid, 'Creating "/opt/gluu/schema/openldap/" failed',
-                    'fail')
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-    #upload gluu schemas
-    custom_schema_file = os.path.join(app.root_path, "templates",
-                                      "slapd", "schema", "custom.schema")
-    gluu_schema_file = os.path.join(
-        app.root_path, "templates", "slapd", "schema", "gluu.schema")
-    r1 = c.upload(custom_schema_file,
-                  "/opt/gluu/schema/openldap/custom.schema")
-    r2 = c.upload(gluu_schema_file, "/opt/gluu/schema/openldap/gluu.schema")
-    err = ''
-    if 'Upload successful.' not in r1:
-        err += r1
-    if 'Upload successful.' not in r2:
-        err += r2
-    if err:
-        wlogger.log(
-            tid, 'Uploading Gluu schema files failed: {0}'.format(err), 'fail')
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-    wlogger.log(tid, 'Gluu schema files uploaded', 'success')
-
-    #uploadd slapd.conf file
-    gluu_slapd_conf_file = os.path.join(
-        app.root_path, "templates", "slapd", "slapd.conf.gluu")
-    gluu_slapd_conf_file_content = open(gluu_slapd_conf_file).read()
-
-    # get encrypted password
-    hashpw = ldap_encode(ldap_info["ldap_password"])
-
-    #prepare salpd.conf file
-    gluu_slapd_conf_file_content = gluu_slapd_conf_file_content.replace(
-        "{#ROOTPW#}", hashpw)
-
-    #write slapd.conf to server
-    r = c.put_file("/opt/symas/etc/openldap/slapd.conf",
-                   gluu_slapd_conf_file_content)
-
-    if r[0]:
-        wlogger.log(tid, 'slapd.conf file uploaded', 'success')
-    else:
-        wlogger.log(tid, 'An error occured while uploading slapd.conf.conf:'
-                    ' {0}'.format(r[1]), "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    wlogger.log(tid, 'Gluu slapd.conf file uploaded', 'success')
-
-    # check main database directory, if not exists create it.
-    cmd = "mkdir -p /opt/gluu/data/main_db"
-    c.run(cmd)
-    if not c.exists('/opt/gluu/data/main_db'):
-        wlogger.log(tid, 'Creating "/opt/gluu/data/main_db" failed', 'fail')
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    cmd = "mkdir -p /opt/gluu/data/site_db"
-    c.run(cmd)
-    if not c.exists('/opt/gluu/data/site_db'):
-        wlogger.log(tid, 'Creating "/opt/gluu/data/site_db" failed', 'fail')
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    wlogger.log(
-        tid, 'Directories "/opt/gluu/data/main_db" and "/opt/gluu/data/site_db" were created', 'success')
-
-    # change owner of database directory and others.
-    run_command(
-        tid, c, "chown -R {0}.{1} /opt/gluu/data/".format(
-            ldap_info["ldap_user"], ldap_info["ldap_group"]))
-
-    run_command(tid, c, "mkdir -p /var/symas/run/")
-
-    run_command(
-        tid, c, "chown -R {0}.{1} /var/symas".format(
-            ldap_info["ldap_user"], ldap_info["ldap_group"]))
-
-    #create certificates
-    run_command(tid, c, "mkdir -p /etc/certs/")
-
-    wlogger.log(tid, "Generating Certificate")
-    cmd = "/usr/bin/openssl genrsa -des3 -out /etc/certs/openldap.key.orig -passout pass:{0} 2048".format(
-        ldap_info["ldap_password"])
-
-    wlogger.log(tid, cmd, "debug")
-    cin, cout, cerr = c.run(cmd)
-    wlogger.log(tid, cin + cout + cerr, "debug")
-
-    cmd = "/usr/bin/openssl rsa -in /etc/certs/openldap.key.orig -passin pass:{0} -out /etc/certs/openldap.key".format(
-        ldap_info["ldap_password"])
-    wlogger.log(tid, cmd, "debug")
-    cin, cout, cerr = c.run(cmd)
-    wlogger.log(tid, cin + cout + cerr, "debug")
-
-    subj = '/C={0}/ST={1}/L={2}/O={3}/CN={4}/emailAddress={5}'.format(
-        ldap_info['countryCode'], ldap_info['state'], ldap_info['city'],
-        ldap_info['orgName'], ldap_info['fqn_hostname'],
-        ldap_info['admin_email'])
-
-    cmd = '/usr/bin/openssl req -new -key /etc/certs/openldap.key -out /etc/certs/openldap.csr -subj {0}'.format(
-        subj)
-
-    wlogger.log(tid, cmd, "debug")
-    cin, cout, cerr = c.run(cmd)
-    if cout.strip() + cerr.strip():
-        wlogger.log(tid, cin + cout + cerr, "debug")
-
-    cmd = "/usr/bin/openssl x509 -req -days 365 -in /etc/certs/openldap.csr -signkey /etc/certs/openldap.key -out /etc/certs/openldap.crt"
-    wlogger.log(tid, cmd, "debug")
-    cin, cout, cerr = c.run(cmd)
-    wlogger.log(tid, cin + cout + cerr, "debug")
-
-    cmd = "cat /etc/certs/openldap.crt >> /etc/certs/openldap.pem && cat /etc/certs/openldap.key >> /etc/certs/openldap.pem"
-    wlogger.log(tid, cmd, "debug")
-    cin, cout, cerr = c.run(cmd)
-    if cout.strip() + cerr.strip():
-        wlogger.log(tid, cin + cout + cerr, "debug")
-
-    # change owner of certiciates
-    run_command(tid, c, "chown -R {0}.{1} /etc/certs".format(
-        ldap_info["ldap_user"], ldap_info["ldap_group"]))
-
-    values = dict(
-        hosts="ldaps://127.0.0.1:1636/",
-        extra_args=""
-    )
-    # uplodading symas-openldap.conf file
-    confile = os.path.join(app.root_path, "templates",
-                           "slapd", "symas-openldap.conf")
-    confile_content = open(confile).read()
-    confile_content = confile_content.format(**values)
-
-    r = c.put_file('/opt/symas/etc/openldap/symas-openldap.conf',
-                   confile_content)
-
-    if r[0]:
-        wlogger.log(tid, 'symas-openldap.conf file uploaded', 'success')
-    else:
-        wlogger.log(tid, 'An error occured while uploading symas-openldap.conf'
-                    ': {0}'.format(r[1], 'fail'))
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    wlogger.log(tid, "Satring Symas Open-Ldap Server")
-    log = run_command(tid, c, "service solserver restart")
-    if 'failed' in log:
-        wlogger.log(
-            tid, "There seems to be some issue in restarting the server.",
-            "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-    ldps = Server()
-    ldps.hostname = ldap_info["fqn_hostname"]
-    ldps.ip = ldap_info["ip_address"]
-    ldps.ldap_password = ldap_info["ldap_password"]
-    db.session.add(ldps)
-    db.session.commit()
 
 def get_os_type(c):
 
