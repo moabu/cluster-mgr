@@ -809,9 +809,9 @@ def installGluuServer(self, server_id):
 
         run_command(tid, c, cmd)
 
-        install_command = 'apt-get '
+        install_command = 'DEBIAN_FRONTEND=noninteractive apt-get '
 
-        cmd = 'apt-get update'
+        cmd = 'DEBIAN_FRONTEND=noninteractive apt-get update'
         wlogger.log(tid, cmd, 'debug')
         cin, cout, cerr = c.run(cmd)
         wlogger.log(tid, cout+'\n'+cerr, 'debug')
@@ -899,7 +899,7 @@ def installGluuServer(self, server_id):
     #occur on ubuntu installations
     if 'half-installed' in cout + cerr:
         if ('Ubuntu' in server.os) or  ('Debian' in server.os):
-            cmd = 'apt-get install --reinstall -y '+ gluu_server
+            cmd = 'DEBIAN_FRONTEND=noninteractive  apt-get install --reinstall -y '+ gluu_server
             run_command(tid, c, cmd, no_error='debug')
 
 
@@ -1267,8 +1267,8 @@ def installNGINX(self, nginx_host):
             run_command(tid, c, 'yum install -y epel-release')
             cmd = 'yum install -y nginx'
         else:
-            run_command(tid, c, 'apt-get update')
-            cmd = 'apt-get install -y nginx'
+            run_command(tid, c, 'DEBIAN_FRONTEND=noninteractive  apt-get update')
+            cmd = 'DEBIAN_FRONTEND=noninteractive apt-get install -y nginx'
 
         wlogger.log(tid, cmd, 'debug')
 
