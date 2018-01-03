@@ -22,7 +22,7 @@ After configuration, Cluster Manager no longer needs to be actively connected to
 
 </td><td>
 
-|22|80| 
+|22|80|
 |--|--|
 |443|22|
 
@@ -97,6 +97,17 @@ ssh -L 9999:localhost:5000 root@server
 ```
 http://localhost:9999/
 ```
+
+11) Create default authentication config file at `$HOME/.clustermgr/auth.ini` for initial setup
+
+```
+[user]
+username = your_desired_name
+password = your_desired_password
+```
+
+The default authentication method can be disabled by removing the file.
+Note, we recommend to disable default authentication after OXD authentication has been setup properly.
 
 ## Configuring a Cluster
 
@@ -182,7 +193,7 @@ You'll need to click `Add` on all the providers that are crossed out. This shoul
 
 ###### A rare issue is that sometimes the providers aren't replicating properly. Please `Remove` all the providers and then add them back. This usually fixes the problem.
 
-### If you're using 3.0.2, you're done here. If you're using 3.1.x, you will have to configure your cache for replication. 
+### If you're using 3.0.2, you're done here. If you're using 3.1.x, you will have to configure your cache for replication.
 
 Click the `Cache Management` menu option on the left. You'll see this screen:
 
@@ -221,7 +232,7 @@ By default the installation of a cluster on 3.1.1 installs 5 services. These ser
 
 1) Gluu Server
 
-2) Redis-Server 
+2) Redis-Server
 
 ###### Installed outside the chroot on all servers.
 ###### A value key-store known for it's high performance.
@@ -237,7 +248,7 @@ By default the installation of a cluster on 3.1.1 installs 5 services. These ser
 ###### Used to proxy communication to the instances of Gluu
 ###### Configuration file located at /etc/nginx/nginx.conf on the load balancing server (if installed).
 
-5) Twemproxy 
+5) Twemproxy
 
 ###### Used for cache failover, round-robin proxying and caching performance with Redis.
 ###### The configuration file for this program can be found in /etc/nutcracker/nutcracker.yml on the proxy server
