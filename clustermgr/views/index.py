@@ -20,6 +20,8 @@ from clustermgr.core.license import license_reminder
 from clustermgr.extensions import celery
 from clustermgr.core.license import prompt_license
 
+from clustermgr.tasks.cluster import setup_filesystem_replication
+
 index = Blueprint('index', __name__)
 index.before_request(prompt_license)
 index.before_request(license_reminder)
@@ -309,6 +311,49 @@ def install_ldap_server():
 
     return render_template('new_server.html', form=form,  data=data)
 
+
+
+
+
+
+@index.route('/fsrep/')
+def file_system_replication():
+    """File System Replication view"""
+
+    #Check if replication user (dn) and password has been configured
+    app_config = AppConfiguration.query.first()
+    if not app_config:
+        flash("Repication user and/or password has not been defined."
+              " Please go to 'Configuration' and set these before proceed.",
+              "warning")
+
+    #If there is no installed gluu servers, return to home
+    servers = Server.query.all()
+    
+    if not servers:
+        flash("Please install gluu servers 1.", "warning")
+        return redirect(url_for('index.home'))
+
+    for server in servers:
+        print server, server.gluu_server
+        if not server.gluu_server:
+            
+            flash("Please install gluu servers 2.", "warning")
+            return redirect(url_for('index.home'))
+
+
+    nextpage = 'index.home'
+    whatNext = "Home"
+    task = setup_filesystem_replication.delay()
+    head = "Setting up File System Replication on All Servers"
+    s = 'All Servers'
+
+
+    return render_template("logger.html", heading=head, server=s,
+                           task=task, nextpage=nextpage, whatNext=whatNext)
+
+
+    
 
 @index.route('/mmr/')
 def multi_master_replication():

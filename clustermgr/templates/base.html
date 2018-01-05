@@ -41,6 +41,7 @@
         <section class="sidebar">
           <ul class="sidebar-menu" data-widget="tree">
             <li><a href="/"><i class="fa fa-dashboard"></i><span>Dashboard</span></a></li>
+            
             <li class="treeview">
               <a href="#">
                 <i class="fa fa-cubes"></i><span>Cluster</span>
@@ -48,14 +49,31 @@
                   <i class="fa fa-angle-left pull-right"></i>
                 </span>
               </a>
+              
+              <ul class="treeview-menu">
+                <li><a href="{{ url_for('server.index') }}"><i class="fa fa-plus-square"></i>Add Server</a></li>
+                <li><a href="{{ url_for('cluster.install_nginx') }}"><i class="fa fa-plus-square"></i>Install Nginx</a></li>
+              </ul>
+
               <ul class="treeview-menu">
                 <li><a href="{{ url_for('server.index') }}"><i class="fa fa-plus-square"></i>Add Server</a></li>
                 <li><a href="{{ url_for('cluster.install_nginx') }}"><i class="fa fa-plus-square"></i>Install Nginx</a></li>
               </ul>
             </li>
-            <li><a href="{{ url_for('index.multi_master_replication') }}">
-              <i class="fa fa-database"></i><span>LDAP Replication</span></a>
+            <!-------replication tree----------------->
+            <li class="treeview">
+              <a href="#">
+                <i class="fa fa-refresh"></i><span>Replication</span>
+                <span class="pull-right-container">
+                  <i class="fa fa-angle-left pull-right"></i>
+                </span>
+              </a>
+              <ul class="treeview-menu">
+                <li><a href="{{ url_for('index.multi_master_replication') }}"> <i class="fa fa-database"></i><span>LDAP Replication</span></a> </li>
+                <li><a href="{{ url_for('index.file_system_replication') }}"> <i class="fa fa-file"></i><span>File System Replication</span></a> </li>
+              </ul>
             </li>
+            <!---------end of replication tree----------->
             <li><a href="{{ url_for('cache_mgr.index') }}">
               <i class="fa fa-microchip"></i><span>Cache Management</span></a>
             </li>
