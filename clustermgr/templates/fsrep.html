@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from 'macros.html' import render_form %}
+
+{% block header %}
+    <h1>File System Replication</h1>
+{% endblock %}
+
+{% block  content %}
+
+Gluu uses csync2 for file system replication. csync2 is used for file system syncing between
+host-1 and host-2. The following locations are synced in between the two hosts:
+<br>
+<br>
+<ul>
+    <li>/opt/gluu/jetty/identity/conf/shibboleth3/idp/</li>
+    <li>/opt/gluu/jetty/identity/conf/shibboleth3/sp/</li>
+    <li>/opt/shibboleth-idp/conf</li>
+    <li>/opt/shibboleth-idp/metadata/</li>
+    <li>/opt/shibboleth-idp/sp/</li>
+    <li>/opt/shibboleth-idp/temp_metadata/</li>
+    <li>/etc/gluu/conf/</li>
+    <li>/etc/certs/</li>
+    <li>/opt/symas/etc/openldap/schema</li>
+
+</ul>
+<br>
+<a class="btn btn-success btn-block" href="{{ url_for('index.file_system_replication', install='True') }}">Install File System Replication</a>
+
+{% endblock %}
+{% block js %}
+
+{% endblock %}

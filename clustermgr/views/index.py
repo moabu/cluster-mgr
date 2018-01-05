@@ -320,6 +320,9 @@ def install_ldap_server():
 def file_system_replication():
     """File System Replication view"""
 
+    if not request.args.get('install') == 'True':
+        return render_template("fsrep.html")
+
     #Check if replication user (dn) and password has been configured
     app_config = AppConfiguration.query.first()
     if not app_config:
@@ -331,14 +334,14 @@ def file_system_replication():
     servers = Server.query.all()
     
     if not servers:
-        flash("Please install gluu servers 1.", "warning")
+        flash("Please install gluu servers", "warning")
         return redirect(url_for('index.home'))
 
     for server in servers:
         print server, server.gluu_server
         if not server.gluu_server:
             
-            flash("Please install gluu servers 2.", "warning")
+            flash("Please install gluu servers", "warning")
             return redirect(url_for('index.home'))
 
 
