@@ -272,12 +272,48 @@ def setup_filesystem_replication(self):
             
             csync2_config.append('')
             
+
+
+
             for f in exclude_files:
                 csync2_config.append('  exclude {};'.format(f))
+
+
+            csync2_config.append('\n'
+                  '  action\n'
+                  '  {\n'
+                  '    logfile "/var/log/csync2_action.log";\n'
+                  '    do-local;\n'
+                  '  }\n'
+                  )
+
+            csync2_config.append('\n'
+                  '  action\n'
+                  '  {\n'
+                  '    pattern /opt/gluu/jetty/identity/conf/shibboleth3/idp/*;\n'
+                  '    exec "/sbin/service idp restart";\n'
+                  '    exec "/sbin/service identity restart";\n'
+                  '    logfile "/var/log/csync2_action.log";\n'
+                  '    do-local;\n'
+                  '  }\n')
+
+
+
+            csync2_config.append('\n'
+                  '  action\n'
+                  '  {\n'
+                  '    pattern /opt/symas/etc/openldap/schema/*;\n'
+                  '    exec "/sbin/service solserver restart";\n'
+                  '    logfile "/var/log/csync2_action.log";\n'
+                  '    do-local;\n'
+                  '  }\n')
+
+            csync2_config.append('  backup-directory /var/backups/csync2;')
+            csync2_config.append('  backup-generations 3;')
+
             
-            csync2_config.append('')
-            csync2_config.append('  auto younger;')
-            csync2_config.append('')
+
+            csync2_config.append('\n  auto younger;\n')
             
             csync2_config.append('}')
             
