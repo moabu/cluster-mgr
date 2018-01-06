@@ -22,7 +22,7 @@ After configuration, Cluster Manager no longer needs to be actively connected to
 
 </td><td>
 
-|22|80| 
+|22|80|
 |--|--|
 |443|22|
 
@@ -65,7 +65,7 @@ clustermgr-cli db upgrade
 
 ```
 mkdir -p $HOME/.clustermgr/javalibs
-wget https://ox.gluu.org/maven/org/xdi/oxlicense-validator/3.1.1.Final/oxlicense-validator-3.1.1.Final-jar-with-dependencies.jar -O $HOME/.clustermgr/javalibs/oxlicense-validator-3.1.1.jar
+wget http://ox.gluu.org/maven/org/xdi/oxlicense-validator/3.2.0-SNAPSHOT/oxlicense-validator-3.2.0-SNAPSHOT-jar-with-dependencies.jar -O $HOME/.clustermgr/javalibs/oxlicense-validator.jar
 ```
 
 7) Run celery scheduler and workers in separate terminals
@@ -182,7 +182,7 @@ You'll need to click `Add` on all the providers that are crossed out. This shoul
 
 ###### A rare issue is that sometimes the providers aren't replicating properly. Please `Remove` all the providers and then add them back. This usually fixes the problem.
 
-### If you're using 3.0.2, you're done here. If you're using 3.1.x, you will have to configure your cache for replication. 
+### If you're using 3.0.2, you're done here. If you're using 3.1.x, you will have to configure your cache for replication.
 
 Click the `Cache Management` menu option on the left. You'll see this screen:
 
@@ -221,7 +221,7 @@ By default the installation of a cluster on 3.1.1 installs 5 services. These ser
 
 1) Gluu Server
 
-2) Redis-Server 
+2) Redis-Server
 
 ###### Installed outside the chroot on all servers.
 ###### A value key-store known for it's high performance.
@@ -237,7 +237,7 @@ By default the installation of a cluster on 3.1.1 installs 5 services. These ser
 ###### Used to proxy communication to the instances of Gluu
 ###### Configuration file located at /etc/nginx/nginx.conf on the load balancing server (if installed).
 
-5) Twemproxy 
+5) Twemproxy
 
 ###### Used for cache failover, round-robin proxying and caching performance with Redis.
 ###### The configuration file for this program can be found in /etc/nutcracker/nutcracker.yml on the proxy server
