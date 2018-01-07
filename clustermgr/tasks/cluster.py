@@ -158,6 +158,17 @@ def setup_filesystem_replication(self):
         c = RemoteClient(server.hostname, ip=server.ip)
         c.startup()
 
+
+        run_cmd = "{}"
+        cmd_chroot = chroot
+
+        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+            cmd_chroot = None
+            run_cmd = ("ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o "
+                "Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no "
+                "-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes "
+                "root@localhost '{}'")
+
         if 'Ubuntu' in server.os:
             cmd = 'localedef -i en_US -f UTF-8 en_US.UTF-8'
             run_command(tid, c, cmd, chroot)
@@ -177,40 +188,42 @@ def setup_filesystem_replication(self):
             cmd = '{} install -y csync2'.format(install_command)
             run_command(tid, c, cmd, chroot)
             
-            cmd_chroot = chroot
-            run_cmd = "{}"
             
             cmd = 'apt-get install -y csync2'
             run_command(tid, c, cmd, chroot)
             
         elif 'CentOS' in server.os:
-            cmd_chroot = None
-            run_cmd = ("ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o "
-                "Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no "
-                "-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes "
-                "root@localhost '{}'")
+
                 
             cmd = run_cmd.format('yum install -y epel-release')
-            run_command(tid, c, cmd, no_error=None)
+            run_command(tid, c, cmd, cmd_chroot, no_error=None)
 
             cmd = run_cmd.format('yum repolist')
-            run_command(tid, c, cmd, no_error=None)
+            run_command(tid, c, cmd, cmd_chroot, no_error=None)
             
             if server.os == 'CentOS 7':
                 csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos7.x86_64.rpm'
-            
+            if server.os == 'CentOS 6':
+                csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos6.x86_64.rpm'
+    
             cmd = run_cmd.format('yum install -y ' + csync_rpm)
-            run_command(tid, c, cmd, no_error=None)
+            run_command(tid, c, cmd, cmd_chroot, no_error=None)
 
             cmd = run_cmd.format('service xinetd stop')
-            run_command(tid, c, cmd, no_error=None)
+            run_command(tid, c, cmd, cmd_chroot, no_error=None)
 
+        if server.os == 'CentOS 6':
+            cmd = run_cmd.format('yum install -y crontabs')
+            run_command(tid, c, cmd, cmd_chroot, no_error=None)
 
         cmd = run_cmd.format('rm -f /var/lib/csync2/*.db3')        
         run_command(tid, c, cmd, cmd_chroot, no_error=None)
 
         cmd = run_cmd.format('rm -f /etc/csync2*')
         run_command(tid, c, cmd, cmd_chroot, no_error=None)
+
+
+
 
 
         if server.primary_server:
@@ -397,18 +410,24 @@ def setup_filesystem_replication(self):
         #run time sync in every minute
         cron_file = os.path.join(chroot, 'etc', 'cron.d', 'csync2')
         c.put_file(cron_file,
-                    '* * * * *    root    {} -x -N {}\n'.format(csync2_path, server.hostname))
+            '* * * * *    root    {} -N {} -xv 2>/var/log/csync2.log\n'.format(
+            csync2_path, server.hostname))
+    
         wlogger.log(tid, 'Crontab entry was created to sync files in every minute',
                          'debug')
 
-        if 'CentOS' in server.os or 'RHEL' in server.os:
+        if ('CentOS' in server.os) or ('RHEL' in server.os):
             cmd = 'service crond reload'
             cmd = run_cmd.format('service xinetd start')
-            run_command(tid, c, cmd, no_error=None)
+            run_command(tid, c, cmd, cmd_chroot, no_error=None)
+            cmd = run_cmd.format('service crond restart')
+            run_command(tid, c, cmd, cmd_chroot, no_error='debug')
             
         else:
             cmd = run_cmd.format('service cron reload')
-            run_command(tid, c, cmd, no_error='debug')
+            run_command(tid, c, cmd, cmd_chroot, no_error='debug')
+            cmd = run_cmd.format('service openbsd-inetd restart')
+            run_command(tid, c, cmd, cmd_chroot, no_error='debug')
 
         c.close()
 
