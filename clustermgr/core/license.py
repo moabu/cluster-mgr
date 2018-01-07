@@ -54,12 +54,12 @@ class LicenseManager(object):
         # Absolute path to external program which able to validate license.
         app.config.setdefault(
             "LICENSE_VALIDATOR",
-            "/usr/share/oxlicense-validator/oxlicense-validator-3.1.1.jar",
+            "/usr/share/oxlicense-validator/oxlicense-validator.jar",
         )
         # Default product name.
         app.config.setdefault(
             "LICENSE_PRODUCT_NAME",
-            "de",  # TODO: change it to another name?
+            "cluster_manager",
         )
         app.config.setdefault(
             "LICENSE_ENFORCEMENT_ENABLED",

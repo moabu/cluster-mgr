@@ -33,12 +33,17 @@ def _humanize_timestamp(ts, date_fmt="%Y:%m:%d %H:%M:%S GMT"):
 def index():
     license_data, err = license_manager.validate_license()
 
-    ts_keys = ("creation_date", "expiration_date",)
-    for key in ts_keys:
-        if key not in license_data["metadata"]:
-            continue
-        ts = license_data["metadata"][key]
-        license_data["metadata"][key] = _humanize_timestamp(ts)
+    if "creation_date" in license_data["metadata"]:
+        license_data["metadata"]["creation_date"] = _humanize_timestamp(
+            license_data["metadata"]["creation_date"])
+
+    if "expiration_date" in license_data["metadata"]:
+        license_data["metadata"]["expiration_date"] = _humanize_timestamp(
+            license_data["metadata"]["expiration_date"])
+
+    if "products" in license_data["metadata"]:
+        license_data["metadata"]["products"] = license_data["metadata"]["products"][0]
+
     return render_template("license_index.html", license_data=license_data,
                            err_msg=err)
 
