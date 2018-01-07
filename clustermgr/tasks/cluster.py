@@ -243,18 +243,14 @@ def setup_filesystem_replication(self):
                 run_command(tid, c, cmd, cmd_chroot, no_error=None)
             
             
-            sync_directories = [ 
-                    '/opt/gluu/jetty/identity/conf/shibboleth3/idp/',
-                    '/opt/gluu/jetty/identity/conf/shibboleth3/sp/',
-                    '/opt/shibboleth-idp/conf',
-                    '/opt/shibboleth-idp/metadata/',
-                    '/opt/shibboleth-idp/sp/',
-                    '/opt/shibboleth-idp/temp_metadata/',
-                    '/etc/gluu/conf/',
-                    '/etc/certs/',
-                    #'/opt/opendj/',
-                    '/opt/symas/etc/openldap/schema'
-                ]
+            replication_user_file = os.path.join(Config.DATA_DIR,
+                                    'fs_replication_paths.txt')
+            
+            sync_directories = []
+            
+            for l in open(replication_user_file).readlines():
+                sync_directories.append(l.strip())
+
 
             exclude_files = [
                 '/etc/gluu/conf/ox-ldap.properties',
@@ -337,6 +333,7 @@ def setup_filesystem_replication(self):
             wlogger.log(tid, "Uploading csync2.cfg", 'debug')
             
             c.put_file(remote_file,  csync2_config)
+
 
         else:
             wlogger.log(tid, "Downloading csync2.cfg, csync2.key, "

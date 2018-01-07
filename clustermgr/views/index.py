@@ -9,7 +9,7 @@ from celery.result import AsyncResult
 from clustermgr.extensions import db, wlogger
 from clustermgr.models import AppConfiguration, Server  # , KeyRotation
 from clustermgr.forms import AppConfigForm, SchemaForm, \
-    TestUser, InstallServerForm  # , KeyRotationForm
+    TestUser, InstallServerForm, FSReplicationPathsForm  # , KeyRotationForm
 
 from clustermgr.core.ldap_functions import LdapOLC
 # from clustermgr.tasks.all import rotate_pub_keys
@@ -21,6 +21,8 @@ from clustermgr.extensions import celery
 from clustermgr.core.license import prompt_license
 
 from clustermgr.tasks.cluster import setup_filesystem_replication
+
+from clustermgr.config import Config
 
 index = Blueprint('index', __name__)
 index.before_request(prompt_license)
@@ -316,12 +318,10 @@ def install_ldap_server():
 
 
 
-@index.route('/fsrep/')
+@index.route('/fsrep/', methods=['GET', 'POST'])
 def file_system_replication():
     """File System Replication view"""
 
-    if not request.args.get('install') == 'True':
-        return render_template("fsrep.html")
 
     #Check if replication user (dn) and password has been configured
     app_config = AppConfiguration.query.first()
@@ -338,11 +338,37 @@ def file_system_replication():
         return redirect(url_for('index.home'))
 
     for server in servers:
-        print server, server.gluu_server
         if not server.gluu_server:
-            
             flash("Please install gluu servers", "warning")
             return redirect(url_for('index.home'))
+
+    fs_paths_form = FSReplicationPathsForm()
+        
+    replication_user_file = os.path.join(Config.DATA_DIR,
+                                    'fs_replication_paths.txt')
+        
+    if not request.args.get('next') == 'install':
+        
+        replication_defaults_file = os.path.join(app.root_path, 'templates',
+                                    'file_system_replication',
+                                    'replication_defaults.txt')
+        
+        replication_paths = ''
+        if not request.args.get('next') == 'defaults':
+            if os.path.exists(replication_user_file):
+                replication_paths = open(replication_user_file).read()
+                
+        
+        if not replication_paths:
+            replication_paths = open(replication_defaults_file).read()
+
+        fs_paths_form.fs_paths.data = replication_paths
+        
+        return render_template("fsrep.html", form=fs_paths_form)
+
+
+    with open(replication_user_file, 'w') as F:
+        F.write(fs_paths_form.fs_paths.data)
 
 
     nextpage = 'index.home'
@@ -352,7 +378,7 @@ def file_system_replication():
     s = 'All Servers'
 
 
-    return render_template("logger.html", heading=head, server=s,
+    return render_template('logger.html', heading=head, server=s,
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
 

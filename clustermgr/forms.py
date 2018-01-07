@@ -3,7 +3,7 @@ try:
 except ImportError:
     from flask_wtf import Form as FlaskForm
 from wtforms import StringField, SelectField, BooleanField, IntegerField, \
-    PasswordField, RadioField, SubmitField, validators
+    PasswordField, RadioField, SubmitField, validators, TextAreaField
 from wtforms.validators import DataRequired, Regexp, AnyOf, \
     ValidationError, URL, IPAddress, Email, Length  # , Optional
 from flask_wtf.file import FileField, FileRequired, FileAllowed
@@ -175,3 +175,8 @@ class LicenseSettingsForm(FlaskForm):
 class LicenseAckForm(FlaskForm):
     accept = SubmitField("Accept")
     decline = SubmitField("Decline")
+
+class FSReplicationPathsForm(FlaskForm):
+    fs_paths =  TextAreaField()
+    update = SubmitField("Install File System Replication")
+    

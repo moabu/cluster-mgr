@@ -7,13 +7,34 @@
 
 {% block  content %}
 
-   Csync2 is a cluster synchronization tool. It can be used to keep files on
-   multiple hosts in a cluster in sync. Csync2 can handle complex setups with
-   much more than just 2 hosts, handle file deletions and can detect conflicts.
+<div class="box box-primary">
+    
+    Csync2 is a cluster synchronization tool. It can be used to keep files on
+    multiple hosts in a cluster in sync. Csync2 can handle complex setups with
+    much more than just 2 hosts, handle file deletions and can detect conflicts.
    <br>[<a href="http://oss.linbit.com/csync2/">http://oss.linbit.com/csync2/</a>]
-<br>
-<br>
-<a class="btn btn-success btn-block" href="{{ url_for('index.file_system_replication', install='True') }}">Install File System Replication</a>
+    
+    <form id="cform" action="{{ url_for('index.file_system_replication', next='install') }}" method="POST" class="form-horizontal">
+
+        {{ form.csrf_token }}
+
+        <div class="box-header with-border">
+            <h3 class="panel-title">Replication Paths</h3>
+        </div>
+
+        <div class="box-body">
+            {{form.fs_paths(rows='12',cols='60')}}
+            <a class="btn btn-primary" href="{{ url_for('index.file_system_replication', next='defaults') }}">Load Defaults</a>
+        </div>
+
+        <div class="box-footer">
+            {{ form.update(class="btn btn-success btn-block") }}
+        </div>
+
+    </form>
+</div>
+
+
 
 {% endblock %}
 {% block js %}
