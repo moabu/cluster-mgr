@@ -1,13 +1,21 @@
 """A Flask blueprint with the views and the business logic dealing with
 the servers managed in the cluster-manager
 """
+import os
+
 from flask import Blueprint, render_template, url_for, flash, redirect, \
-    session
+    session, request
+from flask import current_app as app
 
 from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cluster import setup_ldap_replication, \
-    installGluuServer, removeMultiMasterDeployement, installNGINX
+    installGluuServer, removeMultiMasterDeployement, installNGINX, \
+    setup_filesystem_replication
+
+from clustermgr.forms import FSReplicationPathsForm
+
+from clustermgr.config import Config
 
 from ..core.license import license_reminder
 from ..core.license import license_manager
@@ -159,4 +167,70 @@ def install_nginx():
     nextpage = "index.multi_master_replication"
     whatNext = "LDAP Replication"
     return render_template("logger.html", heading=head, server=appconf.nginx_host,
+                           task=task, nextpage=nextpage, whatNext=whatNext)
+
+
+
+@cluster.route('/fsrep/', methods=['GET', 'POST'])
+@license_manager.license_required
+def file_system_replication():
+    """File System Replication view"""
+
+
+    #Check if replication user (dn) and password has been configured
+    app_config = AppConfiguration.query.first()
+    if not app_config:
+        flash("Repication user and/or password has not been defined."
+              " Please go to 'Configuration' and set these before proceed.",
+              "warning")
+
+    #If there is no installed gluu servers, return to home
+    servers = Server.query.all()
+    
+    if not servers:
+        flash("Please install gluu servers", "warning")
+        return redirect(url_for('index.home'))
+
+    for server in servers:
+        if not server.gluu_server:
+            flash("Please install gluu servers", "warning")
+            return redirect(url_for('index.home'))
+
+    fs_paths_form = FSReplicationPathsForm()
+        
+    replication_user_file = os.path.join(Config.DATA_DIR,
+                                    'fs_replication_paths.txt')
+        
+    if not request.args.get('next') == 'install':
+        
+        replication_defaults_file = os.path.join(app.root_path, 'templates',
+                                    'file_system_replication',
+                                    'replication_defaults.txt')
+        
+        replication_paths = ''
+        if not request.args.get('next') == 'defaults':
+            if os.path.exists(replication_user_file):
+                replication_paths = open(replication_user_file).read()
+                
+        
+        if not replication_paths:
+            replication_paths = open(replication_defaults_file).read()
+
+        fs_paths_form.fs_paths.data = replication_paths
+        
+        return render_template("fsrep.html", form=fs_paths_form)
+
+
+    with open(replication_user_file, 'w') as F:
+        F.write(fs_paths_form.fs_paths.data)
+
+
+    nextpage = 'index.home'
+    whatNext = "Home"
+    task = setup_filesystem_replication.delay()
+    head = "Setting up File System Replication on All Servers"
+    s = 'All Servers'
+
+
+    return render_template('logger.html', heading=head, server=s,
                            task=task, nextpage=nextpage, whatNext=whatNext)
