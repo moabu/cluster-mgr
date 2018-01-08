@@ -121,15 +121,18 @@ def oxd_login_callback():
         # accessing this attribute may raise KeyError
         username = resp["user_name"][0]
 
-        # TODO: check role, if user is member of gluuManagerGroup,
-        # log the user in.
-
-        # all's good, let's log the user in.
-        user = User(username, "")
-        login_user(user)
+        role = resp["role"][0].strip("[]")
+        if role != "cluster_manager":
+            flash("Invalid user's role.", "warning")
+        else:
+            # all's good, let's log the user in.
+            user = User(username, "")
+            login_user(user)
     except KeyError as exc:
         print exc  # TODO: use logging
-        flash("user_name scope is not enabled in OpenID Connect client configuration.", "warning")
+        flash("Either user_name or permission scope is not enabled in OpenID "
+              "Connect configuration or user's info doesn't contain role attribute.",
+              "warning")
     except OxdServerError as exc:
         print exc  # TODO: use logging
         flash("Failed to process the request due to error in OXD server.", "warning")
