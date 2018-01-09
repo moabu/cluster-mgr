@@ -107,7 +107,7 @@ password = your_desired_password
 ```
 
 The default authentication method can be disabled by removing the file.
-Note, we recommend to disable default authentication after OXD authentication has been setup properly.
+Note, we recommend to disable [default authentication](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-default-admin-user) after [OXD authentication](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-oxd-and-gluu-server) has been setup properly.
 
 ## Configuring a Cluster
 
