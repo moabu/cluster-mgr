@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% from 'macros.html' import render_form %}
+
+{% block header %}
+    <h1>Multi Master Replication [OpenDJ]</h1>
+  <ol class="breadcrumb">
+    <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+    <li class="active">LDAP Replication</li>
+  </ol>
+{% endblock %}
+
+{% block  content %}
+
+{% if servers %}
+<div class="box">
+    <div class="box-body no-padding">
+        <table id="servers" class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Server ID</th>
+                    <th>Hostname</th>
+                    <th>IP Address</th>
+                    <th>Replication Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for server in servers %}
+                <tr>
+                    <td>{{ server.id }}</td>
+                    <td>{{ server.hostname }}
+                        {% if server.primary_server %}
+                        <span class="badge bg-green">Primary</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ server.ip }}</td>
+                    <td>
+                        {% if not server.primary_server %}
+                            {% if server.mmr %}
+                                Configured
+                            {% else %}
+                                <p class="text-danger">Not Configured</p>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                    <td>
+                    
+                    {% if not server.primary_server %}
+                        <a class="btn btn-primary btn-xs" href="{{ url_for('cluster.opendj_enable_replication', server_id=server.id) }}">Enable Replication</a>
+                        {% if server.mmr %}
+                        <a class="btn btn-primary btn-xs" href="{{ url_for('cluster.opendj_disable_replication', server_id=server.id) }}">Disable Replication</a>
+                        {% endif %}
+                    {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+     
+</div>
+<b>Note:</b> Ports 4444 and 8989 should be open on all servers.
+<a class="btn pull-right btn-primary btn-xs" href="{{ url_for('cluster.opendj_enable_replication', server_id='all') }}">Deploy All</a>
+<br>
+
+{% endif %}
+
+{% endblock %}
+{% block js %}
+
+{% endblock %}

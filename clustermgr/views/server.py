@@ -14,11 +14,14 @@ from index import getLdapConn
 from clustermgr.forms import ServerForm, InstallServerForm, \
         SetupPropertiesLastForm
 from clustermgr.tasks.cluster import collect_server_details
-from clustermgr.config import Config
 from clustermgr.core.remote import RemoteClient, ClientNotSetupException
 from ..core.license import license_manager
 from ..core.license import license_reminder
 from ..core.license import prompt_license
+
+from clustermgr.core.utils import parse_setup_properties, \
+        write_setup_properties_file, get_setup_properties
+
 
 server_view = Blueprint('server', __name__)
 server_view.before_request(prompt_license)
@@ -173,91 +176,6 @@ def remove(server_id):
     return redirect(url_for('index.home'))
 
 
-def get_quad():
-    return str(uuid.uuid4())[:4].upper()
-
-
-def get_inums():
-    """This fuction created inums based on Python's uuid4 function.
-    Barrowed from setup.py of gluu installer"""
-
-    base_inum = '@!%s.%s.%s.%s' % tuple([get_quad() for _ in xrange(4)])
-    org_two_quads = '%s.%s' % tuple([get_quad() for _ in xrange(2)])
-    inum_org = '%s!0001!%s' % (base_inum, org_two_quads)
-    appliance_two_quads = '%s.%s' % tuple([get_quad() for _ in xrange(2)])
-    inum_appliance = '%s!0002!%s' % (base_inum, appliance_two_quads)
-    return inum_org, inum_appliance
-
-def parse_setup_properties(content):
-    setup_prop = dict()
-    for l in content:
-        ls = l.strip()
-        if not ls[0] == '#':
-            eq_loc = ls.find('=')
-
-            if eq_loc > 0:
-                k = ls[:eq_loc]
-                v = ls[eq_loc+1:]
-                if v == 'True':
-                    v = True
-                elif v == 'False':
-                    v = False
-                setup_prop[k] = v
-
-    return setup_prop
-
-def write_setup_properties_file(setup_prop):
-
-    setup_properties_file = os.path.join(Config.DATA_DIR,
-                                         'setup.properties')
-
-    with open(setup_properties_file, 'w') as f:
-        for k, v in setup_prop.items():
-            f.write('{0}={1}\n'.format(k, v))
-
-def get_setup_properties():
-    """This fucntion returns properties for setup.properties file."""
-
-    #We are goint to deal with these properties with cluster-mgr
-    setup_prop = {
-        'hostname': '',
-        'orgName': '',
-        'countryCode': '',
-        'city': '',
-        'state': '',
-        'jksPass': '',
-        'inumOrg': '',
-        'inumAppliance': '',
-        'admin_email': '',
-        'ip': '',
-        'installOxAuth':True,
-        'installOxTrust':True,
-        'installLDAP':True,
-        'installHTTPD':True,
-        'installJce':True,
-        'installSaml':False,
-        'installAsimba':False,
-        #'installCas':False,
-        'installOxAuthRP':False,
-        'installPassport':False,
-        }
-
-    #Check if there exists a previously created setup.properties file.
-    #If exists, modify properties with content of this file.
-    setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
-
-    if os.path.exists(setup_properties_file):
-        setup_prop_f = parse_setup_properties(
-                                open(setup_properties_file).readlines())
-
-        setup_prop.update(setup_prop_f)
-
-    #Every time this function is called, create new inum
-    inum_org, inum_appliance = get_inums()
-    setup_prop['inumOrg'] = inum_org
-    setup_prop['inumAppliance'] = inum_appliance
-
-    return setup_prop
 
 
 @server_view.route('/installgluu/<int:server_id>/', methods=['GET', 'POST'])
@@ -334,13 +252,14 @@ def install_gluu(server_id):
                     #'installCas',
                     'installOxAuthRP',
                     'installPassport',
-
+                    'ldap_type',
                     ):
             setup_prop[o] = getattr(form, o).data
 
 
         write_setup_properties_file(setup_prop)
 
+        return "Remove this"
         #Redirect to cluster.install_gluu_server to start installation.
         return redirect(url_for('cluster.install_gluu_server',
                                 server_id=server_id))
@@ -366,10 +285,15 @@ def install_gluu(server_id):
                     #'installCas',
                     'installOxAuthRP',
                     'installPassport',
+                    'ldap_type',
                     ):
             getattr(form, o).data = setup_prop[o]
 
+        print form['ldap_type'].data
+
     setup_properties_form = SetupPropertiesLastForm()
+
+
 
     return render_template('new_server.html',
                             form=form,

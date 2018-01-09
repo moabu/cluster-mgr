@@ -223,9 +223,6 @@ def setup_filesystem_replication(self):
         run_command(tid, c, cmd, cmd_chroot, no_error=None)
 
 
-
-
-
         if server.primary_server:
         
             key_command= [
@@ -1534,6 +1531,200 @@ def removeMultiMasterDeployement(self, server_id):
     wlogger.log(tid, 'Deployment of Ldap Server was successfully removed')
 
     return True
+
+
+
+@celery.task(bind=True)
+def opendjdisablereplication(self, server_id):
+
+    app_config = AppConfiguration.query.first()
+    server = Server.query.get(server_id)
+    primary_server = Server.query.filter_by(primary_server=True).first()
+    tid = self.request.id
+    app_config = AppConfiguration.query.first()
+    
+    c = RemoteClient(primary_server.hostname, ip=server.ip)
+    chroot = '/opt/gluu-server-' + app_config.gluu_version
+    
+    
+    cmd_run = '{}'
+
+
+    if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):
+        chroot = None
+        cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
+                '-o Port=60022 -o LogLevel=QUIET '
+                '-o StrictHostKeyChecking=no '
+                '-o UserKnownHostsFile=/dev/null '
+                '-o PubkeyAuthentication=yes root@localhost "{}"')
+    
+
+    try:
+        c.startup()
+    except Exception as e:
+        wlogger.log(
+            tid, "Cannot establish SSH connection {0}".format(e), "warning")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return False
+
+    
+    cmd = ('/opt/opendj/bin/dsreplication disable --disableAll --port 4444 '
+            '--hostname {} --adminUID admin --adminPassword {} '
+            '--trustAll --no-prompt').format(
+                            server.hostname, 
+                            app_config.replication_pw)
+
+    cmd = cmd_run.format(cmd)
+    run_command(tid, c, cmd, chroot)
+    
+    wlogger.log(tid, "Checking replication status")
+    
+    cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
+            '-p 1444 -I admin -w {}').format(
+                    primary_server.hostname, 
+                    app_config.replication_pw)
+    
+    cmd = cmd_run.format(cmd)
+    run_command(tid, c, cmd, chroot)
+    
+    server.mmr = False
+    
+    db.session.commit()
+    return True
+    
+    
+    return True
+
+
+@celery.task(bind=True)
+def opendjenablereplication(self, server_id):
+    
+    app_config = AppConfiguration.query.first()
+    
+    primary_server = Server.query.filter_by(primary_server=True).first()
+    tid = self.request.id
+    app_config = AppConfiguration.query.first()
+    
+    
+    if server_id == 'all':
+        servers = Server.query.all()
+    else:
+        servers = [Server.query.get(server_id)]
+    
+    if not primary_server.gluu_server:
+        chroot = '/'
+    else:
+        chroot = '/opt/gluu-server-' + app_config.gluu_version
+
+    wlogger.log(tid, "Making SSH connection to the primary server %s" %
+                primary_server.hostname)
+
+    c = RemoteClient(primary_server.hostname, ip=primary_server.ip)
+
+    try:
+        c.startup()
+    except Exception as e:
+        wlogger.log(
+            tid, "Cannot establish SSH connection {0}".format(e), "warning")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return False
+
+    if primary_server.gluu_server:
+        # check if remote is gluu server
+        if c.exists(chroot):
+            wlogger.log(tid, 'Checking if remote is gluu server', 'success')
+        else:
+            wlogger.log(tid, "Remote is not a gluu server.", "error")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return False
+
+
+
+    for server in servers:
+        if not server.primary_server:
+            wlogger.log(tid, "Enabling replication on server {}".format(
+                                                            server.hostname))
+
+
+            cmd_run = '{}'
+
+            if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):
+                chroot = None
+                cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
+                        '-o Port=60022 -o LogLevel=QUIET '
+                        '-o StrictHostKeyChecking=no '
+                        '-o UserKnownHostsFile=/dev/null '
+                        '-o PubkeyAuthentication=yes root@localhost "{}"')
+            
+
+            cmd = ('/opt/opendj/bin/dsreplication enable --host1 {} --port1 4444 '
+                    '--bindDN1 \'cn=directory manager\' --bindPassword1 secret '
+                    '--replicationPort1 8989 --host2 {} --port2 4444 --bindDN2 '
+                    '\'cn=directory manager\' --bindPassword2 {} '
+                    '--replicationPort2 8989 --adminUID admin --adminPassword {} '
+                    '--baseDN \'o=gluu\' --trustAll -X -n').format(
+                        primary_server.hostname,
+                        server.hostname,
+                        app_config.replication_pw,
+                        app_config.replication_pw,
+                        )
+            
+            cmd = cmd_run.format(cmd)
+            run_command(tid, c, cmd, chroot)
+
+            wlogger.log(tid, "Inıtializing replication on server {}".format(
+                                                            server.hostname))
+            
+            
+            cmd = ('/opt/opendj/bin/dsreplication initialize --baseDN \'o=gluu\' '
+                    '--adminUID admin --adminPassword {} --hostSource {} '
+                    '--portSource 4444  --hostDestination {} --portDestination 4444 '
+                    '--trustAll -X -n').format(
+                        app_config.replication_pw,
+                        primary_server.hostname,
+                        server.hostname,
+                        )
+            
+            cmd = cmd_run.format(cmd)
+            run_command(tid, c, cmd, chroot)
+
+            wlogger.log(tid, "Securing replication on primary server {}".format(
+                                                            primary_server.hostname))
+
+            cmd = ('/opt/opendj/bin/dsconfig -h {} -p 4444 '
+                    ' -D  \'cn=Directory Manager\' -w {} --trustAll '
+                    '-n set-crypto-manager-prop --set ssl-encryption:true'
+                    ).format(primary_server.hostname, app_config.replication_pw)
+
+            cmd = cmd_run.format(cmd)
+            run_command(tid, c, cmd, chroot)
+
+            wlogger.log(tid, "Securing replication on server {}".format(
+                                                            server.hostname))
+            cmd = ('/opt/opendj/bin/dsconfig -h {} -p 4444 '
+                    ' -D  \'cn=Directory Manager\' -w {} --trustAll '
+                    '-n set-crypto-manager-prop --set ssl-encryption:true'
+                    ).format(server.hostname, app_config.replication_pw)
+
+            cmd = cmd_run.format(cmd)
+            run_command(tid, c, cmd, chroot)
+            server.mmr = True
+
+    wlogger.log(tid, "Checking replication status")
+    
+    cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
+            '-p 1444 -I admin -w {}').format(
+                    primary_server.hostname, 
+                    app_config.replication_pw)
+    
+    cmd = cmd_run.format(cmd)
+    run_command(tid, c, cmd, chroot)
+    
+    
+    
+    db.session.commit()
+    return True
+
 
 @celery.task(bind=True)
 def installNGINX(self, nginx_host):

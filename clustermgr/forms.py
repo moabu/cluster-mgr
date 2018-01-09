@@ -156,6 +156,11 @@ class InstallServerForm(FlaskForm):
     installOxAuthRP = BooleanField('Install oxAuth RP')
     installPassport = BooleanField('Install Passport')
 
+    ldap_type = RadioField("Ldap Type",
+                    choices=[("opendj", "OpenDJ",), ("openldap", "OpenLDAP")],
+                    validators=[AnyOf(["opendj", "openldap"])],
+                )
+
 
 def replace_pubkey_whitespace(value):
     if value is not None and hasattr(value, "replace"):
