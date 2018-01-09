@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
-import uuid
+# import uuid
 
 from flask import Blueprint, render_template, redirect, url_for, flash, \
     request
@@ -13,13 +13,16 @@ from clustermgr.models import Server, AppConfiguration
 from index import getLdapConn
 
 from clustermgr.forms import ServerForm, InstallServerForm, \
-        SetupPropertiesLastForm
+    SetupPropertiesLastForm
 from clustermgr.tasks.cluster import collect_server_details
-from clustermgr.config import Config
 from clustermgr.core.remote import RemoteClient, ClientNotSetupException
 from ..core.license import license_manager
 from ..core.license import license_reminder
 from ..core.license import prompt_license
+
+from clustermgr.core.utils import parse_setup_properties, \
+    write_setup_properties_file, get_setup_properties
+
 
 server_view = Blueprint('server', __name__)
 server_view.before_request(prompt_license)
@@ -76,9 +79,9 @@ def index():
         return redirect(url_for('index.home'))
 
     return render_template('new_server.html',
-                            form=form,
-                            header=header,
-                            server_id=None)
+                           form=form,
+                           header=header,
+                           server_id=None)
 
 
 @server_view.route('/edit/<int:server_id>/', methods=['GET', 'POST'])
@@ -120,16 +123,15 @@ def edit(server_id):
     return render_template('new_server.html', form=form, header=header)
 
 
-
 def remove_provider_from_consumer_f(consumer_id, provider_addr):
     server = Server.query.get(consumer_id)
 
-    #Make ldap connection
+    # Make ldap connection
     ldp = getLdapConn(server.hostname, "cn=config", server.ldap_password)
 
     success = False
 
-    #If connection was established try to delete provider
+    # If connection was established try to delete provider
     if ldp:
         r = ldp.removeProvider("ldaps://{0}:1636".format(provider_addr))
         if r:
@@ -141,10 +143,9 @@ def remove_provider_from_consumer_f(consumer_id, provider_addr):
     if not success:
         if ldp:
             flash("Removing provider was failed: {0}".format(
-                    ldp.conn.result['description']), "danger")
+                  ldp.conn.result['description']), "danger")
         else:
             flash("Can't connect to LDAP server", "danger")
-
 
 
 @server_view.route('/removeprovider/<consumer_id>/<provider_addr>')
@@ -155,7 +156,6 @@ def remove_provider_from_consumer(consumer_id, provider_addr):
     remove_provider_from_consumer_f(consumer_id, provider_addr)
 
     return redirect(url_for('index.multi_master_replication'))
-
 
 
 @server_view.route('/remove/<int:server_id>/')
@@ -177,93 +177,6 @@ def remove(server_id):
 
     flash("Server {0} is removed.".format(server.hostname), "success")
     return redirect(url_for('index.home'))
-
-
-def get_quad():
-    return str(uuid.uuid4())[:4].upper()
-
-
-def get_inums():
-    """This fuction created inums based on Python's uuid4 function.
-    Barrowed from setup.py of gluu installer"""
-
-    base_inum = '@!%s.%s.%s.%s' % tuple([get_quad() for _ in xrange(4)])
-    org_two_quads = '%s.%s' % tuple([get_quad() for _ in xrange(2)])
-    inum_org = '%s!0001!%s' % (base_inum, org_two_quads)
-    appliance_two_quads = '%s.%s' % tuple([get_quad() for _ in xrange(2)])
-    inum_appliance = '%s!0002!%s' % (base_inum, appliance_two_quads)
-    return inum_org, inum_appliance
-
-def parse_setup_properties(content):
-    setup_prop = dict()
-    for l in content:
-        ls = l.strip()
-        if not ls[0] == '#':
-            eq_loc = ls.find('=')
-
-            if eq_loc > 0:
-                k = ls[:eq_loc]
-                v = ls[eq_loc+1:]
-                if v == 'True':
-                    v = True
-                elif v == 'False':
-                    v = False
-                setup_prop[k] = v
-
-    return setup_prop
-
-def write_setup_properties_file(setup_prop):
-
-    setup_properties_file = os.path.join(Config.DATA_DIR,
-                                         'setup.properties')
-
-    with open(setup_properties_file, 'w') as f:
-        for k, v in setup_prop.items():
-            f.write('{0}={1}\n'.format(k, v))
-
-def get_setup_properties():
-    """This fucntion returns properties for setup.properties file."""
-
-    # We are goint to deal with these properties with cluster-mgr
-    setup_prop = {
-        'hostname': '',
-        'orgName': '',
-        'countryCode': '',
-        'city': '',
-        'state': '',
-        'jksPass': '',
-        'inumOrg': '',
-        'inumAppliance': '',
-        'admin_email': '',
-        'ip': '',
-        'installOxAuth': True,
-        'installOxTrust': True,
-        'installLDAP': True,
-        'installHTTPD': True,
-        'installJce': True,
-        'installSaml': False,
-        'installAsimba': False,
-        # 'installCas':False,
-        'installOxAuthRP': False,
-        'installPassport': False,
-    }
-
-    # Check if there exists a previously created setup.properties file.
-    # If exists, modify properties with content of this file.
-    setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
-
-    if os.path.exists(setup_properties_file):
-        setup_prop_f = parse_setup_properties(
-                                open(setup_properties_file).readlines())
-
-        setup_prop.update(setup_prop_f)
-
-    # Every time this function is called, create new inum
-    inum_org, inum_appliance = get_inums()
-    setup_prop['inumOrg'] = inum_org
-    setup_prop['inumAppliance'] = inum_appliance
-
-    return setup_prop
 
 
 @server_view.route('/installgluu/<int:server_id>/', methods=['GET', 'POST'])
@@ -293,15 +206,14 @@ def install_gluu(server_id):
         collect_server_details.delay(server_id)
         return redirect(url_for('index.home'))
 
-    #If current server is not primary server, and primary server was installed,
-    #start installation by redirecting to cluster.install_gluu_server
+    # If current server is not primary server, and primary server was installed,
+    # start installation by redirecting to cluster.install_gluu_server
     if not server.primary_server:
         return redirect(url_for('cluster.install_gluu_server',
                                 server_id=server_id))
 
-
-    #If we come up here, it is primary server and we will ask admin which
-    #components will be installed. So prepare form by InstallServerForm
+    # If we come up here, it is primary server and we will ask admin which
+    # components will be installed. So prepare form by InstallServerForm
     appconf = AppConfiguration.query.first()
     form = InstallServerForm()
 
@@ -338,17 +250,20 @@ def install_gluu(server_id):
                   'installAsimba',
                   # 'installCas',
                   'installOxAuthRP',
-                  'installPassport'):
+                  'installPassport',
+                  'ldap_type',
+                  ):
             setup_prop[o] = getattr(form, o).data
 
         write_setup_properties_file(setup_prop)
 
+        return "Remove this"
         # Redirect to cluster.install_gluu_server to start installation.
         return redirect(url_for('cluster.install_gluu_server',
                                 server_id=server_id))
 
-    #If this view is requested, rather than post, display form to
-    #admin to determaine which elements to be installed.
+    # If this view is requested, rather than post, display form to
+    # admin to determaine which elements to be installed.
     if request.method == 'GET':
         form.countryCode.data = setup_prop['countryCode']
         form.state.data = setup_prop['state']
@@ -367,16 +282,20 @@ def install_gluu(server_id):
                   'installAsimba',
                   # 'installCas',
                   'installOxAuthRP',
-                  'installPassport'):
+                  'installPassport',
+                  'ldap_type',
+                  ):
             getattr(form, o).data = setup_prop[o]
+
+        print form['ldap_type'].data
 
     setup_properties_form = SetupPropertiesLastForm()
 
     return render_template('new_server.html',
-                            form=form,
-                            server_id=server_id,
-                            setup_properties_form = setup_properties_form,
-                            header=header)
+                           form=form,
+                           server_id=server_id,
+                           setup_properties_form=setup_properties_form,
+                           header=header)
 
 
 @server_view.route('/uploadsetupproperties/<int:server_id>', methods=['POST'])
@@ -388,31 +307,29 @@ def upload_setup_properties(server_id):
 
         f = setup_properties_form.setup_properties.data
 
-
         setup_prop = parse_setup_properties(f.stream)
 
         print setup_prop
 
-        for rf in ( 'oxauthClient_encoded_pw',
-                    'encoded_ldap_pw',
-                    'scim_rp_client_jks_pass',
-                    'passport_rp_client_jks_pass',
-                    'asimbaJksPass',
-                    'encoded_ox_ldap_pw',
-                    'oxauthClient_pw',
-                    'encoded_shib_jks_pw',
-                    'encoded_openldapJksPass',
-                    'pairwiseCalculationSalt',
-                    'openldapKeyPass',
-                    'pairwiseCalculationKey',
-                    'httpdKeyPass',
-                    'scim_rs_client_jks_pass_encoded',
-                    'encode_salt',
-                    'scim_rs_client_jks_pass',
-                    'shibJksPass',
-                    ):
+        for rf in ('oxauthClient_encoded_pw',
+                   'encoded_ldap_pw',
+                   'scim_rp_client_jks_pass',
+                   'passport_rp_client_jks_pass',
+                   'asimbaJksPass',
+                   'encoded_ox_ldap_pw',
+                   'oxauthClient_pw',
+                   'encoded_shib_jks_pw',
+                   'encoded_openldapJksPass',
+                   'pairwiseCalculationSalt',
+                   'openldapKeyPass',
+                   'pairwiseCalculationKey',
+                   'httpdKeyPass',
+                   'scim_rs_client_jks_pass_encoded',
+                   'encode_salt',
+                   'scim_rs_client_jks_pass',
+                   'shibJksPass',
+                   ):
             del setup_prop[rf]
-
 
         appconf = AppConfiguration.query.first()
         server = Server.query.get(server_id)
@@ -424,7 +341,7 @@ def upload_setup_properties(server_id):
         write_setup_properties_file(setup_prop)
 
         flash("Setup properties file has been uploaded sucessfully. ",
-                    "success")
+              "success")
 
         return redirect(url_for('cluster.install_gluu_server',
                                 server_id=server_id))

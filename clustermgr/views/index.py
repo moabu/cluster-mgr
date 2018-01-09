@@ -12,6 +12,7 @@ from clustermgr.models import AppConfiguration, Server  # , KeyRotation
 from clustermgr.forms import AppConfigForm, SchemaForm, \
     TestUser, InstallServerForm  # , KeyRotationForm
 
+
 from clustermgr.core.ldap_functions import LdapOLC
 # from clustermgr.tasks.all import rotate_pub_keys
 # from clustermgr.core.utils import encrypt_text
@@ -21,6 +22,7 @@ from clustermgr.core.license import license_reminder
 from clustermgr.extensions import celery
 from clustermgr.core.license import prompt_license
 
+from clustermgr.core.utils import get_setup_properties
 
 index = Blueprint('index', __name__)
 index.before_request(prompt_license)
@@ -313,18 +315,9 @@ def install_ldap_server():
     return render_template('new_server.html', form=form, data=data)
 
 
-
-
-
-
-
-
-
-    
-
 @index.route('/mmr/')
 def multi_master_replication():
-    """Multi Master Replication view"""
+    """Multi Master Replication view for OpenLDAP"""
 
     # Check if replication user (dn) and password has been configured
     app_config = AppConfiguration.query.first()
@@ -333,43 +326,51 @@ def multi_master_replication():
               " Please go to 'Configuration' and set these before proceed.",
               "warning")
 
-    if 'nongluuldapinfo' in session:
-        del session['nongluuldapinfo']
-
     ldap_errors = []
 
     ldaps = Server.query.all()
-    serverStats = {}
 
-    # Collect replication information for all configured servers
-    for ldp in ldaps:
+    prop = get_setup_properties()
 
-        s = LdapOLC(
-            "ldaps://{0}:1636".format(ldp.hostname), "cn=config",
-            ldp.ldap_password)
-        r = None
-        try:
-            r = s.connect()
-        except Exception as e:
-            ldap_errors.append(
-                "Connection to LDAPserver {0} at port 1636 was failed:"
-                " {1}".format(ldp.hostname, e))
+    if prop['ldap_type'] == 'openldap':
 
-        if r:
-            sstat = s.getMMRStatus()
-            if sstat['server_id']:
-                serverStats[ldp.hostname] = sstat
+        serverStats = {}
 
-    # If there is no ldap server, return to home
-    if not ldaps:
-        flash("Please add ldap servers.", "warning")
-        return redirect(url_for('index.home'))
+        # Collect replication information for all configured servers
+        for ldp in ldaps:
 
-    return render_template('multi_master.html',
-                           ldapservers=ldaps,
-                           serverStats=serverStats,
-                           ldap_errors=ldap_errors,
-                           )
+            s = LdapOLC(
+                "ldaps://{0}:1636".format(ldp.hostname), "cn=config",
+                ldp.ldap_password)
+            r = None
+            try:
+                r = s.connect()
+            except Exception as e:
+                ldap_errors.append(
+                    "Connection to LDAPserver {0} at port 1636 was failed:"
+                    " {1}".format(ldp.hostname, e))
+
+            if r:
+                sstat = s.getMMRStatus()
+                if sstat['server_id']:
+                    serverStats[ldp.hostname] = sstat
+
+        # If there is no ldap server, return to home
+        if not ldaps:
+            flash("Please add ldap servers.", "warning")
+            return redirect(url_for('index.home'))
+
+        return render_template('multi_master.html',
+                               ldapservers=ldaps,
+                               serverStats=serverStats,
+                               ldap_errors=ldap_errors,
+                               )
+
+    else:
+
+        return render_template('opendjmmr.html',
+                               servers=ldaps,
+                               )
 
 
 @index.route('/addtestuser/<int:server_id>', methods=['GET', 'POST'])

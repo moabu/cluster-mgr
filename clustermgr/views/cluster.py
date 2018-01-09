@@ -12,7 +12,8 @@ from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cluster import setup_ldap_replication, \
     installGluuServer, removeMultiMasterDeployement, installNGINX, \
-    setup_filesystem_replication
+    setup_filesystem_replication, opendjenablereplication, \
+    opendjdisablereplication
 
 from clustermgr.forms import FSReplicationPathsForm
 
@@ -68,6 +69,20 @@ def deploy_config(server_id):
     return render_template("logger.html", heading=head, server=s,
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
+
+@cluster.route('/opendjdisablereplication/<int:server_id>/')
+@license_manager.license_required
+def opendj_disable_replication(server_id):
+    """Initiates removal of replications"""
+
+    #Start non-gluu ldap server installation celery task
+    task = opendjdisablereplication.delay(server_id)
+    server = Server.query.get(server_id)
+    head = "Disabling Replication Server on {}".format(server.hostname) 
+    nextpage = "index.multi_master_replication"
+    whatNext = "Multi Master Replication"
+    return render_template("logger.html", heading=head, server=server,
+                           task=task, nextpage=nextpage, whatNext=whatNext)
 
 @cluster.route('/remove_deployment/<int:server_id>/')
 @license_manager.license_required
@@ -172,6 +187,26 @@ def install_nginx():
     nextpage = "index.multi_master_replication"
     whatNext = "LDAP Replication"
     return render_template("logger.html", heading=head, server=appconf.nginx_host,
+                           task=task, nextpage=nextpage, whatNext=whatNext)
+
+
+@cluster.route('/opendjenablereplication/<server_id>')
+@license_manager.license_required
+def opendj_enable_replication(server_id):
+
+    nextpage = 'index.multi_master_replication'
+    whatNext = "LDAP Replication"
+    if not server_id == 'all':
+        server = Server.query.get(server_id)
+        head = "Enabling Replication on Server: " + server.hostname
+    else:
+        head = "Enabling Replication on all servers"
+        server = ''
+
+    #Start openDJ replication celery task
+    task = opendjenablereplication.delay(server_id)
+    
+    return render_template("logger.html", heading=head, server=server,
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
 
