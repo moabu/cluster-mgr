@@ -130,6 +130,306 @@ def modifyOxLdapProperties(server, c, tid, pDict, chroot):
                 'warning')
 
 
+
+
+@celery.task(bind=True)
+def setup_filesystem_replication(self):
+    """Deploys File System replicaton
+    """
+
+    print "Setting up File System Replication started"
+
+    tid = self.request.id
+    
+    servers = Server.query.all()
+    app_config = AppConfiguration.query.first()
+    
+    chroot = '/opt/gluu-server-' + app_config.gluu_version
+
+    for server in servers:
+
+        print "Satrting csync2 installation on", server.hostname
+
+        wlogger.log(tid, 
+                "Installing csync2 for filesystem replication on {}".format(
+                            server.hostname),
+                'head')
+
+        c = RemoteClient(server.hostname, ip=server.ip)
+        c.startup()
+
+
+        run_cmd = "{}"
+        cmd_chroot = chroot
+
+        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+            cmd_chroot = None
+            run_cmd = ("ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o "
+                "Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no "
+                "-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes "
+                "root@localhost '{}'")
+
+        if 'Ubuntu' in server.os:
+            cmd = 'localedef -i en_US -f UTF-8 en_US.UTF-8'
+            run_command(tid, c, cmd, chroot)
+            
+            cmd = 'locale-gen en_US.UTF-8'
+            run_command(tid, c, cmd, chroot)
+            
+            install_command = 'DEBIAN_FRONTEND=noninteractive apt-get'
+        
+            cmd = '{} update'.format(install_command)
+            run_command(tid, c, cmd, chroot)
+
+            cmd = '{} install -y apt-utils'.format(install_command)
+            run_command(tid, c, cmd, chroot, no_error=None)
+            
+            
+            cmd = '{} install -y csync2'.format(install_command)
+            run_command(tid, c, cmd, chroot)
+            
+            
+            cmd = 'apt-get install -y csync2'
+            run_command(tid, c, cmd, chroot)
+            
+        elif 'CentOS' in server.os:
+
+                
+            cmd = run_cmd.format('yum install -y epel-release')
+            run_command(tid, c, cmd, cmd_chroot, no_error=None)
+
+            cmd = run_cmd.format('yum repolist')
+            run_command(tid, c, cmd, cmd_chroot, no_error=None)
+            
+            if server.os == 'CentOS 7':
+                csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos7.x86_64.rpm'
+            if server.os == 'CentOS 6':
+                csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos6.x86_64.rpm'
+    
+            cmd = run_cmd.format('yum install -y ' + csync_rpm)
+            run_command(tid, c, cmd, cmd_chroot, no_error=None)
+
+            cmd = run_cmd.format('service xinetd stop')
+            run_command(tid, c, cmd, cmd_chroot, no_error=None)
+
+        if server.os == 'CentOS 6':
+            cmd = run_cmd.format('yum install -y crontabs')
+            run_command(tid, c, cmd, cmd_chroot, no_error=None)
+
+        cmd = run_cmd.format('rm -f /var/lib/csync2/*.db3')        
+        run_command(tid, c, cmd, cmd_chroot, no_error=None)
+
+        cmd = run_cmd.format('rm -f /etc/csync2*')
+        run_command(tid, c, cmd, cmd_chroot, no_error=None)
+
+
+
+
+
+        if server.primary_server:
+        
+            key_command= [
+                'csync2 -k /etc/csync2.key',
+                'openssl genrsa -out /etc/csync2_ssl_key.pem 1024',
+                'openssl req -batch -new -key /etc/csync2_ssl_key.pem -out '
+                '/etc/csync2_ssl_cert.csr',
+                'openssl x509 -req -days 3600 -in /etc/csync2_ssl_cert.csr '
+                '-signkey /etc/csync2_ssl_key.pem -out /etc/csync2_ssl_cert.pem',
+                ]
+
+            for cmdi in key_command:
+                cmd = run_cmd.format(cmdi)
+                wlogger.log(tid, cmd, 'debug')
+                run_command(tid, c, cmd, cmd_chroot, no_error=None)
+            
+            
+            replication_user_file = os.path.join(Config.DATA_DIR,
+                                    'fs_replication_paths.txt')
+            
+            sync_directories = []
+            
+            for l in open(replication_user_file).readlines():
+                sync_directories.append(l.strip())
+
+
+            exclude_files = [
+                '/etc/gluu/conf/ox-ldap.properties',
+                '/etc/gluu/conf/oxTrustLogRotationConfiguration.xml',
+                '/etc/gluu/conf/openldap/salt',
+
+                ]
+                
+            
+
+            csync2_config = ['group gluucluster','{']
+            
+            all_servers = Server.query.all()
+            
+            for srv in all_servers:
+                csync2_config.append('  host {};'.format(srv.hostname))
+                
+            csync2_config.append('')
+            csync2_config.append('  key /etc/csync2.key;')
+            csync2_config.append('')
+             
+            for d in sync_directories:
+                csync2_config.append('  include {};'.format(d))
+            
+            csync2_config.append('')
+            
+            csync2_config.append('  exclude *~ .*;')
+            
+            csync2_config.append('')
+            
+
+
+
+            for f in exclude_files:
+                csync2_config.append('  exclude {};'.format(f))
+
+
+            csync2_config.append('\n'
+                  '  action\n'
+                  '  {\n'
+                  '    logfile "/var/log/csync2_action.log";\n'
+                  '    do-local;\n'
+                  '  }\n'
+                  )
+
+            csync2_config.append('\n'
+                  '  action\n'
+                  '  {\n'
+                  '    pattern /opt/gluu/jetty/identity/conf/shibboleth3/idp/*;\n'
+                  '    exec "/sbin/service idp restart";\n'
+                  '    exec "/sbin/service identity restart";\n'
+                  '    logfile "/var/log/csync2_action.log";\n'
+                  '    do-local;\n'
+                  '  }\n')
+
+
+
+            csync2_config.append('\n'
+                  '  action\n'
+                  '  {\n'
+                  '    pattern /opt/symas/etc/openldap/schema/*;\n'
+                  '    exec "/sbin/service solserver restart";\n'
+                  '    logfile "/var/log/csync2_action.log";\n'
+                  '    do-local;\n'
+                  '  }\n')
+
+            csync2_config.append('  backup-directory /var/backups/csync2;')
+            csync2_config.append('  backup-generations 3;')
+
+            
+
+            csync2_config.append('\n  auto younger;\n')
+            
+            csync2_config.append('}')
+            
+            
+            csync2_config = '\n'.join(csync2_config)
+            remote_file = os.path.join(chroot, 'etc', 'csync2.cfg')
+            
+            wlogger.log(tid, "Uploading csync2.cfg", 'debug')
+            
+            c.put_file(remote_file,  csync2_config)
+
+
+        else:
+            wlogger.log(tid, "Downloading csync2.cfg, csync2.key, "
+                        "csync2_ssl_cert.csr, csync2_ssl_cert.pem, and"
+                        "csync2_ssl_key.pem from primary server and uploading",
+                        'debug')
+        
+            down_list = ['csync2.cfg', 'csync2.key', 'csync2_ssl_cert.csr',
+                    'csync2_ssl_cert.pem', 'csync2_ssl_key.pem']
+            
+            primary_server = Server.query.filter_by(primary_server=True).first()
+            pc = RemoteClient(primary_server.hostname, ip=primary_server.ip)
+            pc.startup()
+            for f in down_list:
+                remote = os.path.join(chroot, 'etc', f)
+                local = os.path.join('/tmp',f)
+                pc.download(remote, local)
+                c.upload(local, remote)
+
+            pc.close()
+
+        csync2_path = '/usr/sbin/csync2'
+            
+
+        if 'Ubuntu' in server.os:
+            
+            fc = []
+            inet_conf_file = os.path.join(chroot, 'etc','inetd.conf')
+            r,f=c.get_file(inet_conf_file)
+            for l in f:
+                if l.startswith('csync2'):
+                    l = 'csync2\tstream\ttcp\tnowait\troot\t/usr/sbin/csync2\tcsync2 -i -N {}\n'.format(server.hostname)
+                fc.append(l)
+            fc=''.join(fc)
+            c.put_file(inet_conf_file, fc)
+
+
+            cmd = '/etc/init.d/openbsd-inetd restart'
+            run_command(tid, c, cmd, cmd_chroot, no_error=None)
+            
+        elif 'CentOS' in server.os:
+            inetd_conf = (
+                '# default: off\n'
+                '# description: csync2\n'
+                'service csync2\n'
+                '{\n'
+                'flags           = REUSE\n'
+                'socket_type     = stream\n'
+                'wait            = no\n'
+                'user            = root\n'
+                'group           = root\n'
+                'server          = /usr/sbin/csync2\n'
+                'server_args     = -i -N %(HOSTNAME)s\n'
+                'port            = 30865\n'
+                'type            = UNLISTED\n'
+                '#log_on_failure += USERID\n'
+                'disable         = no\n'
+                '# only_from     = 192.168.199.3 192.168.199.4\n'
+                '}\n')
+                
+            inet_conf_file = os.path.join(chroot, 'etc', 'xinetd.d', 'csync2')
+            inetd_conf = inetd_conf % ({'HOSTNAME':server.hostname})
+            c.put_file(inet_conf_file, inetd_conf)
+        
+        
+        #cmd = '{} -xv -N {}'.format(csync2_path, server.hostname)
+        #run_command(tid, c, cmd, chroot, no_error=None)
+
+
+
+        #run time sync in every minute
+        cron_file = os.path.join(chroot, 'etc', 'cron.d', 'csync2')
+        c.put_file(cron_file,
+            '* * * * *    root    {} -N {} -xv 2>/var/log/csync2.log\n'.format(
+            csync2_path, server.hostname))
+    
+        wlogger.log(tid, 'Crontab entry was created to sync files in every minute',
+                         'debug')
+
+        if ('CentOS' in server.os) or ('RHEL' in server.os):
+            cmd = 'service crond reload'
+            cmd = run_cmd.format('service xinetd start')
+            run_command(tid, c, cmd, cmd_chroot, no_error=None)
+            cmd = run_cmd.format('service crond restart')
+            run_command(tid, c, cmd, cmd_chroot, no_error='debug')
+            
+        else:
+            cmd = run_cmd.format('service cron reload')
+            run_command(tid, c, cmd, cmd_chroot, no_error='debug')
+            cmd = run_cmd.format('service openbsd-inetd restart')
+            run_command(tid, c, cmd, cmd_chroot, no_error='debug')
+
+        c.close()
+
+    return True
+
 @celery.task(bind=True)
 def setup_ldap_replication(self, server_id):
     """Deploys ldap replicaton
@@ -137,6 +437,8 @@ def setup_ldap_replication(self, server_id):
     Args:
         server_id (integer): id of server to be deployed replication
     """
+
+    print "Setting up LDAP Replication started"
 
     tid = self.request.id
     app_config = AppConfiguration.query.first()
@@ -178,6 +480,7 @@ def setup_ldap_replication(self, server_id):
                 tid, "Cannot establish SSH connection {0}".format(e), "warning")
             wlogger.log(tid, "Ending server setup process.", "error")
             return False
+
 
         # 3. For Gluu server, ensure that chroot directory is available
         if server.gluu_server:
@@ -518,7 +821,7 @@ def setup_ldap_replication(self, server_id):
         server.mmr = True
         db.session.commit()
         c.close()
-        
+    
     #Restarting all gluu servers
     if server_id == 'all':
         for server in servers_to_deploy:
@@ -565,6 +868,7 @@ def setup_ldap_replication(self, server_id):
                 wlogger.log(tid, 'LDAP Server is already in mirror mode', 'debug')
                         
         ldp_primary.close()
+
 
     wlogger.log(tid, "Deployment is successful")
 
@@ -784,6 +1088,7 @@ def installGluuServer(self, server_id):
     stop_command   = 'service gluu-server-{0} stop'
     enable_command = None
 
+
     #add gluu server repo and imports signatures
     if ('Ubuntu' in server.os) or ('Debian' in server.os):
 
@@ -809,9 +1114,9 @@ def installGluuServer(self, server_id):
 
         run_command(tid, c, cmd)
 
-        install_command = 'apt-get '
+        install_command = 'DEBIAN_FRONTEND=noninteractive apt-get '
 
-        cmd = 'apt-get update'
+        cmd = 'DEBIAN_FRONTEND=noninteractive apt-get update'
         wlogger.log(tid, cmd, 'debug')
         cin, cout, cerr = c.run(cmd)
         wlogger.log(tid, cout+'\n'+cerr, 'debug')
@@ -856,6 +1161,8 @@ def installGluuServer(self, server_id):
 
     wlogger.log(tid, "Check if Gluu Server was installed")
 
+
+
     gluu_installed = False
 
     #Determine if a version of gluu server was installed.
@@ -886,7 +1193,7 @@ def installGluuServer(self, server_id):
     if not gluu_installed:
         wlogger.log(tid, "Gluu Server was not previously installed", "debug")
 
-
+    
     #start installing gluu server
     wlogger.log(tid, "Installing Gluu Server: " + gluu_server)
 
@@ -899,7 +1206,7 @@ def installGluuServer(self, server_id):
     #occur on ubuntu installations
     if 'half-installed' in cout + cerr:
         if ('Ubuntu' in server.os) or  ('Debian' in server.os):
-            cmd = 'apt-get install --reinstall -y '+ gluu_server
+            cmd = 'DEBIAN_FRONTEND=noninteractive  apt-get install --reinstall -y '+ gluu_server
             run_command(tid, c, cmd, no_error='debug')
 
 
@@ -1115,6 +1422,7 @@ def installGluuServer(self, server_id):
     wlogger.log(tid, "Gluu Server successfully installed")
 
 
+
 @celery.task(bind=True)
 def removeMultiMasterDeployement(self, server_id):
     """Removes multi master replication deployment
@@ -1267,8 +1575,8 @@ def installNGINX(self, nginx_host):
             run_command(tid, c, 'yum install -y epel-release')
             cmd = 'yum install -y nginx'
         else:
-            run_command(tid, c, 'apt-get update')
-            cmd = 'apt-get install -y nginx'
+            run_command(tid, c, 'DEBIAN_FRONTEND=noninteractive apt-get update')
+            cmd = 'DEBIAN_FRONTEND=noninteractive apt-get install -y nginx'
 
         wlogger.log(tid, cmd, 'debug')
 

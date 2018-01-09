@@ -139,8 +139,11 @@ def remove_provider_from_consumer_f(consumer_id, provider_addr):
                 success = True
 
     if not success:
-        flash("Removing provider was failed: {0}".format(
-                ldp.conn.result['description']), "danger")
+        if ldp:
+            flash("Removing provider was failed: {0}".format(
+                    ldp.conn.result['description']), "danger")
+        else:
+            flash("Can't connect to LDAP server", "danger")
 
 
 

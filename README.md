@@ -65,7 +65,7 @@ clustermgr-cli db upgrade
 
 ```
 mkdir -p $HOME/.clustermgr/javalibs
-wget https://ox.gluu.org/maven/org/xdi/oxlicense-validator/3.1.1.Final/oxlicense-validator-3.1.1.Final-jar-with-dependencies.jar -O $HOME/.clustermgr/javalibs/oxlicense-validator-3.1.1.jar
+wget http://ox.gluu.org/maven/org/xdi/oxlicense-validator/3.2.0-SNAPSHOT/oxlicense-validator-3.2.0-SNAPSHOT-jar-with-dependencies.jar -O $HOME/.clustermgr/javalibs/oxlicense-validator.jar
 ```
 
 7) Run celery scheduler and workers in separate terminals

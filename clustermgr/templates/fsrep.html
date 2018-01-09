@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from 'macros.html' import render_form %}
+
+{% block header %}
+    <h1>File System Replication</h1>
+{% endblock %}
+
+{% block  content %}
+
+<div class="box box-primary">
+    
+    Csync2 is a cluster synchronization tool. It can be used to keep files on
+    multiple hosts in a cluster in sync. Csync2 can handle complex setups with
+    much more than just 2 hosts, handle file deletions and can detect conflicts.
+   <br>[<a href="http://oss.linbit.com/csync2/" target="_NEW">http://oss.linbit.com/csync2/</a>]
+    
+    <form id="cform" action="{{ url_for('cluster.file_system_replication', next='install') }}" method="POST" class="form-horizontal">
+
+        {{ form.csrf_token }}
+
+        <div class="box-header with-border">
+            <h3 class="panel-title">Replication Paths</h3>
+        </div>
+
+        <div class="box-body">
+            {{form.fs_paths(rows='12',cols='60')}}
+            <a class="btn btn-primary" href="{{ url_for('cluster.file_system_replication', next='defaults') }}">Load Defaults</a>
+        </div>
+
+        <div class="box-footer">
+            {{ form.update(class="btn btn-success btn-block") }}
+        </div>
+
+    </form>
+</div>
+
+
+
+{% endblock %}
+{% block js %}
+
+{% endblock %}

@@ -21,6 +21,7 @@ from clustermgr.core.license import license_reminder
 from clustermgr.extensions import celery
 from clustermgr.core.license import prompt_license
 
+
 index = Blueprint('index', __name__)
 index.before_request(prompt_license)
 index.before_request(license_reminder)
@@ -311,6 +312,15 @@ def install_ldap_server():
 
     return render_template('new_server.html', form=form, data=data)
 
+
+
+
+
+
+
+
+
+    
 
 @index.route('/mmr/')
 def multi_master_replication():
