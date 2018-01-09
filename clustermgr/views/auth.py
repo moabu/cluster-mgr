@@ -93,7 +93,8 @@ def oxd_login():
         auth_url = oxc.get_authorization_url()
     except OxdServerError as exc:
         print exc  # TODO: use logging
-        flash("Failed to process the request due to error in OXD server.", "warning")
+        flash("Failed to process the request due to error in OXD server.",
+              "warning")
     except socket.error as exc:
         print exc  # TODO: use logging
         flash("Unable to connect to OXD server.", "warning")
@@ -121,21 +122,29 @@ def oxd_login_callback():
         # accessing this attribute may raise KeyError
         username = resp["user_name"][0]
 
+        # ``role`` item is in ``permission`` scope, hence
+        # accessing this attribute may raise KeyError
         role = resp["role"][0].strip("[]")
+
+        # disallow role other than ``cluster_manager``
         if role != "cluster_manager":
-            flash("Invalid user's role.", "warning")
+            flash("Invalid user's role '{}'.".format(role), "warning")
         else:
             # all's good, let's log the user in.
             user = User(username, "")
             login_user(user)
     except KeyError as exc:
         print exc  # TODO: use logging
-        flash("Either user_name or permission scope is not enabled in OpenID "
-              "Connect configuration or user's info doesn't contain role attribute.",
-              "warning")
+        if exc.message == "user_name":
+            msg = "user_name scope is not enabled in OIDC client"
+        elif exc.message == "role":
+            msg = "permission scope is not enabled in OIDC client " \
+                  "or missing role attribute in user's info"
+        flash(msg, "warning")
     except OxdServerError as exc:
         print exc  # TODO: use logging
-        flash("Failed to process the request due to error in OXD server.", "warning")
+        flash("Failed to process the request due to error in OXD server.",
+              "warning")
     except socket.error as exc:
         print exc  # TODO: use logging
         flash("Unable to connect to OXD server.", "warning")
