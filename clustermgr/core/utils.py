@@ -15,6 +15,9 @@ from cryptography.hazmat.backends import default_backend
 
 from clustermgr.config import Config
 
+from clustermgr.core.remote import RemoteClient
+from clustermgr.models import Server, AppConfiguration
+
 
 DEFAULT_CHARSET = string.ascii_uppercase + string.digits + string.lowercase
 
@@ -278,3 +281,37 @@ def get_setup_properties():
     setup_prop['inumAppliance'] = inum_appliance
 
     return setup_prop
+
+def get_opendj_replication_status():
+    primary_server = Server.query.filter_by(primary_server=True).first()
+    app_config = AppConfiguration.query.first()
+    
+    c = RemoteClient(primary_server.hostname, ip=primary_server.ip)
+    chroot = '/opt/gluu-server-' + app_config.gluu_version
+    
+    cmd_run = '{}'
+
+    if (primary_server.os == 'CentOS 7') or (primary_server.os == 'RHEL 7'):
+        chroot = None
+        cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
+                '-o Port=60022 -o LogLevel=QUIET '
+                '-o StrictHostKeyChecking=no '
+                '-o UserKnownHostsFile=/dev/null '
+                '-o PubkeyAuthentication=yes root@localhost "{}"')
+
+    try:
+        c.startup()
+    except Exception as e:
+        return False, "Cannot establish SSH connection {0}".format(e)
+
+    cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
+            '-p 1444 -I admin -w {}').format(
+                    primary_server.hostname, 
+                    app_config.replication_pw)
+    
+    cmd = cmd_run.format(cmd)
+    
+    si,so,se = c.run(cmd)
+    
+    return True, so
+    

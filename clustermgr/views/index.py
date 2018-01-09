@@ -21,7 +21,8 @@ from clustermgr.core.license import license_reminder
 from clustermgr.extensions import celery
 from clustermgr.core.license import prompt_license
 
-from clustermgr.core.utils import get_setup_properties
+from clustermgr.core.utils import get_setup_properties, \
+    get_opendj_replication_status
 
 index = Blueprint('index', __name__)
 index.before_request(prompt_license)
@@ -369,8 +370,16 @@ def multi_master_replication():
 
     else:
 
+        rep_status = get_opendj_replication_status()
+
+        stat = ''
+        if not rep_status[0]:
+            flash(rep_status[1], "warning")
+        else:
+            stat = rep_status[1]
         return render_template('opendjmmr.html',
                                servers=ldaps,
+                               stat = stat
                                )
 
 

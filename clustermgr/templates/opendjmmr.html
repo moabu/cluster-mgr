@@ -65,6 +65,15 @@
 
 {% endif %}
 
+{% if stat %}
+  <br>
+  <br>
+  <label>Replication Status:</label>
+  <pre>
+    {{ stat }}  
+  </pre>
+{% endif %}
+
 {% endblock %}
 {% block js %}
 

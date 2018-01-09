@@ -1541,9 +1541,8 @@ def opendjdisablereplication(self, server_id):
     server = Server.query.get(server_id)
     primary_server = Server.query.filter_by(primary_server=True).first()
     tid = self.request.id
-    app_config = AppConfiguration.query.first()
     
-    c = RemoteClient(primary_server.hostname, ip=server.ip)
+    c = RemoteClient(primary_server.hostname, ip=primary_server.ip)
     chroot = '/opt/gluu-server-' + app_config.gluu_version
     
     
