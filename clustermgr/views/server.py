@@ -194,7 +194,6 @@ def install_gluu(server_id):
               "Server.", "warning")
         return redirect(url_for('index.home'))
 
-
     server = Server.query.get(server_id)
 
     #We need os type to perform installation. If it was not identified,
@@ -224,6 +223,8 @@ def install_gluu(server_id):
     del form.ip_address
     del form.ldap_password
 
+
+    
     header = 'Install Gluu Server on {0}'.format(server.hostname)
 
     #Get default setup properties.
@@ -289,6 +290,10 @@ def install_gluu(server_id):
             getattr(form, o).data = setup_prop[o]
 
         print form['ldap_type'].data
+
+        if appconf.gluu_version < '3.1.2':
+            form.ldap_type.choices.remove(('opendj', 'OpenDJ'))
+            form.ldap_type.data = 'openldap'
 
     setup_properties_form = SetupPropertiesLastForm()
 
