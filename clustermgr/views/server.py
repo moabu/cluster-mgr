@@ -259,7 +259,6 @@ def install_gluu(server_id):
 
         write_setup_properties_file(setup_prop)
 
-        return "Remove this"
         #Redirect to cluster.install_gluu_server to start installation.
         return redirect(url_for('cluster.install_gluu_server',
                                 server_id=server_id))

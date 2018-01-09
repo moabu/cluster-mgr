@@ -10,7 +10,7 @@ from flask_wtf.file import FileField, FileRequired, FileAllowed
 
 
 class AppConfigForm(FlaskForm):
-    versions = ['3.1.1', '3.0.2', '3.0.1']
+    versions = ['3.1.2', '3.1.1', '3.0.2', '3.0.1']
     gluu_version = SelectField('Gluu Server Version',
                                choices=[(v, v) for v in versions])
     use_ip = BooleanField('Use IP Address in place of Hostname for replication')
