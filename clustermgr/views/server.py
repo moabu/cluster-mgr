@@ -289,11 +289,11 @@ def install_gluu(server_id):
                     ):
             getattr(form, o).data = setup_prop[o]
 
-        print form['ldap_type'].data
 
-        if appconf.gluu_version < '3.1.2':
-            form.ldap_type.choices.remove(('opendj', 'OpenDJ'))
-            form.ldap_type.data = 'openldap'
+        #if appconf.gluu_version < '3.1.2':
+        #    print "removeing opendj"
+        #    form.ldap_type.choices.remove(('opendj', 'OpenDJ'))
+        #    form.ldap_type.data = 'openldap'
 
     setup_properties_form = SetupPropertiesLastForm()
 
