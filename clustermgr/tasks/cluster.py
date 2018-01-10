@@ -1837,7 +1837,7 @@ def installNGINX(self, nginx_host):
 
     #add all gluu servers to nginx.conf
     for s in servers:
-        nginx_backends.append('  server {0}:443;'.format(s.hostname))
+        nginx_backends.append('  server {0}:443 max_fails=2 fail_timeout=10s;'.format(s.hostname))
 
     nginx_tmp = nginx_tmp.replace('{#NGINX#}', nginx_host)
     nginx_tmp = nginx_tmp.replace('{#SERVERS#}', '\n'.join(nginx_backends))
