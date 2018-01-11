@@ -35,6 +35,7 @@
     Example usage:
         {{ macros.render_checkbox_field(form.remember_me) }}
  #}
+
 {% macro render_checkbox_field(field) -%}
     <div class="checkbox">
         <label>
@@ -42,6 +43,7 @@
         </label>
     </div>
 {%- endmacro %}
+
 
 {# Renders radio field
     Params:

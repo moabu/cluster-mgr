@@ -162,6 +162,25 @@ class InstallServerForm(FlaskForm):
                 )
 
 
+    gluu_licence = SelectField("Do you acknowledge that use of the Gluu Server "
+                            "is under the MIT license?",
+                            choices = [('no', "No"), ('yes', "Yes")]
+                            )
+    oracle_licence = SelectField("You must accept the Oracle Binary Code "
+                "License Agreement for the Java SE Platform Products to "
+                "download this software. Accept License Agreement?",
+                            choices = [('no', "No"), ('yes', "Yes")]
+                            )
+
+    def validate_gluu_licence(form, field):
+        if not field.data == 'yes':
+            raise ValidationError("Can't proceed without accepting licence.")
+
+    def validate_oracle_licence(form, field):
+        if not field.data == 'yes':
+            raise ValidationError("Can't proceed without accepting licence.")
+
+
 def replace_pubkey_whitespace(value):
     if value is not None and hasattr(value, "replace"):
         return value.replace(" ", "")
