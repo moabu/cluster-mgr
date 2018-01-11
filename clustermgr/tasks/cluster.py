@@ -10,7 +10,7 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import wlogger, db, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import LdapOLC
-from clustermgr.core.utils import ldap_encode
+from clustermgr.core.utils import ldap_encode, get_setup_properties
 from clustermgr.config import Config
 import uuid
 
@@ -1282,52 +1282,54 @@ def installGluuServer(self, server_id):
         run_command(tid, c, cmd, '/opt/'+gluu_server+'/', no_error='debug')
 
 
+    setup_prop = get_setup_properties()
 
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
 
-        #FIXME: Check this later
-        cmd = 'rm /opt/gluu/data/main_db/*.mdb'
-        run_command(tid, c, cmd, '/opt/'+gluu_server)
+        if setup_prop['ldap_type'] == 'openldap':
+            #FIXME: Check this later
+            cmd = 'rm /opt/gluu/data/main_db/*.mdb'
+            run_command(tid, c, cmd, '/opt/'+gluu_server)
 
 
-        slapd_conf_file = '/opt/{0}/opt/symas/etc/openldap/slapd.conf'.format(gluu_server)
-        r = pc.get_file(slapd_conf_file)
-        if r[0]:
-            fc = r[1].read()
-            r2 = c.put_file(slapd_conf_file, fc)
-            if not r2[0]:
-                wlogger.log(tid, "Can't put slapd.conf to this server: ".format(r[1]), 'error')
+            slapd_conf_file = '/opt/{0}/opt/symas/etc/openldap/slapd.conf'.format(gluu_server)
+            r = pc.get_file(slapd_conf_file)
+            if r[0]:
+                fc = r[1].read()
+                r2 = c.put_file(slapd_conf_file, fc)
+                if not r2[0]:
+                    wlogger.log(tid, "Can't put slapd.conf to this server: ".format(r[1]), 'error')
+                else:
+                    wlogger.log(tid, "slapd.conf was downloaded from primary server and uploaded to this server", 'success')
             else:
-                wlogger.log(tid, "slapd.conf was downloaded from primary server and uploaded to this server", 'success')
-        else:
-            wlogger.log(tid, "Can't get slapd.conf from primary server: ".format(r[1]), 'error')
+                wlogger.log(tid, "Can't get slapd.conf from primary server: ".format(r[1]), 'error')
 
 
-        #If primary server conatins any custom schema, get them and put to this server
-        wlogger.log(tid, 'Downloading custom schema files from primary server and upload to this server')
-        custom_schema_files = pc.listdir("/opt/{0}/opt/gluu/schema/openldap/".format(gluu_server))
+            #If primary server conatins any custom schema, get them and put to this server
+            wlogger.log(tid, 'Downloading custom schema files from primary server and upload to this server')
+            custom_schema_files = pc.listdir("/opt/{0}/opt/gluu/schema/openldap/".format(gluu_server))
 
-        if custom_schema_files[0]:
-            for csf in custom_schema_files[1]:
-                local = '/tmp/'+csf
-                remote = '/opt/{0}/opt/gluu/schema/openldap/{1}'.format(gluu_server, csf)
+            if custom_schema_files[0]:
+                for csf in custom_schema_files[1]:
+                    local = '/tmp/'+csf
+                    remote = '/opt/{0}/opt/gluu/schema/openldap/{1}'.format(gluu_server, csf)
 
-                pc.download(remote, local)
-                c.upload(local, remote)
-                os.remove(local)
-                wlogger.log(tid, '{0} dowloaded from from primary and uploaded'.format(csf), 'debug')
+                    pc.download(remote, local)
+                    c.upload(local, remote)
+                    os.remove(local)
+                    wlogger.log(tid, '{0} dowloaded from from primary and uploaded'.format(csf), 'debug')
 
-        #stop and start solserver
-        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-            run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver stop'")
-        else:
-            run_command(tid, c, 'service solserver stop', '/opt/'+gluu_server)
+            #stop and start solserver
+            if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+                run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver stop'")
+            else:
+                run_command(tid, c, 'service solserver stop', '/opt/'+gluu_server)
 
-        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-            run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start'")
-        else:
-            run_command(tid, c, 'service solserver start', '/opt/'+gluu_server)
+            if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+                run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start'")
+            else:
+                run_command(tid, c, 'service solserver start', '/opt/'+gluu_server)
 
         #If gluu version is greater than 3.0.2 we need to download certificates
         #from primary server and upload to this server, then will delete and
@@ -1361,6 +1363,8 @@ def installGluuServer(self, server_id):
             cmd = 'tar -zxf /tmp/certs.tgz -C /'
             run_command(tid, c, cmd)
 
+            
+
             #delete old keys and import new ones
             wlogger.log(tid, 'Manuplating keys')
             for suffix in (
@@ -1368,7 +1372,7 @@ def installGluuServer(self, server_id):
                     'shibIDP',
                     'idp-encryption',
                     'asimba',
-                    'openldap',
+                    setup_prop['ldap_type'],
                     ):
                 delete_key(suffix, appconf.nginx_host, appconf.gluu_version,
                             tid, c, server.os)
@@ -1642,9 +1646,39 @@ def opendjenablereplication(self, server_id):
             return False
 
 
+    oxIDP=['localhost:1636']
 
     for server in servers:
-        if not server.primary_server:
+        laddr = server.ip if app_config.use_ip else server.hostname
+        oxIDP.append(laddr+':1636')
+
+    adminOlc = LdapOLC('ldaps://{}:1636'.format(primary_server.hostname),
+                        'cn=directory manager', primary_server.ldap_password)
+
+    try:
+        adminOlc.connect()
+    except Exception as e:
+        wlogger.log(
+            tid, "Connection to LDAPserver as direcory manager at port 1636"
+            " has failed: {0}".format(e), "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+
+
+    if adminOlc.configureOxIDPAuthentication(oxIDP):
+        wlogger.log(tid, 
+                'oxIDPAuthentication entry is modified to include all privders',
+                'success')
+    else:
+        wlogger.log(tid, 'Modifying oxIDPAuthentication entry is failed: {}'.format(
+                adminOlc.conn.result['description']), 'success')
+
+
+    for server in servers:
+        
+        if server.primary_server:
+            server.mmr = True
+        else:
             wlogger.log(tid, "Enabling replication on server {}".format(
                                                             server.hostname))
 
@@ -1713,6 +1747,47 @@ def opendjenablereplication(self, server_id):
             run_command(tid, c, cmd, chroot)
             server.mmr = True
 
+
+    db.session.commit()
+
+    chroot_fs = '/opt/gluu-server-' + app_config.gluu_version
+
+    servers = Server.query.all()
+
+    pDict = {}
+    for server in servers:
+        if server.mmr:
+            laddr = server.ip if app_config.use_ip else server.hostname
+            ox_auth = [ laddr+':1636' ]
+            for prsrv in servers:
+                if prsrv.mmr:
+                    if not prsrv == server:
+                        laddr = prsrv.ip if app_config.use_ip else prsrv.hostname
+                        ox_auth.append(laddr+':1636')
+            pDict[server.hostname]= ','.join(ox_auth)
+
+
+    for server in servers:
+
+
+        wlogger.log(tid, "Making SSH connection to the primary server %s" %
+                server.hostname)
+
+        c = RemoteClient(server.hostname, ip=server.ip)
+
+        try:
+            c.startup()
+        except Exception as e:
+            wlogger.log(
+                tid, "Cannot establish SSH connection {0}".format(e), "warning")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return False
+
+        modifyOxLdapProperties(server, c, tid, pDict, chroot_fs)
+
+        
+
+
     wlogger.log(tid, "Checking replication status")
     
     cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
@@ -1725,7 +1800,7 @@ def opendjenablereplication(self, server_id):
     
     
     
-    db.session.commit()
+    
     return True
 
 
