@@ -287,7 +287,7 @@ def install_gluu(server_id):
                     'installPassport',
                     'ldap_type',
                     ):
-            getattr(form, o).data = setup_prop[o]
+            getattr(form, o).data = setup_prop.get(o,'')
 
 
         #if appconf.gluu_version < '3.1.2':
