@@ -1271,10 +1271,6 @@ def installGluuServer(self, server_id):
     wlogger.log(tid, "Running setup.py - Be patient this process will take a while ...")
 
     if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-        #cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'wget https://raw.githubusercontent.com/GluuFederation/community-edition-setup/master/setup.py -O /install/community-edition-setup/setup.py'"
-        #run_command(tid, c, cmd, no_error=None)
-        #cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'chmod +x /install/community-edition-setup/setup.py'"
-        #run_command(tid, c, cmd)
         cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'cd /install/community-edition-setup/ && ./setup.py -n'"
         run_command(tid, c, cmd)
     else:
