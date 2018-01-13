@@ -298,11 +298,15 @@ def get_opendj_replication_status():
                 '-o StrictHostKeyChecking=no '
                 '-o UserKnownHostsFile=/dev/null '
                 '-o PubkeyAuthentication=yes root@localhost "{}"')
+    else:
+        cmd_run ='chroot %s /bin/bash -c "{}"' % (chroot)
 
     try:
         c.startup()
     except Exception as e:
         return False, "Cannot establish SSH connection {0}".format(e)
+
+    
 
     cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 1444 -I admin -w {}').format(
@@ -310,6 +314,8 @@ def get_opendj_replication_status():
                     app_config.replication_pw)
     
     cmd = cmd_run.format(cmd)
+    
+    print cmd
     
     si,so,se = c.run(cmd)
     
