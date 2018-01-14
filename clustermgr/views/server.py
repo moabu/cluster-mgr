@@ -162,6 +162,7 @@ def remove(server_id):
     appconfig = AppConfiguration.query.first()
     server = Server.query.filter_by(id=server_id).first()
     provider_addr = server.ip if appconfig.use_ip else server.hostname
+
     # remove its corresponding syncrepl configs from other servers
     if server.mmr:
         consumers = Server.query.filter(Server.id.isnot(server_id)).all()

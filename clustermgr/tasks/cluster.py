@@ -1619,6 +1619,8 @@ def opendjenablereplication(self, server_id):
     else:
         chroot = '/opt/gluu-server-' + app_config.gluu_version
 
+    chroot_fs = '/opt/gluu-server-' + app_config.gluu_version
+
     wlogger.log(tid, "Making SSH connection to the primary server %s" %
                 primary_server.hostname)
 
@@ -1641,6 +1643,22 @@ def opendjenablereplication(self, server_id):
             wlogger.log(tid, "Ending server setup process.", "error")
             return False
 
+
+    tmp_dir = os.path.join('/tmp', uuid.uuid1().hex[:12])
+    os.mkdir(tmp_dir)
+    
+    wlogger.log(tid, "Downloading opendj certificates")
+    
+    opendj_cert_files = ('keystore', 'keystore.pin', 'truststore')
+    
+    for cf in opendj_cert_files:
+        remote = os.path.join(chroot_fs, 'opt/opendj/config', cf)
+        local = os.path.join(tmp_dir, cf)
+        result = c.download(remote, local)
+        if not result.startswith('Download successful'):
+            wlogger.log(tid, result, "warning")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return False
 
     oxIDP=['localhost:1636']
 
@@ -1669,15 +1687,13 @@ def opendjenablereplication(self, server_id):
         wlogger.log(tid, 'Modifying oxIDPAuthentication entry is failed: {}'.format(
                 adminOlc.conn.result['description']), 'success')
 
+    primary_server_secured = False
 
     for server in servers:
         
-        if server.primary_server:
-            server.mmr = True
-        else:
+        if not server.primary_server:
             wlogger.log(tid, "Enabling replication on server {}".format(
                                                             server.hostname))
-
 
             cmd_run = '{}'
 
@@ -1721,16 +1737,20 @@ def opendjenablereplication(self, server_id):
             cmd = cmd_run.format(cmd)
             run_command(tid, c, cmd, chroot)
 
-            wlogger.log(tid, "Securing replication on primary server {}".format(
-                                                            primary_server.hostname))
+            if not primary_server_secured:
 
-            cmd = ('/opt/opendj/bin/dsconfig -h {} -p 4444 '
-                    ' -D  \'cn=Directory Manager\' -w {} --trustAll '
-                    '-n set-crypto-manager-prop --set ssl-encryption:true'
-                    ).format(primary_server.hostname, app_config.replication_pw)
+                wlogger.log(tid, "Securing replication on primary server {}".format(
+                                                                primary_server.hostname))
 
-            cmd = cmd_run.format(cmd)
-            run_command(tid, c, cmd, chroot)
+                cmd = ('/opt/opendj/bin/dsconfig -h {} -p 4444 '
+                        ' -D  \'cn=Directory Manager\' -w {} --trustAll '
+                        '-n set-crypto-manager-prop --set ssl-encryption:true'
+                        ).format(primary_server.hostname, app_config.replication_pw)
+
+                cmd = cmd_run.format(cmd)
+                run_command(tid, c, cmd, chroot)
+                primary_server_secured = True
+                primary_server.mmr = True
 
             wlogger.log(tid, "Securing replication on server {}".format(
                                                             server.hostname))
@@ -1741,12 +1761,13 @@ def opendjenablereplication(self, server_id):
 
             cmd = cmd_run.format(cmd)
             run_command(tid, c, cmd, chroot)
+
             server.mmr = True
 
-
+    
     db.session.commit()
 
-    chroot_fs = '/opt/gluu-server-' + app_config.gluu_version
+
 
     servers = Server.query.all()
 
@@ -1766,23 +1787,64 @@ def opendjenablereplication(self, server_id):
     for server in servers:
 
 
-        wlogger.log(tid, "Making SSH connection to the primary server %s" %
-                server.hostname)
+        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+            restart_command = '/sbin/gluu-serverd-{0} restart'.format(
+                                app_config.gluu_version)
+        else:
+            restart_command = '/etc/init.d/gluu-server-{0} restart'.format(
+                                app_config.gluu_version)
 
-        c = RemoteClient(server.hostname, ip=server.ip)
+        if server.primary_server:
+            modifyOxLdapProperties(server, c, tid, pDict, chroot_fs)
+            
+            wlogger.log(tid, "Restarting Gluu Server on {}".format(
+                                server.hostname))
+                                
+            run_command(tid, c, restart_command)
+            
+        else:
+            
+            wlogger.log(tid, "Making SSH connection to the server %s" %
+                    server.hostname)
 
-        try:
-            c.startup()
-        except Exception as e:
-            wlogger.log(
-                tid, "Cannot establish SSH connection {0}".format(e), "warning")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return False
+            ct = RemoteClient(server.hostname, ip=server.ip)
 
-        modifyOxLdapProperties(server, c, tid, pDict, chroot_fs)
+            try:
+                ct.startup()
+            except Exception as e:
+                wlogger.log(
+                    tid, "Cannot establish SSH connection {0}".format(e), 
+                    "warning")
+                wlogger.log(tid, "Ending server setup process.", "error")
+                return False
 
+            modifyOxLdapProperties(server, ct, tid, pDict, chroot_fs)
+            
+            wlogger.log(tid, "Uploading OpenDj certificate files")
+            for cf in opendj_cert_files:
+
+                
+                remote = os.path.join(chroot_fs, 'opt/opendj/config', cf)
+                local = os.path.join(tmp_dir, cf)
+                
+                result = ct.upload(local, remote)
+                if not result:
+                    wlogger.log(tid, "An error occurred while uploading OpenDj certificates.", "error")
+                    return False
+    
+                if not result.startswith('Upload successful'):
+                    wlogger.log(tid, result, "warning")
+                    wlogger.log(tid, "Ending server setup process.", "error")
+                    return False
+
+            wlogger.log(tid, "Restarting Gluu Server on {}".format(
+                                server.hostname))
+
+            run_command(tid, ct, restart_command)
         
-
+            ct.close()
+        
+   
 
     wlogger.log(tid, "Checking replication status")
     
@@ -1794,8 +1856,7 @@ def opendjenablereplication(self, server_id):
     cmd = cmd_run.format(cmd)
     run_command(tid, c, cmd, chroot)
     
-    
-    
+    c.close()
     
     return True
 

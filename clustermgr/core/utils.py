@@ -306,17 +306,15 @@ def get_opendj_replication_status():
     except Exception as e:
         return False, "Cannot establish SSH connection {0}".format(e)
 
-    
 
     cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 1444 -I admin -w {}').format(
                     primary_server.hostname, 
                     app_config.replication_pw)
+
     
     cmd = cmd_run.format(cmd)
-    
-    print cmd
-    
+        
     si,so,se = c.run(cmd)
     
     return True, so
