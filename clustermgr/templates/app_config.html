@@ -49,33 +49,6 @@
                 </div>
             </div>
 
-            <div class="form-group {{ 'has-error' if cform.replication_pw.errors else '' }}">
-                {{ cform.replication_pw.label(class="control-label col-md-3") }}
-                <div class="col-md-9">
-                    {{ cform.replication_pw(class="form-control") }}
-                    {% for error in cform.replication_pw.errors %}
-                        <p class="help-block">{{ error }}</p>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="form-group">
-                {{ cform.replication_pw_confirm.label(class="control-label col-md-3") }}
-                <div class="col-md-9">
-                    {{ cform.replication_pw_confirm(class="form-control") }}
-                </div>
-            </div>
-
-            <div class="form-group {{ 'has-error' if cform.nginx_host.errors else '' }}">
-                {{ cform.nginx_host.label(class="control-label col-md-3") }}
-                <div class="col-md-9">
-                    {{ cform.nginx_host(class="form-control") }}
-                    {% for error in cform.nginx_host.errors %}
-                        <p class="help-block">{{ error }}</p>
-                    {% endfor %}
-                </div>
-            </div>
-
             <div class="form-group">
                 <label class="control-label col-md-3">Access Log Purge</label>
                 <div class="col-md-9">
@@ -104,6 +77,35 @@
         </div>
 
         </div>
+        
+            <div class="form-group {{ 'has-error' if cform.replication_pw.errors else '' }}">
+                {{ cform.replication_pw.label(class="control-label col-md-3") }}
+                <div class="col-md-9">
+                    {{ cform.replication_pw(class="form-control") }}
+                    {% for error in cform.replication_pw.errors %}
+                        <p class="help-block">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                {{ cform.replication_pw_confirm.label(class="control-label col-md-3") }}
+                <div class="col-md-9">
+                    {{ cform.replication_pw_confirm(class="form-control") }}
+                </div>
+            </div>
+
+            <div class="form-group {{ 'has-error' if cform.nginx_host.errors else '' }}">
+                {{ cform.nginx_host.label(class="control-label col-md-3") }}
+                <div class="col-md-9">
+                    {{ cform.nginx_host(class="form-control") }}
+                    {% for error in cform.nginx_host.errors %}
+                        <p class="help-block">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+        
         </div>
 
         {#
