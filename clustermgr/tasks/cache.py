@@ -237,10 +237,10 @@ def install_cache_components(self, method):
         run_and_log(rc, "apt-get install -y nutcracker", tid)
     elif server_os in ["CentOS 7", "RHEL 7"]:
         run_and_log(rc, 'yum install -y https://raw.githubusercontent.com/mbaser/gluu/master/nutcracker-0.4.1-1.gluu.centos7.x86_64.rpm', tid)
+        run_and_log(rc, 'chkconfig nutcracker on', tid)
     elif server_os in ['CentOS 6', 'RHEL 6']:
         run_and_log(rc, 'yum install -y https://raw.githubusercontent.com/mbaser/gluu/master/nutcracker-0.4.1-1.gluu.centos6.x86_64.rpm', tid)
-
-    run_and_log(rc, 'chkconfig nutcracker on', tid)
+        run_and_log(rc, 'chkconfig nutcracker on', tid)
     
 
     # 5. Create the default configuration file referenced in the init scripts
