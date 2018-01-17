@@ -44,6 +44,7 @@ After configuration, Cluster Manager no longer needs to be actively connected to
 ```
 sudo apt-get update
 sudo apt-get install python-pip python-dev libffi-dev libssl-dev redis-server
+sudo apt-get install default-jre (For license requirements. Not necessary if Java already installed)
 sudo pip install --upgrade setuptools
 ```
 
