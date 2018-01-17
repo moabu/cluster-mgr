@@ -15,8 +15,8 @@ from flask import url_for
 from flask import current_app
 from flask import request
 
-from .utils import exec_cmd
-from .utils import get_mac_addr
+from clustermgr.core.utils import exec_cmd
+from clustermgr.core.utils import get_mac_addr
 
 
 def current_date_millis():
