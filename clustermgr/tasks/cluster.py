@@ -10,7 +10,7 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import wlogger, db, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import LdapOLC
-from clustermgr.core.utils import ldap_encode, get_setup_properties
+from clustermgr.core.utils import get_setup_properties
 from clustermgr.config import Config
 import uuid
 
@@ -140,17 +140,17 @@ def setup_filesystem_replication(self):
     print "Setting up File System Replication started"
 
     tid = self.request.id
-    
+
     servers = Server.query.all()
     app_config = AppConfiguration.query.first()
-    
+
     chroot = '/opt/gluu-server-' + app_config.gluu_version
 
     for server in servers:
 
         print "Satrting csync2 installation on", server.hostname
 
-        wlogger.log(tid, 
+        wlogger.log(tid,
                 "Installing csync2 for filesystem replication on {}".format(
                             server.hostname),
                 'head')
@@ -172,40 +172,40 @@ def setup_filesystem_replication(self):
         if 'Ubuntu' in server.os:
             cmd = 'localedef -i en_US -f UTF-8 en_US.UTF-8'
             run_command(tid, c, cmd, chroot)
-            
+
             cmd = 'locale-gen en_US.UTF-8'
             run_command(tid, c, cmd, chroot)
-            
+
             install_command = 'DEBIAN_FRONTEND=noninteractive apt-get'
-        
+
             cmd = '{} update'.format(install_command)
             run_command(tid, c, cmd, chroot)
 
             cmd = '{} install -y apt-utils'.format(install_command)
             run_command(tid, c, cmd, chroot, no_error=None)
-            
-            
+
+
             cmd = '{} install -y csync2'.format(install_command)
             run_command(tid, c, cmd, chroot)
-            
-            
+
+
             cmd = 'apt-get install -y csync2'
             run_command(tid, c, cmd, chroot)
-            
+
         elif 'CentOS' in server.os:
 
-                
+
             cmd = run_cmd.format('yum install -y epel-release')
             run_command(tid, c, cmd, cmd_chroot, no_error=None)
 
             cmd = run_cmd.format('yum repolist')
             run_command(tid, c, cmd, cmd_chroot, no_error=None)
-            
+
             if server.os == 'CentOS 7':
                 csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos7.x86_64.rpm'
             if server.os == 'CentOS 6':
                 csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos6.x86_64.rpm'
-    
+
             cmd = run_cmd.format('yum install -y ' + csync_rpm)
             run_command(tid, c, cmd, cmd_chroot, no_error=None)
 
@@ -216,7 +216,7 @@ def setup_filesystem_replication(self):
             cmd = run_cmd.format('yum install -y crontabs')
             run_command(tid, c, cmd, cmd_chroot, no_error=None)
 
-        cmd = run_cmd.format('rm -f /var/lib/csync2/*.db3')        
+        cmd = run_cmd.format('rm -f /var/lib/csync2/*.db3')
         run_command(tid, c, cmd, cmd_chroot, no_error=None)
 
         cmd = run_cmd.format('rm -f /etc/csync2*')
@@ -224,7 +224,7 @@ def setup_filesystem_replication(self):
 
 
         if server.primary_server:
-        
+
             key_command= [
                 'csync2 -k /etc/csync2.key',
                 'openssl genrsa -out /etc/csync2_ssl_key.pem 1024',
@@ -238,13 +238,13 @@ def setup_filesystem_replication(self):
                 cmd = run_cmd.format(cmdi)
                 wlogger.log(tid, cmd, 'debug')
                 run_command(tid, c, cmd, cmd_chroot, no_error=None)
-            
-            
+
+
             replication_user_file = os.path.join(Config.DATA_DIR,
                                     'fs_replication_paths.txt')
-            
+
             sync_directories = []
-            
+
             for l in open(replication_user_file).readlines():
                 sync_directories.append(l.strip())
 
@@ -255,29 +255,29 @@ def setup_filesystem_replication(self):
                 '/etc/gluu/conf/openldap/salt',
 
                 ]
-                
-            
+
+
 
             csync2_config = ['group gluucluster','{']
-            
+
             all_servers = Server.query.all()
-            
+
             for srv in all_servers:
                 csync2_config.append('  host {};'.format(srv.hostname))
-                
+
             csync2_config.append('')
             csync2_config.append('  key /etc/csync2.key;')
             csync2_config.append('')
-             
+
             for d in sync_directories:
                 csync2_config.append('  include {};'.format(d))
-            
+
             csync2_config.append('')
-            
+
             csync2_config.append('  exclude *~ .*;')
-            
+
             csync2_config.append('')
-            
+
 
 
 
@@ -317,18 +317,18 @@ def setup_filesystem_replication(self):
             csync2_config.append('  backup-directory /var/backups/csync2;')
             csync2_config.append('  backup-generations 3;')
 
-            
+
 
             csync2_config.append('\n  auto younger;\n')
-            
+
             csync2_config.append('}')
-            
-            
+
+
             csync2_config = '\n'.join(csync2_config)
             remote_file = os.path.join(chroot, 'etc', 'csync2.cfg')
-            
+
             wlogger.log(tid, "Uploading csync2.cfg", 'debug')
-            
+
             c.put_file(remote_file,  csync2_config)
 
 
@@ -337,10 +337,10 @@ def setup_filesystem_replication(self):
                         "csync2_ssl_cert.csr, csync2_ssl_cert.pem, and"
                         "csync2_ssl_key.pem from primary server and uploading",
                         'debug')
-        
+
             down_list = ['csync2.cfg', 'csync2.key', 'csync2_ssl_cert.csr',
                     'csync2_ssl_cert.pem', 'csync2_ssl_key.pem']
-            
+
             primary_server = Server.query.filter_by(primary_server=True).first()
             pc = RemoteClient(primary_server.hostname, ip=primary_server.ip)
             pc.startup()
@@ -353,10 +353,10 @@ def setup_filesystem_replication(self):
             pc.close()
 
         csync2_path = '/usr/sbin/csync2'
-            
+
 
         if 'Ubuntu' in server.os:
-            
+
             fc = []
             inet_conf_file = os.path.join(chroot, 'etc','inetd.conf')
             r,f=c.get_file(inet_conf_file)
@@ -370,7 +370,7 @@ def setup_filesystem_replication(self):
 
             cmd = '/etc/init.d/openbsd-inetd restart'
             run_command(tid, c, cmd, cmd_chroot, no_error=None)
-            
+
         elif 'CentOS' in server.os:
             inetd_conf = (
                 '# default: off\n'
@@ -390,12 +390,12 @@ def setup_filesystem_replication(self):
                 'disable         = no\n'
                 '# only_from     = 192.168.199.3 192.168.199.4\n'
                 '}\n')
-                
+
             inet_conf_file = os.path.join(chroot, 'etc', 'xinetd.d', 'csync2')
             inetd_conf = inetd_conf % ({'HOSTNAME':server.hostname})
             c.put_file(inet_conf_file, inetd_conf)
-        
-        
+
+
         #cmd = '{} -xv -N {}'.format(csync2_path, server.hostname)
         #run_command(tid, c, cmd, chroot, no_error=None)
 
@@ -406,7 +406,7 @@ def setup_filesystem_replication(self):
         c.put_file(cron_file,
             '* * * * *    root    {} -N {} -xv 2>/var/log/csync2.log\n'.format(
             csync2_path, server.hostname))
-    
+
         wlogger.log(tid, 'Crontab entry was created to sync files in every minute',
                          'debug')
 
@@ -416,7 +416,7 @@ def setup_filesystem_replication(self):
             run_command(tid, c, cmd, cmd_chroot, no_error=None)
             cmd = run_cmd.format('service crond restart')
             run_command(tid, c, cmd, cmd_chroot, no_error='debug')
-            
+
         else:
             cmd = run_cmd.format('service cron reload')
             run_command(tid, c, cmd, cmd_chroot, no_error='debug')
@@ -441,13 +441,13 @@ def setup_ldap_replication(self, server_id):
     app_config = AppConfiguration.query.first()
 
     servers_to_deploy = []
-        
+
     if not server_id == 'all':
         server = Server.query.get(server_id)
         servers_to_deploy.append(server)
     else:
         servers_to_deploy = Server.query.all()
-        
+
     for server in servers_to_deploy:
         conn_addr = server.hostname
 
@@ -794,7 +794,7 @@ def setup_ldap_replication(self, server_id):
                         run_command(tid, pc, restart_gluu_cmd, no_error='debug')
 
                 pc.close()
-                
+
         #If this is not primary server, we need it to run in mirror mode.
         if not server.primary_server:
             # 15. Enable Mirrormode in the server
@@ -809,16 +809,16 @@ def setup_ldap_replication(self, server_id):
                     wlogger.log(tid, 'LDAP Server is already in mirror mode', 'debug')
 
 
-            
+
         if not server_id == 'all':
             wlogger.log(tid, 'Restarting Gluu Server on this server: {0}'.format(server.hostname))
             run_command(tid, c, restart_gluu_cmd, no_error='debug')
-                
+
         # 16. Set the mmr flag to True to indicate it has been configured
         server.mmr = True
         db.session.commit()
         c.close()
-    
+
     #Restarting all gluu servers
     if server_id == 'all':
         for server in servers_to_deploy:
@@ -827,22 +827,22 @@ def setup_ldap_replication(self, server_id):
             wlogger.log(tid, 'Restarting Gluu Server: ' + server.hostname)
             run_command(tid, c, restart_gluu_cmd, no_error='debug')
             c.close()
-        
+
         #Adding providers for primary server
         pproviders = Server.query.filter(
                                     Server.primary_server.isnot(True)
                                 ).all()
-    
+
         primary = Server.query.filter(Server.primary_server==True).first()
-        
+
         ldp_primary = LdapOLC('ldaps://{}:1636'.format(primary.hostname),
                                 'cn=config', server.ldap_password)
         ldp_primary.connect()
-        
+
         for provider in pproviders:
             paddr = provider.ip if app_config.use_ip else provider.hostname
             status = ldp_primary.add_provider(
-                        provider.id, "ldaps://{0}:1636".format(paddr), 
+                        provider.id, "ldaps://{0}:1636".format(paddr),
                         app_config.replication_dn,
                         app_config.replication_pw
                     )
@@ -851,9 +851,9 @@ def setup_ldap_replication(self, server_id):
                         primary.hostname, provider.hostname), 'success')
             else:
                 wlogger.log(tid, '>> Making {0} listen to {1} failed: {2}'.format(
-                        primary.hostname, provider.hostname, 
+                        primary.hostname, provider.hostname,
                         ldp_primary.conn.result['description']), "warning")
-                        
+
         if pproviders:
             if not ldp_primary.checkMirroMode():
                 if ldp_primary.makeMirroMode():
@@ -863,7 +863,7 @@ def setup_ldap_replication(self, server_id):
                         ldp_primary.conn.result['description']), "warning")
             else:
                 wlogger.log(tid, 'LDAP Server is already in mirror mode', 'debug')
-                        
+
         ldp_primary.close()
 
 
@@ -1190,7 +1190,7 @@ def installGluuServer(self, server_id):
     if not gluu_installed:
         wlogger.log(tid, "Gluu Server was not previously installed", "debug")
 
-    
+
     #start installing gluu server
     wlogger.log(tid, "Installing Gluu Server: " + gluu_server)
 
@@ -1359,7 +1359,7 @@ def installGluuServer(self, server_id):
             cmd = 'tar -zxf /tmp/certs.tgz -C /'
             run_command(tid, c, cmd)
 
-            
+
 
             #delete old keys and import new ones
             wlogger.log(tid, 'Manuplating keys')
@@ -1545,11 +1545,11 @@ def opendjdisablereplication(self, server_id):
     server = Server.query.get(server_id)
     primary_server = Server.query.filter_by(primary_server=True).first()
     tid = self.request.id
-    
+
     c = RemoteClient(primary_server.hostname, ip=primary_server.ip)
     chroot = '/opt/gluu-server-' + app_config.gluu_version
-    
-    
+
+
     cmd_run = '{}'
 
 
@@ -1560,7 +1560,7 @@ def opendjdisablereplication(self, server_id):
                 '-o StrictHostKeyChecking=no '
                 '-o UserKnownHostsFile=/dev/null '
                 '-o PubkeyAuthentication=yes root@localhost "{}"')
-    
+
 
     try:
         c.startup()
@@ -1570,50 +1570,50 @@ def opendjdisablereplication(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
         return False
 
-    
+
     cmd = ('/opt/opendj/bin/dsreplication disable --disableAll --port 4444 '
             '--hostname {} --adminUID admin --adminPassword {} '
             '--trustAll --no-prompt').format(
-                            server.hostname, 
+                            server.hostname,
                             app_config.replication_pw)
 
     cmd = cmd_run.format(cmd)
     run_command(tid, c, cmd, chroot)
-    
+
     wlogger.log(tid, "Checking replication status")
-    
+
     cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 1444 -I admin -w {}').format(
-                    primary_server.hostname, 
+                    primary_server.hostname,
                     app_config.replication_pw)
-    
+
     cmd = cmd_run.format(cmd)
     run_command(tid, c, cmd, chroot)
-    
+
     server.mmr = False
-    
+
     db.session.commit()
     return True
-    
-    
+
+
     return True
 
 
 @celery.task(bind=True)
 def opendjenablereplication(self, server_id):
-    
+
     app_config = AppConfiguration.query.first()
-    
+
     primary_server = Server.query.filter_by(primary_server=True).first()
     tid = self.request.id
     app_config = AppConfiguration.query.first()
-    
-    
+
+
     if server_id == 'all':
         servers = Server.query.all()
     else:
         servers = [Server.query.get(server_id)]
-    
+
     if not primary_server.gluu_server:
         chroot = '/'
     else:
@@ -1646,11 +1646,11 @@ def opendjenablereplication(self, server_id):
 
     tmp_dir = os.path.join('/tmp', uuid.uuid1().hex[:12])
     os.mkdir(tmp_dir)
-    
+
     wlogger.log(tid, "Downloading opendj certificates")
-    
+
     opendj_cert_files = ('keystore', 'keystore.pin', 'truststore')
-    
+
     for cf in opendj_cert_files:
         remote = os.path.join(chroot_fs, 'opt/opendj/config', cf)
         local = os.path.join(tmp_dir, cf)
@@ -1680,7 +1680,7 @@ def opendjenablereplication(self, server_id):
 
 
     if adminOlc.configureOxIDPAuthentication(oxIDP):
-        wlogger.log(tid, 
+        wlogger.log(tid,
                 'oxIDPAuthentication entry is modified to include all privders',
                 'success')
     else:
@@ -1690,7 +1690,6 @@ def opendjenablereplication(self, server_id):
     primary_server_secured = False
 
     for server in servers:
-        
         if not server.primary_server:
             wlogger.log(tid, "Enabling replication on server {}".format(
                                                             server.hostname))
@@ -1704,7 +1703,7 @@ def opendjenablereplication(self, server_id):
                         '-o StrictHostKeyChecking=no '
                         '-o UserKnownHostsFile=/dev/null '
                         '-o PubkeyAuthentication=yes root@localhost "{}"')
-            
+
 
             cmd = ('/opt/opendj/bin/dsreplication enable --host1 {} --port1 4444 '
                     '--bindDN1 \'cn=directory manager\' --bindPassword1 secret '
@@ -1717,14 +1716,14 @@ def opendjenablereplication(self, server_id):
                         app_config.replication_pw,
                         app_config.replication_pw,
                         )
-            
+
             cmd = cmd_run.format(cmd)
             run_command(tid, c, cmd, chroot)
 
             wlogger.log(tid, "Inıtializing replication on server {}".format(
                                                             server.hostname))
-            
-            
+
+
             cmd = ('/opt/opendj/bin/dsreplication initialize --baseDN \'o=gluu\' '
                     '--adminUID admin --adminPassword {} --hostSource {} '
                     '--portSource 4444  --hostDestination {} --portDestination 4444 '
@@ -1733,7 +1732,7 @@ def opendjenablereplication(self, server_id):
                         primary_server.hostname,
                         server.hostname,
                         )
-            
+
             cmd = cmd_run.format(cmd)
             run_command(tid, c, cmd, chroot)
 
@@ -1764,7 +1763,7 @@ def opendjenablereplication(self, server_id):
 
             server.mmr = True
 
-    
+
     db.session.commit()
 
 
@@ -1796,14 +1795,14 @@ def opendjenablereplication(self, server_id):
 
         if server.primary_server:
             modifyOxLdapProperties(server, c, tid, pDict, chroot_fs)
-            
+
             wlogger.log(tid, "Restarting Gluu Server on {}".format(
                                 server.hostname))
-                                
+
             run_command(tid, c, restart_command)
-            
+
         else:
-            
+
             wlogger.log(tid, "Making SSH connection to the server %s" %
                     server.hostname)
 
@@ -1813,25 +1812,25 @@ def opendjenablereplication(self, server_id):
                 ct.startup()
             except Exception as e:
                 wlogger.log(
-                    tid, "Cannot establish SSH connection {0}".format(e), 
+                    tid, "Cannot establish SSH connection {0}".format(e),
                     "warning")
                 wlogger.log(tid, "Ending server setup process.", "error")
                 return False
 
             modifyOxLdapProperties(server, ct, tid, pDict, chroot_fs)
-            
+
             wlogger.log(tid, "Uploading OpenDj certificate files")
             for cf in opendj_cert_files:
 
-                
+
                 remote = os.path.join(chroot_fs, 'opt/opendj/config', cf)
                 local = os.path.join(tmp_dir, cf)
-                
+
                 result = ct.upload(local, remote)
                 if not result:
                     wlogger.log(tid, "An error occurred while uploading OpenDj certificates.", "error")
                     return False
-    
+
                 if not result.startswith('Upload successful'):
                     wlogger.log(tid, result, "warning")
                     wlogger.log(tid, "Ending server setup process.", "error")
@@ -1841,23 +1840,23 @@ def opendjenablereplication(self, server_id):
                                 server.hostname))
 
             run_command(tid, ct, restart_command)
-        
+
             ct.close()
-        
-   
+
+
 
     wlogger.log(tid, "Checking replication status")
-    
+
     cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 1444 -I admin -w {}').format(
-                    primary_server.hostname, 
+                    primary_server.hostname,
                     app_config.replication_pw)
-    
+
     cmd = cmd_run.format(cmd)
     run_command(tid, c, cmd, chroot)
-    
+
     c.close()
-    
+
     return True
 
 
