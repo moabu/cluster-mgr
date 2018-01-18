@@ -95,6 +95,7 @@ def install_local(self):
             'DEBIAN_FRONTEND=noninteractive sudo apt-get -y install influxdb',
             'sudo service influxdb start',
             'sudo pip install influxdb',
+            'sudo pip install psutil',
             ]
 
     for cmd in influx_cmd:
