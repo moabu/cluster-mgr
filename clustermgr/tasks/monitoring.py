@@ -70,7 +70,8 @@ def install_local(self):
             'sudo apt-get update',
             'sudo apt-get install influxdb',
             'sudo service influxdb start',
-            'sudo pip install influxdb'
+            'sudo pip install influxdb',
+            'sudo pip install psutil',
             ]
     
     elif 'Debian' in localos:

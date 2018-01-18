@@ -60,8 +60,6 @@ def get_remote_data(host, measurement, c):
     except:
         print "Server did not return json data"
         return
-    
-    print data
 
     print len(data['data']['data']), "records received for measurement", measurement, "from host", host
     write_influx(host, measurement, data['data'])
