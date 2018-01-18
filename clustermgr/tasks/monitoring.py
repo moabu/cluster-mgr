@@ -121,7 +121,7 @@ def install_local(self):
     
     
 
-    monitoring_client = os.path.join(app.root_path, 'monitoring_scripts', 'get_remote_stats.py')
+    monitoring_client = os.path.join(app.root_path, 'get_remote_stats.py')
     
     srv_list = [ server.hostname for server in servers]
     
