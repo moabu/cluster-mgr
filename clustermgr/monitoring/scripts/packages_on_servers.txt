@@ -1,0 +1,4 @@
+yum install gcc
+yum install python-devel
+yum install python-pip
+pip install ldap3

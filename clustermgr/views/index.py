@@ -65,50 +65,52 @@ def app_configuration():
     if conf_form.update.data and conf_form.validate_on_submit():
         #If prviously configured and admin changed replcation user (dn) and it's
         #password .this will break replication, check and war admin.
-        replication_dn = "cn={},o=gluu".format(
-                                        conf_form.replication_dn.data.strip())
-        if not config:
-            config = AppConfiguration()
+        
+        #replication_dn = "cn={},o=gluu".format(
+        #                                conf_form.replication_dn.data.strip())
+        if config:
+            
+        #else:
+        #    if config.replication_dn != replication_dn:
+        #        flash("You changed Replication Manager dn. "
+        #              "This will break replication. "
+        #              "Please re-deploy all LDAP Servers.",
+        #               "danger")
+
+            if conf_form.replication_pw.data and \
+                    conf_form.replication_pw_confirm.data is not '**dummy**':
+                config.replication_pw = conf_form.replication_pw.data.strip()
+                flash("You changed Replication Manager password. "
+                        "This will break replication. "
+                        "Please re-deploy all LDAP Servers.",
+                        "danger")
         else:
-            if config.replication_dn != replication_dn:
-                flash("You changed Replication Manager dn. "
-                      "This will break replication. "
-                      "Please re-deploy all LDAP Servers.",
-                       "danger")
+            config = AppConfiguration()
 
-
-        if conf_form.replication_pw.data and \
-                conf_form.replication_pw_confirm.data is not '**dummy**':
-            config.replication_pw = conf_form.replication_pw.data.strip()
-            flash("You changed Replication Manager password. "
-                    "This will break replication. "
-                    "Please re-deploy all LDAP Servers.",
-                    "danger")
-
-        config.replication_dn = replication_dn
+        #config.replication_dn = replication_dn
         config.gluu_version = conf_form.gluu_version.data.strip()
-        config.use_ip = conf_form.use_ip.data
+        #config.use_ip = conf_form.use_ip.data
         config.nginx_host = conf_form.nginx_host.data.strip()
 
-        config.replication_dn = replication_dn
+        #config.replication_dn = replication_dn
         config.gluu_version = conf_form.gluu_version.data.strip()
-        config.use_ip = conf_form.use_ip.data
+        #config.use_ip = conf_form.use_ip.data
         config.nginx_host = conf_form.nginx_host.data.strip()
         # config.admin_email = conf_form.admin_email.data.strip()
 
-        purge_age_day = conf_form.purge_age_day.data
-        purge_age_hour = conf_form.purge_age_hour.data
-        purge_age_min = conf_form.purge_age_min.data
-        purge_interval_day = conf_form.purge_interval_day.data
-        purge_interval_hour = conf_form.purge_interval_hour.data
-        purge_interval_min = conf_form.purge_interval_min.data
+        #purge_age_day = conf_form.purge_age_day.data
+        #purge_age_hour = conf_form.purge_age_hour.data
+        #purge_age_min = conf_form.purge_age_min.data
+        #purge_interval_day = conf_form.purge_interval_day.data
+        #purge_interval_hour = conf_form.purge_interval_hour.data
+        #purge_interval_min = conf_form.purge_interval_min.data
 
-        log_purge = "{}:{}:{} {}:{}:{}".format(
-                                            purge_age_day, purge_age_hour,
-                                            purge_age_min, purge_interval_day,
-                                            purge_interval_hour,
-                                            purge_interval_min)
-        config.log_purge = log_purge
+        #log_purge = "{}:{}:{} {}:{}:{}".format(
+        #                                    purge_age_day, purge_age_hour,
+        #                                    purge_age_min, purge_interval_day,
+        #                                    purge_interval_hour,
+        #                                    purge_interval_min)
+        #config.log_purge = log_purge
         db.session.add(config)
         db.session.commit()
 
@@ -133,15 +135,15 @@ def app_configuration():
               "success")
 
     # request.method == GET gets processed here
-    if config and config.replication_dn:
-        conf_form.replication_dn.data = config.replication_dn.replace(
-            "cn=", "").replace(",o=gluu", "")
+    if config: #and config.replication_dn:
+        #conf_form.replication_dn.data = config.replication_dn.replace(
+        #    "cn=", "").replace(",o=gluu", "")
         conf_form.replication_pw.data = config.replication_pw
         conf_form.nginx_host.data = config.nginx_host
-        conf_form.use_ip.data = config.use_ip
+        #conf_form.use_ip.data = config.use_ip
         if config.gluu_version:
             conf_form.gluu_version.data = config.gluu_version
-
+        """
         if config.log_purge:
             a, i = config.log_purge.split()
             pa = a.split(':')
@@ -152,7 +154,7 @@ def app_configuration():
             conf_form.purge_interval_day.data = pi[0]
             conf_form.purge_interval_hour.data = pi[1]
             conf_form.purge_interval_min.data = pi[2]
-
+        """
 
     return render_template('app_config.html', cform=conf_form, sform=sch_form,
                            config=config, schemafiles=schemafiles,

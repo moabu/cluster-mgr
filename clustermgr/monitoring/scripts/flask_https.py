@@ -32,7 +32,7 @@ def get_sqlite_stats(measurement, start):
     db_file = os.path.join(data_dir, 'gluu_monitoring.sqlite3')
     with sqlite3.connect(db_file) as con:
         cur = con.cursor()
-        cur.execute('SELECT * FROM {} WHERE time > {}'.format(measurement, start))
+        cur.execute('SELECT * FROM {0} WHERE time > {1}'.format(measurement, start))
         result = cur.fetchall()
         feilds = [ d[0] for d in cur.description ]
         data = result

@@ -14,7 +14,7 @@ from influxdb import InfluxDBClient
 
 from ldap_functions import LdapOLC
 
-from defs import left_menu, items, periods
+from monitoring_defs import left_menu, items, periods
 
 
 app = Flask(__name__)

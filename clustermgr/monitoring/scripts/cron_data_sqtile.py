@@ -1,4 +1,3 @@
-import rrdtool
 import os
 import time
 import psutil
@@ -42,7 +41,7 @@ def execute_query(table, data, options=None):
     if not options:
         options = monitoring_tables[table]
     
-    query = 'INSERT INTO {} (time, {}) VALUES ({}, {})'.format(
+    query = 'INSERT INTO {0} (time, {1}) VALUES ({2}, {3})'.format(
                                         table,
                                         ', '.join(options), 
                                         int(time.time()), datas)
@@ -101,18 +100,15 @@ def collect_ldap_monitoring(addr, binddn, passwd):
         execute_query('gluu_auth', [success, failure])
 
 def collect_cpu_info():
-    sl=open("/proc/stat").readline()
-    user, nice, system, idle, iowait, irq, softirq, steal, \
-        guest, guestnice = sl.strip().split()[1:]
-    
-    data = [system, user, nice, idle, iowait,
-            irq, softirq, steal, guest, guestnice]
-    
+    cpu_times= psutil.cpu_times()
+    data = [cpu_times.system, cpu_times.user, cpu_times.nice, cpu_times.idle, 
+            cpu_times.iowait, cpu_times.irq, cpu_times.softirq, 
+            cpu_times.steal, cpu_times.guest]
     
     execute_query('cpu_info', data)
 
 def collect_cpu_percent():
-    data = [psutil.cpu_percent(interval=0.5)]
+    data = [float(psutil.cpu_percent(interval=0.5))]
     execute_query('cpu_percent', data)
 
 def collect_load_average():
@@ -170,7 +166,7 @@ def collect_ne_io():
     execute_query('net_io', data)
 
 def do_collect():
-    collect_ldap_monitoring('ldaps://c4.gluu.org:1636', "cn=directory manager,o=gluu", "secret")
+    #collect_ldap_monitoring('ldaps://c4.gluu.org:1636', "cn=directory manager,o=gluu", "secret")
     collect_cpu_info()
     collect_cpu_percent()
     collect_load_average()

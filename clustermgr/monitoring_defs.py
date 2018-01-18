@@ -19,7 +19,6 @@ left_menu = {
                         'write_waiters',
                         'initiated_operations',
                     ),
-                
 
 
     'System Monitoring': (
@@ -34,128 +33,128 @@ left_menu = {
 
 items = {
 
-        'summary': {'end_point': 'ldap_all',
+        'summary': {'end_point': 'monitoring.ldap_all',
                     'vAxis':''},
 
-        'gluu_authentications': {'end_point': 'ldap_single',
+        'gluu_authentications': {'end_point': 'monitoring.ldap_single',
                     'data_source': 'gluu_auth.*',
                     'aggr': 'DIF',
                     'vAxis': '#'},
 
-        'completed_operations': {'end_point': 'ldap_single',
+        'completed_operations': {'end_point': 'monitoring.ldap_single',
                     'data_source': 'ldap_mon.completed_operations',
                     'aggr': 'DIF',
                     'vAxis': '#'},
 
-        'read_waiters': {'end_point': 'ldap_single',
+        'read_waiters': {'end_point': 'monitoring.ldap_single',
                     'data_source': 'ldap_mon.read_waiters',
                     'aggr': 'SUM',
                     'vAxis': '#'},
 
-        'compare_operations': {'end_point': 'ldap_single',
+        'compare_operations': {'end_point': 'monitoring.ldap_single',
                     'data_source': 'ldap_mon.compare_operations',
                     'aggr': 'DIF',
                     'vAxis': '#'},
 
-        'referrals_sent': {'end_point': 'ldap_single',
+        'referrals_sent': {'end_point': 'monitoring.ldap_single',
                     'data_source': 'ldap_mon.referrals_sent',
                     'aggr': 'DIF',
                     'vAxis': '#'},
 
-        'search_operations': {'end_point': 'ldap_single',
+        'search_operations': {'end_point': 'monitoring.ldap_single',
                     'data_source': 'ldap_mon.search_operations',
                     'aggr': 'DIF',
                     'vAxis': '#'},
 
-        'total_connections': {'end_point': 'ldap_single',
+        'total_connections': {'end_point': 'monitoring.ldap_single',
                     'data_source': 'ldap_mon.total_connections',
                     'aggr': 'DIF',
                     'vAxis': '#'},
 
-        'unbind_operations': {'end_point': 'ldap_single',
+        'unbind_operations': {'end_point': 'monitoring.ldap_single',
                     'data_source': 'ldap_mon.unbind_operations',
                     'aggr': 'DIF',
                     'vAxis': '#'},
 
-        'add_operations': {'end_point': 'ldap_single',
+        'add_operations': {'end_point': 'monitoring.ldap_single',
                     'data_source': 'ldap_mon.add_operations',
                     'aggr': 'DIF',
                     'vAxis': '#'},
 
-        'entries_sent': {'end_point': 'ldap_single',
+        'entries_sent': {'end_point': 'monitoring.ldap_single',
                     'data_source': 'ldap_mon.entries_sent',
                     'aggr': 'DIF',
                     'vAxis': '#'},
 
-        'delete_operations': {'end_point': 'ldap_single',
+        'delete_operations': {'end_point': 'monitoring.ldap_single',
                     'data_source': 'ldap_mon.delete_operations',
                     'aggr': 'DIF',
                     'vAxis': '#'},
 
-        'bytes_sent': {'end_point': 'ldap_single',
+        'bytes_sent': {'end_point': 'monitoring.ldap_single',
                     'data_source': 'ldap_mon.bytes_sent',
                     'aggr': 'DRV',
                     'vAxis': 'Bytes per Second'},
 
-        'bind_operations': {'end_point': 'ldap_single',
+        'bind_operations': {'end_point': 'monitoring.ldap_single',
                     'data_source': 'ldap_mon.bind_operations',
                     'aggr': 'DIF',
                     'vAxis': '#'},
 
-        'modify_operations': {'end_point': 'ldap_single',
+        'modify_operations': {'end_point': 'monitoring.ldap_single',
                     'data_source': 'ldap_mon.modify_operations',
                     'aggr': 'DIF',
                     'vAxis': '#'},
 
-        'write_waiters': {'end_point': 'ldap_single',
+        'write_waiters': {'end_point': 'monitoring.ldap_single',
                     'data_source': 'ldap_mon.write_waiters',
                     'aggr': 'DIF',
                     'vAxis': '#'},
 
-        'initiated_operations': {'end_point': 'ldap_single',
+        'initiated_operations': {'end_point': 'monitoring.ldap_single',
                     'data_source': 'ldap_mon.initiated_operations',
                     'aggr': 'DIF',
                     'vAxis': '#'},
 
-        'cpu_usage': {'end_point': 'system',
+        'cpu_usage': {'end_point': 'monitoring.system',
                     'data_source': 'cpu_info.*',
                     'aggr': 'DIF',
                     'chartType': 'AreaChart',
                     'vAxis': '%'},
 
-        'load_average': {'end_point': 'system',
+        'load_average': {'end_point': 'monitoring.system',
                     'data_source': 'load_average.*',
                     'aggr': 'AVG',
                     'chartType': 'LineChart',
                     'vAxis': '5 Mins Load Average'},
 
-        'disk_usage': {'end_point': 'system',
+        'disk_usage': {'end_point': 'monitoring.system',
                     'data_source': 'disk_usage.*',
                     'aggr': 'AVG',
                     'vAxisMax': 100,
                     'chartType': 'AreaChart',
                     'vAxis': '%'},
 
-        'memory_usage': {'end_point': 'system',
+        'memory_usage': {'end_point': 'monitoring.system',
                     'data_source': 'mem_usage.*',
                     'aggr': 'AVG',
                     'vAxisMax': 100,
                     'chartType': 'AreaChart',
                     'vAxis': '%'}, 
 
-        'network_i_o': {'end_point': 'system',
+        'network_i_o': {'end_point': 'monitoring.system',
                     'data_source': 'net_io.*',
                     'aggr': 'DRV',
                     'chartType': 'LineChart',
                     'vAxis': 'bytes in(-)/out(+) per sec'},
                     
-        'cpu_percent': {'end_point': 'index',
+        'cpu_percent': {'end_point': 'monitoring.index',
                     'data_source': 'cpu_percent.*',
                     'aggr': 'AVG',
                     'chartType': 'AreaChart',
                     'vAxis': '%'},
                     
-        'replication_status': {'end_point': 'replication_status'},
+        'replication_status': {'end_point': 'monitoring.replication_status'},
         
 }
 

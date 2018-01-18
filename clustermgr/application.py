@@ -66,6 +66,8 @@ def create_app():
     from clustermgr.views.index import index
     from clustermgr.views.server import server_view
     from clustermgr.views.cluster import cluster
+    from clustermgr.views.monitoring import monitoring
+    
     # from clustermgr.views.logserver import logserver
     from clustermgr.views.cache import cache_mgr
     from clustermgr.views.license import license_bp
@@ -75,6 +77,7 @@ def create_app():
     # app.register_blueprint(logserver, url_prefix="/logging_server")
     app.register_blueprint(cache_mgr, url_prefix="/cache")
     app.register_blueprint(license_bp, url_prefix="/license")
+    app.register_blueprint(monitoring, url_prefix="/monitoring")
 
     @app.context_processor
     def hash_processor():

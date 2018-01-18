@@ -48,10 +48,15 @@ def get_remote_data(host, measurement):
     write_influx(host, measurement, data['data'])
 
 
-hosts=('c4.gluu.org', 'c5.gluu.org')
+hosts=(
+    'c1.gluu.org', 
+    #'c5.gluu.org'
+    )
 
 for h in hosts:
+    
     for t in monitoring_tables:
+        get_remote_data(h, t)
         try:
             get_remote_data(h, t)
         except:

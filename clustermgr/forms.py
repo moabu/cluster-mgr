@@ -13,11 +13,11 @@ class AppConfigForm(FlaskForm):
     versions = ['3.1.2']
     gluu_version = SelectField('Gluu Server Version',
                                choices=[(v, v) for v in versions])
-    use_ip = BooleanField('Use IP Address in place of Hostname for replication')
-    replication_dn = StringField('Replication Manager DN', validators=[
-        DataRequired(),
-        Regexp('^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$',
-               message="Only alphabets and space allowed; cannot end with space.")])  # noqa
+    #use_ip = BooleanField('Use IP Address in place of Hostname for replication')
+    #replication_dn = StringField('Replication Manager DN', validators=[
+    #    DataRequired(),
+    #    Regexp('^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$',
+    #           message="Only alphabets and space allowed; cannot end with space.")])  # noqa
     replication_pw = PasswordField('Replication Manager Password', validators=[
         DataRequired(), validators.EqualTo(
             'replication_pw_confirm', message='Passwords must match')])
@@ -25,13 +25,13 @@ class AppConfigForm(FlaskForm):
         'Re-enter Password', validators=[DataRequired()])
     nginx_host = StringField('Load Balancer Hostname', validators=[DataRequired()])
 
-    purge_age_day = SelectField(choices=[(str(d), str(d)) for d in range(0, 31)])
-    purge_age_hour = SelectField(choices=[(str(h), str(h)) for h in range(0, 25)], default="24")
-    purge_age_min = SelectField(choices=[(str(m), str(m)) for m in range(0, 60)])
+    #purge_age_day = SelectField(choices=[(str(d), str(d)) for d in range(0, 31)])
+    #purge_age_hour = SelectField(choices=[(str(h), str(h)) for h in range(0, 25)], default="24")
+    #purge_age_min = SelectField(choices=[(str(m), str(m)) for m in range(0, 60)])
 
-    purge_interval_day = SelectField(choices=[(str(d), str(d)) for d in range(0, 31)], default="1")
-    purge_interval_hour = SelectField(choices=[(str(h), str(h)) for h in range(0, 25)])
-    purge_interval_min = SelectField(choices=[(str(m), str(m)) for m in range(0, 60)])
+    #purge_interval_day = SelectField(choices=[(str(d), str(d)) for d in range(0, 31)], default="1")
+    #purge_interval_hour = SelectField(choices=[(str(h), str(h)) for h in range(0, 25)])
+    #purge_interval_min = SelectField(choices=[(str(m), str(m)) for m in range(0, 60)])
 
     # admin_email = StringField("Admin Email", validators=[Optional(), Email("Please enter valid email address")])
 
@@ -157,8 +157,12 @@ class InstallServerForm(FlaskForm):
     installPassport = BooleanField('Install Passport')
 
     ldap_type = RadioField("Ldap Type",
-                    choices=[("opendj", "OpenDJ",), ("openldap", "OpenLDAP")],
+                    choices=[
+                        ("opendj", "OpenDJ",), 
+                        #("openldap", "OpenLDAP")
+                        ],
                     validators=[AnyOf(["opendj", "openldap"])],
+                    default='opendj'
                 )
 
 

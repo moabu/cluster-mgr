@@ -1,0 +1,19 @@
+<div class="btn-toolbar">
+
+{% for m in left_menu %}
+<div class="btn-group">
+    <div class="dropdown">
+        <button class="btn btn-default dropdown-toggle" type="button" id="menu1" data-toggle="dropdown">{{m}}
+        <span class="caret"></span></button>
+        <ul class="dropdown-menu" role="menu" aria-labelledby="menu1">
+        {% for item in left_menu[m] %}
+          <li role="presentation"><a role="menuitem" tabindex="-1" 
+          href="{{url_for(items[item]['end_point'], item=item)}}">{{item.replace('_', ' ').title()}}</a></li>
+        {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endfor %}
+
+</div>
+
