@@ -159,6 +159,10 @@ def install_local(self):
                             "fail", server_id=0)
 
 
+    cmd = 'sudo service cron restart'
+
+    run_and_log(fc, cmd, tid, 0)
+
     return True
 
 
