@@ -67,14 +67,14 @@ def create_app():
     from clustermgr.views.server import server_view
     from clustermgr.views.cluster import cluster
     from clustermgr.views.monitoring import monitoring
-    
-    # from clustermgr.views.logserver import logserver
     from clustermgr.views.cache import cache_mgr
     from clustermgr.views.license import license_bp
+    from clustermgr.views.logserver import log_mgr
+
     app.register_blueprint(index, url_prefix="")
     app.register_blueprint(server_view, url_prefix="/server")
     app.register_blueprint(cluster, url_prefix="/cluster")
-    # app.register_blueprint(logserver, url_prefix="/logging_server")
+    app.register_blueprint(log_mgr, url_prefix="/logging")
     app.register_blueprint(cache_mgr, url_prefix="/cache")
     app.register_blueprint(license_bp, url_prefix="/license")
     app.register_blueprint(monitoring, url_prefix="/monitoring")

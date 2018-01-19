@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block header %}
+    <h1>Logging</h1>
+    <ol class="breadcrumb">
+        <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+        <li class="active">Logging</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+<div class="box">
+    <form action="{{ url_for("log_mgr.index") }}" method="GET" class="form-horizontal">
+        <div class="box-header with-border">
+            <h3 class="panel-title">Search filters</h3>
+        </div>
+        <div class="box-body">
+            <div class="form-group">
+                {{ form.type.label(class="control-label col-md-3") }}
+                <div class="col-md-9">
+                    {{ form.type(class="form-control") }}
+                </div>
+            </div>
+        </div>
+
+        <div class="box-body">
+            <div class="form-group">
+                {{ form.message.label(class="control-label col-md-3") }}
+                <div class="col-md-9">
+                    {{ form.message(class="form-control") }}
+                </div>
+            </div>
+        </div>
+
+        <div class="box-body">
+            <div class="form-group">
+                {{ form.host.label(class="control-label col-md-3") }}
+                <div class="col-md-9">
+                    {{ form.host(class="form-control") }}
+                </div>
+            </div>
+        </div>
+
+        <div class="box-footer">
+            {{ form.search(class="btn btn-primary pull-right") }}
+        </div>
+    </form>
+</div>
+
+
+<div class="box">
+    <div class="box-header with-border">
+        <h3 class="box-title">Search result</h3>
+    </div>
+
+    <!-- /.box-header -->
+    <div class="box-body">
+        {% if logs %}
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <tbody>
+                    <tr>
+                        <th>Time</th>
+                        <th>Message</th>
+                        <th>Host/IP</th>
+                        <th style="width: 10px">Type</th>
+                    </tr>
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log["time"] }}</td>
+                        <td>{{ log["message"]|truncate(500, True) }}</td>
+                        <td>{{ log["hostname"] or log["ip"] }}</td>
+                        <td style="width: 10px">{{ log["type"] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p>{{ err }}</p>
+        {% endif %}
+    </div>
+    <!-- /.box-body -->
+
+    <div class="box-footer clearfix">
+        <ul class="pagination pagination-sm no-margin pull-right">
+            <li><a href="#">Prev</a></li>
+            <li><a href="#">Next</a></li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

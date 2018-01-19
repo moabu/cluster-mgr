@@ -41,7 +41,7 @@
         <section class="sidebar">
           <ul class="sidebar-menu" data-widget="tree">
             <li><a href="/"><i class="fa fa-dashboard"></i><span>Dashboard</span></a></li>
-            
+
             <li class="treeview">
               <a href="#">
                 <i class="fa fa-cubes"></i><span>Cluster</span>
@@ -49,7 +49,7 @@
                   <i class="fa fa-angle-left pull-right"></i>
                 </span>
               </a>
-              
+
               <ul class="treeview-menu">
                 <li><a href="{{ url_for('server.index') }}"><i class="fa fa-plus-square"></i>Add Server</a></li>
                 <li><a href="{{ url_for('cluster.install_nginx') }}"><i class="fa fa-plus-square"></i>Install Nginx</a></li>
@@ -60,7 +60,7 @@
                 <li><a href="{{ url_for('cluster.install_nginx') }}"><i class="fa fa-plus-square"></i>Install Nginx</a></li>
               </ul>
             </li>
-            
+
             <!-------replication tree----------------->
             <li class="treeview">
               <a href="#">
@@ -91,11 +91,25 @@
             </li>
             <!---------end of replication tree----------->
 
-            
-            
+
+
             <li><a href="{{ url_for('cache_mgr.index') }}">
               <i class="fa fa-microchip"></i><span>Cache Management</span></a>
             </li>
+
+            <li class="treeview">
+              <a href="#">
+                <i class="fa fa-file"></i><span>Logging Management</span>
+                <span class="pull-right-container">
+                  <i class="fa fa-angle-left pull-right"></i>
+                </span>
+              </a>
+              <ul class="treeview-menu">
+                <li><a href="{{ url_for('log_mgr.index') }}"> <i class="fa fa-bar-chart"></i><span>Logs</span></a> </li>
+                <li><a href="#" data-toggle="modal" data-target="#install_logging_modal"> <i class="fa fa-wrench"></i><span>Setup Logging</span></a> </li>
+              </ul>
+            </li>
+
             <li><a href="{{ url_for('license.index') }}">
               <i class="fa fa-drivers-license-o"></i><span>License</span></a></li>
             <li><a href="{{ url_for('index.app_configuration') }}">
@@ -166,6 +180,32 @@
         </div><!-- /.modal-dialog -->
     </div><!-- /.modal -->
 
+    <!-- Alert Modal before installing logging components -->
+    <div id="install_logging_modal" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"
+                            aria-label="Close"><span
+                            aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">Install Logging Components</h4>
+                </div>
+                <div class="modal-body">
+                    <p>This will install components of logging on your servers .
+                        Are you sure you want to install?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default"
+                            data-dismiss="modal">Close
+                    </button>
+                    <a id="setup_url" class="btn btn-danger" href="#">Confirm</a>
+                </div>
+            </div><!-- /.modal-content -->
+        </div><!-- /.modal-dialog -->
+    </div><!-- /.modal -->
+
+
+
 
     {% block modals %} {% endblock modals %}
 
@@ -181,9 +221,11 @@
     $('#install_monitoring_modal').on('show.bs.modal', function (event) {
         $('#setup_url').attr('href', '{{ url_for("monitoring.setup") }}');
     });
-    
-    
-</script> 
+
+    $('#install_logging_modal').on('show.bs.modal', function (event) {
+        $('#setup_url').attr('href', '{{ url_for("log_mgr.setup") }}');
+    });
+</script>
 
 
     {% block js %} {% endblock js %}
