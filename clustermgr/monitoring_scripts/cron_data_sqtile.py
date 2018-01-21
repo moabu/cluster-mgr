@@ -4,6 +4,9 @@ import psutil
 import re
 import sqlite3
 from ldap3 import Server, Connection, BASE
+from pyDes import *
+import base64
+import json
 
 from sqlite_monitoring_tables import monitoring_tables
 
@@ -31,6 +34,19 @@ searchlist = {
 
 sql_db_file = os.path.join(data_path, 'gluu_monitoring.sqlite3')
 
+def get_ldap_admin_password():
+    gluu_version = open("gluu_version.txt").read().strip()
+    salt_file = open('/opt/gluu-server-{0}/etc/gluu/conf/salt'.format(gluu_version)).read()
+    salt = salt_file.split('=')[1].strip()
+    ox_ldap_properties_file = '/opt/gluu-server-{0}/etc/gluu/conf/ox-ldap.properties'.format(gluu_version)
+    for l in open(ox_ldap_properties_file):
+        if l.startswith('bindPassword'):
+            s = l.split(':')[1].strip()
+            engine = triple_des(salt, ECB, pad=None, padmode=PAD_PKCS5)
+            cipher = triple_des(salt)
+            decrypted = cipher.decrypt(base64.b64decode(s), padmode=PAD_PKCS5)
+            return decrypted
+
 
 def execute_query(table, data, options=None):
     
@@ -47,19 +63,40 @@ def execute_query(table, data, options=None):
                                         int(time.time()), datas)
     cur.execute(query)
 
-def collect_ldap_monitoring(addr, binddn, passwd):
+def collect_ldap_monitoring():
 
-    server = Server(addr, use_ssl=True)
-    conn = Connection(server, user=binddn, password=passwd)
+    bind_dn = open('bind_dn.txt').read().strip()
+    passwd = get_ldap_admin_password()
+    server = Server("localhost:1636", use_ssl=True)
+    conn = Connection(server, user=bind_dn, password=passwd)
     try:
         conn.bind()
-        print "Connected to", addr
     except:
-        print "Can't connect to", addr
+        print "Can't connect to ldap server"
     else:
         summary = {}
 
 
+
+        z = time.gmtime(time.time()-300)
+        ct = time.strftime("%Y%m%d%H%M%S.000Z",z)
+
+        count_dict = { 'user_authentication_failure':0, 'user_authentication_success':0}
+
+        for count_t in count_dict:
+
+            result = conn.search(search_base="o=gluu", search_filter='(&(&(objectClass=oxMetric)(creationDate>={0}))(oxMetricType={1}))'.format(ct, count_t), attributes=["oxData"])
+    
+            if result:
+                data_q=conn.response[-1]["attributes"]['oxData']
+                if data_q:
+                    data = json.loads(data_q[0])
+                    count_dict[count_t] = data['count']
+        
+        execute_query('gluu_auth', [count_dict['user_authentication_success'], count_dict['user_authentication_failure']])
+        
+
+        """
         # LDAP Monitoring
         options = monitoring_tables['ldap_mon']
 
@@ -78,26 +115,26 @@ def collect_ldap_monitoring(addr, binddn, passwd):
 
         execute_query('ldap_mon', data)
 
-
-        # GLUU Authentication Monitoring
+            # GLUU Authentication Monitoring
 
         z=time.gmtime(time.time()-300)
 
 
         ct = time.strftime("%Y%m%d%H%M%S.000Z",z)
         
-        conn.search(search_base="o=gluu", search_filter='(&(&(objectClass=oxMetric)(creationDate>={}))(oxMetricType=user_authentication_failure))'.format(ct), attributes=["oxData"])
+        conn.search(search_base="o=gluu", search_filter='(&(&(objectClass=oxMetric)(creationDate>={0}))(oxMetricType=user_authentication_failure))'.format(ct), attributes=["oxData"])
 
         data_s=conn.response[-1]["attributes"]['oxData'][0]
         m=re.search('{"count":(?P<count>\d+)}', data_s)
         failure=m.group('count')
 
-        conn.search(search_base="o=gluu", search_filter='(&(&(objectClass=oxMetric)(creationDate>={}))(oxMetricType=user_authentication_success))'.format(ct), attributes=["oxData"])
+        conn.search(search_base="o=gluu", search_filter='(&(&(objectClass=oxMetric)(creationDate>={0}))(oxMetricType=user_authentication_success))'.format(ct), attributes=["oxData"])
         data_s=conn.response[-1]["attributes"]['oxData'][0]
         m=re.search('{"count":(?P<count>\d+)}', data_s)
         success=m.group('count')
-
-        execute_query('gluu_auth', [success, failure])
+        print success, failure
+        #execute_query('gluu_auth', [success, failure])
+        """
 
 def collect_cpu_info():
     cpu_times= psutil.cpu_times()
@@ -173,10 +210,12 @@ def do_collect():
     collect_disk_usage()
     collect_mem_usage()
     collect_ne_io()
-    
+    collect_ldap_monitoring()
+
 if __name__ == '__main__':
     sql_con = sqlite3.connect(sql_db_file)
     cur=sql_con.cursor()
     do_collect()
     sql_con.commit()
     sql_con.close()
+    
