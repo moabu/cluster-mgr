@@ -25,18 +25,18 @@
 
         <div class="box-body">
             <div class="form-group">
-                {{ form.message.label(class="control-label col-md-3") }}
+                {{ form.host.label(class="control-label col-md-3") }}
                 <div class="col-md-9">
-                    {{ form.message(class="form-control") }}
+                    {{ form.host(class="form-control") }}
                 </div>
             </div>
         </div>
 
         <div class="box-body">
             <div class="form-group">
-                {{ form.host.label(class="control-label col-md-3") }}
+                {{ form.message.label(class="control-label col-md-3") }}
                 <div class="col-md-9">
-                    {{ form.host(class="form-control") }}
+                    {{ form.message(class="form-control") }}
                 </div>
             </div>
         </div>
@@ -69,7 +69,7 @@
                     <tr>
                         <td>{{ log["time"] }}</td>
                         <td>{{ log["message"]|truncate(500, True) }}</td>
-                        <td>{{ log["hostname"] or log["ip"] }}</td>
+                        <td>{{ log["hostname"] }}/{{ log["ip"] }}</td>
                         <td style="width: 10px">{{ log["type"] }}</td>
                     </tr>
                     {% endfor %}

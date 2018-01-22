@@ -106,7 +106,7 @@
               </a>
               <ul class="treeview-menu">
                 <li><a href="{{ url_for('log_mgr.index') }}"> <i class="fa fa-bar-chart"></i><span>Logs</span></a> </li>
-                <li><a href="#" data-toggle="modal" data-target="#install_logging_modal"> <i class="fa fa-wrench"></i><span>Setup Logging</span></a> </li>
+                <li><a href="{{ url_for('log_mgr.setup_remote') }}"><i class="fa fa-wrench"></i><span>Setup Logging</span></a></li>
               </ul>
             </li>
 
@@ -180,33 +180,6 @@
         </div><!-- /.modal-dialog -->
     </div><!-- /.modal -->
 
-    <!-- Alert Modal before installing logging components -->
-    <div id="install_logging_modal" class="modal fade" tabindex="-1" role="dialog">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal"
-                            aria-label="Close"><span
-                            aria-hidden="true">&times;</span></button>
-                    <h4 class="modal-title">Install Logging Components</h4>
-                </div>
-                <div class="modal-body">
-                    <p>This will install components of logging on your servers .
-                        Are you sure you want to install?</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-default"
-                            data-dismiss="modal">Close
-                    </button>
-                    <a id="setup_url" class="btn btn-danger" href="#">Confirm</a>
-                </div>
-            </div><!-- /.modal-content -->
-        </div><!-- /.modal-dialog -->
-    </div><!-- /.modal -->
-
-
-
-
     {% block modals %} {% endblock modals %}
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
@@ -220,10 +193,6 @@
 <script>
     $('#install_monitoring_modal').on('show.bs.modal', function (event) {
         $('#setup_url').attr('href', '{{ url_for("monitoring.setup") }}');
-    });
-
-    $('#install_logging_modal').on('show.bs.modal', function (event) {
-        $('#setup_url').attr('href', '{{ url_for("log_mgr.setup") }}');
     });
 </script>
 
