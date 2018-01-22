@@ -3,6 +3,8 @@ import os
 import re
 
 from flask import Flask
+from flask import url_for
+from flask import request
 
 from clustermgr.extensions import db, csrf, migrate, wlogger, mailer
 
@@ -92,5 +94,34 @@ def create_app():
                     return os.path.join('/static', directory, f)
             return os.path.join('/static', filepath)
         return dict(hashed_url=hashed_url)
+
+    def url_for_next_page(page):
+        args = {k: v for k, v in request.values.iteritems()}
+
+        try:
+            page = int(page)
+        except ValueError:
+            page = 1
+
+        args['page'] = int(page) + 1
+        return url_for(request.endpoint, **args)
+
+    def url_for_prev_page(page):
+        args = {k: v for k, v in request.values.iteritems()}
+
+        try:
+            page = int(page)
+        except ValueError:
+            page = 1
+
+        if page < 1:
+            page = 1
+        elif page == 1:
+            page = 2
+        args['page'] = page - 1
+        return url_for(request.endpoint, **args)
+
+    app.jinja_env.globals['url_for_next_page'] = url_for_next_page
+    app.jinja_env.globals['url_for_prev_page'] = url_for_prev_page
 
     return app

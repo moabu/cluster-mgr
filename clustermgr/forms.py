@@ -3,7 +3,8 @@ try:
 except ImportError:
     from flask_wtf import Form as FlaskForm
 from wtforms import StringField, SelectField, BooleanField, IntegerField, \
-    PasswordField, RadioField, SubmitField, validators, TextAreaField
+    PasswordField, RadioField, SubmitField, validators, TextAreaField, \
+    HiddenField
 from wtforms.validators import DataRequired, AnyOf, \
     ValidationError, URL, IPAddress, Email, Length
 from flask_wtf.file import FileField, FileRequired, FileAllowed
@@ -222,3 +223,4 @@ class LogSearchForm(FlaskForm):
     message = StringField("Message")
     host = SelectField("Host", choices=[])
     search = SubmitField("Search")
+    page = HiddenField("Page")

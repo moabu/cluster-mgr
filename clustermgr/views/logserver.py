@@ -26,25 +26,38 @@ log_mgr = Blueprint('log_mgr', __name__)
 log_mgr.before_request(license_reminder)
 
 
-def search_by_filters(type_="", message="", host="", limit=25, offset=0):
+def search_by_filters(type_="", message="", host="", page=1, per_page=10):
     influx = InfluxDBClient(database="gluu_logs")
     influx.create_database("gluu_logs")
+
+    try:
+        page = int(page)
+    except ValueError:
+        page = 1
+
+    if page < 1:
+        page = 1
+
+    offset = (page - 1) * per_page
 
     # queryset
     qs = ["SELECT * FROM logs"]
 
     tags = {}
+
+    where_clause = []
     if type_:
-        tags["type"] = type_.lower()
+        where_clause.append("type = '{}'".format(type_))
     if host:
         # IP is chosen because filebeat strips dotted hostname
-        tags["ip"] = host
+        where_clause.append("ip = '{}'".format(host))
     if message:
-        qs.append("WHERE message =~ /{}/".format(message))
+        where_clause.append("message =~ /{}/".format(message))
+    if where_clause:
+        qs.append("WHERE {}".format(" AND ".join(where_clause)))
 
     qs.append("ORDER BY time DESC")
-    # @TODO: pagination
-    qs.append("LIMIT {}".format(limit))
+    qs.append("LIMIT {}".format(per_page))
     qs.append("OFFSET {}".format(offset))
 
     rs = influx.query(" ".join(qs))
@@ -55,6 +68,7 @@ def search_by_filters(type_="", message="", host="", limit=25, offset=0):
 def index():
     err = ""
     logs = []
+    page = request.values.get("page", 1)
 
     # populate host drop-down
     servers = [("", "")]
@@ -66,17 +80,20 @@ def index():
     form.message.data = request.values.get("message")
     form.type.data = request.values.get("type")
     form.host.data = request.values.get("host")
+    form.page.data = request.values.get("page", 1)
 
     try:
         logs = search_by_filters(
             type_=form.type.data,
             message=form.message.data,
             host=form.host.data,
+            page=page,
         )
     except (InfluxDBClientError, ConnectionError) as exc:
         err = "Unable to connect to InfluxDB"
         current_app.logger.info("{}; reason={}".format(err, exc))
-    return render_template("log_index.html", form=form, logs=logs, err=err)
+    return render_template("log_index.html", form=form, logs=logs,
+                           err=err, page=page)
 
 
 @log_mgr.route("/setup_remote/")

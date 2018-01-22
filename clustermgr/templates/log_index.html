@@ -41,6 +41,14 @@
             </div>
         </div>
 
+        <div class="box-body">
+            <div class="form-group">
+                <div class="col-md-9">
+                    {{ form.page(class="form-control") }}
+                </div>
+            </div>
+        </div>
+
         <div class="box-footer">
             {{ form.search(class="btn btn-primary pull-right") }}
         </div>
@@ -84,8 +92,8 @@
 
     <div class="box-footer clearfix">
         <ul class="pagination pagination-sm no-margin pull-right">
-            <li><a href="#">Prev</a></li>
-            <li><a href="#">Next</a></li>
+            <li><a href="{{ url_for_prev_page(page) }}">Newer</a></li>
+            <li><a href="{{ url_for_next_page(page) }}">Older</a></li>
         </ul>
     </div>
 </div>
