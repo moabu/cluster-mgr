@@ -1,5 +1,29 @@
 {% extends "base.html" %}
 
+{% macro read_more(txt, index, size=255) -%}
+    {% set button = ' <button type="button" class="btn btn-xs btn-default" data-toggle="modal" data-target="#read_more_' + index|string + '">read more</button>' %}
+    <p>{{ txt | truncate(size, True, button) | safe }}</p>
+    <div class="modal fade" id="read_more_{{ index }}" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Log Details</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body"><pre id="read_more_txt_{{ index }}" style="white-space: pre-wrap;word-break:normal;">{{ txt|replace("\\n", "<br>")|safe }}</pre></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary copy-btn" data-clipboard-action="copy" data-clipboard-target="#read_more_txt_{{ index }}">
+                        <span class="fa fa-clipboard"> Copy text to clipboard</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+{%- endmacro %}
+
 {% block header %}
     <h1>Logging</h1>
     <ol class="breadcrumb">
@@ -12,45 +36,41 @@
 <div class="box">
     <form action="{{ url_for("log_mgr.index") }}" method="GET" class="form-horizontal">
         <div class="box-header with-border">
-            <h3 class="panel-title">Search filters</h3>
-        </div>
-        <div class="box-body">
-            <div class="form-group">
-                {{ form.type.label(class="control-label col-md-3") }}
-                <div class="col-md-9">
-                    {{ form.type(class="form-control") }}
-                </div>
-            </div>
+            <h3 class="panel-title pull-left">Search filters</h3>
+            <a class="btn btn-default pull-right" data-toggle="collapse" href="#search_filters_form" role="button" aria-expanded="false" aria-controls="collapseExample">Show/hide form</a>
         </div>
 
-        <div class="box-body">
-            <div class="form-group">
-                {{ form.host.label(class="control-label col-md-3") }}
-                <div class="col-md-9">
-                    {{ form.host(class="form-control") }}
+        <div class="collapse" id="search_filters_form">
+            <div class="box-body">
+                <div class="form-group">
+                    {{ form.type.label(class="control-label col-md-3") }}
+                    <div class="col-md-9">
+                        {{ form.type(class="form-control") }}
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="box-body">
-            <div class="form-group">
-                {{ form.message.label(class="control-label col-md-3") }}
-                <div class="col-md-9">
-                    {{ form.message(class="form-control") }}
+            <div class="box-body">
+                <div class="form-group">
+                    {{ form.host.label(class="control-label col-md-3") }}
+                    <div class="col-md-9">
+                        {{ form.host(class="form-control") }}
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="box-body">
-            <div class="form-group">
-                <div class="col-md-9">
-                    {{ form.page(class="form-control") }}
+            <div class="box-body">
+                <div class="form-group">
+                    {{ form.message.label(class="control-label col-md-3") }}
+                    <div class="col-md-9">
+                        {{ form.message(class="form-control") }}
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="box-footer">
-            {{ form.search(class="btn btn-primary pull-right") }}
+            <div class="box-footer">
+                {{ form.search(class="btn btn-primary pull-right") }}
+            </div>
         </div>
     </form>
 </div>
@@ -59,6 +79,7 @@
 <div class="box">
     <div class="box-header with-border">
         <h3 class="box-title">Search result</h3>
+        <a class="btn btn-default pull-right" href="{{ url_for('log_mgr.collect') }}">Collect logs</a>
     </div>
 
     <!-- /.box-header -->
@@ -76,7 +97,7 @@
                     {% for log in logs %}
                     <tr>
                         <td>{{ log["time"] }}</td>
-                        <td>{{ log["message"]|truncate(500, True) }}</td>
+                        <td>{{ read_more(log["message"], loop.index) }}</td>
                         <td>{{ log["hostname"] }}/{{ log["ip"] }}</td>
                         <td style="width: 10px">{{ log["type"] }}</td>
                     </tr>
@@ -97,4 +118,11 @@
         </ul>
     </div>
 </div>
+{% endblock %}
+
+{% block js %}
+    <script src="{{ url_for('static', filename='js/clipboard.min.js') }}"></script>
+    <script>
+        new Clipboard('.copy-btn');
+    </script>
 {% endblock %}

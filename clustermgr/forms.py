@@ -223,4 +223,3 @@ class LogSearchForm(FlaskForm):
     message = StringField("Message")
     host = SelectField("Host", choices=[])
     search = SubmitField("Search")
-    page = HiddenField("Page")

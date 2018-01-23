@@ -80,7 +80,6 @@ def index():
     form.message.data = request.values.get("message")
     form.type.data = request.values.get("type")
     form.host.data = request.values.get("host")
-    form.page.data = request.values.get("page", 1)
 
     try:
         logs = search_by_filters(
@@ -145,4 +144,7 @@ def setup_local():
 def collect():
     for server in Server.query:
         collect_logs.delay(server.hostname, server.ip, "/tmp/gluu-filebeat")
+    flash("Collecting logs from available remote servers may take awhile. "
+          "Refresh the page after few seconds.",
+          "info")
     return redirect(url_for(".index"))
