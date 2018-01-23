@@ -170,22 +170,11 @@ def install_local(self):
 
 @celery.task(bind=True)
 def install_monitoring(self):
-    return True
-    """Celery task that installs the redis, stunnel and twemproxy applications
-    in the required servers.
 
-    Redis and stunnel are installed in all the servers in the cluster.
-    Twemproxy is installed in the load-balancer/proxy server
-
-    :param self: the celery task
-    :param method: either STANDALONE, SHARDED
-
-    :return: the number of servers where both stunnel and redis were installed
-        successfully
-    """
     tid = self.request.id
     installed = 0
     servers = Server.query.all()
+    app_config = AppConfiguration.query.first()
     print "installing monitoring task started"
 
     for server in servers:
@@ -204,14 +193,14 @@ def install_monitoring(self):
                                 "error", server_id=server.id)
             return False
         
-        result = c.run('mkdir -p /var/monitoring/scrpits')
+        result = c.run('mkdir -p /var/monitoring/scripts')
 
         ctext = "\n".join(result)
         if ctext.strip():
             wlogger.log(tid, ctext,
                          "debug", server_id=server.id)
 
-        wlogger.log(tid, "Directory /var/monitoring/scrpits directory "
+        wlogger.log(tid, "Directory /var/monitoring/scripts directory "
                         "was created", "success", server_id=server.id)
         
         # 2. Upload scripts
@@ -226,7 +215,7 @@ def install_monitoring(self):
         
             local_file = os.path.join(app.root_path, 'monitoring_scripts', scr)
                                         
-            remote_file = '/var/monitoring/scrpits/'+scr
+            remote_file = '/var/monitoring/scripts/'+scr
 
             result = c.upload(local_file, remote_file)
             
@@ -239,11 +228,15 @@ def install_monitoring(self):
                                 "error", server_id=server.id)
                 return False
         
+        #Upload gluu version
+        
+        result = c.put_file('/var/monitoring/scripts/gluu_version.txt', app_config.gluu_version)
+        
         
         # 3. Upload crontab entry to collect data in every 5 minutes
         crontab_entry = (
                         '*/5 * * * *    root    python '
-                        '/var/monitoring/scrpits/cron_data_sqtile.py\n'
+                        '/var/monitoring/scripts/cron_data_sqtile.py\n'
                         )
                         
         result = c.put_file('/etc/cron.d/monitoring', crontab_entry)
@@ -276,7 +269,7 @@ def install_monitoring(self):
                         'pip install ldap3', 
                         'pip install psutil',
                         'pip install pyDes',
-                        'python /var/monitoring/scrpits/'
+                        'python /var/monitoring/scripts/'
                         'sqlite_monitoring_tables.py'
                         
                         ]

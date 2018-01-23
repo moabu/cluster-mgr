@@ -381,4 +381,16 @@ def ldap_all(item):
     
 @monitoring.route('/ldap/<item>/')
 def ldap_single(item):
-    return "Not Implemented"
+    data = getData(item)
+
+    return render_template( 'monitoring_ldap_single.html', 
+                            left_menu = left_menu,
+                            items=items,
+                            width=1200,
+                            height=500,
+                            title= item.replace('_', ' ').title(),
+                            period = get_period_text(),
+                            data=data,
+                            item=item,
+                            periods=periods,
+                            )

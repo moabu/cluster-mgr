@@ -48,13 +48,12 @@ def get_remote_data(host, measurement, c):
     print "last update time", start, "for measuremenet", measurement, "for host", host
     
                                             
-    cmd = 'python /var/monitoring/scrpits/get_data.py stats {} {}'.format(
+    cmd = 'python /var/monitoring/scripts/get_data.py stats {} {}'.format(
                                 measurement,
                                 start
                                 )
     s_in, s_out, s_err = c.run(cmd)
-    
-    data = json.loads(s_out.strip())
+
     try:
         data = json.loads(s_out)
     except:

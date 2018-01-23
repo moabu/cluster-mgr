@@ -18,7 +18,7 @@ attr_list = ["addRequests", "modifyRequests", "deleteRequests", "searchRequests"
 sql_db_file = os.path.join(data_path, 'gluu_monitoring.sqlite3')
 
 def get_ldap_admin_password():
-    gluu_version = open("gluu_version.txt").read().strip()
+    gluu_version = open(os.path.join(data_path, 'scripts', 'gluu_version.txt')).read().strip()
     salt_file = open('/opt/gluu-server-{0}/etc/gluu/conf/salt'.format(gluu_version)).read()
     salt = salt_file.split('=')[1].strip()
     ox_ldap_properties_file = '/opt/gluu-server-{0}/etc/gluu/conf/ox-ldap.properties'.format(gluu_version)
@@ -59,13 +59,13 @@ def collect_ldap_monitoring():
     else:
 
         conn.search(
-        	    search_base="cn=LDAPS Connection Handler 0.0.0.0 port 1636 Statistics,cn=monitor",
-            	    search_filter='(objectClass=*)',
-            	    search_scope=BASE,
-            	    attributes=attr_list,
+                search_base="cn=LDAPS Connection Handler 0.0.0.0 port 1636 Statistics,cn=monitor",
+                search_filter='(objectClass=*)',
+                search_scope=BASE,
+                attributes=attr_list,
                 )
-	resp = conn.response
-	if resp:
+        resp = conn.response
+        if resp:
             execute_query('ldap_mon', [resp[0]['raw_attributes'][a][0] for a in attr_list])
 
 
