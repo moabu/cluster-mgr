@@ -215,10 +215,11 @@ class FSReplicationPathsForm(FlaskForm):
 class LogSearchForm(FlaskForm):
     type = SelectField("Type", choices=[
         ("", ""),  # all types
+        ("opendj", "OpenDJ"),
         ("oxauth", "oxAuth"),
         ("oxtrust", "oxTrust"),
         ("httpd", "HTTPD"),
-        ("redis", "redis"),
+        ("redis", "Redis"),
     ])
     message = StringField("Message")
     host = SelectField("Host", choices=[])

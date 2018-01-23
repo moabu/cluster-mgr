@@ -52,6 +52,19 @@ filebeat.prospectors:
     os: {{ os }}
     type: oxtrust
 
+- input_type: log
+  paths:
+    - {{ chroot_path }}/opt/opendj/logs/access
+    - {{ chroot_path }}/opt/opendj/logs/errors
+  include_lines: ['^\[']
+  fields:
+    gluu:
+      version: {{ gluu_version }}
+      chroot: {{ chroot }}
+    ip: {{ ip }}
+    os: {{ os }}
+    type: opendj
+
 output.file:
   path: "/tmp"
   filename: gluu-filebeat
