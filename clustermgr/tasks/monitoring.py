@@ -275,6 +275,7 @@ def install_monitoring(self):
         package_cmd += [
                         'pip install ldap3', 
                         'pip install psutil',
+                        'pip install pyDes',
                         'python /var/monitoring/scrpits/'
                         'sqlite_monitoring_tables.py'
                         
