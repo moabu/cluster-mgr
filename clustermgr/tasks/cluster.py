@@ -550,7 +550,7 @@ def setup_ldap_replication(self, server_id):
 
         # remove slapd.d directory if it previously exist
         run_command(tid, c, "rm -rf /opt/symas/etc/openldap/slapd.d", chroot)
-        # make slapd.d direcotory
+        # make slapd.d directory
         run_command(tid, c, "mkdir -p /opt/symas/etc/openldap/slapd.d", chroot)
         # convert convert slapd.conf to slapd.d
         run_command(tid, c, "/opt/symas/bin/slaptest -f /opt/symas/etc/openldap/"
@@ -694,7 +694,7 @@ def setup_ldap_replication(self, server_id):
                 adminOlc.connect()
             except Exception as e:
                 wlogger.log(
-                    tid, "Connection to LDAPserver as direcory manager at port 1636"
+                    tid, "Connection to LDAPserver as directory manager at port 1636"
                     " has failed: {0}".format(e), "error")
                 wlogger.log(tid, "Ending server setup process.", "error")
                 return
@@ -1673,7 +1673,7 @@ def opendjenablereplication(self, server_id):
         adminOlc.connect()
     except Exception as e:
         wlogger.log(
-            tid, "Connection to LDAPserver as direcory manager at port 1636"
+            tid, "Connection to LDAPserver as directory manager at port 1636"
             " has failed: {0}".format(e), "error")
         wlogger.log(tid, "Ending server setup process.", "error")
         return
