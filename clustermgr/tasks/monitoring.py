@@ -98,6 +98,23 @@ def install_local(self):
             'sudo pip install psutil',
             ]
 
+    elif localos == 'CentOS 7':
+        influx_cmd = [
+                        'cat <<EOF | sudo tee /etc/yum.repos.d/influxdb.repo\n'
+                        '[influxdb]\n'
+                        'name = InfluxDB Repository - RHEL \$releasever\n'
+                        'baseurl = https://repos.influxdata.com/rhel/\$releasever/\$basearch/stable\n'
+                        'enabled = 1\n'
+                        'gpgcheck = 1\n'
+                        'gpgkey = https://repos.influxdata.com/influxdb.key\n'
+                        'EOF',
+                        'sudo yum install -y influxdb',
+                        'sudo service influxdb start',
+                        'sudo pip install psutil',
+                    ]
+
+        
+
     for cmd in influx_cmd:
     
         result = fc.run(cmd)
@@ -160,8 +177,10 @@ def install_local(self):
                         "'gluu_monitoring': {}".format(e),
                             "fail", server_id=0)
 
-
-    cmd = 'sudo service cron restart'
+    if localos == 'Centos 7':
+        cmd = 'sudo service crond restart'
+    else:
+        cmd = 'sudo service cron restart'
 
     run_and_log(fc, cmd, tid, 0)
 
@@ -170,7 +189,6 @@ def install_local(self):
 
 @celery.task(bind=True)
 def install_monitoring(self):
-
     tid = self.request.id
     installed = 0
     servers = Server.query.all()
