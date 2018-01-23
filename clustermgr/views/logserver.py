@@ -1,7 +1,7 @@
 """A Flask blueprint with the views and the business logic dealing with
 the logging server managed in the cluster-manager
 """
-
+from celery import group
 from flask import Blueprint
 from flask import render_template
 from flask import request
@@ -142,8 +142,12 @@ def setup_local():
 
 @log_mgr.route("/collect/")
 def collect():
-    for server in Server.query:
-        collect_logs.delay(server.hostname, server.ip, "/tmp/gluu-filebeat")
+    task = group([
+        collect_logs.s(server.hostname, server.ip, "/tmp/gluu-filebeat")
+        for server in Server.query
+    ])
+    task.apply_async()
+
     flash("Collecting logs from available remote servers may take awhile. "
           "Refresh the page after few seconds.",
           "info")
