@@ -2,21 +2,45 @@
 
 {% macro read_more(txt, index, size=255) -%}
     {% set button = ' <button type="button" class="btn btn-xs btn-default" data-toggle="modal" data-target="#read_more_' + index|string + '">read more</button>' %}
-    <p>{{ txt | truncate(size, True, button) | safe }}</p>
+    <div>{{ txt | replace("\\n", "") | truncate(200, False) }} {{ button | safe }}</div>
+{%- endmacro %}
+
+{% macro log_detail(log, index) -%}
     <div class="modal fade" id="read_more_{{ index }}" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Log Details</h5>
+                    <!-- <h5 class="modal-title">Log Details</h5> -->
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-                <div class="modal-body"><pre id="read_more_txt_{{ index }}" style="white-space: pre-wrap;word-break:normal;">{{ txt|replace("\\n", "<br>")|safe }}</pre></div>
+                <div class="modal-body">
+                    <dl class="">
+                        <dt>Time</dt>
+                        <dd>{{ log.time }}</dd>
+                        <dt>Type</dt>
+                        <dd>{{ log.type }}</dd>
+                        <dt>Source</dt>
+                        <dd>{{ log.source }}</dd>
+                        <dt>Host/IP</dt>
+                        <dd>{{ log.hostname }}/{{ log.ip }}</dd>
+                        <dt>Chroot</dt>
+                        <dd>{{ log.gluu["chroot"] or "false" }}</dd>
+                        <dt>Gluu version</dt>
+                        <dd>{{ log.gluu["version"] or "N/A" }}</dd>
+                        <dt>OS</dt>
+                        <dd>{{ log.os }}</dd>
+                        <dt>Message</dt>
+                        <dd>
+                            <pre id="read_more_txt_{{ index }}">{{ log.message|replace("\\n", "<br>")|safe }}</pre>
+                        </dd>
+                    </dl>
+                </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                     <button type="button" class="btn btn-primary copy-btn" data-clipboard-action="copy" data-clipboard-target="#read_more_txt_{{ index }}">
-                        <span class="fa fa-clipboard"> Copy text to clipboard</span>
+                        <span class="fa fa-clipboard"> Copy message to clipboard</span>
                     </button>
                 </div>
             </div>
@@ -86,20 +110,22 @@
     <div class="box-body">
         {% if logs %}
         <div class="table-responsive">
-            <table class="table table-bordered">
+            <table class="table table-bordered table-hover">
                 <tbody>
                     <tr>
-                        <th>Time</th>
                         <th>Message</th>
+                        <th>Time</th>
                         <th>Host/IP</th>
-                        <th style="width: 10px">Type</th>
                     </tr>
                     {% for log in logs %}
                     <tr>
-                        <td>{{ log["time"] }}</td>
-                        <td>{{ read_more(log["message"], loop.index) }}</td>
-                        <td>{{ log["hostname"] }}/{{ log["ip"] }}</td>
-                        <td style="width: 10px">{{ log["type"] }}</td>
+                        <td>
+                            {{ read_more(log.message, loop.index) }}
+                            {{ log_detail(log, loop.index) }}
+                            <small class="label bg-green">{{ log.type }}</small>
+                        </td>
+                        <td>{{ log.time }}</td>
+                        <td>{{ log.hostname }}/{{ log.ip }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
