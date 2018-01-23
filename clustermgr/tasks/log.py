@@ -50,15 +50,19 @@ def parse_log(log, influx_fmt=True):
 
 @celery.task
 def collect_logs(host, ip, path, influx_fmt=True):
-    rc = RemoteClient(host, ip)
-    rc.startup()
-    _, stdout, stderr = rc.run("cat {}".format(path))
-
     logs = []
-    if not stderr:
-        logs = filter(None, [parse_log(log) for log in stdout.splitlines()])
+    rc = RemoteClient(host, ip)
 
-    rc.close()
+    try:
+        rc.startup()
+        _, stdout, stderr = rc.run("cat {}".format(path))
+        if not stderr:
+            logs = filter(None, [parse_log(log) for log in stdout.splitlines()])
+    except Exception as exc:
+        task_logger.warn("Unable to collect logs from remote server;"
+                         " reason={}".format(exc))
+    finally:
+        rc.close()
 
     influx = InfluxDBClient(database="gluu_logs")
     influx.create_database("gluu_logs")
