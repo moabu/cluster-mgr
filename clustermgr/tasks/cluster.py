@@ -1706,14 +1706,15 @@ def opendjenablereplication(self, server_id):
 
 
             cmd = ('/opt/opendj/bin/dsreplication enable --host1 {} --port1 4444 '
-                    '--bindDN1 \'cn=directory manager\' --bindPassword1 secret '
+                    '--bindDN1 \'cn=directory manager\' --bindPassword1 {} '
                     '--replicationPort1 8989 --host2 {} --port2 4444 --bindDN2 '
                     '\'cn=directory manager\' --bindPassword2 {} '
                     '--replicationPort2 8989 --adminUID admin --adminPassword {} '
                     '--baseDN \'o=gluu\' --trustAll -X -n').format(
                         primary_server.hostname,
+                        primary_server.ldap_password,
                         server.hostname,
-                        app_config.replication_pw,
+                        server.ldap_password,
                         app_config.replication_pw,
                         )
 
