@@ -163,10 +163,7 @@ def remove(server_id):
     server = Server.query.filter_by(id=server_id).first()
     provider_addr = server.ip if appconfig.use_ip else server.hostname
 
-
     setup_prop = get_setup_properties()
-
-    db.session.commit()
 
     if server.mmr:
         if setup_prop['ldap_type'] == 'openldap':
@@ -182,7 +179,10 @@ def remove(server_id):
                                     server_id=server_id, removeserver=True,
                                     next='dashboard',
                                     ))
-
+    else:
+        db.session.delete(server)
+    
+    db.session.commit()
     # TODO LATER perform checks on ther flags and add their cleanup tasks
 
     flash("Server {0} is removed.".format(server.hostname), "success")
