@@ -5,7 +5,14 @@ import psutil
 import time
 
 disks = psutil.disk_partitions()
+disk_parts = []
+for d in disks:
+    p = d.device.replace('/','_')
+    if not p in disk_parts:
+        disk_parts.append(p)
+
 net = psutil.net_io_counters(pernic=True)
+
 
 net_fields = []
 
@@ -25,7 +32,7 @@ monitoring_tables = {
 
     'load_average':['load_avg'],
 
-    'disk_usage': [d.device.replace('/','_') for d in disks],
+    'disk_usage': disk_parts,
 
     'mem_usage': ['mem_usage'],
 
