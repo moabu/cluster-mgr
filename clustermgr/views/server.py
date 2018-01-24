@@ -166,11 +166,11 @@ def remove(server_id):
 
     setup_prop = get_setup_properties()
 
-    db.session.delete(server)
     db.session.commit()
 
     if server.mmr:
         if setup_prop['ldap_type'] == 'openldap':
+            db.session.delete(server)
 
             # remove its corresponding syncrepl configs from other servers
             consumers = Server.query.filter(Server.id.isnot(server_id)).all()
@@ -179,7 +179,7 @@ def remove(server_id):
         else:
         
             return redirect(url_for('cluster.opendj_disable_replication',
-                                    server_id=server_id, 
+                                    server_id=server_id, removeserver=True,
                                     next='dashboard',
                                     ))
 
