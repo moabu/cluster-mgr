@@ -550,7 +550,7 @@ def setup_ldap_replication(self, server_id):
 
         # remove slapd.d directory if it previously exist
         run_command(tid, c, "rm -rf /opt/symas/etc/openldap/slapd.d", chroot)
-        # make slapd.d direcotory
+        # make slapd.d directory
         run_command(tid, c, "mkdir -p /opt/symas/etc/openldap/slapd.d", chroot)
         # convert convert slapd.conf to slapd.d
         run_command(tid, c, "/opt/symas/bin/slaptest -f /opt/symas/etc/openldap/"
@@ -694,7 +694,7 @@ def setup_ldap_replication(self, server_id):
                 adminOlc.connect()
             except Exception as e:
                 wlogger.log(
-                    tid, "Connection to LDAPserver as direcory manager at port 1636"
+                    tid, "Connection to LDAPserver as directory manager at port 1636"
                     " has failed: {0}".format(e), "error")
                 wlogger.log(tid, "Ending server setup process.", "error")
                 return
@@ -1539,10 +1539,9 @@ def removeMultiMasterDeployement(self, server_id):
 
 
 @celery.task(bind=True)
-def opendjdisablereplication(self, server_id):
+def opendjdisablereplication(self, hostname, server_os):
 
     app_config = AppConfiguration.query.first()
-    server = Server.query.get(server_id)
     primary_server = Server.query.filter_by(primary_server=True).first()
     tid = self.request.id
 
@@ -1553,14 +1552,13 @@ def opendjdisablereplication(self, server_id):
     cmd_run = '{}'
 
 
-    if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):
+    if (server_os == 'CentOS 7') or (server_os == 'RHEL 7'):
         chroot = None
         cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
                 '-o Port=60022 -o LogLevel=QUIET '
                 '-o StrictHostKeyChecking=no '
                 '-o UserKnownHostsFile=/dev/null '
                 '-o PubkeyAuthentication=yes root@localhost "{}"')
-
 
     try:
         c.startup()
@@ -1570,11 +1568,10 @@ def opendjdisablereplication(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
         return False
 
-
     cmd = ('/opt/opendj/bin/dsreplication disable --disableAll --port 4444 '
             '--hostname {} --adminUID admin --adminPassword {} '
             '--trustAll --no-prompt').format(
-                            server.hostname,
+                            hostname,
                             app_config.replication_pw)
 
     cmd = cmd_run.format(cmd)
@@ -1673,7 +1670,7 @@ def opendjenablereplication(self, server_id):
         adminOlc.connect()
     except Exception as e:
         wlogger.log(
-            tid, "Connection to LDAPserver as direcory manager at port 1636"
+            tid, "Connection to LDAPserver as directory manager at port 1636"
             " has failed: {0}".format(e), "error")
         wlogger.log(tid, "Ending server setup process.", "error")
         return
@@ -1706,14 +1703,15 @@ def opendjenablereplication(self, server_id):
 
 
             cmd = ('/opt/opendj/bin/dsreplication enable --host1 {} --port1 4444 '
-                    '--bindDN1 \'cn=directory manager\' --bindPassword1 secret '
+                    '--bindDN1 \'cn=directory manager\' --bindPassword1 {} '
                     '--replicationPort1 8989 --host2 {} --port2 4444 --bindDN2 '
                     '\'cn=directory manager\' --bindPassword2 {} '
                     '--replicationPort2 8989 --adminUID admin --adminPassword {} '
                     '--baseDN \'o=gluu\' --trustAll -X -n').format(
                         primary_server.hostname,
+                        primary_server.ldap_password,
                         server.hostname,
-                        app_config.replication_pw,
+                        server.ldap_password,
                         app_config.replication_pw,
                         )
 
@@ -1744,7 +1742,7 @@ def opendjenablereplication(self, server_id):
                 cmd = ('/opt/opendj/bin/dsconfig -h {} -p 4444 '
                         ' -D  \'cn=Directory Manager\' -w {} --trustAll '
                         '-n set-crypto-manager-prop --set ssl-encryption:true'
-                        ).format(primary_server.hostname, app_config.replication_pw)
+                        ).format(primary_server.hostname, primary_server.ldap_password)
 
                 cmd = cmd_run.format(cmd)
                 run_command(tid, c, cmd, chroot)
@@ -1756,7 +1754,7 @@ def opendjenablereplication(self, server_id):
             cmd = ('/opt/opendj/bin/dsconfig -h {} -p 4444 '
                     ' -D  \'cn=Directory Manager\' -w {} --trustAll '
                     '-n set-crypto-manager-prop --set ssl-encryption:true'
-                    ).format(server.hostname, app_config.replication_pw)
+                    ).format(server.hostname, primary_server.ldap_password)
 
             cmd = cmd_run.format(cmd)
             run_command(tid, c, cmd, chroot)

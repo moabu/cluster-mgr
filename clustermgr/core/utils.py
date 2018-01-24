@@ -263,6 +263,7 @@ def get_setup_properties():
         #'installCas':False,
         'installOxAuthRP':False,
         'installPassport':False,
+        'ldap_type': 'opendj',
         }
 
     #Check if there exists a previously created setup.properties file.

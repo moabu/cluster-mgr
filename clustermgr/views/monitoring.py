@@ -10,7 +10,6 @@ from flask import current_app as app
 from influxdb import InfluxDBClient
 from clustermgr.core.remote import RemoteClient
 
-
 from clustermgr.core.license import license_reminder
 from clustermgr.extensions import celery
 from clustermgr.core.license import prompt_license
@@ -19,17 +18,14 @@ from clustermgr.models import Server, AppConfiguration
 
 from clustermgr.tasks.monitoring import install_monitoring, install_local
 
-
 from clustermgr.monitoring_defs import left_menu, items, periods
 
-
-
+from clustermgr.core.utils import get_setup_properties, \
+    get_opendj_replication_status
 
 monitoring = Blueprint('monitoring', __name__)
 monitoring.before_request(prompt_license)
 monitoring.before_request(license_reminder)
-
-
 
 def get_legend(f):
     acl = f.find('_')
@@ -249,6 +245,7 @@ def home():
         data['mem'][host['name']]['last']="%0.1f" % l
         data['uptime'][host['name']] = get_uptime(host['name'])
 
+
     return render_template('monitoring_home.html', 
                             left_menu=left_menu,
                             items=items,
@@ -358,8 +355,24 @@ def system(item):
 
 @monitoring.route('/replicationstatus')
 def replication_status():
-    return "Not Implemented"
-
+    
+    prop = get_setup_properties()
+    rep_status = get_opendj_replication_status()
+    
+    stat = ''
+    if not rep_status[0]:
+        flash(rep_status[1], "warning")
+    else:
+        stat = rep_status[1]
+            
+    
+    return render_template('monitoring_replication_status.html',
+                        left_menu=left_menu,
+                        stat=stat,
+                        items=items,
+                        )
+    
+    
 
 @monitoring.route('/allldap/<item>')
 def ldap_all(item):
@@ -368,4 +381,16 @@ def ldap_all(item):
     
 @monitoring.route('/ldap/<item>/')
 def ldap_single(item):
-    return "Not Implemented"
+    data = getData(item)
+
+    return render_template( 'monitoring_ldap_single.html', 
+                            left_menu = left_menu,
+                            items=items,
+                            width=1200,
+                            height=500,
+                            title= item.replace('_', ' ').title(),
+                            period = get_period_text(),
+                            data=data,
+                            item=item,
+                            periods=periods,
+                            )

@@ -2,7 +2,7 @@
 
 {% block header %}
     <h1>{{title}} : {{period}}</h1>
-    
+{% include 'monitoring_dorpdown.html' %}
 
 {% endblock %}
 
@@ -22,20 +22,7 @@
 </form>
 <br>
 
-<table>
-
-{% for i in range(0, opt_list.__len__(),2) %}
-
-    <tr>
-    {% for j in range(2) %}
-        <td><div id="chart_div_{{opt_list[i+j]}}"></div></td>
-    
-    {% endfor %}
-    </tr>
-    
-{% endfor %}
-</table>
-
+<td><div id="chart_div"></div></td>
 
 
 {% endblock %}
@@ -50,43 +37,46 @@
   
     google.charts.load('current', {'packages':['corechart']});
     
-    
-    {% for opt in data  %}
-    
-    
-    google.charts.setOnLoadCallback(drawChart{{opt}});
+    google.charts.setOnLoadCallback(drawChart);
 
-    function drawChart{{opt}}() {
+    function drawChart() {
 
-
-   
-        {% for host in data[opt] %}
-        
+        {% for host in data %}
+        {% set parcounter =  loop.index0 %}
         var data{{loop.index0}} = new google.visualization.DataTable();
         data{{loop.index0}}.addColumn('datetime', 'Time');
-        data{{loop.index0}}.addColumn('number', '{{host}}');
-        data{{loop.index0}}.addRows([
-
+        {% if data[host]['legends'].__len__() > 1 %}
+            {% for legend in data[host]['legends'] %}
+                data{{parcounter}}.addColumn('number', '{{legend}}');
+            {% endfor %}
             
-            {% for d in data[opt][host]['data'] %}
+        {% else %}
+            data{{loop.index0}}.addColumn('number', '{{host}}');
+        {% endif %}
+        data{{loop.index0}}.addRows([
+            {% for d in data[host]['data'] %}
             [{{d[0]}},{% for di in d[1:] %}{{di}},{% endfor %}],
             {% endfor %}
-          ]);
+        ]);
         {% endfor %}
+        
         var options = {
-                title: '{{opt.replace('_',' ').title()}}',
+                title: '{{title}}',
                 width: {{width}},
                 height: {{height}},
-                vAxis: { title: '{{items[opt]["vAxis"]}}', {% if '%' in items[opt]['vAxis'] %} maxValue: 100, {% endif %} },
+                vAxis: { title: '{{items[item]["vAxis"]}}'},
                 hAxis: { title: 'Time' },
                 
             };
 
-
-        var joinedData = google.visualization.data.join(data0, data1, 'full', [[0, 0]], [1], [1]);
+        {% if data.__len__() > 1 %}
+            var joinedData = google.visualization.data.join(data0, data1, 'full', [[0, 0]], [1], [1]);
+        {% else %}
+            var joinedData = data0;
+        {% endif %}
         
-        {% if data[opt].__len__() > 2 %}
-            {% for i in range(2, data[opt].__len__()) %}
+        {% if data.__len__() > 2 %}
+            {% for i in range(2, data.__len__()) %}
                 var joinedData = google.visualization.data.join(joinedData,
                                                                 data{{i}},
                                                                 'full', 
@@ -95,16 +85,13 @@
                                                                 [1]);
             {% endfor %}
         {% endif %}
-        var chart = new google.visualization.LineChart(document.getElementById('chart_div_{{opt}}'));
+        var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
         chart.draw(joinedData, options);
 
     }
 
-  
-    {% endfor %}
-  
-</script>
 
+</script>
 
 
 <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">

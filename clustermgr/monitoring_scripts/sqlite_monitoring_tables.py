@@ -21,14 +21,7 @@ monitoring_tables = {
 
     'cpu_percent': ['cpu_percent'],
 
-#    'ldap_mon': ['completed_operations', 'read_waiters',
-#                 'compare_operations', 'referrals_sent',
-#                 'search_operations', 'total_connections',
-#                 'unbind_operations', 'add_operations',
-#                 'entries_sent', 'delete_operations',
-#                 'bytes_sent', 'bind_operations',
-#                 'modify_operations', 'write_waiters',
-#                 'initiated_operations'],
+    'ldap_mon': ['addRequests', 'modifyRequests', 'deleteRequests', 'searchRequests'],
 
     'load_average':['load_avg'],
 
