@@ -27,6 +27,12 @@ monitoring = Blueprint('monitoring', __name__)
 monitoring.before_request(prompt_license)
 monitoring.before_request(license_reminder)
 
+client = InfluxDBClient(
+            host='localhost', 
+            port=8086, 
+            database='gluu_monitoring'
+        )
+
 def get_legend(f):
     acl = f.find('_')
     if acl:
@@ -55,11 +61,7 @@ def get_period_text():
 
 def get_mean_last(measurement, host):
 
-    client = InfluxDBClient(
-            host='localhost', 
-            port=8086, 
-            database='gluu_monitoring'
-            )
+
                             
     querym = 'SELECT mean(*) FROM {}'.format(host.replace('.','_') +'_'+ measurement)
     resultm = client.query(querym, epoch='s')
@@ -146,7 +148,7 @@ def getData(item, step=None):
                     step,
                     )
                 )
-        print query
+
         result = client.query(query, epoch='s')
 
         data_dict = {}
@@ -214,7 +216,18 @@ def get_uptime(host):
         flash("Uptime information could not be fethced from {}".format(host))
 
 
-    
+def check_data(hostname):
+    result = client.query("SHOW MEASUREMENTS")
+
+    if not 'series' in result.raw:
+        return False
+
+    m = hostname.replace('.','_')+'_cpu_percent'
+
+    if not [m] in  result.raw['series'][0]['values']:
+        return False
+
+
 
 @monitoring.route('/')
 def home():
@@ -229,6 +242,9 @@ def home():
     if not app_config.monitoring:
         return render_template('monitoring_intro.html')
 
+
+    if not check_data(servers[-1].hostname):
+        return render_template('monitoring_nodata.html')
 
     hosts = []
     
