@@ -72,10 +72,10 @@ def deploy_config(server_id):
 @license_manager.license_required
 def opendj_disable_replication(server_id):
     """Initiates removal of replications"""
-
+    
     #Start non-gluu ldap server installation celery task
-    task = opendjdisablereplication.delay(server_id)
     server = Server.query.get(server_id)
+    task = opendjdisablereplication.delay(server.hostname, server.os)
     head = "Disabling Replication Server on {}".format(server.hostname) 
     
     if request.args.get('next') == 'dashboard':

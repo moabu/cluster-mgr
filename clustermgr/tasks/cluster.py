@@ -1539,10 +1539,9 @@ def removeMultiMasterDeployement(self, server_id):
 
 
 @celery.task(bind=True)
-def opendjdisablereplication(self, server_id):
+def opendjdisablereplication(self, hostname, server_os):
 
     app_config = AppConfiguration.query.first()
-    server = Server.query.get(server_id)
     primary_server = Server.query.filter_by(primary_server=True).first()
     tid = self.request.id
 
@@ -1553,14 +1552,13 @@ def opendjdisablereplication(self, server_id):
     cmd_run = '{}'
 
 
-    if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):
+    if (server_os == 'CentOS 7') or (server_os == 'RHEL 7'):
         chroot = None
         cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
                 '-o Port=60022 -o LogLevel=QUIET '
                 '-o StrictHostKeyChecking=no '
                 '-o UserKnownHostsFile=/dev/null '
                 '-o PubkeyAuthentication=yes root@localhost "{}"')
-
 
     try:
         c.startup()
@@ -1570,11 +1568,10 @@ def opendjdisablereplication(self, server_id):
         wlogger.log(tid, "Ending server setup process.", "error")
         return False
 
-
     cmd = ('/opt/opendj/bin/dsreplication disable --disableAll --port 4444 '
             '--hostname {} --adminUID admin --adminPassword {} '
             '--trustAll --no-prompt').format(
-                            server.hostname,
+                            hostname,
                             app_config.replication_pw)
 
     cmd = cmd_run.format(cmd)
@@ -1745,7 +1742,7 @@ def opendjenablereplication(self, server_id):
                 cmd = ('/opt/opendj/bin/dsconfig -h {} -p 4444 '
                         ' -D  \'cn=Directory Manager\' -w {} --trustAll '
                         '-n set-crypto-manager-prop --set ssl-encryption:true'
-                        ).format(primary_server.hostname, app_config.replication_pw)
+                        ).format(primary_server.hostname, primary_server.ldap_password)
 
                 cmd = cmd_run.format(cmd)
                 run_command(tid, c, cmd, chroot)
@@ -1757,7 +1754,7 @@ def opendjenablereplication(self, server_id):
             cmd = ('/opt/opendj/bin/dsconfig -h {} -p 4444 '
                     ' -D  \'cn=Directory Manager\' -w {} --trustAll '
                     '-n set-crypto-manager-prop --set ssl-encryption:true'
-                    ).format(server.hostname, app_config.replication_pw)
+                    ).format(server.hostname, primary_server.ldap_password)
 
             cmd = cmd_run.format(cmd)
             run_command(tid, c, cmd, chroot)
