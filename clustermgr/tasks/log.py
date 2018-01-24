@@ -61,6 +61,7 @@ def parse_log(log, influx_fmt=True):
 
 @celery.task
 def collect_logs(host, ip, path, influx_fmt=True):
+    dbname = current_app.config["INFLUXDB_LOGGING_DB"]
     logs = []
     rc = RemoteClient(host, ip)
 
@@ -75,8 +76,8 @@ def collect_logs(host, ip, path, influx_fmt=True):
     finally:
         rc.close()
 
-    influx = InfluxDBClient(database="gluu_logs")
-    influx.create_database("gluu_logs")
+    influx = InfluxDBClient(database=dbname)
+    influx.create_database(dbname)
     return influx.write_points(logs)
 
 
@@ -87,8 +88,7 @@ def _install_filebeat(task_id, server, rc):
     """
     stdout = ""
     stderr = ""
-    opsys = server.os or ""
-    opsys = opsys.lower()
+    opsys = (server.os or "").lower()
 
     if opsys.startswith("ubuntu"):
         cmd_list = [
@@ -127,7 +127,7 @@ def _render_filebeat_config(task_id, server, rc):
             "ip": server.ip,
             "os": server.os,
             "chroot": "true" if server.gluu_server is True else "",
-            "chroot_path": "opt/gluu-server-{}".format(appconf.gluu_version) if server.gluu_server else "",
+            "chroot_path": "/opt/gluu-server-{}".format(appconf.gluu_version) if server.gluu_server else "",
             "gluu_version": appconf.gluu_version,
         }
         txt = render_template("filebeat/filebeat.yml", **ctx)
@@ -137,8 +137,7 @@ def _render_filebeat_config(task_id, server, rc):
 
 
 def _restart_filebeat(task_id, server, rc):
-    opsys = server.os or ""
-    opsys = opsys.lower()
+    opsys = (server.os or "").lower()
 
     if opsys in ("centos 6", "ubuntu 14"):
         cmd = "service filebeat restart"
@@ -218,12 +217,15 @@ def setup_components(self):
 def setup_influxdb(self):
     tid = self.request.id
 
+    # @TODO: do we need to install influxdb locally?
+    dbname = current_app.config["INFLUXDB_LOGGING_DB"]
+
     wlogger.log(
         tid,
-        "Creating InfluxDB database gluu_logs",
+        "Creating InfluxDB database {}".format(dbname),
         "info",
     )
 
-    influx = InfluxDBClient(database="gluu_logs")
-    influx.create_database("gluu_logs")
+    influx = InfluxDBClient(database=dbname)
+    influx.create_database(dbname)
     return True

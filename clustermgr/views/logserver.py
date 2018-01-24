@@ -26,9 +26,10 @@ log_mgr = Blueprint('log_mgr', __name__)
 log_mgr.before_request(license_reminder)
 
 
-def search_by_filters(type_="", message="", host="", page=1, per_page=10):
-    influx = InfluxDBClient(database="gluu_logs")
-    influx.create_database("gluu_logs")
+def search_by_filters(dbname, type_="", message="", host="",
+                      page=1, per_page=50):
+    influx = InfluxDBClient(database=dbname)
+    influx.create_database(dbname)
 
     try:
         page = int(page)
@@ -83,6 +84,7 @@ def index():
 
     try:
         logs = search_by_filters(
+            current_app.config["INFLUXDB_LOGGING_DB"],
             type_=form.type.data,
             message=form.message.data,
             host=form.host.data,
@@ -98,9 +100,7 @@ def index():
 @log_mgr.route("/setup_remote/")
 def setup_remote():
     # checks for existing app config
-    appconf = AppConfiguration.query.first()
-
-    if not appconf:
+    if not AppConfiguration.query.count():
         flash("The application needs to be configured first. Kindly set the "
               "values before attempting clustering.", "warning")
         return redirect(url_for("index.app_configuration"))
@@ -121,9 +121,7 @@ def setup_remote():
 @log_mgr.route("/setup_local/")
 def setup_local():
     # checks for existing app config
-    appconf = AppConfiguration.query.first()
-
-    if not appconf:
+    if not AppConfiguration.query.count():
         flash("The application needs to be configured first. Kindly set the "
               "values before attempting clustering.", "warning")
         return redirect(url_for("index.app_configuration"))
@@ -142,9 +140,23 @@ def setup_local():
 
 @log_mgr.route("/collect/")
 def collect():
+    # checks for existing app config
+    if not AppConfiguration.query.count():
+        flash("The application needs to be configured first. Kindly set the "
+              "values before attempting clustering.", "warning")
+        return redirect(url_for("index.app_configuration"))
+
+    # checks for existing servers
+    servers = Server.query.all()
+
+    if not servers:
+        flash("Add servers to the cluster before attempting to manage logs",
+              "warning")
+        return redirect(url_for('index.home'))
+
     task = group([
         collect_logs.s(server.hostname, server.ip, "/tmp/gluu-filebeat")
-        for server in Server.query
+        for server in servers
     ])
     task.apply_async()
 
