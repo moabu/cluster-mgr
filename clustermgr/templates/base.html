@@ -41,7 +41,7 @@
         <section class="sidebar">
           <ul class="sidebar-menu" data-widget="tree">
             <li><a href="/"><i class="fa fa-dashboard"></i><span>Dashboard</span></a></li>
-            
+
             <li class="treeview">
               <a href="#">
                 <i class="fa fa-cubes"></i><span>Cluster</span>
@@ -49,7 +49,7 @@
                   <i class="fa fa-angle-left pull-right"></i>
                 </span>
               </a>
-              
+
               <ul class="treeview-menu">
                 <li><a href="{{ url_for('server.index') }}"><i class="fa fa-plus-square"></i>Add Server</a></li>
                 <li><a href="{{ url_for('cluster.install_nginx') }}"><i class="fa fa-plus-square"></i>Install Nginx</a></li>
@@ -60,7 +60,7 @@
                 <li><a href="{{ url_for('cluster.install_nginx') }}"><i class="fa fa-plus-square"></i>Install Nginx</a></li>
               </ul>
             </li>
-            
+
             <!-------replication tree----------------->
             <li class="treeview">
               <a href="#">
@@ -91,11 +91,25 @@
             </li>
             <!---------end of replication tree----------->
 
-            
-            
+
+
             <li><a href="{{ url_for('cache_mgr.index') }}">
               <i class="fa fa-microchip"></i><span>Cache Management</span></a>
             </li>
+
+            <li class="treeview">
+              <a href="#">
+                <i class="fa fa-file"></i><span>Logging Management</span>
+                <span class="pull-right-container">
+                  <i class="fa fa-angle-left pull-right"></i>
+                </span>
+              </a>
+              <ul class="treeview-menu">
+                <li><a href="{{ url_for('log_mgr.index') }}"> <i class="fa fa-bar-chart"></i><span>Logs</span></a> </li>
+                <li><a href="{{ url_for('log_mgr.setup_remote') }}"><i class="fa fa-wrench"></i><span>Setup Logging</span></a></li>
+              </ul>
+            </li>
+
             <li><a href="{{ url_for('license.index') }}">
               <i class="fa fa-drivers-license-o"></i><span>License</span></a></li>
             <li><a href="{{ url_for('index.app_configuration') }}">
@@ -166,7 +180,6 @@
         </div><!-- /.modal-dialog -->
     </div><!-- /.modal -->
 
-
     {% block modals %} {% endblock modals %}
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
@@ -181,9 +194,7 @@
     $('#install_monitoring_modal').on('show.bs.modal', function (event) {
         $('#setup_url').attr('href', '{{ url_for("monitoring.setup") }}');
     });
-    
-    
-</script> 
+</script>
 
 
     {% block js %} {% endblock js %}

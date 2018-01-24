@@ -199,7 +199,7 @@
             <div class="timeline-body">
               Install componenets on servers, create sqlite database,
               such as crontab data collector, script for retreiving data...
-              
+
             </div>
         </div>
     </li>
@@ -218,6 +218,44 @@
               Create database on local InfluxDB, write contab entries for getting
               data form servers
             </div>
+        </div>
+    </li>
+</ul>
+{%- endmacro %}
+
+
+{% macro install_logging_steps(current) -%}
+<ul class="timeline">
+    <!-- timeline time label -->
+    <li class="time-label">
+        <span class="bg-red">Setup Logging</span>
+    </li>
+    <!-- /.timeline-label -->
+
+    <!-- Step 1: Install -->
+    <li>
+      {% if current > 1 %}
+        <i class="fa fa-check bg-green"></i>
+      {% else %}
+        <i class="fa fa-spinner fa-spin fa-fw bg-blue"></i>
+      {% endif %}
+        <div class="timeline-item">
+            <h3 class="timeline-header">Install Components</h3>
+            <div class="timeline-body">Install and configure filebeat component on each remote server.</div>
+        </div>
+    </li>
+    <!-- Step 2: Configure -->
+    <li>
+      {% if current > 2 %}
+        <i class="fa fa-check bg-green"></i>
+      {% elif current == 2 %}
+        <i class="fa fa-spinner fa-spin fa-fw bg-blue"></i>
+      {% elif current < 2 %}
+        <i class="fa fa-clock-o bg-gray"></i>
+      {% endif %}
+        <div class="timeline-item">
+            <h3 class="timeline-header">Configure Local Server</h3>
+            <div class="timeline-body">Create database on local InfluxDB.</div>
         </div>
     </li>
 </ul>
