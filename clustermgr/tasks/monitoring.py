@@ -68,7 +68,7 @@ def install_local(self):
         
         influx_cmd += [
             'sudo apt-get update',
-            'sudo apt-get install influxdb',
+            'DEBIAN_FRONTEND=noninteractive sudo apt-get install influxdb',
             'sudo service influxdb start',
             'sudo pip install influxdb',
             'sudo pip install psutil',
@@ -184,6 +184,10 @@ def install_local(self):
 
     run_and_log(fc, cmd, tid, 0)
 
+    app_config = AppConfiguration.query.first()
+    app_config.monitoring = True
+    db.session.commit()
+
     return True
 
 
@@ -277,9 +281,9 @@ def install_monitoring(self):
                             
         else:
             package_cmd = [ 
-                            'apt-get install -y gcc', 
-                            'apt-get install -y python-dev',
-                            'apt-get install -y python-pip',
+                            'DEBIAN_FRONTEND=noninteractive apt-get install -y gcc', 
+                            'DEBIAN_FRONTEND=noninteractive apt-get install -y python-dev',
+                            'DEBIAN_FRONTEND=noninteractive apt-get install -y python-pip',
                             'service cron restart',
                             ]
             

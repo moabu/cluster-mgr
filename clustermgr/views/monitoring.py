@@ -221,6 +221,15 @@ def home():
 
     servers = Server.query.all()
 
+    app_config = AppConfiguration.query.first()
+    
+    if not app_config:
+        return redirect(url_for("index.app_configuration"))
+    
+    if not app_config.monitoring:
+        return render_template('monitoring_intro.html')
+
+
     hosts = []
     
     for server in servers:

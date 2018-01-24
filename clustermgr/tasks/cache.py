@@ -89,15 +89,15 @@ class RedisInstaller(BaseInstaller):
     def install_in_ubuntu(self):
         self.run_command("apt-get update")
         self.run_command("apt-get upgrade -y")
-        self.run_command("apt-get install software-properties-common -y")
+        self.run_command("DEBIAN_FRONTEND=noninteractive apt-get install software-properties-common -y")
         self.run_command("add-apt-repository ppa:chris-lea/redis-server -y")
         self.run_command("apt-get update")
-        cin, cout, cerr = self.run_command("apt-get install redis-server -y")
+        cin, cout, cerr = self.run_command("DEBIAN_FRONTEND=noninteractive apt-get install redis-server -y")
         wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
         if cerr:
             wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
         # verifying that redis-server is succesfully installed
-        cin, cout, cerr = self.rc.run("apt-get install redis-server -y")
+        cin, cout, cerr = self.rc.run("DEBIAN_FRONTEND=noninteractive apt-get install redis-server -y")
 
         if "redis-server is already the newest version" in cout:
             return True
@@ -126,13 +126,13 @@ class RedisInstaller(BaseInstaller):
 class StunnelInstaller(BaseInstaller):
     def install_in_ubuntu(self):
         self.run_command("apt-get update")
-        cin, cout, cerr = self.run_command("apt-get install stunnel4 -y")
+        cin, cout, cerr = self.run_command("DEBIAN_FRONTEND=noninteractive apt-get install stunnel4 -y")
         wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
         if cerr:
             wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
 
         # Verifying installation by trying to reinstall
-        cin, cout, cerr = self.rc.run("apt-get install stunnel4 -y")
+        cin, cout, cerr = self.rc.run("DEBIAN_FRONTEND=noninteractive apt-get install stunnel4 -y")
         if "stunnel4 is already the newest version" in cout:
             return True
         else:
@@ -234,7 +234,7 @@ def install_cache_components(self, method):
         run_and_log(rc, "dpkg -i /tmp/nutcracker_0.4.0+dfsg-1_amd64.deb", tid)
     elif server_os == "Ubuntu 16":
         run_and_log(rc, "apt-get update", tid)
-        run_and_log(rc, "apt-get install -y nutcracker", tid)
+        run_and_log(rc, "DEBIAN_FRONTEND=noninteractive apt-get install -y nutcracker", tid)
     elif server_os in ["CentOS 7", "RHEL 7"]:
         run_and_log(rc, 'yum install -y https://raw.githubusercontent.com/mbaser/gluu/master/nutcracker-0.4.1-1.gluu.centos7.x86_64.rpm', tid)
         run_and_log(rc, 'chkconfig nutcracker on', tid)
