@@ -1539,10 +1539,11 @@ def removeMultiMasterDeployement(self, server_id):
 
 
 @celery.task(bind=True)
-def opendjdisablereplication(self, hostname, server_os):
+def opendjdisablereplication(self, server_id, remove_server=False):
 
     app_config = AppConfiguration.query.first()
     primary_server = Server.query.filter_by(primary_server=True).first()
+    server = Server.query.get(server_id)
     tid = self.request.id
 
     c = RemoteClient(primary_server.hostname, ip=primary_server.ip)
@@ -1552,13 +1553,18 @@ def opendjdisablereplication(self, hostname, server_os):
     cmd_run = '{}'
 
 
-    if (server_os == 'CentOS 7') or (server_os == 'RHEL 7'):
+    if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):
         chroot = None
         cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
                 '-o Port=60022 -o LogLevel=QUIET '
                 '-o StrictHostKeyChecking=no '
                 '-o UserKnownHostsFile=/dev/null '
                 '-o PubkeyAuthentication=yes root@localhost "{}"')
+
+    wlogger.log(tid, 
+            "Making SSH connection to primary server {0}".format(
+            primary_server.hostname)
+            )
 
     try:
         c.startup()
@@ -1571,7 +1577,7 @@ def opendjdisablereplication(self, hostname, server_os):
     cmd = ('/opt/opendj/bin/dsreplication disable --disableAll --port 4444 '
             '--hostname {} --adminUID admin --adminPassword {} '
             '--trustAll --no-prompt').format(
-                            hostname,
+                            server.hostname,
                             app_config.replication_pw)
 
     cmd = cmd_run.format(cmd)
@@ -1589,10 +1595,10 @@ def opendjdisablereplication(self, hostname, server_os):
 
     server.mmr = False
 
+    if remove_server:
+        db.session.delete(server)
+
     db.session.commit()
-    return True
-
-
     return True
 
 
