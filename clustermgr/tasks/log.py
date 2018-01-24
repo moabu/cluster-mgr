@@ -14,6 +14,17 @@ from ..models import Server
 task_logger = get_task_logger(__name__)
 
 
+_ELASTIC_YUM_REPO = """[elastic-6.x]
+name=Elastic repository for 6.x packages
+baseurl=https://artifacts.elastic.co/packages/6.x/yum
+gpgcheck=1
+gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+enabled=1
+autorefresh=1
+type=rpm-md
+"""
+
+
 def _filebeat_to_influx(log):
     # Example:
     #
@@ -72,23 +83,32 @@ def collect_logs(host, ip, path, influx_fmt=True):
 def _install_filebeat(task_id, server, rc):
     """Installs filebeat.
 
-    Docs at https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-installation.html.
+    Docs at https://www.elastic.co/guide/en/beats/filebeat/current/setup-repositories.html.
     """
     stdout = ""
     stderr = ""
+    opsys = server.os or ""
+    opsys = opsys.lower()
 
-    cmd_list = [
-        # 1) install apt transport
-        "DEBIAN_FRONTEND=noninteractive apt-get install -y apt-transport-https",
-        # 2) fetch public signing key
-        "wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add -",
-        # 3) add repo definition
-        "echo 'deb https://artifacts.elastic.co/packages/6.x/apt stable main' | tee /etc/apt/sources.list.d/elastic-6.x.list",
-        # 4) install filebeat
-        "DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y filebeat",
-        # 5) startup script
-        "update-rc.d filebeat defaults 95 10",
-    ]
+    if opsys.startswith("ubuntu"):
+        cmd_list = [
+            "export DEBIAN_FRONTEND=noninteractive",
+            "apt-get install -y apt-transport-https",
+            "wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add -",
+            "echo 'deb https://artifacts.elastic.co/packages/6.x/apt stable main' | tee /etc/apt/sources.list.d/elastic-6.x.list",
+            "apt-get update && apt-get install -y filebeat",
+            "update-rc.d filebeat defaults 95 10",
+        ]
+    elif opsys.startswith("centos"):
+        cmd_list = [
+            "rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch",
+            "echo '{}' > /etc/yum.repos.d/elastic.repo".format(_ELASTIC_YUM_REPO),
+            "yum install -y filebeat",
+            "chkconfig --add filebeat",
+        ]
+    else:
+        cmd_list = []
+        task_logger.warn("Unable to determine underlying OS")
 
     for cmd in cmd_list:
         wlogger.log(task_id, cmd, "info", server_id=server.id)
@@ -117,7 +137,17 @@ def _render_filebeat_config(task_id, server, rc):
 
 
 def _restart_filebeat(task_id, server, rc):
-    cmd = "service filebeat restart"
+    opsys = server.os or ""
+    opsys = opsys.lower()
+
+    if opsys in ("centos 6", "ubuntu 14"):
+        cmd = "service filebeat restart"
+    elif opsys in ("centos 7", "ubuntu 16"):
+        cmd = "systemctl enable filebeat && systemctl restart filebeat"
+    else:
+        task_logger.warn("Unable to determine underlying OS")
+        return "", ""
+
     wlogger.log(task_id, cmd, "info", server_id=server.id)
     _, stdout, stderr = rc.run(cmd)
     return stdout, stderr
