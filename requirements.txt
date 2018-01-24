@@ -11,3 +11,4 @@ Flask-Migrate==2.0.3
 paramiko==2.1.2
 ldap3==2.3
 Flask-Mail==0.9.1
+influxdb==5.0.0

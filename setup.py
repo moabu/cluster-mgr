@@ -41,6 +41,7 @@ setup(
         "cryptography",
         "ipaddress",
         "enum34",
+        "influxdb",
     ],
     entry_points={
         "console_scripts": ["clustermgr-cli=clusterapp:cli",
