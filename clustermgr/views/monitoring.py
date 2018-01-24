@@ -224,9 +224,10 @@ def check_data(hostname):
 
     m = hostname.replace('.','_')+'_cpu_percent'
 
-    if not [m] in  result.raw['series'][0]['values']:
+    if not [m] in result.raw['series'][0]['values']:
         return False
 
+    return True
 
 
 @monitoring.route('/')
