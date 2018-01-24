@@ -16,7 +16,7 @@ filebeat.prospectors:
 - input_type: log
   paths:
     - /var/log/redis/redis-server.log
-  include_lines: ['^\[']
+  # include_lines: ['^\[']
   fields:
     gluu:
       version: {{ gluu_version }}
