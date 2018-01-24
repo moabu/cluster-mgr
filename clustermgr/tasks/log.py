@@ -40,8 +40,14 @@ def _filebeat_to_influx(log):
     _log = {}
     _log["time"] = log["@timestamp"]
     _log["measurement"] = "logs"
-    _log["tags"] = log["fields"]
-    _log["tags"]["hostname"] = log["beat"]["hostname"]
+    _log["tags"] = {
+        "hostname": log["beat"]["hostname"],
+        "chroot": log["fields"]["gluu"]["chroot"],
+        "gluu_version": log["fields"]["gluu"]["version"],
+        "ip": log["fields"]["ip"],
+        "os": log["fields"]["os"],
+        "type": log["fields"]["type"],
+    }
     _log["fields"] = {k: v for k, v in log.iteritems() if k in ("message", "source")}
     return _log
 

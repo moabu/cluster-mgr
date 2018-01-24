@@ -26,9 +26,9 @@
                         <dt>Host/IP</dt>
                         <dd>{{ log.hostname }}/{{ log.ip }}</dd>
                         <dt>Chroot</dt>
-                        <dd>{{ log.gluu["chroot"] or "false" }}</dd>
+                        <dd>{{ log.chroot|string|lower or "false" }}</dd>
                         <dt>Gluu version</dt>
-                        <dd>{{ log.gluu["version"] or "N/A" }}</dd>
+                        <dd>{{ log.gluu_version or "N/A" }}</dd>
                         <dt>OS</dt>
                         <dd>{{ log.os }}</dd>
                         <dt>Message</dt>
