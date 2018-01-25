@@ -20,17 +20,17 @@ from clustermgr.forms import FSReplicationPathsForm
 from clustermgr.config import Config
 
 from ..core.license import license_reminder
-from ..core.license import license_manager
 from ..core.license import prompt_license
+from ..core.license import license_required
 
 cluster = Blueprint('cluster', __name__, template_folder='templates')
 cluster.before_request(prompt_license)
+cluster.before_request(license_required)
 cluster.before_request(license_reminder)
 
 
 @cluster.route('/deploy_config/<server_id>', methods=['GET', 'POST'])
 @login_required
-@license_manager.license_required
 def deploy_config(server_id):
     """Initiates replication deployement task
 
@@ -71,7 +71,6 @@ def deploy_config(server_id):
 
 
 @cluster.route('/opendjdisablereplication/<int:server_id>/')
-@license_manager.license_required
 def opendj_disable_replication(server_id):
     """Initiates removal of replications"""
     remove_server = False
@@ -80,11 +79,11 @@ def opendj_disable_replication(server_id):
     #Start non-gluu ldap server installation celery task
     server = Server.query.get(server_id)
     task = opendjdisablereplication.delay(server.id, remove_server)
-    head = "Disabling Replication Server on {}".format(server.hostname) 
-    
+    head = "Disabling Replication Server on {}".format(server.hostname)
+
     if request.args.get('next') == 'dashboard':
         nextpage = "index.home"
-        whatNext = "Dashboard"      
+        whatNext = "Dashboard"
     else:
         nextpage = "index.multi_master_replication"
         whatNext = "Multi Master Replication"
@@ -92,7 +91,6 @@ def opendj_disable_replication(server_id):
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
 @cluster.route('/remove_deployment/<int:server_id>/')
-@license_manager.license_required
 @login_required
 def remove_deployment(server_id):
     """Initiates removal of replication deployment and back to slapd.conf
@@ -140,7 +138,6 @@ def remove_deployment(server_id):
 
 @cluster.route('/install_ldapserver')
 @login_required
-@license_manager.license_required
 def install_ldap_server():
     """Initiates installation of non-gluu ldap server"""
 
@@ -157,7 +154,6 @@ def install_ldap_server():
 
 @cluster.route('/install_gluu_server/<int:server_id>/')
 @login_required
-@license_manager.license_required
 def install_gluu_server(server_id):
     """Initiates installation of gluu server
 
@@ -181,7 +177,6 @@ def install_gluu_server(server_id):
 
 @cluster.route('/installnginx/')
 @login_required
-@license_manager.license_required
 def install_nginx():
     """Initiates installation of nginx load balancer"""
     appconf = AppConfiguration.query.first()
@@ -198,7 +193,6 @@ def install_nginx():
 
 
 @cluster.route('/opendjenablereplication/<server_id>')
-@license_manager.license_required
 def opendj_enable_replication(server_id):
 
     nextpage = 'index.multi_master_replication'
@@ -212,14 +206,13 @@ def opendj_enable_replication(server_id):
 
     #Start openDJ replication celery task
     task = opendjenablereplication.delay(server_id)
-    
+
     return render_template("logger.html", heading=head, server=server,
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
 
 
 @cluster.route('/fsrep/', methods=['GET', 'POST'])
-@license_manager.license_required
 def file_system_replication():
     """File System Replication view"""
 
