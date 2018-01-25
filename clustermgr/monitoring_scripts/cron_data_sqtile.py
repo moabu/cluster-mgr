@@ -136,7 +136,6 @@ def collect_ne_io():
     execute_query('net_io', data)
 
 def do_collect():
-    #collect_ldap_monitoring('ldaps://c4.gluu.org:1636', "cn=directory manager,o=gluu", "secret")
     collect_cpu_info()
     collect_cpu_percent()
     collect_load_average()
