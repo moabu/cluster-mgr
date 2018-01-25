@@ -9,20 +9,23 @@ from flask import current_app
 from flask import flash
 from flask import redirect
 from flask import url_for
+from flask_login import login_required
 from influxdb import InfluxDBClient
 from influxdb.exceptions import InfluxDBClientError
 from requests.exceptions import ConnectionError
 
+from ..core.license import license_manager
 from ..core.license import license_reminder
+from ..core.license import prompt_license
 from ..forms import LogSearchForm
 from ..models import Server
 from ..models import AppConfiguration
-
 from ..tasks.log import collect_logs
 from ..tasks.log import setup_components
 from ..tasks.log import setup_influxdb
 
 log_mgr = Blueprint('log_mgr', __name__)
+log_mgr.before_request(prompt_license)
 log_mgr.before_request(license_reminder)
 
 
@@ -66,6 +69,8 @@ def search_by_filters(dbname, type_="", message="", host="",
 
 
 @log_mgr.route("/")
+@login_required
+@license_manager.license_required
 def index():
     err = ""
     logs = []
@@ -98,6 +103,8 @@ def index():
 
 
 @log_mgr.route("/setup_remote/")
+@login_required
+@license_manager.license_required
 def setup_remote():
     # checks for existing app config
     if not AppConfiguration.query.count():
@@ -119,6 +126,8 @@ def setup_remote():
 
 
 @log_mgr.route("/setup_local/")
+@login_required
+@license_manager.license_required
 def setup_local():
     # checks for existing app config
     if not AppConfiguration.query.count():
@@ -139,6 +148,8 @@ def setup_local():
 
 
 @log_mgr.route("/collect/")
+@login_required
+@license_manager.license_required
 def collect():
     # checks for existing app config
     if not AppConfiguration.query.count():
