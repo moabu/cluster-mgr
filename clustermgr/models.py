@@ -72,6 +72,8 @@ class AppConfiguration(db.Model):
 
     admin_email = db.Column(db.String())
 
+    # flag if monitoring installed
+    monitoring = db.Column(db.Boolean())
 
 class KeyRotation(db.Model):
     __tablename__ = "keyrotation"

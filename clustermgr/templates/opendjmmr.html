@@ -59,10 +59,19 @@
     </div>
      
 </div>
-<b>Note:</b> Ports 4444 and 8989 should be open on all servers.
+<b>Note:</b>Ports 4444 and 8989 should be open to/from among all nodes of cluster pool.
 <a class="btn pull-right btn-primary btn-xs" href="{{ url_for('cluster.opendj_enable_replication', server_id='all') }}">Deploy All</a>
 <br>
 
+{% endif %}
+
+{% if stat %}
+  <br>
+  <br>
+  <label>Replication Status:</label>
+  <pre>
+{{ stat }}  
+  </pre>
 {% endif %}
 
 {% endblock %}

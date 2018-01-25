@@ -1,0 +1,72 @@
+filebeat.prospectors:
+
+- input_type: log
+  paths:
+    - {{ chroot_path }}/var/log/apache2/access.log
+    - {{ chroot_path }}/var/log/apache2/error.log
+    - {{ chroot_path }}/var/log/apache2/other_vhosts_access.log
+  fields:
+    gluu:
+      version: {{ gluu_version }}
+      chroot: {{ chroot }}
+    ip: {{ ip }}
+    os: {{ os }}
+    type: httpd
+
+- input_type: log
+  paths:
+    - /var/log/redis/redis-server.log
+  # include_lines: ['^\[']
+  fields:
+    gluu:
+      version: {{ gluu_version }}
+      chroot: {{ chroot }}
+    ip: {{ ip }}
+    os: {{ os }}
+    type: redis
+
+- input_type: log
+  paths:
+    - {{ chroot_path }}/opt/gluu/jetty/oxauth/logs/oxauth.log
+  multiline.pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+  multiline.negate: true
+  multiline.match: after
+  fields:
+    gluu:
+      version: {{ gluu_version }}
+      chroot: {{ chroot }}
+    ip: {{ ip }}
+    os: {{ os }}
+    type: oxauth
+
+- input_type: log
+  paths:
+    - {{ chroot_path }}/opt/gluu/jetty/identity/logs/oxtrust.log
+  multiline.pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+  multiline.negate: true
+  multiline.match: after
+  fields:
+    gluu:
+      version: {{ gluu_version }}
+      chroot: {{ chroot }}
+    ip: {{ ip }}
+    os: {{ os }}
+    type: oxtrust
+
+- input_type: log
+  paths:
+    - {{ chroot_path }}/opt/opendj/logs/access
+    - {{ chroot_path }}/opt/opendj/logs/errors
+  include_lines: ['^\[']
+  fields:
+    gluu:
+      version: {{ gluu_version }}
+      chroot: {{ chroot }}
+    ip: {{ ip }}
+    os: {{ os }}
+    type: opendj
+
+output.file:
+  path: "/tmp"
+  filename: gluu-filebeat
+  number_of_files: 2

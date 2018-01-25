@@ -89,15 +89,15 @@ class RedisInstaller(BaseInstaller):
     def install_in_ubuntu(self):
         self.run_command("apt-get update")
         self.run_command("apt-get upgrade -y")
-        self.run_command("apt-get install software-properties-common -y")
+        self.run_command("DEBIAN_FRONTEND=noninteractive apt-get install software-properties-common -y")
         self.run_command("add-apt-repository ppa:chris-lea/redis-server -y")
         self.run_command("apt-get update")
-        cin, cout, cerr = self.run_command("apt-get install redis-server -y")
+        cin, cout, cerr = self.run_command("DEBIAN_FRONTEND=noninteractive apt-get install redis-server -y")
         wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
         if cerr:
             wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
         # verifying that redis-server is succesfully installed
-        cin, cout, cerr = self.rc.run("apt-get install redis-server -y")
+        cin, cout, cerr = self.rc.run("DEBIAN_FRONTEND=noninteractive apt-get install redis-server -y")
 
         if "redis-server is already the newest version" in cout:
             return True
@@ -126,13 +126,13 @@ class RedisInstaller(BaseInstaller):
 class StunnelInstaller(BaseInstaller):
     def install_in_ubuntu(self):
         self.run_command("apt-get update")
-        cin, cout, cerr = self.run_command("apt-get install stunnel4 -y")
+        cin, cout, cerr = self.run_command("DEBIAN_FRONTEND=noninteractive apt-get install stunnel4 -y")
         wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
         if cerr:
             wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
 
         # Verifying installation by trying to reinstall
-        cin, cout, cerr = self.rc.run("apt-get install stunnel4 -y")
+        cin, cout, cerr = self.rc.run("DEBIAN_FRONTEND=noninteractive apt-get install stunnel4 -y")
         if "stunnel4 is already the newest version" in cout:
             return True
         else:
@@ -226,70 +226,25 @@ def install_cache_components(self, method):
     else:
         wlogger.log(tid, "Stunnel install failed", "fail")
 
-    wlogger.log(tid, "Cluster manager will now try to build Twemproxy")
+    wlogger.log(tid, "Installing Twemproxy")
     # 1. Setup the development tools for installation
-    if server_os in ["Ubuntu 16", "Ubuntu 14"]:
+    if server_os == "Ubuntu 14":
         run_and_log(rc, "apt-get update", tid)
-        run_and_log(rc, "apt-get install -y build-essential autoconf libtool",
-                    tid)
-    elif server_os in ["CentOS 6", "CentOS 7", "RHEL 7"]:
-        run_and_log(rc, "yum install -y wget", tid)
-        run_and_log(rc, "yum groupinstall -y 'Development tools'", tid)
-
-    if server_os == "CentOS 6":
-        run_and_log(rc, "wget http://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz",
-                    tid)
-        run_and_log(rc, "tar xvfvz autoconf-2.69.tar.gz", tid)
-        run_and_log(rc, "cd autoconf-2.69 && ./configure", tid)
-        run_and_log(rc, "cd autoconf-2.69 && make", tid)
-        run_and_log(rc, "cd autoconf-2.69 && make install", tid)
-
-    # 2. Get the source, build & install the nutcracker binaries
-    run_and_log(rc, "wget https://github.com/twitter/twemproxy/archive/v0.4.1.tar.gz",
-                tid)
-    run_and_log(rc, "tar -xf v0.4.1.tar.gz", tid)
-    run_and_log(rc, "cd twemproxy-0.4.1", tid)
-    run_and_log(rc, "cd twemproxy-0.4.1 && autoreconf -fvi", tid)
-    run_and_log(rc, "cd twemproxy-0.4.1 && ./configure --prefix=/usr", tid)
-    run_and_log(rc, "cd twemproxy-0.4.1 && make", tid)
-    run_and_log(rc, "cd twemproxy-0.4.1 && make install", tid)
-
-    # 3. Post installation - setup user and logging
-    run_and_log(rc, "useradd nutcracker", tid)
-    run_and_log(rc, "mkdir /var/log/nutcracker", tid)
-    run_and_log(rc, "touch /var/log/nutcracker/nutcracker.log", tid)
-    run_and_log(rc, "chown -R nutcracker:nutcracker /var/log/nutcracker",
-                tid)
-    logrotate_conf = ["/var/log/nutcracker/nutcracker*.log {", "\tweekly",
-                      "\tmissingok", "\trotate 12", "\tcompress",
-                      "\tnotifempty", "}"]
-    rc.put_file("/etc/logrotate.d/nutcracker", "\n".join(logrotate_conf))
-
-    # 4. Add init/service scripts to run nutcracker as a service
-    if server_os in ["Ubuntu 16", "CentOS 7", "RHEL 7"]:
-        local = os.path.join(app.root_path, "templates", "twemproxy",
-                             "twemproxy.service")
-        remote = "/lib/systemd/system/nutcracker.service"
-        rc.upload(local, remote)
-        run_and_log(rc, "systemctl enable nutcracker", tid, None)
-    elif server_os == "Ubuntu 14":
-        local = os.path.join(app.root_path, "templates", "twemproxy",
-                             "nutcracker.init")
-        remote = "/etc/init.d/nutcracker"
-        rc.upload(local, remote)
-        run_and_log(rc, 'chmod +x /etc/init.d/nutcracker', tid)
-        run_and_log(rc, "update-rc.d nutcracker defaults", tid)
-    elif server_os == "CentOS 6":
-        local = os.path.join(app.root_path, "templates", "twemproxy",
-                             "nutcracker.centos.init")
-        remote = "/etc/rc.d/init.d/nutcracker"
-        rc.upload(local, remote)
-        run_and_log(rc, "chmod +x /etc/init.d/nutcracker", tid)
-        run_and_log(rc, "chkconfig --add nutcracker", tid)
-        run_and_log(rc, "chkconfig nutcracker on", tid)
+        run_and_log(rc, 'wget http://ftp.debian.org/debian/pool/main/n/nutcracker/nutcracker_0.4.0+dfsg-1_amd64.deb -O /tmp/nutcracker_0.4.0+dfsg-1_amd64.deb', tid)
+        run_and_log(rc, "dpkg -i /tmp/nutcracker_0.4.0+dfsg-1_amd64.deb", tid)
+    elif server_os == "Ubuntu 16":
+        run_and_log(rc, "apt-get update", tid)
+        run_and_log(rc, "DEBIAN_FRONTEND=noninteractive apt-get install -y nutcracker", tid)
+    elif server_os in ["CentOS 7", "RHEL 7"]:
+        run_and_log(rc, 'yum install -y https://raw.githubusercontent.com/mbaser/gluu/master/nutcracker-0.4.1-1.gluu.centos7.x86_64.rpm', tid)
+        run_and_log(rc, 'chkconfig nutcracker on', tid)
+    elif server_os in ['CentOS 6', 'RHEL 6']:
+        run_and_log(rc, 'yum install -y https://raw.githubusercontent.com/mbaser/gluu/master/nutcracker-0.4.1-1.gluu.centos6.x86_64.rpm', tid)
+        run_and_log(rc, 'chkconfig nutcracker on', tid)
+    
 
     # 5. Create the default configuration file referenced in the init scripts
-    run_and_log(rc, "mkdir -p /etc/nutcracker", tid)
+    #run_and_log(rc, "mkdir -p /etc/nutcracker", tid)
     run_and_log(rc, "touch /etc/nutcracker/nutcracker.yml", tid)
 
     rc.close()

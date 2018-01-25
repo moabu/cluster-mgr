@@ -3,21 +3,22 @@ try:
 except ImportError:
     from flask_wtf import Form as FlaskForm
 from wtforms import StringField, SelectField, BooleanField, IntegerField, \
-    PasswordField, RadioField, SubmitField, validators, TextAreaField
-from wtforms.validators import DataRequired, Regexp, AnyOf, \
-    ValidationError, URL, IPAddress, Email, Length  # , Optional
+    PasswordField, RadioField, SubmitField, validators, TextAreaField, \
+    HiddenField
+from wtforms.validators import DataRequired, AnyOf, \
+    ValidationError, URL, IPAddress, Email, Length
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 
 
 class AppConfigForm(FlaskForm):
-    versions = ['3.1.1', '3.0.2', '3.0.1']
+    versions = ['3.1.2']
     gluu_version = SelectField('Gluu Server Version',
                                choices=[(v, v) for v in versions])
-    use_ip = BooleanField('Use IP Address in place of Hostname for replication')
-    replication_dn = StringField('Replication Manager DN', validators=[
-        DataRequired(),
-        Regexp('^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$',
-               message="Only alphabets and space allowed; cannot end with space.")])  # noqa
+    # use_ip = BooleanField('Use IP Address in place of Hostname for replication')
+    # replication_dn = StringField('Replication Manager DN', validators=[
+    #    DataRequired(),
+    #    Regexp('^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$',
+    #           message="Only alphabets and space allowed; cannot end with space.")])  # noqa
     replication_pw = PasswordField('Replication Manager Password', validators=[
         DataRequired(), validators.EqualTo(
             'replication_pw_confirm', message='Passwords must match')])
@@ -25,13 +26,13 @@ class AppConfigForm(FlaskForm):
         'Re-enter Password', validators=[DataRequired()])
     nginx_host = StringField('Load Balancer Hostname', validators=[DataRequired()])
 
-    purge_age_day = SelectField(choices=[(str(d), str(d)) for d in range(0, 31)])
-    purge_age_hour = SelectField(choices=[(str(h), str(h)) for h in range(0, 25)], default="24")
-    purge_age_min = SelectField(choices=[(str(m), str(m)) for m in range(0, 60)])
+    # purge_age_day = SelectField(choices=[(str(d), str(d)) for d in range(0, 31)])
+    # purge_age_hour = SelectField(choices=[(str(h), str(h)) for h in range(0, 25)], default="24")
+    # purge_age_min = SelectField(choices=[(str(m), str(m)) for m in range(0, 60)])
 
-    purge_interval_day = SelectField(choices=[(str(d), str(d)) for d in range(0, 31)], default="1")
-    purge_interval_hour = SelectField(choices=[(str(h), str(h)) for h in range(0, 25)])
-    purge_interval_min = SelectField(choices=[(str(m), str(m)) for m in range(0, 60)])
+    # purge_interval_day = SelectField(choices=[(str(d), str(d)) for d in range(0, 31)], default="1")
+    # purge_interval_hour = SelectField(choices=[(str(h), str(h)) for h in range(0, 25)])
+    # purge_interval_min = SelectField(choices=[(str(m), str(m)) for m in range(0, 60)])
 
     # admin_email = StringField("Admin Email", validators=[Optional(), Email("Please enter valid email address")])
 
@@ -156,10 +157,34 @@ class InstallServerForm(FlaskForm):
     installOxAuthRP = BooleanField('Install oxAuth RP')
     installPassport = BooleanField('Install Passport')
 
-    ldap_type = RadioField("Ldap Type",
-                    choices=[("opendj", "OpenDJ",), ("openldap", "OpenLDAP")],
-                    validators=[AnyOf(["opendj", "openldap"])],
-                )
+    ldap_type = RadioField(
+        "Ldap Type",
+        choices=[
+            ("opendj", "OpenDJ",),
+            # ("openldap", "OpenLDAP")
+        ],
+        validators=[AnyOf(["opendj", "openldap"])],
+        default='opendj'
+    )
+
+    gluu_licence = SelectField(
+        "Do you acknowledge that use of the Gluu Server is under the MIT license?",
+        choices=[('no', "No"), ('yes', "Yes")]
+    )
+    oracle_licence = SelectField(
+        "You must accept the Oracle Binary Code "
+        "License Agreement for the Java SE Platform Products to "
+        "download this software. Accept License Agreement?",
+        choices=[('no', "No"), ('yes', "Yes")]
+    )
+
+    def validate_gluu_licence(form, field):
+        if not field.data == 'yes':
+            raise ValidationError("Can't proceed without accepting licence.")
+
+    def validate_oracle_licence(form, field):
+        if not field.data == 'yes':
+            raise ValidationError("Can't proceed without accepting licence.")
 
 
 def replace_pubkey_whitespace(value):
@@ -187,7 +212,21 @@ class LicenseAckForm(FlaskForm):
     accept = SubmitField("Accept")
     decline = SubmitField("Decline")
 
+
 class FSReplicationPathsForm(FlaskForm):
-    fs_paths =  TextAreaField()
+    fs_paths = TextAreaField()
     update = SubmitField("Install File System Replication")
-    
+
+
+class LogSearchForm(FlaskForm):
+    type = SelectField("Type", choices=[
+        ("", ""),  # all types
+        ("opendj", "OpenDJ"),
+        ("oxauth", "oxAuth"),
+        ("oxtrust", "oxTrust"),
+        ("httpd", "HTTPD"),
+        ("redis", "Redis"),
+    ])
+    message = StringField("Message")
+    host = SelectField("Host", choices=[])
+    search = SubmitField("Search")

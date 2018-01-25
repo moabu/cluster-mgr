@@ -165,15 +165,28 @@ def remove(server_id):
     appconfig = AppConfiguration.query.first()
     server = Server.query.filter_by(id=server_id).first()
     provider_addr = server.ip if appconfig.use_ip else server.hostname
-    # remove its corresponding syncrepl configs from other servers
-    if server.mmr:
-        consumers = Server.query.filter(Server.id.isnot(server_id)).all()
-        for consumer in consumers:
-            remove_provider_from_consumer_f(consumer.id, provider_addr)
 
-    # TODO LATER perform checks on ther flags and add their cleanup tasks
-    db.session.delete(server)
+    setup_prop = get_setup_properties()
+
+    if server.mmr:
+        if setup_prop['ldap_type'] == 'openldap':
+            db.session.delete(server)
+
+            # remove its corresponding syncrepl configs from other servers
+            consumers = Server.query.filter(Server.id.isnot(server_id)).all()
+            for consumer in consumers:
+                remove_provider_from_consumer_f(consumer.id, provider_addr)
+        else:
+
+            return redirect(url_for('cluster.opendj_disable_replication',
+                                    server_id=server_id, removeserver=True,
+                                    next='dashboard',
+                                    ))
+    else:
+        db.session.delete(server)
+
     db.session.commit()
+    # TODO LATER perform checks on ther flags and add their cleanup tasks
 
     flash("Server {0} is removed.".format(server.hostname), "success")
     return redirect(url_for('index.home'))
@@ -257,7 +270,6 @@ def install_gluu(server_id):
 
         write_setup_properties_file(setup_prop)
 
-        return "Remove this"
         # Redirect to cluster.install_gluu_server to start installation.
         return redirect(url_for('cluster.install_gluu_server',
                                 server_id=server_id))
@@ -285,9 +297,12 @@ def install_gluu(server_id):
                   'installPassport',
                   'ldap_type',
                   ):
-            getattr(form, o).data = setup_prop[o]
+            getattr(form, o).data = setup_prop.get(o, '')
 
-        print form['ldap_type'].data
+        # if appconf.gluu_version < '3.1.2':
+        #     print "removeing opendj"
+        #     form.ldap_type.choices.remove(('opendj', 'OpenDJ'))
+        #     form.ldap_type.data = 'openldap'
 
     setup_properties_form = SetupPropertiesLastForm()
 

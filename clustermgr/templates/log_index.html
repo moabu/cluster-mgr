@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% macro read_more(txt, index, size=255) -%}
+    {% set button = ' <button type="button" class="btn btn-xs btn-default" data-toggle="modal" data-target="#read_more_' + index|string + '">read more</button>' %}
+    <div>{{ txt | replace("\\n", "") | truncate(200, False) }} {{ button | safe }}</div>
+{%- endmacro %}
+
+{% macro log_detail(log, index) -%}
+    <div class="modal fade" id="read_more_{{ index }}" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <!-- <h5 class="modal-title">Log Details</h5> -->
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <dl class="">
+                        <dt>Time</dt>
+                        <dd>{{ log.time }}</dd>
+                        <dt>Type</dt>
+                        <dd>{{ log.type }}</dd>
+                        <dt>Source</dt>
+                        <dd>{{ log.source }}</dd>
+                        <dt>Host/IP</dt>
+                        <dd>{{ log.hostname }}/{{ log.ip }}</dd>
+                        <dt>Chroot</dt>
+                        <dd>{{ log.chroot|string|lower or "false" }}</dd>
+                        <dt>Gluu version</dt>
+                        <dd>{{ log.gluu_version or "N/A" }}</dd>
+                        <dt>OS</dt>
+                        <dd>{{ log.os }}</dd>
+                        <dt>Message</dt>
+                        <dd>
+                            <pre id="read_more_txt_{{ index }}">{{ log.message|replace("\\n", "<br>")|safe }}</pre>
+                        </dd>
+                    </dl>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary copy-btn" data-clipboard-action="copy" data-clipboard-target="#read_more_txt_{{ index }}">
+                        <span class="fa fa-clipboard"> Copy message to clipboard</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+{%- endmacro %}
+
+{% block header %}
+    <h1>Logging</h1>
+    <ol class="breadcrumb">
+        <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+        <li class="active">Logging</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+<div class="box">
+    <form action="{{ url_for("log_mgr.index") }}" method="GET" class="form-horizontal">
+        <div class="box-header with-border">
+            <h3 class="panel-title pull-left">Search filters</h3>
+            <a class="btn btn-default pull-right" data-toggle="collapse" href="#search_filters_form" role="button" aria-expanded="false" aria-controls="collapseExample">Show/hide form</a>
+        </div>
+
+        <div class="collapse" id="search_filters_form">
+            <div class="box-body">
+                <div class="form-group">
+                    {{ form.type.label(class="control-label col-md-3") }}
+                    <div class="col-md-9">
+                        {{ form.type(class="form-control") }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="box-body">
+                <div class="form-group">
+                    {{ form.host.label(class="control-label col-md-3") }}
+                    <div class="col-md-9">
+                        {{ form.host(class="form-control") }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="box-body">
+                <div class="form-group">
+                    {{ form.message.label(class="control-label col-md-3") }}
+                    <div class="col-md-9">
+                        {{ form.message(class="form-control") }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="box-footer">
+                {{ form.search(class="btn btn-primary pull-right") }}
+            </div>
+        </div>
+    </form>
+</div>
+
+
+<div class="box">
+    <div class="box-header with-border">
+        <h3 class="box-title">Search result</h3>
+        <a class="btn btn-default pull-right" href="{{ url_for('log_mgr.collect') }}">Collect logs</a>
+    </div>
+
+    <!-- /.box-header -->
+    <div class="box-body">
+        {% if logs %}
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <tbody>
+                    <tr>
+                        <th>Message</th>
+                        <th>Time</th>
+                        <th>Host/IP</th>
+                    </tr>
+                    {% for log in logs %}
+                    <tr>
+                        <td>
+                            {{ read_more(log.message, loop.index) }}
+                            {{ log_detail(log, loop.index) }}
+                            <small class="label bg-green">{{ log.type }}</small>
+                        </td>
+                        <td>{{ log.time }}</td>
+                        <td>{{ log.hostname }}/{{ log.ip }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p>{{ err }}</p>
+        {% endif %}
+    </div>
+    <!-- /.box-body -->
+
+    <div class="box-footer clearfix">
+        <ul class="pagination pagination-sm no-margin pull-right">
+            <li><a href="{{ url_for_prev_page(page) }}">Newer</a></li>
+            <li><a href="{{ url_for_next_page(page) }}">Older</a></li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+    <script src="{{ url_for('static', filename='js/clipboard.min.js') }}"></script>
+    <script>
+        new Clipboard('.copy-btn');
+    </script>
+{% endblock %}

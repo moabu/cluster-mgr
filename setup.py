@@ -43,6 +43,7 @@ setup(
         "ipaddress",
         "enum34",
         "oxdpython",
+        "influxdb",
     ],
     entry_points={
         "console_scripts": ["clustermgr-cli=clusterapp:cli",

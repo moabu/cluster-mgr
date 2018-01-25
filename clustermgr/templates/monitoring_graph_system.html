@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block header %}
+    <h1>{{title}} : {{period}}</h1>
+{% include 'monitoring_dorpdown.html' %}
+
+
+{% endblock %}
+
+
+{% block content %}
+
+{% for p in ['d', 'w', 'm','y'] %}
+    <a href="{{url_for(items[item]['end_point'], item=item, period=p)}}">{{periods[p]['title']}}</a>
+{% endfor %}
+
+
+<br><br>
+<form method="GET">
+    Start Date: <input name="startdate" id="datepickers">
+    End Date: <input name="enddate" id="datepickere">
+<input type="submit" value="show">
+</form>
+<br>
+
+<table>
+
+{% for i in range(0, data.__len__(),2) %}
+
+    <tr>
+    {% for j in range(2) %}
+        <td><div id="chart_div_{{i+j}}"></div></td>
+    
+    {% endfor %}
+    </tr>
+    
+{% endfor %}
+</table>
+
+
+
+{% endblock %}
+
+
+{% block js %}
+
+<script src="{{ url_for('static', filename='js/gstatic/loader.js') }}"></script>
+
+
+<script>
+  
+    google.charts.load('current', {'packages':['corechart']});
+    
+    
+    {% for opt in data  %}
+    
+    
+    google.charts.setOnLoadCallback(drawChart{{loop.index0}});
+
+    function drawChart{{loop.index0}}() {
+
+
+        var data{{loop.index0}} = new google.visualization.DataTable();
+        data{{loop.index0}}.addColumn('datetime', 'Time');
+        {% set parind = loop.index0 %}
+        {% for lg in data[opt]['legends'] %}
+        data{{parind}}.addColumn('number', '{{lg.replace("_"," ")}}');
+        {% endfor %}
+        data{{loop.index0}}.addRows([
+
+            {% for d in data[opt]['data'] %}
+            [{{d[0]}},{% for di in d[1:] %}{{di}},{% endfor %}],
+            {% endfor %}
+
+          ]);
+
+        
+        var options = {
+                title: '{{opt}}',
+                width: {{width}},
+                height: {{height}},
+                vAxis: { title: '{{items[item]["vAxis"]}}', {% if v_axis_max %} viewWindow: { min: {{v_min_value}}, max: {{v_axis_max}} } {% endif %} } ,
+                hAxis: { title: 'Time' },
+                {% if opt in colors %} colors: {{colors[opt]|safe}}, {% endif %}
+                interpolateNulls: true
+            };
+
+        var chart = new google.visualization.{{items[item]['chartType']}}(document.getElementById('chart_div_{{loop.index0}}'));
+        chart.draw(data{{loop.index0}}, options);
+
+    }
+
+  
+    {% endfor %}
+  
+</script>
+
+
+
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+  
+  <script>
+  $(document).ready(function() {
+    $("#datepickers").datepicker();
+    $("#datepickere").datepicker();
+  });
+  </script>
+
+
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+
+{% block header %}
+<h1>Servers in the Cluster</h1>
+{% endblock %}
+
+
+
+{% block content %}
+
+
+{% include 'monitoring_dorpdown.html' %}
+  
+
+<table class="table table-hover">
+<thead>
+<tr><th>Server</th><th>Status</th><th>Uptime</th><th>CPU (%)</th><th>CPU Avg (%)</th><th>Memory (%)</th><th>Memory Avg (%)</th></tr>
+</thead>
+{% for host in hosts %}
+
+<tr>
+    <td>{{host['name']}}</td>
+    <td>{% if data['uptime'][host['name']] %}Running {% else %} Failed to Connect {% endif %} </td>
+    <td>{{data['uptime'][host['name']]}}</td>
+    <td><div id="chart_cpu{{host['id']}}"></div></td>
+    <td>{{data['cpu'][host['name']]['mean']}}</td>
+    <td><div id="chart_mem{{host['id']}}"> </div></td>
+    <td>{{data['mem'][host['name']]['mean']}}</td>
+</tr>
+
+{% endfor %}
+
+
+</table>
+
+
+{% endblock %}
+
+{% block js %}
+
+<script src="{{ url_for('static', filename='js/gstatic/loader.js') }}"></script>
+
+
+<script>
+    google.charts.load('current', {'packages':['corechart']});
+
+
+    {% for chart in ('cpu','mem') %}
+
+    {% for host in hosts %}
+    google.charts.setOnLoadCallback(chart_{{chart}}{{host['id']}});
+    {% endfor %}
+    {% endfor %}
+
+    {% for chart in ('cpu','mem') %}
+    {% for host in hosts %}
+
+
+        function chart_{{chart}}{{host['id']}}() {
+            var data = new google.visualization.DataTable();
+            data.addColumn('datetime', 'X');
+            data.addColumn('number', '');
+            
+            data.addRows([
+
+            {% for d in data[chart][host['name']]['data'] %}
+            [{{d[0]}},{% for di in d[1:] %}{{di}},{% endfor %}],
+            {% endfor %}
+
+            ]);
+            
+
+            var chart = new google.visualization.AreaChart(document.getElementById('chart_{{chart}}{{host['id']}}'));
+            chart.draw(data, {
+                height: 40,
+                width: 100,
+                legend: { position: 'none'},
+                hAxis: { gridlines: {count: 0}},
+                vAxis: {viewWindow: {min:0, max: 100}, gridlines: {count: 0}},
+                interpolateNulls: true,
+                enableInteractivity: false
+            });
+        }
+        
+        google.load('visualization', '1', {packages:['corechart'], callback: chart_{{chart}}{{host['id']}}});
+        
+    {% endfor %}
+    {% endfor %}
+  </script>
+  
+  
+  
+{% endblock %}

@@ -37,7 +37,7 @@ class Config(object):
 
     CELERYBEAT_SCHEDULE = {
         'send_reminder_email': {
-            'task': 'clustermgr.tasks.all.send_reminder_email',
+            'task': 'clustermgr.tasks.license.send_reminder_email',
             'schedule': timedelta(seconds=60 * 60),
             'args': (),
         },
@@ -52,6 +52,8 @@ class Config(object):
     MAIL_DEFAULT_SENDER = ("Cluster Manager", "no-reply@localhost")
     MAIL_DEFAULT_RECIPIENT_NAME = "Admin"
     MAIL_DEFAULT_RECIPIENT_ADDRESS = ["admin@localhost"]
+
+    INFLUXDB_LOGGING_DB = "gluu_logs"
 
 
 class ProductionConfig(Config):
@@ -71,6 +73,7 @@ class DevelopmentConfig(Config):
         Config.DATA_DIR)
     SQLALCHEMY_TRACK_MODIFICATIONS = True
     LICENSE_ENFORCEMENT_ENABLED = False
+    INFLUXDB_LOGGING_DB = "gluu_logs_dev"
 
 
 class TestingConfig(Config):
@@ -78,3 +81,4 @@ class TestingConfig(Config):
     WTF_CSRF_ENABLED = False
     SQLALCHEMY_DATABASE_URI = 'sqlite://'
     LICENSE_ENFORCEMENT_ENABLED = False
+    INFLUXDB_LOGGING_DB = "gluu_logs_test"

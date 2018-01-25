@@ -1,122 +1,166 @@
 """A Flask blueprint with the views and the business logic dealing with
 the logging server managed in the cluster-manager
 """
-import requests
+from celery import group
+from flask import Blueprint
+from flask import render_template
+from flask import request
+from flask import current_app
+from flask import flash
+from flask import redirect
+from flask import url_for
+from influxdb import InfluxDBClient
+from influxdb.exceptions import InfluxDBClientError
+from requests.exceptions import ConnectionError
 
-from flask import Blueprint, render_template, redirect, request
-
-from clustermgr.extensions import db
-from clustermgr.models import LoggingServer
-from clustermgr.forms import LoggingServerForm
-from clustermgr.core.msgcon import get_audit_logs, get_server_logs, \
-    get_server_log_item, get_audit_log_item, LogCollection, LogItem
 from ..core.license import license_reminder
+from ..forms import LogSearchForm
+from ..models import Server
+from ..models import AppConfiguration
 
-logserver = Blueprint('logserver', __name__, template_folder='templates')
-logserver.before_request(license_reminder)
+from ..tasks.log import collect_logs
+from ..tasks.log import setup_components
+from ..tasks.log import setup_influxdb
 
-
-@logserver.route("/", methods=["GET", "POST"])
-def logging_server():
-    log = LoggingServer.query.first()
-    form = LoggingServerForm()
-
-    if request.method == "GET" and log is not None:
-        form.url.data = log.url
-
-    if form.validate_on_submit():
-        if not log:
-            log = LoggingServer()
-        log.url = form.url.data
-        db.session.add(log)
-        db.session.commit()
-        return redirect("logging_server")
-    return render_template("logging_server.html", log=log, form=form)
+log_mgr = Blueprint('log_mgr', __name__)
+log_mgr.before_request(license_reminder)
 
 
-@logserver.route("/server-log")
-def oxauth_server_log():
-    err = ""
-    logs = None
-    server = LoggingServer.query.first()
-    page = request.args.get("page", 0)
-
-    if not server:
-        err = "Missing logging server configuration."
-        return render_template("oxauth_server_log.html", logs=logs, err=err)
+def search_by_filters(dbname, type_="", message="", host="",
+                      page=1, per_page=50):
+    influx = InfluxDBClient(database=dbname)
+    influx.create_database(dbname)
 
     try:
-        data, status_code = get_server_logs(server.url, page)
-        logs = LogCollection("oxauth-server-logs", data)
-        if not logs.has_logs():
-            err = "Logs are not available at the moment. Please try again."
-    except requests.exceptions.ConnectionError:
-        err = "Unable to establish connection to logging server. " \
-              "Please check the connection URL."
-    return render_template("oxauth_server_log.html", logs=logs, err=err)
+        page = int(page)
+    except ValueError:
+        page = 1
+
+    if page < 1:
+        page = 1
+
+    offset = (page - 1) * per_page
+
+    # queryset
+    qs = ["SELECT * FROM logs"]
+
+    tags = {}
+
+    where_clause = []
+    if type_:
+        where_clause.append("type = '{}'".format(type_))
+    if host:
+        # IP is chosen because filebeat strips dotted hostname
+        where_clause.append("ip = '{}'".format(host))
+    if message:
+        where_clause.append("message =~ /{}/".format(message))
+    if where_clause:
+        qs.append("WHERE {}".format(" AND ".join(where_clause)))
+
+    qs.append("ORDER BY time DESC")
+    qs.append("LIMIT {}".format(per_page))
+    qs.append("OFFSET {}".format(offset))
+
+    rs = influx.query(" ".join(qs))
+    return rs.get_points(tags=tags)
 
 
-@logserver.route("/audit-log")
-def oxauth_audit_log():
+@log_mgr.route("/")
+def index():
     err = ""
-    logs = None
-    server = LoggingServer.query.first()
-    page = request.args.get("page", 0)
+    logs = []
+    page = request.values.get("page", 1)
 
-    if not server:
-        err = "Missing logging server configuration."
-        return render_template("oxauth_audit_log.html", logs=logs, err=err)
+    # populate host drop-down
+    servers = [("", "")]
+    for server in Server.query:
+        servers.append((server.ip, "{}/{}".format(server.hostname, server.ip)))
+
+    form = LogSearchForm()
+    form.host.choices = servers
+    form.message.data = request.values.get("message")
+    form.type.data = request.values.get("type")
+    form.host.data = request.values.get("host")
 
     try:
-        data, status_code = get_audit_logs(server.url, page)
-        logs = LogCollection("oauth2-audit-logs", data)
-        if not logs.has_logs():
-            err = "Logs are not available at the moment. Please try again."
-    except requests.exceptions.ConnectionError:
-        err = "Unable to establish connection to logging server. " \
-              "Please check the connection URL."
-    return render_template("oxauth_audit_log.html", logs=logs, err=err)
+        logs = search_by_filters(
+            current_app.config["INFLUXDB_LOGGING_DB"],
+            type_=form.type.data,
+            message=form.message.data,
+            host=form.host.data,
+            page=page,
+        )
+    except (InfluxDBClientError, ConnectionError) as exc:
+        err = "Unable to connect to InfluxDB"
+        current_app.logger.info("{}; reason={}".format(err, exc))
+    return render_template("log_index.html", form=form, logs=logs,
+                           err=err, page=page)
 
 
-@logserver.route("/audit_log/<int:id>")
-def audit_log_item(id):
-    err = ""
-    log = None
-    server = LoggingServer.query.first()
+@log_mgr.route("/setup_remote/")
+def setup_remote():
+    # checks for existing app config
+    if not AppConfiguration.query.count():
+        flash("The application needs to be configured first. Kindly set the "
+              "values before attempting clustering.", "warning")
+        return redirect(url_for("index.app_configuration"))
 
-    if not server:
-        err = "Missing logging server configuration."
-        return render_template("view_audit_log.html", log=log, err=err)
+    # checks for existing servers
+    servers = Server.query.all()
 
-    try:
-        data, status_code = get_audit_log_item(server.url, id)
-        if not data:
-            err = "Log is not available at the momment. Please try again."
-        else:
-            log = LogItem(data)
-    except requests.exceptions.ConnectionError:
-        err = "Unable to establish connection to logging server. " \
-              "Please check the connection URL."
-    return render_template("view_audit_log.html", log=log, err=err)
+    if not servers:
+        flash("Add servers to the cluster before attempting to manage logs",
+              "warning")
+        return redirect(url_for('index.home'))
+
+    task = setup_components.delay()
+    return render_template("log_setup.html", step=1,
+                           task_id=task.id, servers=servers)
 
 
-@logserver.route("/server_log/<int:id>")
-def server_log_item(id):
-    err = ""
-    log = None
-    server = LoggingServer.query.first()
+@log_mgr.route("/setup_local/")
+def setup_local():
+    # checks for existing app config
+    if not AppConfiguration.query.count():
+        flash("The application needs to be configured first. Kindly set the "
+              "values before attempting clustering.", "warning")
+        return redirect(url_for("index.app_configuration"))
 
-    if not server:
-        err = "Missing logging server configuration."
-        return render_template("view_server_log.html", log=log, err=err)
+    # checks for existing servers
+    servers = [Server(id=0, hostname="localhost")]
 
-    try:
-        data, status_code = get_server_log_item(server.url, id)
-        if not data:
-            err = "Log is not available at the momment. Please try again."
-        else:
-            log = LogItem(data)
-    except requests.exceptions.ConnectionError:
-        err = "Unable to establish connection to logging server. " \
-              "Please check the connection URL."
-    return render_template("view_server_log.html", log=log, err=err)
+    if not servers:
+        flash("Add servers to the cluster before attempting to manage logs",
+              "warning")
+        return redirect(url_for('index.home'))
+
+    task = setup_influxdb.delay()
+    return render_template("log_setup.html", task_id=task.id, step=2, servers=servers)
+
+
+@log_mgr.route("/collect/")
+def collect():
+    # checks for existing app config
+    if not AppConfiguration.query.count():
+        flash("The application needs to be configured first. Kindly set the "
+              "values before attempting clustering.", "warning")
+        return redirect(url_for("index.app_configuration"))
+
+    # checks for existing servers
+    servers = Server.query.all()
+
+    if not servers:
+        flash("Add servers to the cluster before attempting to manage logs",
+              "warning")
+        return redirect(url_for('index.home'))
+
+    task = group([
+        collect_logs.s(server.hostname, server.ip, "/tmp/gluu-filebeat")
+        for server in servers
+    ])
+    task.apply_async()
+
+    flash("Collecting logs from available remote servers may take awhile. "
+          "Refresh the page after few seconds.",
+          "info")
+    return redirect(url_for(".index"))

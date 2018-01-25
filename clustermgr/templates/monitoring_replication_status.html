@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block header %}
+<h1>Servers in the Cluster</h1>
+{% endblock %}
+
+{% block content %}
+
+
+{% include 'monitoring_dorpdown.html' %}
+  
+<br>
+<pre>
+{{ stat }}  
+</pre>
+
+
+{% endblock %}
+
+{% block js %}
+
+  
+{% endblock %}

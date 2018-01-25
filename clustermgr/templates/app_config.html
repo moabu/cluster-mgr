@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+
 {% from 'macros.html' import render_field, render_checkbox_field, render_form %}
 
 {% block header %}
@@ -12,9 +13,7 @@
 {% block content %}
 <div class="box box-primary">
     <form id="cform" action="{{ url_for('index.app_configuration', next=next) }}" method="POST" class="form-horizontal">
-    <div class="box-header with-border">
-        <h3 class="panel-title">Replication</h3>
-    </div>
+
     <div class="box-body">
             {{ cform.csrf_token }}
 
@@ -28,6 +27,11 @@
                 {% endfor %}
             </div>
 
+        <!--{#
+        <div class="panel panel-primary">
+        <div class="panel-body">
+      
+            <div class="text-on-pannel text-primary"><strong> OpenLDAP Options </strong></div>
             <div class="form-group {{ 'has-error' if cform.replication_dn.errors else '' }}">
                 {{ cform.replication_dn.label(class="control-label col-md-3") }}
                 <div class="col-md-9">
@@ -36,13 +40,45 @@
                         {{ cform.replication_dn(class="form-control") }}
                         <span class="input-group-addon">,o=gluu</span>
                     </div>
-                    <p class="help-block">This will be used by the LDAP servers to securely communicate for replication.</p>
+                    <p class="help-block">This will be used by the Open LDAP servers to securely communicate for replication.</p>
                     {% for error in cform.replication_dn.errors %}
                         <p class="help-block">{{ error }}</p>
                     {% endfor %}
                 </div>
             </div>
 
+            <div class="form-group">
+                <label class="control-label col-md-3">Access Log Purge</label>
+                <div class="col-md-9">
+                    <div class="row">
+                        <div class="col-md-2 text-right"><label>Age</label></div>
+                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_age_day(class='form-control') }} Days</div>
+                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_age_hour(class='form-control') }} Hours</div>
+                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_age_min (class='form-control')}} Minutes</div>
+                        <div class="col-md-1"></div>
+                        <div class="col-md-2 text-right"><label>Interval</label></div>
+                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_interval_day(class='form-control') }} Days</div>
+                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_interval_hour(class='form-control') }} Hours</div>
+                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_interval_min (class='form-control')}} Minutes</div>
+                        <div class="col-md-1"></div>
+                    </div>
+                    <p class="help-block">Defines both the maximum age for log entries to be retained in the database and how often to scan the database for old entries.</p>
+                </div>
+
+            </div>
+
+
+            <div class="form-group">
+                <div class="col-md-offset-3 col-md-9">
+                    {{ render_checkbox_field(cform.use_ip) }}
+                </div>
+            </div>
+        </div>
+
+        </div>
+        
+        #}-->
+        
             <div class="form-group {{ 'has-error' if cform.replication_pw.errors else '' }}">
                 {{ cform.replication_pw.label(class="control-label col-md-3") }}
                 <div class="col-md-9">
@@ -70,31 +106,7 @@
                 </div>
             </div>
 
-            <div class="form-group">
-                <label class="control-label col-md-3">Access Log Purge</label>
-                <div class="col-md-9">
-                    <div class="row">
-                        <div class="col-md-2 text-right"><label>Age</label></div>
-                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_age_day(class='form-control') }} Days</div>
-                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_age_hour(class='form-control') }} Hours</div>
-                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_age_min (class='form-control')}} Minutes</div>
-                        <div class="col-md-1"></div>
-                        <div class="col-md-2 text-right"><label>Interval</label></div>
-                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_interval_day(class='form-control') }} Days</div>
-                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_interval_hour(class='form-control') }} Hours</div>
-                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_interval_min (class='form-control')}} Minutes</div>
-                        <div class="col-md-1"></div>
-                    </div>
-                    <p class="help-block">Defines both the maximum age for log entries to be retained in the database and how often to scan the database for old entries.</p>
-                </div>
-
-            </div>
-
-            <div class="form-group">
-                <div class="col-md-offset-3 col-md-9">
-                    {{ render_checkbox_field(cform.use_ip) }}
-                </div>
-            </div>
+        
         </div>
 
         {#

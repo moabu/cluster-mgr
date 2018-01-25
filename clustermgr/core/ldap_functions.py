@@ -7,7 +7,7 @@ from ldap3 import Server, Connection, SUBTREE, BASE, LEVEL, \
     MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
 
 from clustermgr.models import Server as ServerModel
-from clustermgr.core.utils import ldap_encode
+from clustermgr.core.utils import ldap_encode, get_setup_properties
 
 logger = logging.getLogger(__name__)
 
@@ -706,13 +706,21 @@ class DBManager(object):
     """
     def __init__(self, hostname, port, password, ssl=True, ip=None):
         self.server = Server(hostname, port=port, use_ssl=ssl)
-        self.conn = Connection(self.server, user="cn=directory manager,o=gluu",
-                               password=password, auto_bind=True)
+        
+        setup_prop = get_setup_properties()
+        
+        ldap_user = "cn=directory manager"
+        if setup_prop['ldap_type'] == "openldap":
+            ldap_user += ",o=gluu"
+
+        self.conn = Connection(self.server, 
+                                ldap_user,
+                                password=password, auto_bind=True)
 
         if not self.conn.bound and ip:
             self.server = Server(ip, port=port, use_ssl=ssl)
             self.conn = Connection(
-                self.server, user="cn=directory manager,o=gluu",
+                self.server, ldap_user,
                 password=password, auto_bind=True)
 
     def get_appliance_attributes(self, *args):

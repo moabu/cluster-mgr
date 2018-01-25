@@ -74,13 +74,20 @@ def deploy_config(server_id):
 @license_manager.license_required
 def opendj_disable_replication(server_id):
     """Initiates removal of replications"""
-
+    remove_server = False
+    if request.args.get('removeserver'):
+        remove_server = True
     #Start non-gluu ldap server installation celery task
-    task = opendjdisablereplication.delay(server_id)
     server = Server.query.get(server_id)
+    task = opendjdisablereplication.delay(server.id, remove_server)
     head = "Disabling Replication Server on {}".format(server.hostname) 
-    nextpage = "index.multi_master_replication"
-    whatNext = "Multi Master Replication"
+    
+    if request.args.get('next') == 'dashboard':
+        nextpage = "index.home"
+        whatNext = "Dashboard"      
+    else:
+        nextpage = "index.multi_master_replication"
+        whatNext = "Multi Master Replication"
     return render_template("logger.html", heading=head, server=server,
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
