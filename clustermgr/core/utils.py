@@ -309,11 +309,11 @@ def get_opendj_replication_status():
 
 
     cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
-            '-p 1444 -I admin -w {}').format(
+            '-p 4444 -I admin -w {}').format(
                     primary_server.hostname, 
                     app_config.replication_pw)
 
-    
+    print "executing", cmd
     cmd = cmd_run.format(cmd)
         
     si,so,se = c.run(cmd)

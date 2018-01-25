@@ -45,7 +45,6 @@ def get_period_text():
     enddate = request.args.get('enddate')
 
     if startdate:
-        print ("START DATE",startdate)
         ret_text = startdate + ' - '
         if enddate:
             ret_text += enddate
@@ -61,16 +60,13 @@ def get_period_text():
 
 def get_mean_last(measurement, host):
 
-
-                            
     querym = 'SELECT mean(*) FROM {}'.format(host.replace('.','_') +'_'+ measurement)
     resultm = client.query(querym, epoch='s')
     queryl = 'SELECT * FROM {}  ORDER BY DESC LIMIT 1'.format(host.replace('.','_') +'_'+ measurement)
     resultl = client.query(queryl, epoch='s')
     
-    print resultm.raw, resultl.raw
-    
     return resultm.raw['series'][0]['values'][0][1], resultl.raw['series'][0]['values'][0][1]
+
 
 
 def getData(item, step=None):
@@ -83,6 +79,7 @@ def getData(item, step=None):
         servers = ( Server.query.filter_by(primary_server=True).first() ,)
 
     period = request.args.get('period','d')
+        
     startdate = request.args.get('startdate')
     enddate = request.args.get('enddate')
     
@@ -90,7 +87,6 @@ def getData(item, step=None):
         enddate = time.strftime('%m/%d/%Y', time.localtime())
 
     if startdate:
-        print "Start date"
         if enddate < startdate:
             flash("End Date must be greater than Start Date",'warning')
             start = time.time() - periods[period]['seconds']
@@ -102,7 +98,6 @@ def getData(item, step=None):
             start = int(time.mktime(time.strptime(start,"%m/%d/%Y %H:%M")))
             end = enddate + ' 23:59'
             end = int(time.mktime(time.strptime(end,"%m/%d/%Y %H:%M")))
-            print "Calculate step"
             if not step:
                 step = int((end-start)/365)
                 
@@ -116,15 +111,9 @@ def getData(item, step=None):
 
     ret_dict = {}
     
-    client = InfluxDBClient(
-            host='localhost', 
-            port=8086, 
-            database='gluu_monitoring'
-            )
-    
+
     for server in servers:
 
-        print("AGGR FUNCT", items[item]['aggr'])
         if items[item]['aggr'] == 'DRV':
             aggr_f = 'derivative(mean({}),1s)'.format(field)
         elif items[item]['aggr'] == 'DIF':
@@ -156,7 +145,6 @@ def getData(item, step=None):
         data = []
 
         if measurement == 'cpu_info':
-            print "ARRANGE"
             legends = [
                     'guest', 'idle', 'iowait',
                     'irq', 'nice', 'softirq',
@@ -199,8 +187,6 @@ def getData(item, step=None):
 
 
 def get_uptime(host):
-    return
-
     c = RemoteClient(host)
     try:
         c.startup()
@@ -208,7 +194,7 @@ def get_uptime(host):
         flash("SSH Connection to host {} could not be established".format(host))
         return
     try:
-        cmd = 'python /var/monitoring/scrpits/get_data.py age'
+        cmd = 'python /var/monitoring/scripts/get_data.py age'
         result = c.run(cmd)
         data = json.loads(result[1])
         return str(timedelta(seconds=data['data']['uptime']))
@@ -217,6 +203,7 @@ def get_uptime(host):
 
 
 def check_data(hostname):
+
     result = client.query("SHOW MEASUREMENTS")
 
     if not 'series' in result.raw:
@@ -243,12 +230,19 @@ def home():
     if not app_config.monitoring:
         return render_template('monitoring_intro.html')
 
+    data_ready = None
 
-    if not check_data(servers[-1].hostname):
+    try:
+        data_ready = check_data(servers[-1].hostname)
+    except:
+        flash("Error getting data from InfluxDB")
+        return render_template( 'monitoring_error.html')
+
+    if not data_ready:
         return render_template('monitoring_nodata.html')
 
     hosts = []
-    
+
     for server in servers:
         hosts.append({
                     'name': server.hostname,
@@ -257,9 +251,12 @@ def home():
 
     data = {'uptime':{}}
     
-    
-    data['cpu']= getData('cpu_percent', step=1200)
-    data['mem']= getData('memory_usage', step=1200)
+    try:
+        data['cpu']= getData('cpu_percent', step=1200)
+        data['mem']= getData('memory_usage', step=1200)
+    except:
+        flash("Error getting data from InfluxDB")
+        return render_template( 'monitoring_error.html')
     
     for host in hosts:
         m,l = get_mean_last('cpu_percent', host['name'])
@@ -316,8 +313,12 @@ def setup():
 @monitoring.route('/system/<item>')
 def system(item):
 
-    data = getData(item)
-
+    try:
+        data = getData(item)
+    except:
+        flash("Error getting data from InfluxDB")
+        return render_template( 'monitoring_error.html')
+        
     temp = 'monitoring_graphs.html'
     title= item.replace('_', ' ').title()
     data_g = data
@@ -344,7 +345,6 @@ def system(item):
 
     max_value = 0
     min_value = 0
-    print "TEST", '%' in items[item]['vAxis']
 
     if '%' in items[item]['vAxis']:
         max_value = 100
@@ -390,8 +390,7 @@ def replication_status():
         flash(rep_status[1], "warning")
     else:
         stat = rep_status[1]
-            
-    
+
     return render_template('monitoring_replication_status.html',
                         left_menu=left_menu,
                         stat=stat,
@@ -407,7 +406,11 @@ def ldap_all(item):
     
 @monitoring.route('/ldap/<item>/')
 def ldap_single(item):
-    data = getData(item)
+    
+    try:
+        data = getData(item)
+    except:
+        return render_template( 'monitoring_error.html')
 
     return render_template( 'monitoring_ldap_single.html', 
                             left_menu = left_menu,
