@@ -1847,7 +1847,10 @@ def opendjenablereplication(self, server_id):
 
             ct.close()
 
-
+    if 'CentOS' in primary_server.os:
+        wlogger.log(tid, "Waiting for Gluu to finish starting")
+        time.sleep(10)
+    
 
     wlogger.log(tid, "Checking replication status")
 
