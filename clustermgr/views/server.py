@@ -16,7 +16,7 @@ from clustermgr.forms import ServerForm, InstallServerForm, \
     SetupPropertiesLastForm
 from clustermgr.tasks.cluster import collect_server_details
 from clustermgr.core.remote import RemoteClient, ClientNotSetupException
-from ..core.license import license_manager
+from ..core.license import license_required
 from ..core.license import license_reminder
 from ..core.license import prompt_license
 
@@ -26,6 +26,7 @@ from clustermgr.core.utils import parse_setup_properties, \
 
 server_view = Blueprint('server', __name__)
 server_view.before_request(prompt_license)
+server_view.before_request(license_required)
 server_view.before_request(license_reminder)
 
 
@@ -39,7 +40,6 @@ def sync_ldap_passwords(password):
 
 @server_view.route('/', methods=['GET', 'POST'])
 @login_required
-@license_manager.license_required
 def index():
     """Route for URL /server/. GET returns ServerForm to add a server,
     POST accepts the ServerForm, validates and creates a new Server object
@@ -86,7 +86,6 @@ def index():
 
 @server_view.route('/edit/<int:server_id>/', methods=['GET', 'POST'])
 @login_required
-@license_manager.license_required
 def edit(server_id):
     server = Server.query.get(server_id)
     if not server:
@@ -149,7 +148,6 @@ def remove_provider_from_consumer_f(consumer_id, provider_addr):
 
 
 @server_view.route('/removeprovider/<consumer_id>/<provider_addr>')
-@license_manager.license_required
 def remove_provider_from_consumer(consumer_id, provider_addr):
     """This view delates provider from consumer"""
 
@@ -160,7 +158,6 @@ def remove_provider_from_consumer(consumer_id, provider_addr):
 
 @server_view.route('/remove/<int:server_id>/')
 @login_required
-@license_manager.license_required
 def remove(server_id):
     appconfig = AppConfiguration.query.first()
     server = Server.query.filter_by(id=server_id).first()
@@ -194,7 +191,6 @@ def remove(server_id):
 
 @server_view.route('/installgluu/<int:server_id>/', methods=['GET', 'POST'])
 @login_required
-@license_manager.license_required
 def install_gluu(server_id):
     """Gluu server installation view. This function creates setup.properties
     file and redirects to install_gluu_server which does actual installation.
@@ -314,7 +310,6 @@ def install_gluu(server_id):
 
 
 @server_view.route('/uploadsetupproperties/<int:server_id>', methods=['POST'])
-@license_manager.license_required
 def upload_setup_properties(server_id):
     setup_properties_form = SetupPropertiesLastForm()
     if setup_properties_form.upload.data and \
@@ -368,7 +363,6 @@ def upload_setup_properties(server_id):
 
 @server_view.route('/editslapdconf/<int:server_id>/', methods=['GET', 'POST'])
 @login_required
-@license_manager.license_required
 def edit_slapd_conf(server_id):
     """This view  provides editing of slapd.conf file before depoloyments."""
 

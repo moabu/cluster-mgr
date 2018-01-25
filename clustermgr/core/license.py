@@ -318,7 +318,7 @@ def prompt_license():
         return
 
     # avoid redirect loop
-    if request.url_rule.__dict__["endpoint"] == "license.prompt":
+    if request.endpoint == "license.prompt":
         return
 
     # if license already accepted
@@ -328,3 +328,21 @@ def prompt_license():
 
     # prompt for license ack
     return redirect(url_for("license.prompt"))
+
+
+def license_required():
+    if not current_app.config["LICENSE_ENFORCEMENT_ENABLED"]:
+        return
+
+    license_data, err = license_manager.validate_license()
+    now = current_date_millis()
+
+    invalid = license_data["valid"] is not True
+    expired = now > license_data["metadata"].get("expiration_date")
+    inactive = license_data["metadata"].get("active", False) is False
+
+    if any([err, invalid, expired, inactive]):
+        flash("The previously requested URL ({}) requires a valid license. "
+              "Please make sure you have a valid license.".format(request.url),
+              "warning")
+        return redirect(url_for("license.index"))

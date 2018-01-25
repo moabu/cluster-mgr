@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
-import os
+# import os
 import time
 import json
 from datetime import timedelta
 
 from flask import Blueprint, render_template, redirect, url_for, flash, \
-    request, jsonify, session
-from flask import current_app as app
+    request
+# from flask import current_app as app
 from influxdb import InfluxDBClient
 from clustermgr.core.remote import RemoteClient
 
+# from clustermgr.extensions import celery
 from clustermgr.core.license import license_reminder
-from clustermgr.extensions import celery
+from clustermgr.core.license import license_required
 from clustermgr.core.license import prompt_license
 
 from clustermgr.models import Server, AppConfiguration
@@ -25,11 +26,12 @@ from clustermgr.core.utils import get_setup_properties, \
 
 monitoring = Blueprint('monitoring', __name__)
 monitoring.before_request(prompt_license)
+monitoring.before_request(license_required)
 monitoring.before_request(license_reminder)
 
 client = InfluxDBClient(
-            host='localhost', 
-            port=8086, 
+            host='localhost',
+            port=8086,
             database='gluu_monitoring'
         )
 
@@ -52,7 +54,7 @@ def get_period_text():
             ret_text += 'Now'
     else:
         ret_text = periods[period]['title']
-    
+
 
     return ret_text
 
@@ -64,7 +66,7 @@ def get_mean_last(measurement, host):
     resultm = client.query(querym, epoch='s')
     queryl = 'SELECT * FROM {}  ORDER BY DESC LIMIT 1'.format(host.replace('.','_') +'_'+ measurement)
     resultl = client.query(queryl, epoch='s')
-    
+
     return resultm.raw['series'][0]['values'][0][1], resultl.raw['series'][0]['values'][0][1]
 
 
@@ -79,10 +81,10 @@ def getData(item, step=None):
         servers = ( Server.query.filter_by(primary_server=True).first() ,)
 
     period = request.args.get('period','d')
-        
+
     startdate = request.args.get('startdate')
     enddate = request.args.get('enddate')
-    
+
     if not enddate:
         enddate = time.strftime('%m/%d/%Y', time.localtime())
 
@@ -100,17 +102,17 @@ def getData(item, step=None):
             end = int(time.mktime(time.strptime(end,"%m/%d/%Y %H:%M")))
             if not step:
                 step = int((end-start)/365)
-                
+
     else:
         start = time.time() - periods[period]['seconds']
         end = time.time()
         if not step:
             step = periods[period]['step']
-    
+
     measurement, field = items[item]['data_source'].split('.')
 
     ret_dict = {}
-    
+
 
     for server in servers:
 
@@ -126,7 +128,7 @@ def getData(item, step=None):
             aggr_f = 'mean({})'.format(field)
 
         measurement_d = server.hostname.replace('.','_') +'_'+ measurement
-        
+
         query = ('SELECT {} FROM {} WHERE '
                   'time >= {}000000000 AND time <= {}000000000 '
                   'GROUP BY time({}s)'.format(
@@ -174,9 +176,9 @@ def getData(item, step=None):
                         else:
                             tmp.append('null')
                     data.append(tmp)
-            
-                    
-                   
+
+
+
                 for f in result.raw['series'][0]['columns'][1:]:
                     legends.append( get_legend(f)[1])
 
@@ -223,10 +225,10 @@ def home():
     servers = Server.query.all()
 
     app_config = AppConfiguration.query.first()
-    
+
     if not app_config:
         return redirect(url_for("index.app_configuration"))
-    
+
     if not app_config.monitoring:
         return render_template('monitoring_intro.html')
 
@@ -250,26 +252,26 @@ def home():
                     })
 
     data = {'uptime':{}}
-    
+
     try:
         data['cpu']= getData('cpu_percent', step=1200)
         data['mem']= getData('memory_usage', step=1200)
     except:
         flash("Error getting data from InfluxDB")
         return render_template( 'monitoring_error.html')
-    
+
     for host in hosts:
         m,l = get_mean_last('cpu_percent', host['name'])
         data['cpu'][host['name']]['mean']="%0.1f" % m
         data['cpu'][host['name']]['last']="%0.1f" % l
-        
+
         m,l = get_mean_last('mem_usage', host['name'])
         data['mem'][host['name']]['mean']="%0.1f" % m
         data['mem'][host['name']]['last']="%0.1f" % l
         data['uptime'][host['name']] = get_uptime(host['name'])
 
 
-    return render_template('monitoring_home.html', 
+    return render_template('monitoring_home.html',
                             left_menu=left_menu,
                             items=items,
                             hosts=hosts,
@@ -281,7 +283,7 @@ def home():
 @monitoring.route('/setuplocal')
 def setup_local():
     server = Server( hostname='localhost', id=0)
-    
+
     task = install_local.delay()
     return render_template('monitoring_setup_logger.html', step=2,
                            task_id=task.id, servers=[server])
@@ -301,8 +303,8 @@ def setup():
         flash("Add servers to the cluster before attempting to manage cache",
               "warning")
         return redirect(url_for('index.home'))
-        
-    
+
+
     servers = Server.query.all()
     task = install_monitoring.delay()
     return render_template('monitoring_setup_logger.html', step=1,
@@ -318,7 +320,7 @@ def system(item):
     except:
         flash("Error getting data from InfluxDB")
         return render_template( 'monitoring_error.html')
-        
+
     temp = 'monitoring_graphs.html'
     title= item.replace('_', ' ').title()
     data_g = data
@@ -348,7 +350,7 @@ def system(item):
 
     if '%' in items[item]['vAxis']:
         max_value = 100
-    
+
     elif items[item].get('vAxisMax'):
         max_value = items[item].get('vAxisMax')
     else:
@@ -364,7 +366,7 @@ def system(item):
         min_value = int(1.1 * min_value)
 
 
-    return render_template(temp, 
+    return render_template(temp,
                         left_menu = left_menu,
                         items=items,
                         width=650,
@@ -381,10 +383,10 @@ def system(item):
 
 @monitoring.route('/replicationstatus')
 def replication_status():
-    
+
     prop = get_setup_properties()
     rep_status = get_opendj_replication_status()
-    
+
     stat = ''
     if not rep_status[0]:
         flash(rep_status[1], "warning")
@@ -396,23 +398,23 @@ def replication_status():
                         stat=stat,
                         items=items,
                         )
-    
-    
+
+
 
 @monitoring.route('/allldap/<item>')
 def ldap_all(item):
     return "Not Implemented"
-    
-    
+
+
 @monitoring.route('/ldap/<item>/')
 def ldap_single(item):
-    
+
     try:
         data = getData(item)
     except:
         return render_template( 'monitoring_error.html')
 
-    return render_template( 'monitoring_ldap_single.html', 
+    return render_template( 'monitoring_ldap_single.html',
                             left_menu = left_menu,
                             items=items,
                             width=1200,

@@ -8,18 +8,18 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cache import get_cache_methods, install_cache_components, \
     configure_cache_cluster, restart_services
 from ..core.license import license_reminder
-from ..core.license import license_manager
 from ..core.license import prompt_license
+from ..core.license import license_required
 
 
 cache_mgr = Blueprint('cache_mgr', __name__, template_folder='templates')
 cache_mgr.before_request(prompt_license)
+cache_mgr.before_request(license_required)
 cache_mgr.before_request(license_reminder)
 
 
 @cache_mgr.route('/')
 @login_required
-@license_manager.license_required
 def index():
     servers = Server.query.all()
     appconf = AppConfiguration.query.first()
@@ -44,7 +44,6 @@ def index():
 
 @cache_mgr.route('/refresh_methods')
 @login_required
-@license_manager.license_required
 def refresh_methods():
     task = get_cache_methods.delay()
     return jsonify({'task_id': task.id})
@@ -52,7 +51,6 @@ def refresh_methods():
 
 @cache_mgr.route('/change/', methods=['GET', 'POST'])
 @login_required
-@license_manager.license_required
 def change():
     servers = Server.query.all()
     method = 'STANDALONE'
@@ -63,7 +61,6 @@ def change():
 
 @cache_mgr.route('/configure/<method>/')
 @login_required
-@license_manager.license_required
 def configure(method):
     task = configure_cache_cluster.delay(method)
     servers = Server.query.filter(Server.redis.is_(True)).filter(
@@ -74,7 +71,6 @@ def configure(method):
 
 @cache_mgr.route('/finish_clustering/<method>/')
 @login_required
-@license_manager.license_required
 def finish_clustering(method):
     servers = Server.query.filter(Server.redis.is_(True)).filter(
         Server.stunnel.is_(True)).all()
