@@ -1,4 +1,5 @@
 import ConfigParser
+import os
 import socket
 
 from flask import current_app
@@ -87,6 +88,12 @@ def oxd_login():
         return redirect(url_for("index.home"))
 
     config = current_app.config["OXD_CLIENT_CONFIG_FILE"]
+
+    if not os.path.exists(config):
+        flash("Unable to locate oxd client config file.".format(config),
+              "warning")
+        return redirect(url_for("index.home"))
+
     oxc = Client(config)
 
     try:
