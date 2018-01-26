@@ -7,6 +7,7 @@ from influxdb import InfluxDBClient
 
 from ..core.remote import RemoteClient
 from ..extensions import celery
+from ..extensions import db
 from ..extensions import wlogger
 from ..models import AppConfiguration
 from ..models import Server
@@ -188,13 +189,22 @@ def _restart_filebeat(task_id, server, rc):
 
 
 @celery.task(bind=True)
-def setup_components(self):
-    """Setup components required to collect logs.
+def setup_filebeat(self, force_install=False):
+    """Setup filebeat to collect logs.
     """
     tid = self.request.id
     servers = Server.query.all()
 
     for server in servers:
+        if server.filebeat and force_install is False:
+            wlogger.log(
+                tid,
+                "filebeat has been installed ... skipping task",
+                "info",
+                server_id=server.id,
+            )
+            continue
+
         # establishes SSH connection
         wlogger.log(
             tid,
@@ -231,6 +241,11 @@ def setup_components(self):
             # note, restarting filebeat service may gives unwanted output,
             # hence we skip checking the result of running command
             _restart_filebeat(tid, server, rc)
+
+            # update the model
+            server.filebeat = True
+            db.session.add(server)
+            db.session.commit()
         except Exception as exc:
             wlogger.log(
                 tid,

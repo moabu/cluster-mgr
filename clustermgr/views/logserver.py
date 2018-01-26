@@ -17,12 +17,13 @@ from requests.exceptions import ConnectionError
 from ..core.license import license_reminder
 from ..core.license import prompt_license
 from ..core.license import license_required
+from ..core.utils import as_boolean
 from ..forms import LogSearchForm
 from ..models import Server
 from ..models import AppConfiguration
 from ..tasks.log import collect_logs
-from ..tasks.log import setup_components
-from ..tasks.log import setup_influxdb
+from ..tasks.log import setup_filebeat
+# from ..tasks.log import setup_influxdb
 
 log_mgr = Blueprint('log_mgr', __name__)
 log_mgr.before_request(prompt_license)
@@ -102,9 +103,15 @@ def index():
                            err=err, page=page)
 
 
-@log_mgr.route("/setup_remote/")
+@log_mgr.route("/setup/")
+def setup():
+    servers = Server.query.all()
+    return render_template("log_setup.html", servers=servers)
+
+
+@log_mgr.route("/install_filebeat/")
 @login_required
-def setup_remote():
+def install_filebeat():
     # checks for existing app config
     if not AppConfiguration.query.count():
         flash("The application needs to be configured first. Kindly set the "
@@ -119,30 +126,19 @@ def setup_remote():
               "warning")
         return redirect(url_for('index.home'))
 
-    task = setup_components.delay()
-    return render_template("log_setup.html", step=1,
+    force_install = as_boolean(request.values.get("force_install", False))
+
+    task = setup_filebeat.delay(force_install=force_install)
+    return render_template("log_setup_logger.html", step=1,
                            task_id=task.id, servers=servers)
 
 
-@log_mgr.route("/setup_local/")
-@login_required
-def setup_local():
-    # checks for existing app config
-    if not AppConfiguration.query.count():
-        flash("The application needs to be configured first. Kindly set the "
-              "values before attempting clustering.", "warning")
-        return redirect(url_for("index.app_configuration"))
-
-    # checks for existing servers
-    servers = [Server(id=0, hostname="localhost")]
-
-    if not servers:
-        flash("Add servers to the cluster before attempting to manage logs",
-              "warning")
-        return redirect(url_for('index.home'))
-
-    task = setup_influxdb.delay()
-    return render_template("log_setup.html", task_id=task.id, step=2, servers=servers)
+# @log_mgr.route("/configure_influxdb/")
+# @login_required
+# def configure_influxdb():
+#     servers = [Server(id=0, hostname="localhost")]
+#     task = setup_influxdb.delay()
+#     return render_template("log_setup_logger.html", task_id=task.id, step=2, servers=servers)
 
 
 @log_mgr.route("/collect/")

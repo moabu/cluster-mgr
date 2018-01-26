@@ -42,6 +42,9 @@ class Server(db.Model):
     # Is stunnel installed
     stunnel = db.Column(db.Boolean)
 
+    # Is filebeat installed
+    filebeat = db.Column(db.Boolean)
+
     def __repr__(self):
         return '<Server %d %s>' % (self.id, self.hostname)
 
@@ -74,6 +77,7 @@ class AppConfiguration(db.Model):
 
     # flag if monitoring installed
     monitoring = db.Column(db.Boolean())
+
 
 class KeyRotation(db.Model):
     __tablename__ = "keyrotation"

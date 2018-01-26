@@ -286,10 +286,10 @@ def get_setup_properties():
 def get_opendj_replication_status():
     primary_server = Server.query.filter_by(primary_server=True).first()
     app_config = AppConfiguration.query.first()
-    
+
     c = RemoteClient(primary_server.hostname, ip=primary_server.ip)
     chroot = '/opt/gluu-server-' + app_config.gluu_version
-    
+
     cmd_run = '{}'
 
     if (primary_server.os == 'CentOS 7') or (primary_server.os == 'RHEL 7'):
@@ -310,13 +310,23 @@ def get_opendj_replication_status():
 
     cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 4444 -I admin -w {}').format(
-                    primary_server.hostname, 
+                    primary_server.hostname,
                     app_config.replication_pw)
 
     print "executing", cmd
     cmd = cmd_run.format(cmd)
-        
+
     si,so,se = c.run(cmd)
-    
+
     return True, so
-    
+
+
+def as_boolean(val, default=False):
+    truthy = set(('t', 'T', 'true', 'True', 'TRUE', '1', 1, True))
+    falsy = set(('f', 'F', 'false', 'False', 'FALSE', '0', 0, False))
+
+    if val in truthy:
+        return True
+    if val in falsy:
+        return False
+    return default

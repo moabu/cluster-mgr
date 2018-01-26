@@ -240,10 +240,11 @@
         <i class="fa fa-spinner fa-spin fa-fw bg-blue"></i>
       {% endif %}
         <div class="timeline-item">
-            <h3 class="timeline-header">Install Components</h3>
+            <h3 class="timeline-header">Install Filebeat</h3>
             <div class="timeline-body">Install and configure filebeat component on each remote server.</div>
         </div>
     </li>
+    {#
     <!-- Step 2: Configure -->
     <li>
       {% if current > 2 %}
@@ -258,5 +259,6 @@
             <div class="timeline-body">Create database on local InfluxDB.</div>
         </div>
     </li>
+    #}
 </ul>
 {%- endmacro %}
