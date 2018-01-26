@@ -85,21 +85,7 @@ clustermgr-celery &
 clustermgr-cli run
 ```
 
-9) Tunnel into cluster-mgr server
-
-```
-ssh -L 9999:localhost:5000 root@server
-```
-
-- If you're using a windows machine, like me, you can tunnel in with a saved PuTTY session that can already connect. Load that configuration in `PuTTY Configuration`, then on the left side go to `Connections` -> `SSH` -> `Tunnels`. In `Source port` input `9999` and in Destination input `localhost:5000`, then hit `Add`. This will create a tunnel from your machine, accessed through `localhost:9999`, into the server as `localhost:5000`.
-
-10) Navigate to the cluster-mgr web GUI
-
-```
-http://localhost:9999/
-```
-
-11) Create default authentication config file at `$HOME/.clustermgr/auth.ini` for initial setup
+9) Create default authentication config file at `$HOME/.clustermgr/auth.ini` for initial setup
 
 ```
 [user]
@@ -109,6 +95,21 @@ password = your_desired_password
 
 The default authentication method can be disabled by removing the file.
 Note, we recommend to disable [default authentication](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-default-admin-user) after [OXD authentication](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-oxd-and-gluu-server) has been setup properly.
+
+10) Tunnel into cluster-mgr server
+
+```
+ssh -L 9999:localhost:5000 root@server
+```
+
+- If you're using a windows machine, like me, you can tunnel in with a saved PuTTY session that can already connect. Load that configuration in `PuTTY Configuration`, then on the left side go to `Connections` -> `SSH` -> `Tunnels`. In `Source port` input `9999` and in Destination input `localhost:5000`, then hit `Add`. This will create a tunnel from your machine, accessed through `localhost:9999`, into the server as `localhost:5000`.
+
+11) Navigate to the cluster-mgr web GUI and login with your `auth.ini` credentials.
+
+```
+http://localhost:9999/
+```
+
 
 ## Configuring a Cluster
 
