@@ -43,7 +43,7 @@ After configuration, Cluster Manager no longer needs to be actively connected to
 
 ```
 sudo apt-get update
-sudo apt-get install python-pip python-dev libffi-dev libssl-dev redis-server default-jre 
+sudo apt-get install python-pip python-dev libffi-dev libssl-dev redis-server default-jre  influxdb
 (default-jre is for license requirements. Not necessary if Java already installed)
 sudo pip install --upgrade setuptools influxdb
 ```
