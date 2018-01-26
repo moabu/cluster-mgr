@@ -104,6 +104,7 @@ def index():
 
 
 @log_mgr.route("/setup/")
+@login_required
 def setup():
     servers = Server.query.all()
     return render_template("log_setup.html", servers=servers)
