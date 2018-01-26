@@ -23,6 +23,7 @@ from ..models import Server
 from ..models import AppConfiguration
 from ..tasks.log import collect_logs
 from ..tasks.log import setup_filebeat
+from ..tasks.log import remove_filebeat
 # from ..tasks.log import setup_influxdb
 
 log_mgr = Blueprint('log_mgr', __name__)
@@ -169,3 +170,12 @@ def collect():
           "Refresh the page after few seconds.",
           "info")
     return redirect(url_for(".index"))
+
+
+@log_mgr.route("/uninstall_filebeat")
+@login_required
+def uninstall_filebeat():
+    servers = Server.query.all()
+    task = remove_filebeat.delay()
+    return render_template("log_setup_logger.html", step=1,
+                           task_id=task.id, servers=servers)

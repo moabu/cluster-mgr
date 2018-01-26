@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% from 'macros.html' import install_logging_steps %}
+{% from 'macros.html' import uninstall_logging_steps %}
 
 {% block header %}
 <h1>Install Logging Components</h1>
@@ -13,7 +14,13 @@
 
 {% block content %}
 <div class="row">
-    <div class="col-md-3">{{ install_logging_steps(step) }}</div>
+    <div class="col-md-3">
+        {% if request.endpoint == "log_mgr.install_filebeat" -%}
+            {{ install_logging_steps(step) }}
+        {% else %}
+            {{ uninstall_logging_steps(step) }}
+        {% endif %}
+    </div>
     <div class="col-md-9" style="overflow: scroll;">
         <div class="panel-group" id="accordion" role="tablist">
             {% for server in servers %}
