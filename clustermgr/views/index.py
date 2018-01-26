@@ -58,12 +58,23 @@ def app_configuration():
     config = AppConfiguration.query.first()
     schemafiles = os.listdir(app.config['SCHEMA_DIR'])
 
-    # If the form is sumtted and password for replication user was not
+    
+
+    if config:
+        del conf_form.replication_pw
+        del conf_form.replication_pw_confirm
+
+    else:
+        config = AppConfiguration()
+        db.session.add(config)
+
+
+    # If the form is submitted and password for replication user was not
     # not supplied, make password "**dummu**", so don't change
     # what we have before
-    if request.method == 'POST' and not conf_form.replication_pw.data.strip():
-        conf_form.replication_pw.data = '**dummy**'
-        conf_form.replication_pw_confirm.data = '**dummy**'
+    #if request.method == 'POST' and not conf_form.replication_pw.data.strip():
+    #    conf_form.replication_pw.data = '**dummy**'
+    #    conf_form.replication_pw_confirm.data = '**dummy**'
 
     # If form is submitted and ladidated process it
     if conf_form.update.data and conf_form.validate_on_submit():
@@ -72,7 +83,7 @@ def app_configuration():
 
         # replication_dn = "cn={},o=gluu".format(
         #                                conf_form.replication_dn.data.strip())
-        if config:
+        #if config:
 
         # else:
         #     if config.replication_dn != replication_dn:
@@ -81,22 +92,25 @@ def app_configuration():
         #               "Please re-deploy all LDAP Servers.",
         #                "danger")
 
-            if conf_form.replication_pw.data and \
-                    conf_form.replication_pw_confirm.data is not '**dummy**':
-                config.replication_pw = conf_form.replication_pw.data.strip()
-                flash("You changed Replication Manager password. "
-                        "This will break replication. "
-                        "Please re-deploy all LDAP Servers.",
-                        "danger")
-        else:
-            config = AppConfiguration()
-
+        #    if conf_form.replication_pw.data and \
+        #            conf_form.replication_pw_confirm.data is not '**dummy**':
+        #        config.replication_pw = conf_form.replication_pw.data.strip()
+        #        flash("You changed Replication Manager password. "
+        #                "This will break replication. "
+        #                "Please re-deploy all LDAP Servers.",
+        #                "danger")
+        #else:
+        #    config = AppConfiguration()
+        #    db.session.add(config)
         #config.replication_dn = replication_dn
         config.gluu_version = conf_form.gluu_version.data.strip()
         #config.use_ip = conf_form.use_ip.data
         config.nginx_host = conf_form.nginx_host.data.strip()
 
-        #config.replication_dn = replication_dn
+
+        if getattr(conf_form, 'replication_pw'):
+            config.replication_pw = conf_form.replication_pw.data.strip()
+    
         config.gluu_version = conf_form.gluu_version.data.strip()
         #config.use_ip = conf_form.use_ip.data
         config.nginx_host = conf_form.nginx_host.data.strip()
@@ -115,7 +129,7 @@ def app_configuration():
         #                                    purge_interval_hour,
         #                                    purge_interval_min)
         #config.log_purge = log_purge
-        db.session.add(config)
+            
         db.session.commit()
 
         flash("Gluu Replication Manager application configuration has been "
@@ -142,7 +156,7 @@ def app_configuration():
     if config: #and config.replication_dn:
         #conf_form.replication_dn.data = config.replication_dn.replace(
         #    "cn=", "").replace(",o=gluu", "")
-        conf_form.replication_pw.data = config.replication_pw
+        #conf_form.replication_pw.data = config.replication_pw
         conf_form.nginx_host.data = config.nginx_host
         #conf_form.use_ip.data = config.use_ip
         if config.gluu_version:
