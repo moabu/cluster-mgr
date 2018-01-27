@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, \
     request, jsonify, session
 from flask import current_app as app
 from flask_login import login_required
+from flask_login import current_user
 from werkzeug.utils import secure_filename
 from celery.result import AsyncResult
 
@@ -11,6 +12,7 @@ from clustermgr.extensions import db, wlogger
 from clustermgr.models import AppConfiguration, Server  # , KeyRotation
 from clustermgr.forms import AppConfigForm, SchemaForm, \
     TestUser, InstallServerForm  # , KeyRotationForm
+from flask import current_app
 
 
 from clustermgr.core.ldap_functions import LdapOLC
@@ -31,8 +33,15 @@ index.before_request(license_reminder)
 
 
 @index.route('/')
-@login_required
 def home():
+    cfg_file = current_app.config["AUTH_CONFIG_FILE"]
+    
+    if not os.path.exists(cfg_file):
+        return redirect(url_for('auth.signup'))
+    
+    if not current_user.is_authenticated:
+        return redirect(url_for("auth.login", next='/'))
+
     """This is the home view --dashboard--"""
     if 'nongluuldapinfo' in session:
         del session['nongluuldapinfo']

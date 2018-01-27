@@ -17,7 +17,7 @@ from oxdpython import Client
 from oxdpython.exceptions import OxdServerError
 
 from ..extensions import login_manager
-from ..forms import LoginForm
+from ..forms import LoginForm, SignUpForm
 
 
 auth_bp = Blueprint("auth", __name__)
@@ -59,12 +59,17 @@ def load_user(username):
 
 @auth_bp.route("/login/", methods=["GET", "POST"])
 def login():
+    cfg_file = current_app.config["AUTH_CONFIG_FILE"]
+    
+    if not os.path.exists(cfg_file):
+        return redirect(url_for('auth.signup'))
+    
     if current_user.is_authenticated:
         return redirect(url_for("index.home"))
 
     form = LoginForm()
     if form.validate_on_submit():
-        cfg_file = current_app.config["AUTH_CONFIG_FILE"]
+        
         user = user_from_config(cfg_file, form.username.data)
 
         if user and form.password.data == user.password:
@@ -174,3 +179,35 @@ def oxd_post_logout():
     # TODO: decide whether we need this callback
     logout_user()
     return redirect(url_for("index.home"))
+
+@auth_bp.route("/signup", methods=['GET', 'POST'])
+def signup():
+    
+    if request.method == 'POST':
+        form = SignUpForm(request.form)
+        if form.validate():
+
+            config_file = current_app.config["AUTH_CONFIG_FILE"]
+
+            username = form.username.data.strip()
+            password = form.password.data.strip()
+            
+            config = ConfigParser.RawConfigParser()
+            config.add_section('user')
+            config.set('user', 'username', username)
+            config.set('user', 'password', password)
+
+            with open(config_file, 'w') as configfile:
+                config.write(configfile)
+
+            user = user_from_config(config_file, username)
+            login_user(user)
+            return redirect(url_for('index.home'))
+
+        else:
+            flash("Please correct errors and re-submit the form")
+
+    else:
+        form = SignUpForm(request.form)
+
+    return render_template('auth_signup.html', form=form)

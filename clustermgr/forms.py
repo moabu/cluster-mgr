@@ -230,3 +230,13 @@ class LogSearchForm(FlaskForm):
     message = StringField("Message")
     host = SelectField("Host", choices=[])
     search = SubmitField("Search")
+
+class SignUpForm(FlaskForm):
+    username = StringField("Username", validators=[DataRequired()])
+    password = PasswordField("Password", validators=[
+                                DataRequired(),
+                                    validators.EqualTo('passwordconfirm',
+                               message='Passwords must match')
+                ])
+    passwordconfirm = PasswordField("Re-enter Password", validators=[DataRequired()])
+    login = SubmitField("Sign up")
