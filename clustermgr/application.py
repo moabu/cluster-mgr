@@ -11,6 +11,8 @@ from clustermgr.extensions import db, csrf, migrate, wlogger, \
 
 from .core.license import license_manager
 
+from . import __version__
+
 
 def init_celery(app, celery):
     celery.conf.update(app.config)
@@ -127,5 +129,6 @@ def create_app():
 
     app.jinja_env.globals['url_for_next_page'] = url_for_next_page
     app.jinja_env.globals['url_for_prev_page'] = url_for_prev_page
+    app.jinja_env.globals['version'] = __version__
 
     return app
