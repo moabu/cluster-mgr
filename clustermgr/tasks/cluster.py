@@ -975,7 +975,7 @@ def import_key(suffix, hostname, gluu_version, tid, c, sos):
 
     chroot = '/opt/gluu-server-{0}'.format(gluu_version)
 
-    if 'CentOS' in sos:
+    if sos == 'CentOS 7' or sos == 'RHEL 7':
         command = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost '{0}'".format(cmd)
     else:
         command = 'chroot {0} /bin/bash -c "{1}"'.format(chroot,
@@ -1011,7 +1011,7 @@ def delete_key(suffix, hostname, gluu_version, tid, c, sos):
                         "-storepass", defaultTrustStorePW
                         ])
 
-        if 'CentOS' in sos:
+        if sos == 'CentOS 7' or sos == 'RHEL 7':
             command = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost '{0}'".format(cmd)
         else:
             command = 'chroot {0} /bin/bash -c "{1}"'.format(chroot,
