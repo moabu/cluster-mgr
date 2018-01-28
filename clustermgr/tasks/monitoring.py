@@ -2,7 +2,6 @@ import json
 import os
 import getpass
 
-
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, wlogger, celery
 from clustermgr.core.remote import RemoteClient
@@ -14,7 +13,22 @@ from flask import current_app as app
 from influxdb import InfluxDBClient
 
 class FakeRemote():
+    
+    """Provides fake remote class with the same run() function.
+    """
+    
     def run(self, cmd):
+        
+        """This method executes cmd as a sub-process.
+
+        Args:
+            cmd (string): commands to run locally
+        
+        Returns:
+            Standard input, output and error of command
+        
+        """
+
         cin, cout, cerr = os.popen3(cmd)
 
         return '', cout.read(), cerr.read()
@@ -22,6 +36,21 @@ class FakeRemote():
 
 def run_and_log(c, cmd, tid, sid):
     
+    """Shorthand for FakeRemote.run(). This function automatically logs
+    the commands output to be shared in the web frontend.
+
+    Args:
+        c (:object:`FakeRemote`): class to be used to run cammand
+        cmd (string): the command to be run on local server
+        tid (string): task id of the task to store the log
+        sid (integer): id of the server
+
+    Returns:
+        the output of the command or the err thrown by the command as a string
+    """
+    
+    wlogger.log(tid, "Running {}".format(cmd))
+
     result = c.run(cmd)
     
     if result[2].strip():
@@ -34,13 +63,26 @@ def run_and_log(c, cmd, tid, sid):
                         "success", server_id=sid)
                                 
 
+    return result
+
 @celery.task(bind=True)
 def install_local(self):
+    
+    """Celery task that installs monitoring components of local machine.
+
+    :param self: the celery task
+
+    :return: the number of servers where both stunnel and redis were installed
+        successfully
+    """
+    
     tid = self.request.id
     servers = Server.query.all()
     
+    #create fake remote class that provides the same interface with RemoteClient
     fc = FakeRemote()
     
+    #Getermine local OS type
     localos= get_os_type(fc)
     
 
@@ -48,7 +90,7 @@ def install_local(self):
     
     wlogger.log(tid, "Installing InfluxDB and Python client", "info", server_id=0)
     
-
+    #commands to install influxdb on local machine for each OS type
     if 'Ubuntu' in localos:
         influx_cmd = [
             'curl -sL https://repos.influxdata.com/influxdb.key | '
@@ -113,8 +155,8 @@ def install_local(self):
                         'sudo pip install psutil',
                     ]
 
-        
 
+    #run commands to install influxdb on local machine
     for cmd in influx_cmd:
     
         result = fc.run(cmd)
@@ -136,14 +178,16 @@ def install_local(self):
             wlogger.log(tid, "Command was run successfully: {}".format(cmd),
                             "success", server_id=0)
     
-   
+    #Statistics from remote servers will be obtained by a crontab entry.
+    #The script 'get_remote_stats.py' on the local machine will be run
+    #in each 5 mins with servers as arguments
     
-    
-
     monitoring_client = os.path.join(app.root_path, 'get_remote_stats.py')
     
     srv_list = [ server.hostname for server in servers]
     
+    #since remote servers can be reached with current user vie ssh, determine 
+    #current user
     cur_user = getpass.getuser()
     
     crontab_entry = (
@@ -162,7 +206,8 @@ def install_local(self):
     run_and_log(fc, cmd, tid, 0)
     
 
-
+    #Statistics will be written to 'gluu_monitoring' on local influxdb server,
+    #so we should crerate it.
     try:
         client = InfluxDBClient(
                     host='localhost', 
@@ -177,6 +222,7 @@ def install_local(self):
                         "'gluu_monitoring': {}".format(e),
                             "fail", server_id=0)
 
+    #Restart of crontab is required for new entry to be recognised.
     if localos == 'Centos 7':
         cmd = 'sudo service crond restart'
     else:
@@ -184,6 +230,7 @@ def install_local(self):
 
     run_and_log(fc, cmd, tid, 0)
 
+    #Flag database that configuration is done for local machine
     app_config = AppConfiguration.query.first()
     app_config.monitoring = True
     db.session.commit()
@@ -193,11 +240,19 @@ def install_local(self):
 
 @celery.task(bind=True)
 def install_monitoring(self):
+    
+    """Celery task that installs monitoring components to remote server.
+
+    :param self: the celery task
+
+    :return: the number of servers where both stunnel and redis were installed
+        successfully
+    """
+    
     tid = self.request.id
     installed = 0
     servers = Server.query.all()
     app_config = AppConfiguration.query.first()
-    print "installing monitoring task started"
 
     for server in servers:
         # 1. Make SSH Connection to the remote server
@@ -215,6 +270,7 @@ def install_monitoring(self):
                                 "error", server_id=server.id)
             return False
         
+        # 2. create monitoring directory
         result = c.run('mkdir -p /var/monitoring/scripts')
 
         ctext = "\n".join(result)
@@ -225,7 +281,7 @@ def install_monitoring(self):
         wlogger.log(tid, "Directory /var/monitoring/scripts directory "
                         "was created", "success", server_id=server.id)
         
-        # 2. Upload scripts
+        # 3. Upload scripts
         
         scripts = (
                     'cron_data_sqtile.py', 
@@ -250,12 +306,12 @@ def install_monitoring(self):
                                 "error", server_id=server.id)
                 return False
         
-        #Upload gluu version
+        # 4. Upload gluu version, no need to determine gluu version each time
         
         result = c.put_file('/var/monitoring/scripts/gluu_version.txt', app_config.gluu_version)
         
         
-        # 3. Upload crontab entry to collect data in every 5 minutes
+        # 5. Upload crontab entry to collect data in every 5 minutes
         crontab_entry = (
                         '*/5 * * * *    root    python '
                         '/var/monitoring/scripts/cron_data_sqtile.py\n'
@@ -272,7 +328,8 @@ def install_monitoring(self):
             wlogger.log(tid, "Crontab entry was uploaded",
                                 "success", server_id=server.id)
         
-        # 4. Installing packages
+        # 6. Installing packages. 
+        # 6a. First determine commands for each OS type
         if ('CentOS' in server.os) or ('RHEL' in server.os):
             package_cmd = ['yum install -y gcc', 'yum install -y python-devel',
                             'yum install -y python-pip',
@@ -286,7 +343,7 @@ def install_monitoring(self):
                             'DEBIAN_FRONTEND=noninteractive apt-get install -y python-pip',
                             'service cron restart',
                             ]
-            
+        # 6b. These commands are common for all OS types 
         package_cmd += [
                         'pip install ldap3', 
                         'pip install psutil',
@@ -295,15 +352,13 @@ def install_monitoring(self):
                         'sqlite_monitoring_tables.py'
                         
                         ]
-        
+        # 6c. Executing commands
         wlogger.log(tid, "Installing Packages and Running Commands", 
                             "info", server_id=server.id)
         
         for cmd in package_cmd:
             
-            
             result = c.run(cmd)
-        
         
             wlogger.log(tid, "\n".join(result), "debug", server_id=server.id)
         

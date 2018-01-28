@@ -29,6 +29,7 @@ monitoring.before_request(prompt_license)
 monitoring.before_request(license_required)
 monitoring.before_request(license_reminder)
 
+#Influxdb client
 client = InfluxDBClient(
             host='localhost',
             port=8086,
@@ -36,12 +37,26 @@ client = InfluxDBClient(
         )
 
 def get_legend(f):
+    """Returns legend for graphics.
+    
+    Args:
+        f (atring): measurmement.
+    
+    Returns: 
+        Either a tuple for multiple legends or strings for single legend
+    """
+    
     acl = f.find('_')
     if acl:
         return f[:acl], f[acl+1:]
     return f
 
 def get_period_text():
+    """Returns periods for statistiscs.
+    
+    Returns:
+        period for statistics
+    """
     period = request.args.get('period','d')
     startdate = request.args.get('startdate')
     enddate = request.args.get('enddate')
@@ -61,7 +76,15 @@ def get_period_text():
 
 
 def get_mean_last(measurement, host):
-
+    """Returns average of measuremet for a host.
+    
+    Args:
+        measurements (string): measurement whose average to be returned
+        host (string): server hostname
+        
+    returns: 
+        Average of measurement for host
+    """
     querym = 'SELECT mean(*) FROM {}'.format(host.replace('.','_') +'_'+ measurement)
     resultm = client.query(querym, epoch='s')
     queryl = 'SELECT * FROM {}  ORDER BY DESC LIMIT 1'.format(host.replace('.','_') +'_'+ measurement)
@@ -73,6 +96,18 @@ def get_mean_last(measurement, host):
 
 def getData(item, step=None):
 
+    """Retreives data form influxdb with predefined aggregate functions in
+       monitoring_defs.py
+    
+    Args:
+        item (string): measurement
+        step (integer): If not provided default step defined in 
+                monitoring_defs.py will be used for current period
+        
+    returns: 
+        A compound data will be returned to be visualized by Google graphipcs.
+    """
+
     servers = Server.query.all()
 
 
@@ -80,15 +115,18 @@ def getData(item, step=None):
     if item == 'gluu_authentications':
         servers = ( Server.query.filter_by(primary_server=True).first() ,)
 
+    # Determine period
     period = request.args.get('period','d')
 
     startdate = request.args.get('startdate')
     enddate = request.args.get('enddate')
 
+    # If enddate is not given, it is current date
     if not enddate:
         enddate = time.strftime('%m/%d/%Y', time.localtime())
 
     if startdate:
+        # enddate can't be greater than start date
         if enddate < startdate:
             flash("End Date must be greater than Start Date",'warning')
             start = time.time() - periods[period]['seconds']
@@ -96,14 +134,18 @@ def getData(item, step=None):
             if not step:
                 step = periods[period]['step']
         else:
+            #append 00:00 for startdate and 23:59 for end date
             start = startdate + ' 00:00'
             start = int(time.mktime(time.strptime(start,"%m/%d/%Y %H:%M")))
             end = enddate + ' 23:59'
             end = int(time.mktime(time.strptime(end,"%m/%d/%Y %H:%M")))
+            #If step is not provied, calculate step
             if not step:
                 step = int((end-start)/365)
 
     else:
+        # If enddate and start date is not provided, start date is current time
+        # minus period and end date is current time
         start = time.time() - periods[period]['seconds']
         end = time.time()
         if not step:
@@ -114,6 +156,7 @@ def getData(item, step=None):
     ret_dict = {}
 
 
+    # retreive data from influxdb wiht aggregate functions
     for server in servers:
 
         if items[item]['aggr'] == 'DRV':
@@ -146,6 +189,7 @@ def getData(item, step=None):
 
         data = []
 
+        # Format data to be used by Google graphics
         if measurement == 'cpu_info':
             legends = [
                     'guest', 'idle', 'iowait',
@@ -189,6 +233,16 @@ def getData(item, step=None):
 
 
 def get_uptime(host):
+    
+    """Retreives uptime for host
+    
+    Args:
+        host (string): hostname of server
+        
+    returns: 
+        Uptime for host
+    """
+    
     c = RemoteClient(host)
     try:
         c.startup()
@@ -196,6 +250,8 @@ def get_uptime(host):
         flash("SSH Connection to host {} could not be established".format(host))
         return
     try:
+        #Execute script on the remote server, fetch output and convert json data
+        #to Python dictionary
         cmd = 'python /var/monitoring/scripts/get_data.py age'
         result = c.run(cmd)
         data = json.loads(result[1])
@@ -205,6 +261,15 @@ def get_uptime(host):
 
 
 def check_data(hostname):
+
+    """Checks if data ready for hostneme
+    
+    Args:
+        host (string): hostname of server
+        
+    returns: 
+        True if data is ready, otherwise returns False
+    """
 
     result = client.query("SHOW MEASUREMENTS")
 
@@ -221,25 +286,33 @@ def check_data(hostname):
 
 @monitoring.route('/')
 def home():
-
+    
+    """This view provides home page of monitoring."""
+    
     servers = Server.query.all()
 
     app_config = AppConfiguration.query.first()
 
+    #If configuration was not done redirect to configuration page
     if not app_config:
         return redirect(url_for("index.app_configuration"))
 
+    #If monitoring components was not installed redirect to monitoring
+    #introduction page
     if not app_config.monitoring:
         return render_template('monitoring_intro.html')
 
     data_ready = None
 
+    #Retreival of data takes a time after monitoring components were installed 
+    #both on remote servers and on local machine. Check if and data was
+    #fetched from remote servers.
     try:
         data_ready = check_data(servers[-1].hostname)
     except:
         flash("Error getting data from InfluxDB")
         return render_template( 'monitoring_error.html')
-
+    #If data was not reteived, display that data was not retreived yet.
     if not data_ready:
         return render_template('monitoring_nodata.html')
 
@@ -253,6 +326,8 @@ def home():
 
     data = {'uptime':{}}
 
+    #On the monitoring home page, we will display uptime, cpu and memeory usage
+    #of servers in cluster.
     try:
         data['cpu']= getData('cpu_percent', step=1200)
         data['mem']= getData('memory_usage', step=1200)
@@ -282,6 +357,8 @@ def home():
 
 @monitoring.route('/setuplocal')
 def setup_local():
+    
+    """This view provides setting up monitoring components on local machine"""
     server = Server( hostname='localhost', id=0)
 
     task = install_local.delay()
@@ -292,6 +369,9 @@ def setup_local():
 
 @monitoring.route('/setupservers')
 def setup():
+    
+    """This view provides setting up monitoring components on remote servers"""
+    
     servers = Server.query.all()
     appconf = AppConfiguration.query.first()
     if not appconf:
@@ -315,22 +395,31 @@ def setup():
 @monitoring.route('/system/<item>')
 def system(item):
 
+    """This view displays system related statistics"""
+
+    #First get data from influxdb
     try:
         data = getData(item)
     except:
         flash("Error getting data from InfluxDB")
         return render_template( 'monitoring_error.html')
 
+    #Default template is 'monitoring_graphs.html'
     temp = 'monitoring_graphs.html'
     title= item.replace('_', ' ').title()
     data_g = data
     colors={}
+    
+    #if measurement is not 'cpu_usage', use 'monitoring_graph_system.html'
+    #template
     if not item == 'cpu_usage':
         temp = 'monitoring_graph_system.html'
 
+    #colors to be used in giraphics
     line_colors = ('#DC143C', '#DEB887',
                    '#006400', '#E9967A', '#1E90FF')
 
+    #For network IO, me make inbound tarffic as nagitive
     if item == 'network_i_o':
         for host in data:
             for i, lg in enumerate(data[host]['legends']):
@@ -348,6 +437,8 @@ def system(item):
     max_value = 0
     min_value = 0
 
+    #We should determine max and min value for axis so that on the multiple
+    #graphics, each servers' axis are the same
     if '%' in items[item]['vAxis']:
         max_value = 100
 
@@ -384,6 +475,8 @@ def system(item):
 @monitoring.route('/replicationstatus')
 def replication_status():
 
+    """This view displays replication status of ldap servers"""
+
     prop = get_setup_properties()
     rep_status = get_opendj_replication_status()
 
@@ -403,11 +496,14 @@ def replication_status():
 
 @monitoring.route('/allldap/<item>')
 def ldap_all(item):
+    """This view will displaye selected ldap statistics on a single page"""
     return "Not Implemented"
 
 
 @monitoring.route('/ldap/<item>/')
 def ldap_single(item):
+
+    """This view displays ldap statistics"""
 
     try:
         data = getData(item)

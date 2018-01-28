@@ -284,14 +284,22 @@ def get_setup_properties():
     return setup_prop
 
 def get_opendj_replication_status():
+    
+    """Retreives opendj replication status form primary server
+
+    :returns: A string that shows replication status
+    """
+    
     primary_server = Server.query.filter_by(primary_server=True).first()
     app_config = AppConfiguration.query.first()
 
+    #Make ssh connection to primary server
     c = RemoteClient(primary_server.hostname, ip=primary_server.ip)
     chroot = '/opt/gluu-server-' + app_config.gluu_version
 
     cmd_run = '{}'
 
+    #determine execution environment for differetn OS types
     if (primary_server.os == 'CentOS 7') or (primary_server.os == 'RHEL 7'):
         chroot = None
         cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
@@ -307,7 +315,7 @@ def get_opendj_replication_status():
     except Exception as e:
         return False, "Cannot establish SSH connection {0}".format(e)
 
-
+    #This command queries server for replication status
     cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 4444 -I admin -w {}').format(
                     primary_server.hostname,

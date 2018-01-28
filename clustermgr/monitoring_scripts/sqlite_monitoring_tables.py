@@ -1,3 +1,6 @@
+#This script contains infromation about sqlite database tables, if run
+#creates database and defined tables
+
 data_dir = '/var/monitoring'
 import sqlite3
 import os

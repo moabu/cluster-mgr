@@ -1,3 +1,7 @@
+#This script contains definitions for monitoring. It will be imported
+#by many scripts
+
+#These are the definitions of menu on the monitoring page
 left_menu = { 
     'Ldap Monitoring': (
                         'replication_status',
@@ -18,7 +22,9 @@ left_menu = {
                         )
 }
 
-
+# Each item on the menu may have an endpoint ('end_point), 
+# aggregate functions (aggr) to be used, data source (data_source)
+# graphic type (chartType) and axis anems
 items = {
 
         'summary': {'end_point': 'monitoring.ldap_all',
@@ -92,7 +98,7 @@ items = {
 }
 
 
-
+#These are the periods and steps
 periods = { 'd': {'title': 'Daily', 'seconds': 86400, 'step': 300},
             'w': {'title': 'Weekly', 'seconds': 604800, 'step': 1800},
             'm': {'title': 'Monthly', 'seconds': 2592000, 'step': 7200},
@@ -100,7 +106,7 @@ periods = { 'd': {'title': 'Daily', 'seconds': 86400, 'step': 300},
                 
         }
 
-
+#These are openldap monitoring dns
 searchlist = {
 'total_connections':('cn=Total,cn=Connections,cn=Monitor','monitorCounter'),
 'bytes_sent': ('cn=Bytes,cn=Statistics,cn=Monitor','monitorCounter'),

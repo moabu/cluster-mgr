@@ -1,3 +1,4 @@
+# This script collects data and writes local sqlite database
 import os
 import time
 import psutil
@@ -18,6 +19,13 @@ attr_list = ["addRequests", "modifyRequests", "deleteRequests", "searchRequests"
 sql_db_file = os.path.join(data_path, 'gluu_monitoring.sqlite3')
 
 def get_ldap_admin_password():
+    
+    """Retreives ldap directory manager password from gluu installation
+    
+    Returns:
+        string: ldap directory manager password
+    """
+    
     gluu_version = open(os.path.join(data_path, 'scripts', 'gluu_version.txt')).read().strip()
     salt_file = open('/opt/gluu-server-{0}/etc/gluu/conf/salt'.format(gluu_version)).read()
     salt = salt_file.split('=')[1].strip()
@@ -33,6 +41,13 @@ def get_ldap_admin_password():
 
 def execute_query(table, data, options=None):
     
+    """Writes data to sqlite database
+
+    Args:
+        tables (string): table name
+        data: compound data to be written to database
+    """
+    
     tmpdata = [ str(d) for d in data ]
     
     datas = ', '.join(tmpdata)
@@ -47,6 +62,10 @@ def execute_query(table, data, options=None):
     cur.execute(query)
 
 def collect_ldap_monitoring():
+
+    """Qury LDAP for monitoring statistics and writes data to local sqlite
+    database
+    """
 
     bind_dn = 'cn=directory manager'
     passwd = get_ldap_admin_password()
@@ -70,6 +89,8 @@ def collect_ldap_monitoring():
 
 
 def collect_cpu_info():
+    """Collects CPU times and writes to local sqlite database
+    """
     cpu_times= psutil.cpu_times()
     data = [float(cpu_times.system), float(cpu_times.user), float(cpu_times.nice), float(cpu_times.idle), 
             float(cpu_times.iowait), float(cpu_times.irq), float(cpu_times.softirq), 
@@ -78,20 +99,29 @@ def collect_cpu_info():
     execute_query('cpu_info', data)
 
 def collect_cpu_percent():
+    """Collects CPU usage and writes to local sqlite database
+    """
     data = [float(psutil.cpu_percent(interval=0.5))]
     execute_query('cpu_percent', data)
 
 def collect_load_average():
+    """Collects load average and writes to local sqlite database
+    """
     load_avg = os.getloadavg()
     data = [load_avg[0]]
     execute_query('load_average', data)
 
 
 def collect_disk_usage():
+    
+    """Collects disk usage (per partition) and write to local sqlite database
+    """
+    
     disks = psutil.disk_partitions()
 
     cur.execute('SELECT * FROM disk_usage LIMIT 1')
 
+    #partitions
     dnames = [desc[0] for desc in cur.description]
     dnames.remove('time')
 
@@ -111,12 +141,15 @@ def collect_disk_usage():
     
 
 def collect_mem_usage():  
+    """Collects memory usage and write to local sqlite database
+    """
     mem_usage = psutil.virtual_memory()
     data = [mem_usage.percent]
     execute_query('mem_usage', data)
 
 def collect_ne_io():
-
+    """Collects network IO and write to local sqlite database
+    """
     cur.execute('SELECT * FROM net_io LIMIT 1')
 
     nifnames = []

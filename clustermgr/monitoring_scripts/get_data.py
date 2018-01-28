@@ -1,3 +1,5 @@
+#This script queries local sqlite database and dumps to standart output as json
+
 import psutil
 import time
 import os
