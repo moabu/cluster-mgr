@@ -78,6 +78,8 @@ class AppConfiguration(db.Model):
     # flag if monitoring installed
     monitoring = db.Column(db.Boolean())
 
+    # if ip-host pairs will be written to /etc/hosts
+    modify_hosts = db.Column(db.Boolean())
 
 class KeyRotation(db.Model):
     __tablename__ = "keyrotation"

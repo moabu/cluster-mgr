@@ -117,7 +117,21 @@ class RedisInstaller(BaseInstaller):
             wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
         # verifying installation
         cin, cout, cerr = self.rc.run("yum install redis -y")
-        if "already installed" in cout:
+        
+        result = cout
+        
+        if server.os in ('CentOS 6','RHEL 6'):
+            cin, cout, cerr = self.run_command("chkconfig --add redis")
+            wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
+            
+            cin, cout, cerr = self.run_command("chkconfig --level 345 redis on")
+            wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
+        else:
+            cin, cout, cerr = self.run_command("systemctl enable redis")
+            wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
+
+
+        if "already installed" in result:
             return True
         else:
             return False
