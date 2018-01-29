@@ -93,6 +93,8 @@ def install_local(self):
     #commands to install influxdb on local machine for each OS type
     if 'Ubuntu' in localos:
         influx_cmd = [
+            'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
+            'DEBIAN_FRONTEND=noninteractive sudo apt-get install -y curl',
             'curl -sL https://repos.influxdata.com/influxdb.key | '
             'sudo apt-key add -'
             ]
@@ -109,7 +111,7 @@ def install_local(self):
             '/etc/apt/sources.list.d/influxdb.list')
         
         influx_cmd += [
-            'sudo apt-get update',
+            'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
             'DEBIAN_FRONTEND=noninteractive sudo apt-get install influxdb',
             'sudo service influxdb start',
             'sudo pip install influxdb',
@@ -118,6 +120,8 @@ def install_local(self):
     
     elif 'Debian' in localos:
         influx_cmd = [
+            'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
+            'DEBIAN_FRONTEND=noninteractive sudo apt-get install -y curl',
             'curl -sL https://repos.influxdata.com/influxdb.key | '
             'sudo apt-key add -']
             
@@ -142,6 +146,8 @@ def install_local(self):
 
     elif localos == 'CentOS 7':
         influx_cmd = [
+                        'sudo yum repolist',
+                        'sudo yum install -y curl',
                         'cat <<EOF | sudo tee /etc/yum.repos.d/influxdb.repo\n'
                         '[influxdb]\n'
                         'name = InfluxDB Repository - RHEL \$releasever\n'
