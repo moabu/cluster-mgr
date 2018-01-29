@@ -62,10 +62,26 @@ def index():
         header = "New Server - Primary Server"
 
     if form.validate_on_submit():
+        
         server = Server()
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
         server.mmr = False
+        
+        
+        c = RemoteClient(server.hostname, server.ip)
+        try:
+            c.startup()
+        except:
+            flash("SSH connection to {} failed. Please check if your pub key is "
+                "asdded to /root/.ssh/authorized_keys on this server".format(
+                                                    server.hostname))
+            
+            return render_template('new_server.html',
+                       form=form,
+                       header=header,
+                       server_id=None)
+        
         if primary_server:
             server.ldap_password = primary_server.ldap_password
         else:
