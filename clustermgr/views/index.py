@@ -45,7 +45,12 @@ def home():
     """This is the home view --dashboard--"""
     if 'nongluuldapinfo' in session:
         del session['nongluuldapinfo']
-    appconf = AppConfiguration.query.first()
+    
+    try:
+        appconf = AppConfiguration.query.first()
+    except:
+        return render_template('index_nodb.html')
+    
     if not appconf:
         return render_template('intro.html', setup='cluster')
 
