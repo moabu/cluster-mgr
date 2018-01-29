@@ -2,13 +2,13 @@ Licensed under the [GLUU SUPPORT LICENSE](./LICENSE). Copyright Gluu 2017.
 
 # Cluster Manager
 
-#### GUI tool for managing Gluu Server and OpenLDAP replication.
+#### GUI tool for installing and managing a highly available Gluu Server cluster.
 
 Cluster Manager currently only supports installation on Ubuntu 14 and 16. It can, however, be used to configure Gluu Server clusters on Ubuntu and CentOS.
 
 ##### Gluu Cluster Manager should be installed on a secure administrators computer or a VM as it will have SSH access to all servers in the cluster.
 
-After configuration, Cluster Manager no longer needs to be actively connected to the cluster for them to work properly. It can however be used to monitor and manage your cluster for modifications at any time.
+After configuration, Cluster Manager no longer needs to be actively connected to the cluster for them to work properly. It can however be used to monitor your Gluu server health, make adjustments to your cluster configuration, and review Gluu Server logs.
 
 ##### The necessary ports that need to be opened in a default cluster installation are as follows:
 
@@ -16,21 +16,23 @@ After configuration, Cluster Manager no longer needs to be actively connected to
 <tr><th> Gluu Servers </th><th> Load Balancer </th></tr>
 <tr><td>
 
-|22| 80 | 443|
-|--| 4444 |8989 |
-|1636| 7777 |  |
+|22| 80 | 443| --|
+|--| -- | -- | -- |
+|1636| 4444 | 8989 | 7777|
 
 </td><td>
 
-|22| 80 |--|
-|--|--|--|
-|443| 8888 | 
+|22| 80 |
+|--|--|
+|443 | 8888 |
 
 </td></tr> </table>
 
+22 will be used by Cluster Manager to pull logs and make adjustments to the systems. 80 and 443 are self explanatory. 1636, 4444 and 8989 are necessary for LDAP usage and replication. 7777 and 8888 are for securing communication between the Proxy server and the Gluu servers with stunnel.
+
 ## Installing Cluster Manager
 
-1) First we must enable the machine that Gluu Cluster Manager is installed on the ability to establish an ssh connection to the servers that are going to be added to the cluster. This includes the NGINX/Load-balancing server:
+1) First we must give Gluu Cluster Manager the ability to establish an ssh connection to the servers that are going to be added to the cluster. This includes the NGINX/Load-balancing server:
 
 `ssh-keygen -t rsa`
 
@@ -85,7 +87,7 @@ clustermgr-celery &
 clustermgr-cli run
 ```
 
-9) Create default authentication config file at `$HOME/.clustermgr/auth.ini` for initial setup
+9) On your first run of Gluu Cluster Manager, it will prompt you to create an administrator user name and password. This creates an authentication config file at `$HOME/.clustermgr/auth.ini`. You can also do this manually before or after by editing this file in the following format:
 
 ```
 [user]
