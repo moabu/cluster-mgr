@@ -16,7 +16,7 @@ After configuration, Cluster Manager no longer needs to be actively connected to
 <tr><th> Gluu Servers </th><th> Load Balancer </th></tr>
 <tr><td>
 
-|22| 80 | 443| --|
+|22| --| 443| 808* |
 |--| -- | -- | -- |
 |1636| 4444 | 8989 | 7777|
 
