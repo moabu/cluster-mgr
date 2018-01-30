@@ -338,3 +338,49 @@ def as_boolean(val, default=False):
     if val in falsy:
         return False
     return default
+
+def modify_etc_hosts(host_ip, old_hosts):
+
+    hosts = {
+            'ipv4':{},
+            'ipv6':{},
+            }
+
+    for l in old_hosts:
+        ls=l.strip()
+        if ls:
+            if not ls[0]=='#':
+                if ls[0]==':':
+                    h_type='ipv6'
+                else:
+                    h_type='ipv4'
+
+                lss = ls.split()
+                ip_addr = lss[0]
+                if not ip_addr in hosts[h_type]:
+                    hosts[h_type][ip_addr]=[]
+                for h in lss[1:]:
+                    if not h in hosts[h_type][ip_addr]:
+                        hosts[h_type][ip_addr].append(h)
+
+    for h,i in host_ip:
+        if h in hosts['ipv4']['127.0.0.1']:
+            hosts['ipv4']['127.0.0.1'].remove(h)
+
+    for h,i in host_ip:
+        if h in hosts['ipv6']['::1']:
+            hosts['ipv6']['::1'].remove(h)
+            
+    for h,i in host_ip:
+        hosts['ipv4'][i]=[h]
+
+    hostse = ''
+
+    for iptype in hosts:
+        for ipaddr in hosts[iptype]:
+            host_list = [ipaddr] + hosts[iptype][ipaddr]
+            hl =  "\t".join(host_list)
+            hostse += hl +'\n'
+
+    return hostse
+

@@ -511,6 +511,8 @@ def setup_proxied(tid):
 
 
     wlogger.log(tid, "Configuring the proxy server ...")
+    
+    
     # Setup Stunnel in the proxy server
     mock_server = Server()
     mock_server.hostname = appconf.nginx_host
@@ -521,6 +523,19 @@ def setup_proxied(tid):
                     "failed.", "error")
         return
     mock_server.os = get_os_type(rc)
+
+    wlogger.log(tid, "Installing Redis in server {0}".format(
+    mock_server.hostname), "info")
+    ri = RedisInstaller(mock_server, tid)
+    redis_installed = ri.install()
+    if redis_installed:
+        mock_server.redis = True
+        wlogger.log(tid, "Redis install successful", "success")
+    else:
+        mock_server.redis = False
+        wlogger.log(tid, "Redis install failed", "fail")
+
+
     # Download the setup.properties file from the primary server
     local = os.path.join(app.instance_path, "setup.properties")
     remote = os.path.join("/opt/gluu-server-"+appconf.gluu_version,

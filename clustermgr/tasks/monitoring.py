@@ -378,13 +378,12 @@ def install_monitoring(self):
             err = False
         
             if result[2].strip():
-                if not "pip install --upgrade pip" in result[2]:
+                print "Writing error", cmd
+                if not ("pip install --upgrade pip" in result[2] or 'Redirecting to /bin/systemctl' in result[2]):
                     wlogger.log(tid, "An error occurrued while executing "
                                 "{}: {}".format(cmd, result[2]),
                                 "error", server_id=server.id)
                     err = True
-                if "Redirecting to /bin/systemctl" in result[2]:
-                    err = False
             
             if not err:
                 wlogger.log(tid, "Command was run successfully: {}".format(cmd),

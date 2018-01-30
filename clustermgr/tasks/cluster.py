@@ -10,7 +10,7 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import wlogger, db, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import LdapOLC
-from clustermgr.core.utils import get_setup_properties
+from clustermgr.core.utils import get_setup_properties, modify_etc_hosts
 from clustermgr.config import Config
 import uuid
 
@@ -1021,6 +1021,39 @@ def delete_key(suffix, hostname, gluu_version, tid, c, sos):
         wlogger.log(tid, cout+cerr, 'debug')
 
 
+def modify_hosts(tid, c, hosts, chroot=None, server_host=None):
+    wlogger.log(tid, "Modifying /etc/hosts")
+    
+    h_file = '/etc/hosts'
+    
+    r, old_hosts = c.get_file(h_file)
+    
+    if r:
+        new_hosts = modify_etc_hosts(hosts, old_hosts)
+        c.put_file(h_file, new_hosts)
+        wlogger.log(tid, "{} was modified".format(h_file), 'success')
+    else:
+        wlogger.log(tid, "Can't receive {}".format(h_file), 'fail')
+
+
+    if chroot:
+
+        h_file = chroot+'etc/hosts'
+        
+        r, old_hosts = c.get_file(h_file)
+        
+        for host in hosts:
+            if host[0] == server_host:
+                hosts.remove(host)
+                break
+        
+        if r:
+            new_hosts = modify_etc_hosts(hosts, old_hosts)
+            c.put_file(h_file, new_hosts)
+            wlogger.log(tid, "{} was modified".format(h_file), 'success')
+        else:
+            wlogger.log(tid, "Can't receive {}".format(h_file), 'fail')
+
 
 @celery.task(bind=True)
 def installGluuServer(self, server_id):
@@ -1041,6 +1074,8 @@ def installGluuServer(self, server_id):
     setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
 
     gluu_server = 'gluu-server-' + appconf.gluu_version
+
+   
 
     #If os type of this server was not idientified, return to home
     if not server.os:
@@ -1280,6 +1315,18 @@ def installGluuServer(self, server_id):
 
     setup_prop = get_setup_properties()
 
+    
+    if appconf.modify_hosts:
+        all_server = Server.query.all()
+        
+        host_ip = []
+        
+        for ship in all_server:
+            host_ip.append((ship.hostname, ship.ip))
+
+        modify_hosts(tid, c, host_ip, '/opt/'+gluu_server+'/', server.hostname)
+
+
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
 
@@ -1421,7 +1468,6 @@ def installGluuServer(self, server_id):
     server.gluu_server = True
     db.session.commit()
     wlogger.log(tid, "Gluu Server successfully installed")
-
 
 
 @celery.task(bind=True)
@@ -1968,6 +2014,9 @@ def installNGINX(self, nginx_host):
     servers = Server.query.all()
     nginx_backends = []
 
+
+
+
     #read local nginx.conf template
     nginx_tmp_file = os.path.join(app.root_path, "templates", "nginx",
                            "nginx.temp")
@@ -1994,5 +2043,15 @@ def installNGINX(self, nginx_host):
     cmd = 'service nginx restart'
 
     run_command(tid, c, cmd, no_error='debug')
+
+    if app_config.modify_hosts:
+        
+        host_ip = []
+        
+        for ship in servers:
+            host_ip.append((ship.hostname, ship.ip))
+
+        modify_hosts(tid, c, host_ip)
+
 
     wlogger.log(tid, "NGINX successfully installed")
