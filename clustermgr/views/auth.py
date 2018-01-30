@@ -18,6 +18,7 @@ from oxdpython.exceptions import OxdServerError
 
 from ..extensions import login_manager
 from ..forms import LoginForm, SignUpForm
+from ..models import Server
 
 
 auth_bp = Blueprint("auth", __name__)
@@ -60,16 +61,16 @@ def load_user(username):
 @auth_bp.route("/login/", methods=["GET", "POST"])
 def login():
     cfg_file = current_app.config["AUTH_CONFIG_FILE"]
-    
+
     if not os.path.exists(cfg_file):
         return redirect(url_for('auth.signup'))
-    
+
     if current_user.is_authenticated:
         return redirect(url_for("index.home"))
 
     form = LoginForm()
     if form.validate_on_submit():
-        
+
         user = user_from_config(cfg_file, form.username.data)
 
         if user and form.password.data == user.password:
@@ -78,7 +79,9 @@ def login():
             return redirect(next_ or url_for('index.home'))
 
         flash("Invalid username or password.", "warning")
-    return render_template('auth_login.html', form=form)
+
+    server_num = Server.query.count()
+    return render_template('auth_login.html', form=form, server_num=server_num)
 
 
 @auth_bp.route("/logout/")
@@ -180,9 +183,10 @@ def oxd_post_logout():
     logout_user()
     return redirect(url_for("index.home"))
 
+
 @auth_bp.route("/signup", methods=['GET', 'POST'])
 def signup():
-    
+
     if request.method == 'POST':
         form = SignUpForm(request.form)
         if form.validate():
@@ -191,7 +195,7 @@ def signup():
 
             username = form.username.data.strip()
             password = form.password.data.strip()
-            
+
             config = ConfigParser.RawConfigParser()
             config.add_section('user')
             config.set('user', 'username', username)
