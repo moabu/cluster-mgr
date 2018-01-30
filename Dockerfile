@@ -14,7 +14,7 @@ RUN apt-get upgrade -y  \
     ca-certificates-java \
     openjdk-8-jre-headless \
     wget \
-    python-pip \ 
+    python-pip \
     python-dev \
     libffi-dev \
     libssl-dev \
@@ -29,7 +29,7 @@ RUN apt-get upgrade -y  \
 
 RUN mkdir -p $HOME/.ssh \
     && chmod 600 $HOME/.ssh/ \
-    && ssh-keygen -b 2048 -t rsa -f /tmp/sshkey -q -N "" 
+    && ssh-keygen -b 2048 -t rsa -f $HOME/.ssh/id_rsa -q -N ""
 # Download and install Cluster Manager
 RUN mkdir $HOME/clustermgr \
     && git clone https://github.com/GluuFederation/cluster-mgr.git $HOME/clustermgr/ \
@@ -45,4 +45,6 @@ RUN mkdir $HOME/.clustermgr/ \
 EXPOSE 5000
 
 #Run the program
-RUN clustermgr-beat & clustermgr-celery & clustermgr-cli run
+RUN mkdir -p /opt/scripts
+COPY entrypoint.sh /opt/scripts
+RUN chmod +x /opt/scripts/entrypoint.sh
