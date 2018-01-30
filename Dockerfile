@@ -28,20 +28,21 @@ RUN apt-get upgrade -y  \
 # Create keypair 
 
 RUN mkdir -p $HOME/.ssh \
-    && ssh-keygen -b 2048 -t rsa -q -f /~/.ssh/ -N ""  \
+    && chmod 600 $HOME/.ssh/ \
+    && ssh-keygen -b 2048 -t rsa -f /tmp/sshkey -q -N "" 
 # Download and install Cluster Manager
-    && git clone https://github.com/GluuFederation/cluster-mgr.git \
-    && cd clustermgr/   \
+RUN mkdir $HOME/clustermgr \
+    && git clone https://github.com/GluuFederation/cluster-mgr.git $HOME/clustermgr/ \
+    && cd $HOME/clustermgr/   \
     && python setup.py install
 
 # Prepare database and license enforcement requirements
-RUN clustermgr-cli db upgrade  \
+RUN mkdir $HOME/.clustermgr/ \
+    && clustermgr-cli db upgrade  \
     && mkdir -p $HOME/.clustermgr/javalibs \
-    && wget http://ox.gluu.org/maven/org/xdi/oxlicense-validator/3.2.0-SNAPSHOT/oxlicense-validator-3.2.0-SNAPSHOT-jar-with-dependencies.jar -O $HOME/.clustermgr/javalibs/oxlicense-validator.jar  \
-    && mkdir $HOME/.clustermgr/
+    && wget http://ox.gluu.org/maven/org/xdi/oxlicense-validator/3.2.0-SNAPSHOT/oxlicense-validator-3.2.0-SNAPSHOT-jar-with-dependencies.jar -O $HOME/.clustermgr/javalibs/oxlicense-validator.jar
 
 EXPOSE 5000
 
 #Run the program
 RUN clustermgr-beat & clustermgr-celery & clustermgr-cli run
-
