@@ -87,12 +87,17 @@ def index():
         else:
             server.ldap_password = form.ldap_password.data.strip()
             server.primary_server = True
-        db.session.add(server)
-        db.session.commit()
+        
+        if not server.hostname == appconfig.nginx_host:
+            db.session.add(server)
+            db.session.commit()
+            # start the background job to get system details
+            collect_server_details.delay(server.id)
+            return redirect(url_for('index.home'))
 
-        # start the background job to get system details
-        collect_server_details.delay(server.id)
-        return redirect(url_for('index.home'))
+        else:
+            flash("Load balancer can't be used as gluu server", 'danger')
+
 
     return render_template('new_server.html',
                            form=form,
