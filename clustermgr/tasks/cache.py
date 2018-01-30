@@ -120,7 +120,7 @@ class RedisInstaller(BaseInstaller):
         
         result = cout
         
-        if server.os in ('CentOS 6','RHEL 6'):
+        if self.server.os in ('CentOS 6','RHEL 6'):
             cin, cout, cerr = self.run_command("chkconfig --add redis")
             wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
             

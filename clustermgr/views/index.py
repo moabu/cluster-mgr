@@ -120,7 +120,7 @@ def app_configuration():
         config.gluu_version = conf_form.gluu_version.data.strip()
         #config.use_ip = conf_form.use_ip.data
         config.nginx_host = conf_form.nginx_host.data.strip()
-
+        config.modify_hosts = conf_form.modify_hosts.data
 
         if getattr(conf_form, 'replication_pw'):
             config.replication_pw = conf_form.replication_pw.data.strip()
@@ -128,6 +128,7 @@ def app_configuration():
         config.gluu_version = conf_form.gluu_version.data.strip()
         #config.use_ip = conf_form.use_ip.data
         config.nginx_host = conf_form.nginx_host.data.strip()
+        
         # config.admin_email = conf_form.admin_email.data.strip()
 
         #purge_age_day = conf_form.purge_age_day.data
@@ -172,6 +173,7 @@ def app_configuration():
         #    "cn=", "").replace(",o=gluu", "")
         #conf_form.replication_pw.data = config.replication_pw
         conf_form.nginx_host.data = config.nginx_host
+        conf_form.modify_hosts.data = config.modify_hosts
         #conf_form.use_ip.data = config.use_ip
         if config.gluu_version:
             conf_form.gluu_version.data = config.gluu_version

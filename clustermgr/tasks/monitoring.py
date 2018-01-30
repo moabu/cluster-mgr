@@ -54,7 +54,10 @@ def run_and_log(c, cmd, tid, sid):
     result = c.run(cmd)
     
     if result[2].strip():
-        wlogger.log(tid, "An error occurrued while executing "
+        if "Redirecting to /bin/systemctl" in result[2]:
+            wlogger.log(tid,result[2].strip(), "debug", server_id=sid)
+        else:
+            wlogger.log(tid, "An error occurrued while executing "
                     "{}: {}".format(cmd, result[2]),
                     "error", server_id=sid)
     
@@ -146,6 +149,7 @@ def install_local(self):
 
     elif localos == 'CentOS 7':
         influx_cmd = [
+                        'sudo yum install -y epel-release',
                         'sudo yum repolist',
                         'sudo yum install -y curl',
                         'cat <<EOF | sudo tee /etc/yum.repos.d/influxdb.repo\n'
@@ -337,7 +341,10 @@ def install_monitoring(self):
         # 6. Installing packages. 
         # 6a. First determine commands for each OS type
         if ('CentOS' in server.os) or ('RHEL' in server.os):
-            package_cmd = ['yum install -y gcc', 'yum install -y python-devel',
+            package_cmd = [ 'yum install -y epel-release',
+                            'yum repolist',
+                            'yum install -y gcc', 
+                            'yum install -y python-devel',
                             'yum install -y python-pip',
                             'service crond restart'
                             ]
@@ -376,6 +383,8 @@ def install_monitoring(self):
                                 "{}: {}".format(cmd, result[2]),
                                 "error", server_id=server.id)
                     err = True
+                if "Redirecting to /bin/systemctl" in result[2]:
+                    err = False
             
             if not err:
                 wlogger.log(tid, "Command was run successfully: {}".format(cmd),
