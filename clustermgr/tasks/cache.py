@@ -552,6 +552,7 @@ def setup_proxied(tid):
         "  distribution: ketama",
         "  auto_eject_hosts: true",
         "  redis: true",
+        "  server_retry_timeout: 30000",
         "  server_failure_limit: 2",
         "  timeout: 400",
         "  preconnect: true",
