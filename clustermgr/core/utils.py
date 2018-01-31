@@ -372,7 +372,11 @@ def modify_etc_hosts(host_ip, old_hosts):
             hosts['ipv6']['::1'].remove(h)
             
     for h,i in host_ip:
-        hosts['ipv4'][i]=[h]
+        if i in hosts['ipv4']:
+            if not h in hosts['ipv4'][i]:
+                hosts['ipv4'][i].append(h)
+        else:
+            hosts['ipv4'][i] = [h]
 
     hostse = ''
 

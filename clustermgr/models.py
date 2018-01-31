@@ -81,6 +81,8 @@ class AppConfiguration(db.Model):
     # if ip-host pairs will be written to /etc/hosts
     modify_hosts = db.Column(db.Boolean())
 
+    nginx_ip = db.Column(db.String(50))
+
 class KeyRotation(db.Model):
     __tablename__ = "keyrotation"
 

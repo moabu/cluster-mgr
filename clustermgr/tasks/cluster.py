@@ -1042,10 +1042,10 @@ def modify_hosts(tid, c, hosts, chroot=None, server_host=None):
         
         r, old_hosts = c.get_file(h_file)
         
-        for host in hosts:
-            if host[0] == server_host:
-                hosts.remove(host)
-                break
+        #for host in hosts:
+        #    if host[0] == server_host:
+        #        hosts.remove(host)
+        #        break
         
         if r:
             new_hosts = modify_etc_hosts(hosts, old_hosts)
@@ -1062,6 +1062,7 @@ def installGluuServer(self, server_id):
     Args:
         server_id: id of server to be installed
     """
+
     tid = self.request.id
     server = Server.query.get(server_id)
     pserver = Server.query.filter_by(primary_server=True).first()
@@ -1075,13 +1076,14 @@ def installGluuServer(self, server_id):
 
     gluu_server = 'gluu-server-' + appconf.gluu_version
 
-   
 
     #If os type of this server was not idientified, return to home
     if not server.os:
         wlogger.log(tid, "OS type has not been identified.", 'fail')
         wlogger.log(tid, "Ending server installation process.", "error")
         return
+
+
 
     #If this is not primary server, we will download setup.properties file from
     #primary server
@@ -1113,6 +1115,7 @@ def installGluuServer(self, server_id):
         wlogger.log(tid, "Can't establish SSH connection",'fail')
         wlogger.log(tid, "Ending server installation process.", "error")
         return
+
 
     wlogger.log(tid, "Preparing for Installation")
 
@@ -1327,6 +1330,7 @@ def installGluuServer(self, server_id):
         modify_hosts(tid, c, host_ip, '/opt/'+gluu_server+'/', server.hostname)
 
 
+
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
 
@@ -1468,8 +1472,9 @@ def installGluuServer(self, server_id):
     server.gluu_server = True
     db.session.commit()
     wlogger.log(tid, "Gluu Server successfully installed")
+    
 
-
+    
 @celery.task(bind=True)
 def removeMultiMasterDeployement(self, server_id):
     """Removes multi master replication deployment
@@ -2050,6 +2055,8 @@ def installNGINX(self, nginx_host):
         
         for ship in servers:
             host_ip.append((ship.hostname, ship.ip))
+
+        host_ip.append((app_config.nginx_host, app_config.nginx_ip))
 
         modify_hosts(tid, c, host_ip)
 

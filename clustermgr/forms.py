@@ -26,6 +26,8 @@ class AppConfigForm(FlaskForm):
         'Re-enter Password', validators=[DataRequired()])
     nginx_host = StringField('Load Balancer Hostname', validators=[DataRequired()])
 
+    nginx_ip = StringField('Load Balancer IP Address', validators=[DataRequired()])
+
     # purge_age_day = SelectField(choices=[(str(d), str(d)) for d in range(0, 31)])
     # purge_age_hour = SelectField(choices=[(str(h), str(h)) for h in range(0, 25)], default="24")
     # purge_age_min = SelectField(choices=[(str(m), str(m)) for m in range(0, 60)])
