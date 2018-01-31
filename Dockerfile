@@ -2,7 +2,7 @@ FROM debian:stretch-slim
 
 MAINTAINER Gluu Inc. <support@gluu.org>
 
-RUN echo "deb http://ftp.de.debian.org/debian sid main " >> /etc/apt/sources.list
+RUN echo "deb http://deb.debian.org/debian stretch main" >> /etc/apt/sources.list
 
 #Required for openJDK-8
 RUN mkdir -p /usr/share/man/man1
