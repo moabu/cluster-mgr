@@ -1,13 +1,19 @@
-FROM debian:stretch-slim
+FROM ubuntu
 
 MAINTAINER Gluu Inc. <support@gluu.org>
 
-RUN echo "deb http://deb.debian.org/debian stretch main" >> /etc/apt/sources.list
+RUN echo "deb http://us.archive.ubuntu.com/ubuntu/ xenial main universe" >> /etc/apt/sources.list
 
-#Required for openJDK-8
-RUN mkdir -p /usr/share/man/man1
-
-RUN apt-get upgrade -y  \
+# Make directories 
+RUN mkdir -p /usr/share/man/man1 \
+    && mkdir $HOME/clustermgr \
+    && mkdir -p $HOME/.ssh \
+    && mkdir $HOME/.clustermgr/ \
+    && mkdir -p $HOME/.clustermgr/javalibs \
+    && mkdir -p /etc/cron.d/ \
+    && mkdir -p /opt/scripts
+#Do I need an upgrade here??
+RUN apt-get upgrade -y \
     && apt-get update -y  \
     && apt-get install -y\
     git \
@@ -19,32 +25,43 @@ RUN apt-get upgrade -y  \
     libffi-dev \
     libssl-dev \
     redis-server  \
+    sudo \
+    curl \
+    cron \
+    apt-transport-https \
+    apt-utils \
     && pip install --upgrade \
     setuptools \
     influxdb \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Create keypair 
-
-RUN mkdir -p $HOME/.ssh \
-    && chmod 600 $HOME/.ssh/ \
-    && ssh-keygen -b 2048 -t rsa -f $HOME/.ssh/id_rsa -q -N ""
+# Change .ssh permissions
+RUN chmod 600 $HOME/.ssh/ \
 # Download and install Cluster Manager
-RUN mkdir $HOME/clustermgr \
     && git clone https://github.com/GluuFederation/cluster-mgr.git $HOME/clustermgr/ \
     && cd $HOME/clustermgr/   \
     && python setup.py install
 
 # Prepare database and license enforcement requirements
-RUN mkdir $HOME/.clustermgr/ \
-    && clustermgr-cli db upgrade  \
-    && mkdir -p $HOME/.clustermgr/javalibs \
+RUN clustermgr-cli db upgrade  \
     && wget http://ox.gluu.org/maven/org/xdi/oxlicense-validator/3.2.0-SNAPSHOT/oxlicense-validator-3.2.0-SNAPSHOT-jar-with-dependencies.jar -O $HOME/.clustermgr/javalibs/oxlicense-validator.jar
 
+# Expose the Cluster Manager default port
 EXPOSE 5000
 
+# Remove unnecessary packages
+RUN apt-get remove --purge -y python-dev \
+    libffi-dev \
+    libssl-dev \
+    wget \
+    git
+
+RUN touch /etc/cron.d/monitoring
+RUN chmod 0644 /etc/cron.d/monitoring
+RUN touch /var/log/cron.log
+
 #Run the program
-RUN mkdir -p /opt/scripts
 COPY entrypoint.sh /opt/scripts
 RUN chmod +x /opt/scripts/entrypoint.sh
+CMD ["/opt/scripts/entrypoint.sh"]
