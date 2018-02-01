@@ -1,6 +1,7 @@
 import ConfigParser
 import os
 import socket
+import hashlib
 
 from flask import current_app
 from flask import Blueprint
@@ -73,7 +74,9 @@ def login():
 
         user = user_from_config(cfg_file, form.username.data)
 
-        if user and form.password.data == user.password:
+        enc_password = hashlib.sha224(form.password.data).hexdigest()
+
+        if user and enc_password == user.password:
             next_ = request.values.get('next')
             login_user(user)
             return redirect(next_ or url_for('index.home'))
@@ -195,11 +198,13 @@ def signup():
 
             username = form.username.data.strip()
             password = form.password.data.strip()
+            
+            enc_password = hashlib.sha224(form.password.data).hexdigest()
 
             config = ConfigParser.RawConfigParser()
             config.add_section('user')
             config.set('user', 'username', username)
-            config.set('user', 'password', password)
+            config.set('user', 'password', enc_password)
 
             with open(config_file, 'w') as configfile:
                 config.write(configfile)
