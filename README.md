@@ -1,6 +1,6 @@
 Licensed under the [GLUU SUPPORT LICENSE](./LICENSE). Copyright Gluu 2017.
 
-# Cluster Manager
+# Cluster Manager 2.0 Beta
 
 #### GUI tool for installing and managing a highly available Gluu Server cluster.
 
@@ -63,7 +63,10 @@ sudo pip install --upgrade setuptools influxdb
 3) Install Cluster Manager
 
 ```
-sudo pip install --pre clustermgr
+wget https://github.com/GluuFederation/cluster-mgr/archive/master.zip 
+unzip master.zip 
+cd cluster-mgr-master/
+python setup.py instsall
 ```
 
 - There may be a few innocuous warnings here, but this is normal.
@@ -97,31 +100,21 @@ clustermgr-celery &
 clustermgr-cli run
 ```
 
-9) On your first run of Gluu Cluster Manager, it will prompt you to create an administrator user name and password. This creates an authentication config file at `$HOME/.clustermgr/auth.ini`. You can also do this manually before or after by editing this file in the following format:
+9) On your first run of Gluu Cluster Manager, it will prompt you to create an administrator user name and password. This creates an authentication config file at `$HOME/.clustermgr/auth.ini`. The default authentication method can be disabled by removing the file.
 
-```
-[user]
-username = your_desired_name
-password = your_desired_password
-```
-
-The default authentication method can be disabled by removing the file.
-Note, we recommend to disable [default authentication](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-default-admin-user) after [OXD authentication](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-oxd-and-gluu-server) has been setup properly.
+Note, we recommend disabling [default authentication](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-default-admin-user) after [OXD authentication](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-oxd-and-gluu-server) has been setup properly.
 
 10) Tunnel into cluster-mgr server
 
 ```
-ssh -L 9999:localhost:5000 root@server
+ssh -L 5000:localhost:5000 root@server
 ```
 
-- If you're using a windows machine, like me, you can tunnel in with a saved PuTTY session that can already connect. Load that configuration in `PuTTY Configuration`, then on the left side go to `Connections` -> `SSH` -> `Tunnels`. In `Source port` input `9999` and in Destination input `localhost:5000`, then hit `Add`. This will create a tunnel from your machine, accessed through `localhost:9999`, into the server as `localhost:5000`.
-
-11) Navigate to the cluster-mgr web GUI and login with your `auth.ini` credentials.
+11) Navigate to the cluster-mgr web GUI on your local machine:
 
 ```
-http://localhost:9999/
+http://localhost:5000/
 ```
-
 
 ## Configuring a Cluster
 
@@ -134,9 +127,6 @@ This is the initial screen you will see. From here click `Setup Cluster`.
 
 You will now be taken to the Settings menu, also accessible from the left side menu.
 
-There are several options:
-
-Gluu Server version (3.0.1, 3.0.2, 3.1.1)
 
 - Replication Manager DN: This will be the domain name of the domain name which manages replication in OpenLDAP. You can name this anything you want.
 
