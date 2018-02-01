@@ -8,12 +8,12 @@ Cluster Manager currently only supports installation on Ubuntu 14 and 16. It can
 
 ##### Gluu Cluster Manager should be installed on a secure administrators computer or a VM as it will have SSH access to all servers in the cluster.
 
-After configuration, Cluster Manager no longer needs to be actively connected to the cluster for them to work properly. It can however be used to monitor your Gluu server health, make adjustments to your cluster configuration, and review Gluu Server logs.
+After configuration, Cluster Manager no longer needs to be actively connected to the cluster for them to work properly. It can however be used to monitor your Gluu server health, make adjustments to your cluster configuration, and review Gluu Server logs as well as monitor server performance.
 
-##### The necessary ports that need to be opened in a default cluster installation are as follows:
+##### The necessary external ports that need to be opened in a default cluster installation are as follows:
 
 <table>
-<tr><th> Gluu Servers </th><th> Load Balancer </th></tr>
+  <tr><th> Gluu Servers </th><th> Load Balancer </th> <th> Cluster Manager </th></tr>
 <tr><td>
 
 |22| --| 443| 808* |
@@ -26,7 +26,17 @@ After configuration, Cluster Manager no longer needs to be actively connected to
 |--|--|
 |443 | 8888 |
 
-</td></tr> </table>
+</td>
+
+</td><td>
+
+|22| --|
+|--| -- |
+|1636| -- |
+
+</td></tr> 
+
+</table>
 
 22 will be used by Cluster Manager to pull logs and make adjustments to the systems. 80 and 443 are self explanatory. 1636, 4444 and 8989 are necessary for LDAP usage and replication. 7777 and 8888 are for securing communication between the Proxy server and the Gluu servers with stunnel.
 
