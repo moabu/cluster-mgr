@@ -49,7 +49,7 @@ After configuration, Cluster Manager no longer needs to be actively connected to
 - This will provide you with a prompt to create a key-pair. Make sure that you **do not input a password here**, so Cluster Manager can open connections to the servers.
 
 - Now copy that key (default is `id_rsa.pub`) to the `/root/.ssh/authorized_keys` file of all servers in the cluster, including your NGINX server (if you're not going to use another load-balancing service).
-- I prefer to open the `id_rsa.pub` file with `vi` then just copy the hash text into the bottom of `authorized_keys`
+**This HAS to be the root authorized_keys or Cluster Manager will not work**
 
 2) Install the necessary dependencies on the Gluu Cluster Manager machine:
 
@@ -66,7 +66,7 @@ sudo pip install --upgrade setuptools influxdb
 wget https://github.com/GluuFederation/cluster-mgr/archive/2.0-stable.zip 
 unzip 2.0-stable.zip 
 cd cluster-mgr-2.0-stable/
-python setup.py install
+sudo python setup.py install
 ```
 
 - There may be a few innocuous warnings here, but this is normal.
@@ -104,10 +104,10 @@ clustermgr-cli run
 
 Note, we recommend disabling [default authentication](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-default-admin-user) after [OXD authentication](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-oxd-and-gluu-server) has been setup properly.
 
-10) Tunnel into cluster-mgr server
+10) It is recommended to create a "cluster" user, other than the one you used to install and configure cluster manager. This is a basic security concern, due to the fact that the user ssh'ing into this server would have unfettered access to every server connected to cluster manager. By using a separate user, which will still be able to connect to localhost:5000, you can inhibit potential malicious activity. 
 
 ```
-ssh -L 5000:localhost:5000 root@server
+ssh -L 5000:localhost:5000 cluster@<server>
 ```
 
 11) Navigate to the cluster-mgr web GUI on your local machine:
@@ -116,9 +116,58 @@ ssh -L 5000:localhost:5000 root@server
 http://localhost:5000/
 ```
 
-## Configuring a Cluster
+# Deploying a Cluster
 
+1) Here is the first screen you'll see on the initial launch where you create the default administrator and password:
 
+`Admin creation screen here`
+
+2) Next you'll be taken to the splash page where you can initiate building a cluster with the `Setup Cluster` button:
+
+`Setup Cluster screen here`
+
+3) Here is you `Settings` screen. You can access this screen again by clicking the `Settings` button on the left menu bar.
+
+`Application Settings Screen`
+
+###### Replication Manager Password will be used in OpenDJ for replication purposes
+###### Load Balancer: This will be the hostname of either your NGINX proxy server, or the Load balancing server you'll be using for your cluster. Note, this cannot be changed after you deploy your Gluu servers, so please keep this in mind. To change the hostname, you'll have to redeploy Gluu Severs from scratch.
+###### `Add IP Addresses and hostnames to /etc/hosts file on each server`: Use this option if you're using servers without Fully Qualified Domain Names. This will automatically assign hostnames to ip addresses in the `/etc/hosts` files inside and outside the Gluu chroot. Otherwise, you may run into complications with server connectivity unless you manually configure these correctly.
+
+4) Once these are properly configured, click the `Update Configuration button`.
+
+`Gluu Cluster Manager Add Server Prompt`
+
+5) Click `Add Server`
+
+`New Server - Primary Server`
+
+6) You will be taken to the `Add Primary Server` screen. It is called Primary as it will be the base for which the other nodes will pull their Gluu configuration and certificates. After Deployment, all servers will function in a Master-Master configuration.
+
+###### Hostname will be the actual hostname of the server, not the hostname of the NGINX/Proxy server. If you selected the `Add IP Addresses and Hostnames to/etc/hosts file on each server` in the `Settings` menu, then this will be the hostname embedded automatically in the `/etc/hosts` files on this computer.
+
+`Dashboard`
+
+7) After you click `Submit`, you will be taken to the Dashboard.
+
+###### Here you can see all the servers in your cluster, add more servers, edit the hostname and IP address of a server if you entered them incorrectly and also Install Gluu automatically.
+
+8) Click the `Add Server` button and add another node or 2. Note, the admin password set in the Primary server is the same for all the servers.
+
+9) Once you've added all the servers you want in your cluster, back at the dashboard we will click `Install Gluu` on our primary server.
+
+`Install Gluu Server`
+
+###### This screen is the equivalent of the standard `setup.py` installation in Gluu. The first 5 options are necessary for certificate creation.
+###### Next are inum configurations for Gluu and LDAP. Please don't touch these unless you know what you're doing.
+###### Following that are the modules you want to install. The default ones comes pre-selected.
+###### Not seen are LDAP type, which is only one option at this time as OpenLDAP is not support, as well as license agreements.
+
+- Click `Submit`
+
+`Installing Gluu Server`
+
+10) Gluu will now be installed on the server. This may take some time, so please be patient.
 
 # LOGGING
 
