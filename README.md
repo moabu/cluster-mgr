@@ -63,10 +63,10 @@ sudo pip install --upgrade setuptools influxdb
 3) Install Cluster Manager
 
 ```
-wget https://github.com/GluuFederation/cluster-mgr/archive/master.zip 
-unzip master.zip 
-cd cluster-mgr-master/
-python setup.py instsall
+wget https://github.com/GluuFederation/cluster-mgr/archive/2.0-stable.zip 
+unzip 2.0-stable.zip 
+cd cluster-mgr-2.0-stable/
+python setup.py install
 ```
 
 - There may be a few innocuous warnings here, but this is normal.
