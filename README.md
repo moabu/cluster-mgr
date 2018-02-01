@@ -1,4 +1,4 @@
-Licensed under the [GLUU SUPPORT LICENSE](./LICENSE). Copyright Gluu 2017.
+Licensed under the [GLUU SUPPORT LICENSE](./LICENSE). Copyright Gluu 2018.
 
 # Cluster Manager 2.0 Beta
 
