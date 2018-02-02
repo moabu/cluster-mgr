@@ -167,7 +167,13 @@ def _render_filebeat_config(task_id, server, rc):
             "chroot_path": "/opt/gluu-server-{}".format(appconf.gluu_version) if server.gluu_server else "",
             "gluu_version": appconf.gluu_version,
         }
-        txt = render_template("filebeat/filebeat.yml", **ctx)
+
+        src = "filebeat.yml"
+        opsys = (server.os or "").lower()
+        if opsys.startswith("centos"):
+            src += ".centos"
+
+        txt = render_template("filebeat/{}".format(src), **ctx)
         wlogger.log(task_id, "uploading filebeat.yml to remote server", "info", server_id=server.id)
         status, maybe_err = rc.put_file("/etc/filebeat/filebeat.yml", txt)
         return status, maybe_err
