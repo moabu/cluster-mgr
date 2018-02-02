@@ -7,6 +7,8 @@ Cluster Manager is a GUI tool for installing and managing a highly available, cl
 
 ## Prerequisites
 
+- A minimum of 3 servers. 1 server will act as a proxy for the others, and can be very lightweight as it will only be used for funneling TCP and HTTP traffic.
+
 - Cluster Manager currently supports installation on Ubuntu 14 and 16. However, it can be used to configure Gluu Server clusters on Ubuntu, CentOS, RHEL, and Debian.
 
 - Cluster Manager should be installed on a secure administrators computer or a VM, as it will have SSH access to all servers in the cluster.
