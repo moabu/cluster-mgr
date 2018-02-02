@@ -1,16 +1,21 @@
 Licensed under the [GLUU SUPPORT LICENSE](./LICENSE). Copyright Gluu 2018.
 
-# Cluster Manager 2.0 Beta
+# Cluster Manager (Beta)
 
-#### GUI tool for installing and managing a highly available Gluu Server cluster.
+## Overview
+Cluster Manager is a GUI tool for installing and managing a highly available, clustered Gluu Server infrastructure.
 
-Cluster Manager currently only supports installation on Ubuntu 14 and 16. It can, however, be used to configure Gluu Server clusters on Ubuntu and CentOS.
+## Prerequisites
 
-##### Gluu Cluster Manager should be installed on a secure administrators computer or a VM as it will have SSH access to all servers in the cluster.
+- Cluster Manager currently supports installation on Ubuntu 14 and 16. However, it can be used to configure Gluu Server clusters on Ubuntu, CentOS, RHEL, and Debian.
 
-After configuration, Cluster Manager no longer needs to be actively connected to the cluster for them to work properly. It can however be used to monitor your Gluu server health, make adjustments to your cluster configuration, and review Gluu Server logs as well as monitor server performance.
+- Cluster Manager should be installed on a secure administrators computer or a VM, as it will have SSH access to all servers in the cluster.
 
-##### The necessary external ports that need to be opened in a default cluster installation are as follows:
+- After configuration, Cluster Manager no longer needs to be actively connected to the cluster. However, in order to take advantage of Cluster Managers monitoring, configuration, and logging features, Cluster Manager must be to be connected to the cluster. 
+
+### External ports
+
+The necessary external ports that need to be opened in a default cluster installation are as follows:
 
 <table>
   <tr><th> Gluu Servers </th><th> Load Balancer </th> <th> Cluster Manager </th></tr>
@@ -38,20 +43,31 @@ After configuration, Cluster Manager no longer needs to be actively connected to
 
 </table>
 
-22 will be used by Cluster Manager to pull logs and make adjustments to the systems. 80 and 443 are self explanatory. 1636, 4444 and 8989 are necessary for LDAP usage and replication. 7777 and 8888 are for securing communication between the Proxy server and the Gluu servers with stunnel.
+- 22 will be used by Cluster Manager to pull logs and make adjustments to the systems. 
+
+- 80 and 443 are self explanatory. 
+
+- 1636, 4444 and 8989 are necessary for LDAP usage and replication. 
+
+- 7777 and 8888 are for securing communication between the Proxy server and the Gluu servers with stunnel.
 
 ## Installing Cluster Manager
 
-1) First we must give Gluu Cluster Manager the ability to establish an ssh connection to the servers that are going to be added to the cluster. This includes the NGINX/Load-balancing server:
+### SSH & Keypairs
+
+Give Cluster Manager the ability to establish an ssh connection to the servers in the cluster. This includes the NGINX/Load-balancing server:
 
 `ssh-keygen -t rsa`
 
-- This will provide you with a prompt to create a key-pair. Make sure that you **do not input a password here**, so Cluster Manager can open connections to the servers.
+- This will initiate a prompt to create a key-pair. **Do not input a password here**. Cluster Manager must be able to open connections to the servers.
 
-- Now copy that key (default is `id_rsa.pub`) to the `/root/.ssh/authorized_keys` file of all servers in the cluster, including your NGINX server (if you're not going to use another load-balancing service).
+- Copy the key (default is `id_rsa.pub`) to the `/root/.ssh/authorized_keys` file of all servers in the cluster, including the NGINX server (unless another load-balancing service will be used).
+
 **This HAS to be the root authorized_keys or Cluster Manager will not work**
 
-2) Install the necessary dependencies on the Gluu Cluster Manager machine:
+### Install dependencies  
+
+Install the necessary dependencies on the Gluu Cluster Manager machine:
 
 ```
 sudo apt-get update
@@ -60,28 +76,39 @@ sudo apt-get install python-pip python-dev libffi-dev libssl-dev redis-server de
 sudo pip install --upgrade setuptools influxdb
 ```
 
-3) Install Cluster Manager
+### Install the package
+
+Install cluster manager using the following command:
 
 ```
 pip install clustermgr
 ```
 
-- There may be a few innocuous warnings here, but this is normal.
+There may be a few innocuous warnings, but this is normal.
 
-4) Prepare Databases
+### Prepare Databases
+
+Prepare the databases using the following commands:
 
 ```
 clustermgr-cli db upgrade
 ```
 
-6) Prepare oxlicense-validator
+### Add license validator 
+
+Prepare the license validator by using the following commands:
 
 ```
 mkdir -p $HOME/.clustermgr/javalibs
 wget http://ox.gluu.org/maven/org/xdi/oxlicense-validator/3.2.0-SNAPSHOT/oxlicense-validator-3.2.0-SNAPSHOT-jar-with-dependencies.jar -O $HOME/.clustermgr/javalibs/oxlicense-validator.jar
 ```
 
-7) Run celery scheduler and workers in separate terminals. The user running celery should have sudo rights without password.
+!!! Note
+    Licenses files are not currently enforced. It is on the honor system! In future versions, a license file may be required.  
+
+### Run Celery
+
+Run celery scheduler and workers in separate terminals:
 
 ```
 # Terminal 1
@@ -91,28 +118,38 @@ clustermgr-beat &
 clustermgr-celery &
 ```
 
-8) Open another terminal to run clustermgr-cli
+### Run clustermgr-cli
+
+Open another terminal to run clustermgr-cli:
 
 ```
 clustermgr-cli run
 ```
 
-9) On your first run of Gluu Cluster Manager, it will prompt you to create an administrator user name and password. This creates an authentication config file at `$HOME/.clustermgr/auth.ini`. The default authentication method can be disabled by removing the file.
+### Create Credentials
 
-Note, we recommend disabling [default authentication](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-default-admin-user) after [OXD authentication](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-oxd-and-gluu-server) has been setup properly.
+When Cluster Manager is run for the first time, it will prompt creation of an administrator user name and password. This creates an authentication config file at `$HOME/.clustermgr/auth.ini`. The default authentication method can be disabled by removing the file.
 
-10) It is recommended to create a "cluster" user, other than the one you used to install and configure cluster manager. This is a basic security concern, due to the fact that the user ssh'ing into this server would have unfettered access to every server connected to cluster manager. By using a separate user, which will still be able to connect to localhost:5000, you can inhibit potential malicious activity. 
+### Intstall oxd (optional)
+
+We recommend utilizing the [oxd client software](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-oxd-and-gluu-server) to leverage Gluu for authentication to Cluster Manager.  After oxd has been installed and configured, [default authentication](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-default-admin-user) can be disabled. 
+
+### Create new user
+It is recommended to create an additional "cluster" user, other than the one used to install and configure cluster manager. 
+
+This is a basic security precaution, due to the fact that the user ssh'ing into this server has unfettered access to every server connected to cluster manager. By using a separate user, which will still be able to connect to localhost:5000, potential malicious activity can be avoided. 
 
 ```
 ssh -L 5000:localhost:5000 cluster@<server>
 ```
 
-11) Navigate to the cluster-mgr web GUI on your local machine:
+### Login
+
+Navigate to the cluster-mgr web GUI on your local machine:
 
 ```
 http://localhost:5000/
 ```
-
 ## Deploying a default Gluu Server Cluster
 
 ### To deploy a functioning cluster, it is necessary to do a few things.
