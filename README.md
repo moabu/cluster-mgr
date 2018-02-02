@@ -7,7 +7,7 @@ Cluster Manager is a GUI tool for installing and managing a highly available, cl
 
 ## Prerequisites
 
-- A minimum of 3 servers. 1 server will act as a proxy for the others. It can be very lightweight and will only be used for proxying TCP and HTTP traffic.
+- A minimum of four (4) machines. One machine will be used for cluster manager, which could be localhost on the installers computer. This machine can be very lightweight and will only be used for proxying TCP and HTTP traffic. It will act as a proxy for the other three servers where Gluu will be installed. 
 
 - Cluster Manager currently supports installation on Ubuntu 14 and 16. However, it can be used to configure Gluu Server clusters on Ubuntu, CentOS, RHEL, and Debian.
 
