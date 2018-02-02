@@ -81,7 +81,7 @@ mkdir -p $HOME/.clustermgr/javalibs
 wget http://ox.gluu.org/maven/org/xdi/oxlicense-validator/3.2.0-SNAPSHOT/oxlicense-validator-3.2.0-SNAPSHOT-jar-with-dependencies.jar -O $HOME/.clustermgr/javalibs/oxlicense-validator.jar
 ```
 
-7) Run celery scheduler and workers in separate terminals
+7) Run celery scheduler and workers in separate terminals. The user running celery should have sudo rights without password.
 
 ```
 # Terminal 1
