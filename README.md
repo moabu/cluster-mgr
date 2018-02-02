@@ -88,9 +88,9 @@ pip install clustermgr
 
 There may be a few innocuous warnings, but this is normal.
 
-### Prepare Databases
+### Prepare Database
 
-Prepare the databases using the following commands:
+Prepare the database using the following commands:
 
 ```
 clustermgr-cli db upgrade
