@@ -13,7 +13,7 @@ Cluster Manager is a GUI tool for installing and managing a highly available, cl
 
 - Cluster Manager should be installed on a secure administrators computer or a VM, as it will have SSH access to all servers in the cluster.
 
-- After configuration, Cluster Manager no longer needs to be actively connected to the cluster. However, in order to take advantage of Cluster Managers monitoring, configuration, and logging features, Cluster Manager must be to be connected to the cluster. 
+- After configuration, Cluster Manager no longer needs to be actively connected to the cluster. However, in order to take advantage of Cluster Managers monitoring, configuration, and logging features, Cluster Manager must be connected to the cluster. 
 
 ### External ports
 
