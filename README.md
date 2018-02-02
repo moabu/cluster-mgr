@@ -1,6 +1,6 @@
-Licensed under the [GLUU SUPPORT LICENSE](./LICENSE). Copyright Gluu 2017.
+Licensed under the [GLUU SUPPORT LICENSE](./LICENSE). Copyright Gluu 2018.
 
-# Cluster Manager
+# Cluster Manager 2.0 Beta
 
 #### GUI tool for installing and managing a highly available Gluu Server cluster.
 
@@ -30,11 +30,11 @@ After configuration, Cluster Manager no longer needs to be actively connected to
 
 </td><td>
 
-|22| --|
-|--| -- |
-|1636| -- |
+|22|
+|--|
+|1636|
 
-</td></tr> 
+</td></tr>
 
 </table>
 
@@ -49,7 +49,7 @@ After configuration, Cluster Manager no longer needs to be actively connected to
 - This will provide you with a prompt to create a key-pair. Make sure that you **do not input a password here**, so Cluster Manager can open connections to the servers.
 
 - Now copy that key (default is `id_rsa.pub`) to the `/root/.ssh/authorized_keys` file of all servers in the cluster, including your NGINX server (if you're not going to use another load-balancing service).
-- I prefer to open the `id_rsa.pub` file with `vi` then just copy the hash text into the bottom of `authorized_keys`
+**This HAS to be the root authorized_keys or Cluster Manager will not work**
 
 2) Install the necessary dependencies on the Gluu Cluster Manager machine:
 
@@ -63,7 +63,7 @@ sudo pip install --upgrade setuptools influxdb
 3) Install Cluster Manager
 
 ```
-sudo pip install --pre clustermgr
+pip install clustermgr
 ```
 
 - There may be a few innocuous warnings here, but this is normal.
@@ -81,7 +81,7 @@ mkdir -p $HOME/.clustermgr/javalibs
 wget http://ox.gluu.org/maven/org/xdi/oxlicense-validator/3.2.0-SNAPSHOT/oxlicense-validator-3.2.0-SNAPSHOT-jar-with-dependencies.jar -O $HOME/.clustermgr/javalibs/oxlicense-validator.jar
 ```
 
-7) Run celery scheduler and workers in separate terminals
+7) Run celery scheduler and workers in separate terminals. The user running celery should have sudo rights without password.
 
 ```
 # Terminal 1
@@ -97,152 +97,159 @@ clustermgr-celery &
 clustermgr-cli run
 ```
 
-9) On your first run of Gluu Cluster Manager, it will prompt you to create an administrator user name and password. This creates an authentication config file at `$HOME/.clustermgr/auth.ini`. You can also do this manually before or after by editing this file in the following format:
+9) On your first run of Gluu Cluster Manager, it will prompt you to create an administrator user name and password. This creates an authentication config file at `$HOME/.clustermgr/auth.ini`. The default authentication method can be disabled by removing the file.
+
+Note, we recommend disabling [default authentication](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-default-admin-user) after [OXD authentication](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-oxd-and-gluu-server) has been setup properly.
+
+10) It is recommended to create a "cluster" user, other than the one you used to install and configure cluster manager. This is a basic security concern, due to the fact that the user ssh'ing into this server would have unfettered access to every server connected to cluster manager. By using a separate user, which will still be able to connect to localhost:5000, you can inhibit potential malicious activity.
 
 ```
-[user]
-username = your_desired_name
-password = your_desired_password
+ssh -L 5000:localhost:5000 cluster@<server>
 ```
 
-The default authentication method can be disabled by removing the file.
-Note, we recommend to disable [default authentication](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-default-admin-user) after [OXD authentication](https://github.com/GluuFederation/cluster-mgr/wiki/User-Authentication#using-oxd-and-gluu-server) has been setup properly.
-
-10) Tunnel into cluster-mgr server
+11) Navigate to the cluster-mgr web GUI on your local machine:
 
 ```
-ssh -L 9999:localhost:5000 root@server
+http://localhost:5000/
 ```
 
-- If you're using a windows machine, like me, you can tunnel in with a saved PuTTY session that can already connect. Load that configuration in `PuTTY Configuration`, then on the left side go to `Connections` -> `SSH` -> `Tunnels`. In `Source port` input `9999` and in Destination input `localhost:5000`, then hit `Add`. This will create a tunnel from your machine, accessed through `localhost:9999`, into the server as `localhost:5000`.
+## Deploying a default Gluu Server Cluster
 
-11) Navigate to the cluster-mgr web GUI and login with your `auth.ini` credentials.
+### To deploy a functioning cluster, it is necessary to do a few things.
+
+Here is the first screen you'll see on the initial launch where you create the default administrator and password:
+
+![Admin_Creation](https://github.com/GluuFederation/cluster-mgr/blob/master/images/Cluster_Manager-01.png)
+
+
+Next you'll be taken to the splash page where you can initiate building a cluster with the `Setup Cluster` button:
+
+![Setup Cluster](https://github.com/GluuFederation/cluster-mgr/blob/master/images/Cluster_Manager-02.png)
+
+Here is you `Settings` screen. You can access this screen again by clicking the `Settings` button on the left menu bar.
+
+![Application Settings Screen](https://github.com/GluuFederation/cluster-mgr/blob/master/images/Cluster_Manager-03.png)
+
+###### Replication Manager Password will be used in OpenDJ for replication purposes
+###### Load Balancer: This will be the hostname of either your NGINX proxy server, or the Load balancing server you'll be using for your cluster. Note, this cannot be changed after you deploy your Gluu servers, so please keep this in mind. To change the hostname, you'll have to redeploy Gluu Severs from scratch.
+###### `Add IP Addresses and hostnames to /etc/hosts file on each server`: Use this option if you're using servers without Fully Qualified Domain Names. This will automatically assign hostnames to ip addresses in the `/etc/hosts` files inside and outside the Gluu chroot. Otherwise, you may run into complications with server connectivity unless you manually configure these correctly.
+
+Once these are properly configured, click the `Update Configuration button`.
+
+![Add Server Prompt](https://github.com/GluuFederation/cluster-mgr/blob/master/images/Cluster_Manager-04.png)
+
+Click `Add Server`
+
+![New Server - Primary Server](https://github.com/GluuFederation/cluster-mgr/blob/master/images/Cluster_Manager-05.png)
+
+You will be taken to the `Add Primary Server` screen. It is called Primary as it will be the base for which the other nodes will pull their Gluu configuration and certificates. After Deployment, all servers will function in a Master-Master configuration.
+
+###### Hostname will be the actual hostname of the server, not the hostname of the NGINX/Proxy server. If you selected the `Add IP Addresses and Hostnames to/etc/hosts file on each server` in the `Settings` menu, then this will be the hostname embedded automatically in the `/etc/hosts` files on this computer.
+
+![Dashboard](https://github.com/GluuFederation/cluster-mgr/blob/master/images/Cluster_Manager-06.png)
+
+After you click `Submit`, you will be taken to the Dashboard.
+
+###### Here you can see all the servers in your cluster, add more servers, edit the hostname and IP address of a server if you entered them incorrectly and also Install Gluu automatically.
+
+Click the `Add Server` button and add another node or 2. Note, the admin password set in the Primary server is the same for all the servers.
+
+Once you've added all the servers you want in your cluster, back at the dashboard we will click `Install Gluu` on our primary server.
+
+![Install Primary Gluu Server](https://github.com/GluuFederation/cluster-mgr/blob/master/images/Cluster_Manager-07.png)
+
+###### This screen is the equivalent of the standard `setup.py` installation in Gluu. The first 5 options are necessary for certificate creation.
+###### Next are inum configurations for Gluu and LDAP. Please don't touch these unless you know what you're doing.
+###### Following that are the modules you want to install. The default ones comes pre-selected.
+###### Not seen are LDAP type, which is only one option at this time as OpenLDAP is not support, as well as license agreements.
+
+- Click `Submit`
+
+![Installing Gluu Server](https://github.com/GluuFederation/cluster-mgr/blob/master/images/Cluster_Manager-09.png)
+
+###### Gluu will now be installed on the server. This may take some time, so please be patient.
+
+Once completed, repeat the process for the other servers.
+
+When all the installations have completed, you'll want to install NGINX. Do this by clicking `Cluster` on the left menu and selecting `Install Nginx`.
+
+After that you'll be taken to the `LDAP Replication` screen where you can enable and disable LDAP replication. There is also a `Deploy All` button to be used for initial deployments. Click it and wait for the process to finish.
+
+![Deploying LDAP Replication](https://github.com/GluuFederation/cluster-mgr/blob/master/images/Cluster_Manager-10.png)
+
+###### You can also see the replication status and other replication information on this screen once you've deployed OpenDJ replication.
+
+![Replication Deployed screen](https://github.com/GluuFederation/cluster-mgr/blob/master/images/Cluster_Manager-11.png)
+
+From here we need to enable file system replication. Do this by clicking `Replication` on the left menu and selecting `File system Replication`. Click `Install File System Replication` This installs and configures csync2 and replicates necessary configuration files if they're changed by oxTrust.
+
+![File System Replication](https://github.com/GluuFederation/cluster-mgr/blob/master/images/Cluster_Manager-12.png)
+
+###### You can also add replication paths for other file systems, if you deem it necessary.
+
+The last step for a functioning cluster configuration is the `Cache Management` option on the left menu. Click that and follow through the steps for deploying Cache Management.
+
+![Cache Management](https://github.com/GluuFederation/cluster-mgr/blob/master/images/Cluster_Manager-13.png_
+
+###### We have to configure oxAuth to utilize an external, network capable caching service because of the nature of clustering. oxAuth caches short-lived tokens and in a balanced cluster, all the instances of oxAuth need access to the cache. To allow this capability, and still enable high-availability, Redis is installed outside the chroot on every Gluu server. Configuration settings inside of LDAP are also changed to allow access to these instances of Redis.
+
+###### Redis also doesn't utilize encrypted communication, so we will install and configure stunnel on all our servers to protect our information with SSL.
+
+###### Twemproxy is also installed on the NGINX/Proxy server as a means for redundancy since Twemproxy can detect redis server communication failure, giving you high availability.
+
+![Successful Cache Management Installation](https://github.com/GluuFederation/cluster-mgr/blob/master/images/Cluster_Manager-14.png)
+
+Once this task is completed, you have a fully functional Gluu Server cluster. Please navigate to the hostname of the proxy server you provided in the `Settings` option.
+
+## Additional Management Components
+
+We've added a couple additional services to help deal with Gluu Server clusters. These are process monitoring and logging management. `Monitoring` and `Logging Management`, respectively, found on the left-hand menu.
+
+Installation is a breeze, just click `Setup Monitoring` and `Setup Logging`
+
+![Monitoring Screen](https://github.com/GluuFederation/cluster-mgr/blob/master/images/Cluster_Manager-15.png)
+
+###### Monitoring gives you an easily accessible means to quickly take a glimpse at your servers performance and potential issues.
+
+![Logging Screen](https://github.com/GluuFederation/cluster-mgr/blob/master/images/Cluster_Manager-16.png)
+
+###### Logging is also another powerful tool to gather all of your Gluu logs from all the nodes for troubleshooting. These logs can be sorted by log type (oxAuth, oxTrust, HTTPD[Apache2], OpenDJ and Redis), Host and also string search filters for easy sorting.
+
+
+## Logging for Cluster Manager Errors and Troubleshooting
+
+Cluster Manager displays most logs about what's happening on the system it's interacting with and these can be seen directly in the GUI as seen above. There is also additional information that can be derived about what is going on in cluster manager in the terminals you launched `clustermgr-celery` and `clustermgr-cli run`.
 
 ```
-http://localhost:9999/
+INFO:werkzeug:127.0.0.1 - - [02/Feb/2018 08:11:12] "GET /log/0a4c3f1f-e2c2-4d0a-81ff-08c808cf6269 HTTP/1.1" 200 -
+[2018-02-02 08:11:12,749: INFO/ForkPoolWorker-2] Connected (version 2.0, client OpenSSH_7.4)
+[2018-02-02 08:11:13,083: INFO/ForkPoolWorker-2] Authentication (publickey) successful!
+[2018-02-02 08:11:13,476: INFO/ForkPoolWorker-2] [chan 0] Opened sftp connection (server version 3)
 ```
 
+###### Here's a standard successful connection message.
 
-## Configuring a Cluster
+Most of the time it's rudimentary status checks like this:
 
+```
+INFO:werkzeug:127.0.0.1 - - [02/Feb/2018 08:07:59] "GET /log/0a4c3f1f-e2c2-4d0a-81ff-08c808cf6269 HTTP/1.1" 200 -
+127.0.0.1 - - [02/Feb/2018 08:08:00] "GET /log/0a4c3f1f-e2c2-4d0a-81ff-08c808cf6269 HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [02/Feb/2018 08:08:00] "GET /log/0a4c3f1f-e2c2-4d0a-81ff-08c808cf6269 HTTP/1.1" 200 -
+127.0.0.1 - - [02/Feb/2018 08:08:01] "GET /log/0a4c3f1f-e2c2-4d0a-81ff-08c808cf6269 HTTP/1.1" 200 -
+```
+But it will throw errors if there's a problem in a process. These should give you a good idea of what complication you're running into and can help with troubleshooting issues.
 
-![Start](https://github.com/GluuFederation/cluster-mgr/raw/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-29-55.png)
+While patience is recommended, sometimes the process hangs irreparably. To get Cluster Manager back on track in an instance like this is to stop and restart the process. You can do this simply and rather heavy handedly like so:
 
-This is the initial screen you will see. From here click `Setup Cluster`.
+`ps aux | grep clustermgr | awk \'{print $2}\' | sudo xargs kill -9`
 
-![Settings](https://github.com/GluuFederation/cluster-mgr/raw/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-30-08.png)
+And then restart the processes (In one terminal, if you like):
 
-You will now be taken to the Settings menu, also accessible from the left side menu.
+`clustermgr-beat & clustermgr-celery & clustermgr-cli run`
 
-There are several options:
+## Configuration
 
-Gluu Server version (3.0.1, 3.0.2, 3.1.1)
-
-- Replication Manager DN: This will be the domain name of the domain name which manages replication in OpenLDAP. You can name this anything you want.
-
-- Password: The password will be used only for the replication DN. Your administrator password for oxAuth will be identified elsewhere.
-
-- Load Balancer Hostname: You will need to put the Fully Qualified Domain Name (FQDN) of the server that will be handling proxying between all of your nodes. If you are going to use NGINX as your proxy, this will be where Cluster Manager installs NGINX to.
-
-- Access Log Purge: The access log is where all the changes made on the OpenLDAP servers are stored. OpenLDAP monitors the access log to determine whether an entry should be replicated or not. The default purging parameter is set to check 24 hours for any entry that is older than 24 hours.
-
-- IP address for replication hostname: You can click this radio box to change from using a FQDN to IP addresses in the OpenLDAP replication configuration.
-
-Once you have everything filled out click `Update Configuration` and you will be taken to the following screen to add a server.
-
-![Add_Server_1](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-31-07.png)
-
-This screen is pretty self explanatory, the only thing to mention is that your `LDAP Admin Password` is also the password for your oxTrust Admin page. Please make this as strong as possible.
-
-After hitting `submit` you will be taken to the Dashboard page. Here you can add more servers, change your Gluu Version (Not recommended after installing Gluu) and also install Gluu automatically.
-
-![Dashboard_1](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-31-28.png)
-
-The term `Primary` next to my first servers hostname, is to identify the base server where replication and settings will be configured from. After everything is setup, all the servers will serve the same function.
-
-It is recommended that you add all the servers for your cluster at this time, before continuing with installation and further configuration.
-
-
-![Add_Server_2](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-31-55.png)
-
-Now we should click `Install Gluu` on the `Primary` server. You'll be taken to the following screen.
-
-![Install_Gluu_Config](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-35-09.png)
-
-###### If you see `Error : OS type has not been identified. Ending server installation process.`, this usually means your Cluster Manager machine cannot SSH into your server. Please make sure that the public key from your Cluster Manager machine is in the `authorized_keys` file on every server you want to work with. If you still experience this issue, remove the server and add it again, so that Cluster Manager will attempt to reconnect.
-
-The input fields here are used primarily for your certificates to be installed inside Gluu. Also you'll see some inum settings, but unless you know what you're doing, you shouldn't touch these.
-
-There are also options to install additional modules, Passport, Shibboleth, etc.. as needed.
-
-A successful installation looks as follows:
-
-![Install_Gluu_1](https://github.com/GluuFederation/cluster-mgr/blob/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-40-29_Cropped.png)
-
-Install all the servers and your dashboard should look like this:
-
-![Dashboard_Installed](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-49-49.png)
-
-###### Note that cluster manager can install NGINX with the necessary default configurations to proxy your connections. That option is located under the `Cluster` option as seen here:
-
-![Install_NGINX](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-50-01_Cropped.png)
-
-Install NGINX now, or click the `LDAP Replication` menu and you'll be taken to the follow screen:
-
-![LDAP_Replication](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-51-05.png)
-
-Deploy the configuration on the first server. A successful installation looks like this:
-
-![Successful_Replication_Configuration](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-54-43.png)
-
-Once you deploy all configurations, you'll see something similar to this screen:
-
-![Nodes_Deployed](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-57-52.png)
-
-You'll need to click `Add` on all the providers that are crossed out. This should add the other LDAP servers replication properties to the server missing them. To test if replication is working, click the `Add Test User` option on one server and fill out the form. Then on the other servers click `Search Test User`. If everything is replicating properly, that entry will show up there.
-
-![Add_User](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-58-14.png)
-
-![Search_User](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-58-51.png)
-
-###### A rare issue is that sometimes the providers aren't replicating properly. Please `Remove` all the providers and then add them back. This usually fixes the problem.
-
-### If you're using 3.0.2, you're done here. If you're using 3.1.x, you will have to configure your cache for replication.
-
-Click the `Cache Management` menu option on the left. You'll see this screen:
-
-![Cache_Management_1](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_10-59-15.png)
-
-Clicking `Fetch cache methods` will show you what caching mechanism you're currently using on your clusters. By default there is none, so we must click `Setup Redis` to start the process of properly configuring caching.
-
-Upon successful completion of installing all the necessary components on the servers, you'll see this:
-
-![Install_Modules](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_11-05-07.png)
-
-Click `Configure Cache Cluster` to continue.
-
-A successful install:
-
-![Configure_Cache](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_11-05-55.png)
-
-
-And lastly click `Finish Cache Clustering` to reload all the modules and intake the configuration changes.
-
-![Restart_Services](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_11-09-47.png)
-
-That's it. Your cluster is fully configured. Please navigate to the hostname you identified as your load balancer. Log in with your administrator and password.
-
-# LOGGING
-
-Aside from the standard logs inside the Cluster Manager GUI, the terminal you run `clustermgr-celery &` on will present logs and any errors or complications. Below is an example where I didn't properly configure my Cluster Manager machine to ssh in to one of the nodes of my cluster:
-
-![Failed_Connection](https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/images/Cluster%20Manager%20Docs/2017-11-27_13-35-13.png)
-
-You can also see that after I corrected the problem, public key access was successful (I had to click install Gluu twice before it updated).
-
-# Configuration
-
-By default the installation of a cluster on 3.1.1 installs 5 services. These services are:
+By default the installation of a cluster installs 5 services to manage high availabilty. These services are:
 
 1) Gluu Server
 
@@ -256,13 +263,19 @@ By default the installation of a cluster on 3.1.1 installs 5 services. These ser
 
 ###### Used to protect communications between oxAuth and the caching services, Redis and Twemproxy.
 ###### Configuration file located at /etc/stunnel/stunnel.conf on **all** servers
+###### Runs on port 8888 of your NGINX/Proxy server and 7777 on your Gluu servers.
+###### For security Redis runs on localhost. Stunnel faciliates SSL communication over the internet for Redis which doesn't come default with encrypted traffic.
 
-4) NGINX
+4) Twemproxy
+
+###### Used for cache failover, round-robin proxying and caching performance with Redis.
+###### The configuration file for this program can be found in /etc/nutcracker/nutcracker.yml on the proxy server.
+###### Runs locally on port 2222 of your NGINX/Proxy server.
+###### Because of demand for high availability, Twemproxy is a must as it automates detection of Redis server failure and redirects traffic to working instances.
+###### Please note that Twemproxy will not reintroduce failed servers. You can manually or create a script that automates the task of restarting twemproxy, which will reset the "down" flag of that server.
+
+5) NGINX
 
 ###### Used to proxy communication to the instances of Gluu
 ###### Configuration file located at /etc/nginx/nginx.conf on the load balancing server (if installed).
-
-5) Twemproxy
-
-###### Used for cache failover, round-robin proxying and caching performance with Redis.
-###### The configuration file for this program can be found in /etc/nutcracker/nutcracker.yml on the proxy server
+###### Can be set to round-robin instances of oxAuth for balancing load across servers by changing the nginx.conf to use `backend` instead of `backend_id`. Note this breaks SCIM functionality if one of the servers goes down and redundancy isn't built into the logic of your SCIM client.
