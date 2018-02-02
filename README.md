@@ -193,11 +193,11 @@ The last step for a functioning cluster configuration is the `Cache Management` 
 
 `Cache Management`
 
-###### We have to configure oxAuth to utilize an external, network capable caching service in a cluster because of the nature of clustering. oxAuth caches short-lived tokens and in a balanced cluster, all the instances of oxAuth need access to the cache. To allow this capability, and still enable high-availability, Redis is installed outside the chroot on every Gluu server. Configuration settings inside of LDAP are also changed to allow access to these instances of Redis.
+###### We have to configure oxAuth to utilize an external, network capable caching service because of the nature of clustering. oxAuth caches short-lived tokens and in a balanced cluster, all the instances of oxAuth need access to the cache. To allow this capability, and still enable high-availability, Redis is installed outside the chroot on every Gluu server. Configuration settings inside of LDAP are also changed to allow access to these instances of Redis.
 
 ###### Redis also doesn't utilize encrypted communication, so we will install and configure stunnel on all our servers to protect our information with SSL.
 
-###### Twemproxy is also installed on the NGINX/Proxy server as a means for redundancy since Twemproxy can detect redis server communication failure.
+###### Twemproxy is also installed on the NGINX/Proxy server as a means for redundancy since Twemproxy can detect redis server communication failure, giving you high availability.
 
 Once this task is completed, you have a fully functional Gluu Server cluster. Please navigate to the hostname of the proxy server you provided in the `Settings` option.
 
@@ -207,8 +207,40 @@ We've added a couple additional services to help deal with Gluu Server clusters.
 
 Installation is a breeze, just click `Setup Monitoring` and `Setup Logging`
 
-## LOGGING
+`Monitoring Screen`
 
+`Logging Screen`
+
+## Logging for Cluster Manager and Troubleshooting
+
+Cluster Manager displays most logs about what's happening on the system it's interacting with and these can be seen directly in the GUI as seen above. There is also additional information that can be derived about what is going on in cluster manager in the terminals you launched `clustermgr-celery` and `clustermgr-cli run`. 
+
+```
+INFO:werkzeug:127.0.0.1 - - [02/Feb/2018 08:11:12] "GET /log/0a4c3f1f-e2c2-4d0a-81ff-08c808cf6269 HTTP/1.1" 200 -
+[2018-02-02 08:11:12,749: INFO/ForkPoolWorker-2] Connected (version 2.0, client OpenSSH_7.4)
+[2018-02-02 08:11:13,083: INFO/ForkPoolWorker-2] Authentication (publickey) successful!
+[2018-02-02 08:11:13,476: INFO/ForkPoolWorker-2] [chan 0] Opened sftp connection (server version 3)
+```
+
+###### Here's a standard successful connection message.
+
+Most of the time it's rudimentary status checks like this:
+
+```
+INFO:werkzeug:127.0.0.1 - - [02/Feb/2018 08:07:59] "GET /log/0a4c3f1f-e2c2-4d0a-81ff-08c808cf6269 HTTP/1.1" 200 -
+127.0.0.1 - - [02/Feb/2018 08:08:00] "GET /log/0a4c3f1f-e2c2-4d0a-81ff-08c808cf6269 HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [02/Feb/2018 08:08:00] "GET /log/0a4c3f1f-e2c2-4d0a-81ff-08c808cf6269 HTTP/1.1" 200 -
+127.0.0.1 - - [02/Feb/2018 08:08:01] "GET /log/0a4c3f1f-e2c2-4d0a-81ff-08c808cf6269 HTTP/1.1" 200 -
+```
+But it will throw errors if there's a problem in a process. These should give you a good idea of what complication you're running into and can help with troubleshooting issues.
+
+While patience is recommended, sometimes the process hangs irreparably. To get Cluster Manager back on track in an instance like this is to stop and restart the process. You can do this simply and rather heavy handedly like so:
+
+`ps aux | grep clustermgr | awk \'{print $2}\' | sudo xargs kill -9`
+
+And then restart the processes (In one terminal, if you like):
+
+`clustermgr-beat & clustermgr-celery & clustermgr-cli run`
 
 ## Configuration
 
