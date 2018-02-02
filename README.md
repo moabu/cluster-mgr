@@ -139,7 +139,7 @@ We recommend utilizing the [oxd client software](https://github.com/GluuFederati
 ### Create new user
 It is recommended to create an additional "cluster" user, other than the one used to install and configure cluster manager. 
 
-This is a basic security precaution, due to the fact that the user ssh'ing into this server has unfettered access to every server connected to cluster manager. By using a separate user, which will still be able to connect to localhost:5000, potential malicious activity can be avoided. 
+This is a basic security precaution, due to the fact that the user ssh'ing into this server has unfettered access to every server connected to cluster manager. By using a separate user, which will still be able to connect to localhost:5000, an administrator can give an operator limited access to a server, while still being able to take full control of Cluster Manager. 
 
 ```
 ssh -L 5000:localhost:5000 cluster@<server>
