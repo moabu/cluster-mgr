@@ -1,0 +1,1 @@
+Manual installation documentation images.
