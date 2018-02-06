@@ -29,11 +29,13 @@ def configure_server():
     delete_key('idp-signing')
     delete_key('asimba')
     delete_key('openldap')
+    delete_key('opendj')
     import_key('httpd')
     import_key('shibIDP')
     import_key('idp-encryption')
     import_key('idp-signing')
     import_key('asimba')
     import_key('openldap')
+    import_key('opendj')
 
 configure_server()
