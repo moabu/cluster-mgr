@@ -2,7 +2,7 @@ import os.path
 import subprocess
 
 cmd_keytool = '/opt/jre/bin/keytool'
-hostname = "c5.gluu.org"
+hostname = "loadbalancer.example.org"
 
 def import_key(suffix) :
     defaultTrustStorePW = 'changeit'
