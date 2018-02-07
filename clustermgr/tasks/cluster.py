@@ -1851,10 +1851,10 @@ def opendjenablereplication(self, server_id):
         if server.primary_server:
             modifyOxLdapProperties(server, c, tid, pDict, chroot_fs)
 
-            wlogger.log(tid, "Restarting Gluu Server on {}".format(
-                                server.hostname))
+            #wlogger.log(tid, "Restarting Gluu Server on {}".format(
+            #                    server.hostname))
 
-            run_command(tid, c, restart_command)
+            #run_command(tid, c, restart_command)
 
         else:
 
@@ -1891,16 +1891,16 @@ def opendjenablereplication(self, server_id):
                     wlogger.log(tid, "Ending server setup process.", "error")
                     return False
 
-            wlogger.log(tid, "Restarting Gluu Server on {}".format(
-                                server.hostname))
+            #wlogger.log(tid, "Restarting Gluu Server on {}".format(
+            #                    server.hostname))
 
-            run_command(tid, ct, restart_command)
+            #run_command(tid, ct, restart_command)
 
             ct.close()
 
-    if 'CentOS' in primary_server.os:
-        wlogger.log(tid, "Waiting for Gluu to finish starting")
-        time.sleep(30)
+    #if 'CentOS' in primary_server.os:
+    #    wlogger.log(tid, "Waiting for Gluu to finish starting")
+    #    time.sleep(30)
     
 
     wlogger.log(tid, "Checking replication status")
