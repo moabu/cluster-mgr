@@ -2049,6 +2049,10 @@ def installNGINX(self, nginx_host):
 
     run_command(tid, c, cmd, no_error='debug')
 
+    #enable nginx on boot
+    cmd = 'systemctl enable nginx.service'
+    run_command(tid, c, cmd, no_error='debug')
+
     if app_config.modify_hosts:
         
         host_ip = []
