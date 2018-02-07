@@ -216,17 +216,18 @@ def parse_setup_properties(content):
     setup_prop = dict()
     for l in content:
         ls = l.strip()
-        if not ls[0] == '#':
-            eq_loc = ls.find('=')
+        if ls:
+            if not ls[0] == '#':
+                eq_loc = ls.find('=')
 
-            if eq_loc > 0:
-                k = ls[:eq_loc]
-                v = ls[eq_loc+1:]
-                if v == 'True':
-                    v = True
-                elif v == 'False':
-                    v = False
-                setup_prop[k] = v
+                if eq_loc > 0:
+                    k = ls[:eq_loc]
+                    v = ls[eq_loc+1:]
+                    if v == 'True':
+                        v = True
+                    elif v == 'False':
+                        v = False
+                    setup_prop[k] = v
 
     return setup_prop
 
