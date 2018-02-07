@@ -182,6 +182,12 @@ def remove_provider_from_consumer(consumer_id, provider_addr):
 def remove(server_id):
     appconfig = AppConfiguration.query.first()
     server = Server.query.filter_by(id=server_id).first()
+    all_servers = Server.query.all()
+    
+    if len(all_servers) > 1:
+        if server.primary_server:
+            flash("Please first remove non-primary servers ", "danger")
+            return redirect(url_for('index.home'))
     provider_addr = server.ip if appconfig.use_ip else server.hostname
 
     setup_prop = get_setup_properties()
