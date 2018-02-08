@@ -47,8 +47,8 @@ class SchemaForm(FlaskForm):
     schema = FileField(validators=[
         FileRequired(),
         FileAllowed(
-            ['schema'],
-            'Upload only Openldap Schema files with .schema extension.')
+            ['schema', 'ldif'],
+            'Upload only schema files with .schema or .lidf extension.')
     ])
     upload = SubmitField("Upload Schema")
 

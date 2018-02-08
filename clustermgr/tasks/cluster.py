@@ -1055,6 +1055,84 @@ def modify_hosts(tid, c, hosts, chroot=None, server_host=None):
             wlogger.log(tid, "Can't receive {}".format(h_file), 'fail')
 
 
+def download_and_upload_custom_schema(tid, pc, c, ldap_type, gluu_server):
+    """Downloads custom ldap schema from primary server and 
+        uploads to current server represented by c
+    Args:
+        tid (string): id of the task running the command,
+        pc (:object:`clustermgr.core.remote.RemoteClient`): client to be used
+            for the SSH communication, representing primary server
+
+        c (:object:`clustermgr.core.remote.RemoteClient`): client to be used
+            for the SSH communication, representing current server
+        ldap_type (string): type of ldapserver, either openldap or opendj
+        gluu_server: Gluu server name
+    """
+    
+    wlogger.log(tid, 'Downloading custom schema files' 
+                    'from primary server and upload to this server')
+    custom_schema_files = pc.listdir("/opt/{}/opt/gluu/schema/{}/".format(
+                                                    gluu_server, ldap_type))
+
+    if custom_schema_files[0]:
+        
+        schema_folder = '/opt/{}/opt/gluu/schema/{}'.format(
+                        gluu_server, ldap_type)
+        if not c.exists(schema_folder):
+            c.run('mkdir -p {}'.format(schema_folder))
+        
+        for csf in custom_schema_files[1]:
+            schema_filename = '/opt/{0}/opt/gluu/schema/{2}/{1}'.format(
+                                                gluu_server, csf, ldap_type)
+                                                
+            stat, schema = pc.get_file(schema_filename)
+            if stat:
+                c.put_file(schema_filename, schema.read())
+                wlogger.log(tid, 
+                    '{0} dowloaded from from primary and uploaded'.format(
+                                                            csf), 'debug')
+
+                if ldap_type == 'opendj':
+
+                    opendj_path = ('/opt/{}/opt/opendj/config/schema/'
+                                '999-clustmgr-{}').format(gluu_server, csf)
+                    c.run('cp {} {}'.format(schema_filename, opendj_path))
+                    
+            
+def upload_custom_schema(tid, c, ldap_type, gluu_server):
+    """Uploads custom ldap schema to server
+    Args:
+        tid (string): id of the task running the command,
+        c (:object:`clustermgr.core.remote.RemoteClient`): client to be used
+            for the SSH communication
+        ldap_type (string): type of ldapserver, either openldap or opendj
+        gluu_server: Gluu server name
+    """
+    
+    custom_schema_dir = os.path.join(Config.DATA_DIR, 'schema')
+    custom_schemas = os.listdir(custom_schema_dir)
+
+    if custom_schemas:
+        schema_folder = '/opt/{}/opt/gluu/schema/{}'.format(
+                        gluu_server, ldap_type)
+        if not c.exists(schema_folder):
+            c.run('mkdir -p {}'.format(schema_folder))
+
+        for sf in custom_schemas:
+            
+            local = os.path.join(custom_schema_dir, sf)
+            remote = '/opt/{0}/opt/gluu/schema/{2}/{1}'.format(
+                gluu_server, sf, ldap_type)
+            r = c.upload(local, remote)
+            if r[0]:
+                wlogger.log(tid, 'Custom schame file {0} uploaded'.format(
+                        sf), 'success')
+            else:
+                wlogger.log(tid,
+                    "Can't upload custom schame file {0}: ".format(sf,
+                                                            r[1]), 'error')
+
+
 @celery.task(bind=True)
 def installGluuServer(self, server_id):
     """Install Gluu server
@@ -1074,6 +1152,8 @@ def installGluuServer(self, server_id):
     #setup properties file path
     setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
 
+    setup_prop = get_setup_properties()
+
     gluu_server = 'gluu-server-' + appconf.gluu_version
 
 
@@ -1082,7 +1162,6 @@ def installGluuServer(self, server_id):
         wlogger.log(tid, "OS type has not been identified.", 'fail')
         wlogger.log(tid, "Ending server installation process.", "error")
         return
-
 
 
     #If this is not primary server, we will download setup.properties file from
@@ -1195,8 +1274,6 @@ def installGluuServer(self, server_id):
         run_command(tid, c, cmd, no_error='debug')
 
     wlogger.log(tid, "Check if Gluu Server was installed")
-
-
 
     gluu_installed = False
 
@@ -1315,9 +1392,6 @@ def installGluuServer(self, server_id):
         cmd = 'cd /install/community-edition-setup/ && ./setup.py -n'
         run_command(tid, c, cmd, '/opt/'+gluu_server+'/', no_error='debug')
 
-
-    setup_prop = get_setup_properties()
-
     
     if appconf.modify_hosts:
         all_server = Server.query.all()
@@ -1328,7 +1402,6 @@ def installGluuServer(self, server_id):
             host_ip.append((ship.hostname, ship.ip))
 
         modify_hosts(tid, c, host_ip, '/opt/'+gluu_server+'/', server.hostname)
-
 
 
     # Get slapd.conf from primary server and upload this server
@@ -1352,20 +1425,12 @@ def installGluuServer(self, server_id):
             else:
                 wlogger.log(tid, "Can't get slapd.conf from primary server: ".format(r[1]), 'error')
 
-
-            #If primary server conatins any custom schema, get them and put to this server
-            wlogger.log(tid, 'Downloading custom schema files from primary server and upload to this server')
-            custom_schema_files = pc.listdir("/opt/{0}/opt/gluu/schema/openldap/".format(gluu_server))
-
-            if custom_schema_files[0]:
-                for csf in custom_schema_files[1]:
-                    local = '/tmp/'+csf
-                    remote = '/opt/{0}/opt/gluu/schema/openldap/{1}'.format(gluu_server, csf)
-
-                    pc.download(remote, local)
-                    c.upload(local, remote)
-                    os.remove(local)
-                    wlogger.log(tid, '{0} dowloaded from from primary and uploaded'.format(csf), 'debug')
+            # If primary conatins any custom schema, get them
+            # and put to this server
+            download_and_upload_custom_schema(  
+                                                tid, pc, c, 
+                                                'openldap', gluu_server
+                                            )
 
             #stop and start solserver
             if server.os == 'CentOS 7' or server.os == 'RHEL 7':
@@ -1411,7 +1476,6 @@ def installGluuServer(self, server_id):
             run_command(tid, c, cmd)
 
 
-
             #delete old keys and import new ones
             wlogger.log(tid, 'Manuplating keys')
             for suffix in (
@@ -1425,25 +1489,15 @@ def installGluuServer(self, server_id):
                             tid, c, server.os)
                 import_key(suffix, appconf.nginx_host, appconf.gluu_version,
                             tid, c, server.os)
-
+        else:
+            download_and_upload_custom_schema(  
+                                                tid, pc, c, 
+                                                'opendj', gluu_server
+                                            )
     else:
         #this is primary server so we need to upload local custom schemas if any
-        custom_schema_dir = os.path.join(Config.DATA_DIR, 'schema')
-        custom_schemas = os.listdir(custom_schema_dir)
-
-        if custom_schemas:
-            for sf in custom_schemas:
-                local = os.path.join(custom_schema_dir, sf)
-                remote = '/opt/{0}/opt/gluu/schema/openldap/{1}'.format(
-                    gluu_server, sf)
-                r = c.upload(local, remote)
-                if r[0]:
-                    wlogger.log(tid, 'Custom schame file {0} uploaded'.format(
-                            sf), 'success')
-                else:
-                    wlogger.log(tid,
-                        "Can't upload custom schame file {0}: ".format(sf,
-                                                                r[1]), 'error')
+        upload_custom_schema(tid, c, 
+                            setup_prop['ldap_type'], gluu_server)
 
     #ntp is required for time sync, since ldap replication will be
     #done by time stamp. If not isntalled, install and configure crontab
