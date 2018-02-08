@@ -14,6 +14,7 @@ from clustermgr.forms import AppConfigForm, SchemaForm, \
     TestUser, InstallServerForm  # , KeyRotationForm
 from flask import current_app
 
+from celery.result import AsyncResult
 
 from clustermgr.core.ldap_functions import LdapOLC
 # from clustermgr.tasks.all import rotate_pub_keys
@@ -286,11 +287,20 @@ def get_log(task_id):
     msgs = wlogger.get_messages(task_id)
     result = AsyncResult(id=task_id, app=celery)
     value = 0
+    
+    error_message = ''
+    if result.result:
+        if getattr(result.result, 'message'):
+            error_message = str(result.traceback)
+    
+    
+    
     if result.state == 'SUCCESS' or result.state == 'FAILED':
-        value = result.result
+        value = result.result.message
         wlogger.clean(task_id)
     log = {'task_id': task_id, 'state': result.state, 'messages': msgs,
-           'result': value}
+           'result': value, 'error_message': error_message}
+    
     return jsonify(log)
 
 
@@ -559,3 +569,7 @@ def remove_custom_schema(schema_file):
     if os.path.exists(file_path):
         os.remove(file_path)
     return redirect(url_for('index.app_configuration'))
+
+
+
+
