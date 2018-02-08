@@ -12,6 +12,8 @@ from clustermgr.models import Server, AppConfiguration
 
 from index import getLdapConn
 
+import ldap3
+
 from clustermgr.forms import ServerForm, InstallServerForm, \
     SetupPropertiesLastForm
 from clustermgr.tasks.cluster import collect_server_details
@@ -440,3 +442,17 @@ def edit_slapd_conf(server_id):
 
     return render_template('conf_editor.html', config=config,
                            hostname=server.hostname)
+
+@server_view.route('/ldapstat/<int:server_id>/')
+def get_ldap_stat(server_id):
+
+    server = Server.query.get(server_id)
+    if server:
+        try:
+            ldap_server = ldap3.Server('ldaps://{}:1636'.format(server.hostname))
+            conn = ldap3.Connection(ldap_server)
+            if conn.bind(): 
+                return "1"
+        except:
+            pass
+    return "0"

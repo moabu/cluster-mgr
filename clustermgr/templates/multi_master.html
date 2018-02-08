@@ -42,6 +42,7 @@
                     <th>Hostname</th>
                     <th>IP Address</th>
                     <th>Replication Status</th>
+                    <th>Server Status</th>
                     <th>Providers</th>
                     <th>Actions</th>
                 </tr>
@@ -63,6 +64,8 @@
                             <p class="text-danger">Not Configured</p>
                         {% endif %}
                     </td>
+
+                    <td><center> <span class="badge" id="ldapstat{{server.id}}"></span> </center></td>
 
                     <!-- providers -->
                     <td>
@@ -126,5 +129,38 @@
 
 {% endblock %}
 {% block js %}
+
+<script>
+function showLdapStat() {
+
+{% for server in ldapservers %}
+
+    $.get("http://localhost:5000/server/ldapstat/{{server.id}}/", function(data, status){
+        if (data == 1) {
+            $("#ldapstat{{server.id}}").addClass("bg-green");
+            $("#ldapstat{{server.id}}").removeClass("bg-red");
+            $("#ldapstat{{server.id}}").text("Live");
+        } else {
+            
+            $("#ldapstat{{server.id}}").addClass("bg-red");
+            $("#ldapstat{{server.id}}").removeClass("bg-green");
+            $("#ldapstat{{server.id}}").text("Down");
+        }
+        
+    
+    });
+    
+{% endfor %}
+
+}
+
+showLdapStat();
+
+setInterval(function() {
+    showLdapStat();
+}, 5*60*1000);
+
+</script>
+
 
 {% endblock %}

@@ -80,6 +80,7 @@
                         <th>Hostname</th>
                         <th>IP Address</th>
                         <th>Gluu Server</th>
+                        {% if servers[0].gluu_server %}<th>LDAP Status</th>{% endif %}
                         <th>OS</th>
                         <th>Actions</th>
                     </tr>
@@ -96,6 +97,12 @@
                         <td>{{ server.ip }}</td>
                         <td>{% if server.gluu_server %} <span class="glyphicon glyphicon-ok"></span>{% endif %}
                         </td>
+                        
+                        {% if servers[0].gluu_server %}
+                        <td><center> <span class="badge" id="ldapstat{{server.id}}"></span> </center></td>
+                        
+                        {% endif %}
+                        
                         <td>{{ server.os }}</td>
                         <td>
                             <a class="btn btn-default btn-xs" href="{{ url_for('server.edit', server_id=server.id) }}">Edit</a>
@@ -215,6 +222,36 @@
         modal.find('.modal-title').text('Re-install ' + hostname);
         $('#reinstall_url').attr('href', reinstall_server_url);
     });
+
+function showLdapStat() {
+
+{% for server in servers %}
+
+    $.get("http://localhost:5000/server/ldapstat/{{server.id}}/", function(data, status){
+        if (data == 1) {
+            $("#ldapstat{{server.id}}").addClass("bg-green");
+            $("#ldapstat{{server.id}}").removeClass("bg-red");
+            $("#ldapstat{{server.id}}").text("Live");
+        } else {
+            
+            $("#ldapstat{{server.id}}").addClass("bg-red");
+            $("#ldapstat{{server.id}}").removeClass("bg-green");
+            $("#ldapstat{{server.id}}").text("Down");
+        }
+        
+    
+    });
+    
+{% endfor %}
+
+}
+
+showLdapStat();
+
+setInterval(function() {
+    showLdapStat();
+}, 5*60*1000);
+
 
 </script>
 {% endblock %}
