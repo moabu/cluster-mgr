@@ -252,7 +252,7 @@ showLdapStat();
 
 setInterval(function() {
     showLdapStat();
-}, 5*60*1000);
+}, {% if app_conf.ldap_update_period %}{{app_conf.ldap_update_period}}{%else%}5{%endif%}*60*1000);
 
 
 </script>

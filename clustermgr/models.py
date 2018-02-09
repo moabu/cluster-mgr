@@ -83,6 +83,8 @@ class AppConfiguration(db.Model):
 
     nginx_ip = db.Column(db.String(50))
 
+    ldap_update_period = db.Column(db.Integer)
+
 class KeyRotation(db.Model):
     __tablename__ = "keyrotation"
 

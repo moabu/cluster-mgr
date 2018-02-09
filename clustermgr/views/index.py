@@ -123,6 +123,7 @@ def app_configuration():
         config.nginx_host = conf_form.nginx_host.data.strip()
         config.nginx_ip = conf_form.nginx_ip.data.strip()
         config.modify_hosts = conf_form.modify_hosts.data
+        config.ldap_update_period = conf_form.ldap_update_period.data
 
         if getattr(conf_form, 'replication_pw'):
             config.replication_pw = conf_form.replication_pw.data.strip()
@@ -176,6 +177,8 @@ def app_configuration():
         conf_form.nginx_host.data = config.nginx_host
         conf_form.modify_hosts.data = config.modify_hosts
         conf_form.nginx_ip.data = config.nginx_ip
+        
+        conf_form.ldap_update_period.data = str(config.ldap_update_period) if config.ldap_update_period else '5'
         
         #conf_form.use_ip.data = config.use_ip
         if config.gluu_version:
@@ -434,7 +437,8 @@ def multi_master_replication():
             stat = rep_status[1]
         return render_template('opendjmmr.html',
                                servers=ldaps,
-                               stat = stat
+                               stat = stat,
+                               app_conf=app_config,
                                )
 
 

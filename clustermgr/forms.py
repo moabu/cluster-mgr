@@ -38,8 +38,15 @@ class AppConfigForm(FlaskForm):
 
     # admin_email = StringField("Admin Email", validators=[Optional(), Email("Please enter valid email address")])
 
-    modify_hosts =  BooleanField('Add IP Addresses and hostnames to /etc/hosts file on each server')
 
+    ldap_update_period = SelectField('LDAP Status Check Period (mins)', 
+            choices=[(str(i),str(i)) for i in range(1,11)],
+            default = '5',
+            )
+
+    modify_hosts =  BooleanField('Add IP Addresses and hostnames to '
+                                '/etc/hosts file on each server')
+    
     update = SubmitField("Update Configuration")
 
 
