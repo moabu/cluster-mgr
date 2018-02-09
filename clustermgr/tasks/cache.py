@@ -180,6 +180,7 @@ def install_cache_components(self, method):
     :return: the number of servers where both stunnel and redis were installed
         successfully
     """
+    
     tid = self.request.id
     installed = 0
     servers = Server.query.all()

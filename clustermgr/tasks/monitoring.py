@@ -263,7 +263,7 @@ def install_monitoring(self):
     installed = 0
     servers = Server.query.all()
     app_config = AppConfiguration.query.first()
-
+    
     for server in servers:
         # 1. Make SSH Connection to the remote server
         wlogger.log(tid, "Making SSH connection to the server {0}".format(

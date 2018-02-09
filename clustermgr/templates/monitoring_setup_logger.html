@@ -51,6 +51,7 @@
   </div>
 
 
+{% include "celery_exception_modal.html" %}
 
 {% endblock %}
 
@@ -131,6 +132,11 @@ function updateLog(){
                 logging_id = s_id;
             }
         }
+
+        if (data.error_message) {
+            $('#exceptionModalText').text(data.error_message)
+            $('#removeAlertModal').modal('show');
+            }
 
         if(data.state === "SUCCESS" || data.state === "FAILURE"){
             clearInterval(timer);
