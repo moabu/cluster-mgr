@@ -97,6 +97,8 @@ class WebLogger(object):
         for k, v in kwargs.iteritems():
             logitem[k] = v
 
+        print logitem
+        
         self.r.rpush(self.__key(taskid), json.dumps(logitem))
         self.r.expire(self.__key(taskid), 86400)  # TODO make this configurable
 

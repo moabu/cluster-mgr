@@ -17,7 +17,32 @@
 <a id="home" class="btn btn-block btn-success" style="display: none;" href="{{ url_for(nextpage) }}">Go to {{whatNext}}</a>
 
 
-{% include "celery_exception_modal.html" %}
+
+
+<!-- Alert Modal for celery exception -->
+<div id="removeAlertModal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content panel-danger">
+            <div class="modal-header panel-heading">
+                <button type="button" class="close" data-dismiss="modal"
+                        aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">An Unhandled Exception Raised</h4>
+            </div>
+            <div class="modal-body">
+                <pre>
+                <p id="exceptionModalText"></p>
+                </pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default"
+                        data-dismiss="modal">Close
+                </button>
+
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
 
 
 {% endblock content %}
@@ -52,6 +77,7 @@ function logitem(message, state){
     } else if ( state === 'debug' ){
         item = document.createElement('pre')
         item.setAttribute('class', 'list-group-item');
+        item.setAttribute("id", "preelement");
     }
     item.appendChild(icon);
     var msgtext = document.createTextNode(message);
@@ -62,10 +88,28 @@ function logitem(message, state){
 function updateLog(){
     $.get('{{ url_for("index.get_log", task_id=task.id) }}', function(data){
         var logs = data.messages;
-        var logged_msgs = $('.list-group-item').length;
-        for(var i=logged_msgs; i<logs.length; i++){
-            var entry = logitem(logs[i].msg, logs[i].level);
-            $('#logger').append(entry);
+        //var logged_msgs = $('.list-group-item').length;
+        for(var i=lastLoggedItem; i<logs.length; i++){
+            
+
+            console.log(logs[i].level, logs[i].msg);
+            if (logs[i].level==='debugc') {
+                var entry = document.getElementById(logs[i].log_id);
+                entry.innerHTML = logs[i].msg;
+                lastLoggedItem++;
+            } else {
+                var entry = logitem(logs[i].msg, logs[i].level);
+                if (logs[i].new_log_id) {
+                    prevEntry = document.getElementById(logs[i].log_id);
+                    if (!prevEntry) {
+                        entry.setAttribute("id", logs[i].log_id); 
+                        console.log("New log id created"+logs[i].log_id);
+                    }
+                }
+                $('#logger').append(entry);
+                lastLoggedItem++;
+                
+            }
             entry.scrollIntoView({behavior: "smooth", block: "end"});
             if(logs[i].level == 'error' || logs[i].level == 'fail'){
                 errors++;
@@ -92,7 +136,7 @@ function updateLog(){
         }
     });
 }
-
+var lastLoggedItem=0;
 $('#retry').click(function(){
     window.location.reload(true);
 });

@@ -13,7 +13,7 @@ from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.core.utils import get_setup_properties, modify_etc_hosts
 from clustermgr.config import Config
 import uuid
-
+import select
 
 def run_command(tid, c, command, container=None, no_error='error'):
     """Shorthand for RemoteClient.run(). This function automatically logs
@@ -255,7 +255,6 @@ def setup_filesystem_replication(self):
                 '/etc/gluu/conf/openldap/salt',
 
                 ]
-
 
 
             csync2_config = ['group gluucluster','{']
@@ -1142,6 +1141,28 @@ def installGluuServer(self, server_id):
     """
 
     tid = self.request.id
+    
+    """
+    wlogger.log(tid, "This is test")
+    wlogger.log(tid, "Test started", "debug")
+    time.sleep(1)
+
+    wlogger.log(tid, "Test started", "debug", log_id="logc-{}".format(1), new_log_id=True)
+
+    for i in range(5):
+        wlogger.log(tid, "Test Number %d" % i, 'debugc', log_id="logc-{}".format(1))
+        time.sleep(1)
+    
+    wlogger.log(tid, "Test 2 started", "debug", log_id="logc-{}".format(2), new_log_id=True)
+
+    for i in range(7):
+        wlogger.log(tid, "Test 2 Number %d" % i, 'debugc', log_id="logc-{}".format(2))
+        time.sleep(1)
+    
+    return
+
+    """
+
     server = Server.query.get(server_id)
     pserver = Server.query.filter_by(primary_server=True).first()
 
@@ -1195,6 +1216,10 @@ def installGluuServer(self, server_id):
         wlogger.log(tid, "Ending server installation process.", "error")
         return
 
+
+    channel = c.client.get_transport().open_session()
+    channel.get_pty()
+    channel.exec_command("python /tmp/pb.py")
 
     wlogger.log(tid, "Preparing for Installation")
 
@@ -1311,12 +1336,37 @@ def installGluuServer(self, server_id):
 
     cmd = install_command + 'install -y ' + gluu_server
     wlogger.log(tid, cmd, "debug")
-    cin, cout, cerr = c.run(install_command + 'install -y ' + gluu_server)
-    wlogger.log(tid, cout+cerr, "debug")
+    
+    
+    channel = c.client.get_transport().open_session()
+    channel.get_pty()
+    channel.exec_command(cmd)
+    
+    last_debug = False
+    log_id = 0
+    while True:
+        if channel.exit_status_ready():
+            break
+        rl, wl, xl = select.select([channel], [], [], 0.0)
+        if len(rl) > 0:
+            cout = channel.recv(1024)
+            print cout
+            if re.match("(.*)gluu-server-(.*)\[(.*)\](.*)", cout):
+                if not last_debug:
+                    wlogger.log(tid, "...", "debug", log_id="logc-{}".format(log_id), new_log_id=True)
+                    last_debug = True
+                    print "Creating new log id", log_id
+
+                wlogger.log(tid, cout, "debugc", log_id="logc-{}".format(log_id))
+            else:
+                log_id += 1
+                last_debug = False
+                wlogger.log(tid, cout, "debug")
+
 
     #If previous installation was broken, make a re-installation. This sometimes
     #occur on ubuntu installations
-    if 'half-installed' in cout + cerr:
+    if 'half-installed' in cout:
         if ('Ubuntu' in server.os) or  ('Debian' in server.os):
             cmd = 'DEBIAN_FRONTEND=noninteractive  apt-get install --reinstall -y '+ gluu_server
             run_command(tid, c, cmd, no_error='debug')
@@ -1382,15 +1432,62 @@ def installGluuServer(self, server_id):
             wlogger.log(tid, "Ending server installation process.", "error")
             return
 
+
+    #run setup.py on the server
+    wlogger.log(tid, "Downloading setup.py")
+    cmd = ( 
+            'curl  https://raw.githubusercontent.com/GluuFederation/'
+            'community-edition-setup/master/setup.py  -o /opt/{}/install/'
+            'community-edition-setup/setup.py'
+            ).format(gluu_server)
+            
+    cmd = ( 
+            'curl https://raw.githubusercontent.com/mbaser/gluu/master/setup.py -o /opt/{}/install/'
+            'community-edition-setup/setup.py'
+            ).format(gluu_server)
+
+    
+            
+    run_command(tid, c, cmd, no_error='debug')
+    
+    cmd = 'chmod +x /opt/{}/install/community-edition-setup/setup.py'.format(
+        gluu_server)
+    run_command(tid, c, cmd)
+    
     #run setup.py on the server
     wlogger.log(tid, "Running setup.py - Be patient this process will take a while ...")
 
     if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-        cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'cd /install/community-edition-setup/ && ./setup.py -n'"
-        run_command(tid, c, cmd)
+        cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'cd /install/community-edition-setup/ && ./setup.py -n -v'"
     else:
-        cmd = 'cd /install/community-edition-setup/ && ./setup.py -n'
-        run_command(tid, c, cmd, '/opt/'+gluu_server+'/', no_error='debug')
+        cmd = 'cd /install/community-edition-setup/ && ./setup.py -n -v'
+        #run_command(tid, c, cmd, '/opt/'+gluu_server+'/', no_error='debug')
+
+    channel = c.client.get_transport().open_session()
+    channel.get_pty()
+    channel.exec_command(cmd)
+    
+    last_debug = False
+
+    while True:
+        if channel.exit_status_ready():
+            break
+        rl, wl, xl = select.select([channel], [], [], 0.0)
+        if len(rl) > 0:
+            cout = channel.recv(1024)
+            cout = cout.strip()
+            if re.search(' \[(#|\s)*\] ', cout):
+                if not last_debug:
+                    wlogger.log(tid, "...", "debug", log_id="logc-{}".format(log_id), new_log_id=True)
+                    last_debug = True
+                    print "Creating new log id", log_id
+
+                wlogger.log(tid, cout, "debugc", log_id="logc-{}".format(log_id))
+            else:
+                log_id += 1
+                last_debug = False
+                wlogger.log(tid, cout, "debug")
+
 
     
     if appconf.modify_hosts:
