@@ -202,7 +202,13 @@ def getData(item, step=None):
                 tmp = [djformat]
 
                 for f in legends:
-                    tmp.append( d['difference_'+f] )
+                    if measurement == 'cpu_info':
+                        if  d['difference_'+f] < 0:
+                            tmp.append( 0 )
+                        else:
+                            tmp.append( d['difference_'+f] )
+                    else:
+                        tmp.append( d['difference_'+f] )
 
                 data.append(tmp)
 
