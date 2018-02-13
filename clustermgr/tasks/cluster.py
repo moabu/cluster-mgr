@@ -1141,27 +1141,6 @@ def installGluuServer(self, server_id):
     """
 
     tid = self.request.id
-    
-    """
-    wlogger.log(tid, "This is test")
-    wlogger.log(tid, "Test started", "debug")
-    time.sleep(1)
-
-    wlogger.log(tid, "Test started", "debug", log_id="logc-{}".format(1), new_log_id=True)
-
-    for i in range(5):
-        wlogger.log(tid, "Test Number %d" % i, 'debugc', log_id="logc-{}".format(1))
-        time.sleep(1)
-    
-    wlogger.log(tid, "Test 2 started", "debug", log_id="logc-{}".format(2), new_log_id=True)
-
-    for i in range(7):
-        wlogger.log(tid, "Test 2 Number %d" % i, 'debugc', log_id="logc-{}".format(2))
-        time.sleep(1)
-    
-    return
-
-    """
 
     server = Server.query.get(server_id)
     pserver = Server.query.filter_by(primary_server=True).first()
@@ -1342,6 +1321,10 @@ def installGluuServer(self, server_id):
     channel.get_pty()
     channel.exec_command(cmd)
     
+    ubuntu_re = re.compile('\[(\s|\w|%|/|-|\.)*\]')
+    ubuntu_re_2 = re.compile('\(Reading database ... \d*')
+    centos_re = re.compile(' \[(#|\s)*\] ')
+    
     last_debug = False
     log_id = 0
     while True:
@@ -1349,21 +1332,24 @@ def installGluuServer(self, server_id):
             break
         rl, wl, xl = select.select([channel], [], [], 0.0)
         if len(rl) > 0:
-            cout = channel.recv(1024)
-            print cout
-            if re.match("(.*)gluu-server-(.*)\[(.*)\](.*)", cout):
-                if not last_debug:
-                    wlogger.log(tid, "...", "debug", log_id="logc-{}".format(log_id), new_log_id=True)
-                    last_debug = True
-                    print "Creating new log id", log_id
+            coutt = channel.recv(1024)
+            if coutt:
+                for cout in coutt.split('\n'):
+                    if cout.strip():
+                        if centos_re.search(cout) or ubuntu_re.search(cout) or ubuntu_re_2.search(cout):
+                            if not last_debug:
+                                cout = cout.strip()
+                                wlogger.log(tid, "...", "debug", log_id="logc-{}".format(log_id), new_log_id=True)
+                                last_debug = True
+                                print "Creating new log id", log_id
 
-                wlogger.log(tid, cout, "debugc", log_id="logc-{}".format(log_id))
-            else:
-                log_id += 1
-                last_debug = False
-                wlogger.log(tid, cout, "debug")
+                            wlogger.log(tid, cout, "debugc", log_id="logc-{}".format(log_id))
+                        else:
+                            log_id += 1
+                            last_debug = False
+                            wlogger.log(tid, cout, "debug")
 
-
+    
     #If previous installation was broken, make a re-installation. This sometimes
     #occur on ubuntu installations
     if 'half-installed' in cout:
@@ -1433,7 +1419,11 @@ def installGluuServer(self, server_id):
             return
 
 
+
     #run setup.py on the server
+
+    
+
     wlogger.log(tid, "Downloading setup.py")
     cmd = ( 
             'curl  https://raw.githubusercontent.com/GluuFederation/'
@@ -1460,8 +1450,9 @@ def installGluuServer(self, server_id):
     if server.os == 'CentOS 7' or server.os == 'RHEL 7':
         cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'cd /install/community-edition-setup/ && ./setup.py -n -v'"
     else:
-        cmd = 'cd /install/community-edition-setup/ && ./setup.py -n -v'
-        #run_command(tid, c, cmd, '/opt/'+gluu_server+'/', no_error='debug')
+        
+        cmd = 'chroot /opt/{}  /bin/bash -c "cd /install/community-edition-setup/ && ./setup.py -n -v"'.format(gluu_server)
+
 
     channel = c.client.get_transport().open_session()
     channel.get_pty()
@@ -1475,9 +1466,10 @@ def installGluuServer(self, server_id):
         rl, wl, xl = select.select([channel], [], [], 0.0)
         if len(rl) > 0:
             cout = channel.recv(1024)
-            cout = cout.strip()
+            
             if re.search(' \[(#|\s)*\] ', cout):
                 if not last_debug:
+                    cout = cout.strip()
                     wlogger.log(tid, "...", "debug", log_id="logc-{}".format(log_id), new_log_id=True)
                     last_debug = True
                     print "Creating new log id", log_id
@@ -1487,7 +1479,6 @@ def installGluuServer(self, server_id):
                 log_id += 1
                 last_debug = False
                 wlogger.log(tid, cout, "debug")
-
 
     
     if appconf.modify_hosts:
