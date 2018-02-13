@@ -55,7 +55,7 @@
         {% endif %}
         data{{loop.index0}}.addRows([
             {% for d in data[host]['data'] %}
-            [{{d[0]}},{% for di in d[1:] %}{{di}},{% endfor %}],
+            [{{d[0]|safe}},{% for di in d[1:] %}{{di}},{% endfor %}],
             {% endfor %}
         ]);
         {% endfor %}

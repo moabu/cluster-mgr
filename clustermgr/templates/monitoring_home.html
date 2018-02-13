@@ -65,7 +65,7 @@
             data.addRows([
 
             {% for d in data[chart][host['name']]['data'] %}
-            [{{d[0]}},{% for di in d[1:] %}{{di}},{% endfor %}],
+            [{{d[0]|safe}},{% for di in d[1:] %}{{di}},{% endfor %}],
             {% endfor %}
 
             ]);

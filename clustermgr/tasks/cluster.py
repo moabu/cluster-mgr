@@ -1323,7 +1323,7 @@ def installGluuServer(self, server_id):
     
     ubuntu_re = re.compile('\[(\s|\w|%|/|-|\.)*\]')
     ubuntu_re_2 = re.compile('\(Reading database ... \d*')
-    centos_re = re.compile(' \[(#|\s)*\] ')
+    centos_re = re.compile(' \[(=|-|#|\s)*\] ')
     
     last_debug = False
     log_id = 0
@@ -1540,8 +1540,10 @@ def installGluuServer(self, server_id):
             certs_remote_tmp = "/tmp/certs_"+str(uuid.uuid4())[:4].upper()+".tgz"
             certs_local_tmp = "/tmp/certs_"+str(uuid.uuid4())[:4].upper()+".tgz"
 
-            cmd = 'tar -zcf {0} /opt/gluu-server-{1}/etc/certs/'.format(
-                                certs_remote_tmp, appconf.gluu_version)
+            cmd = ('tar -zcf {0} /opt/gluu-server-{1}/etc/certs/ '
+                    '/opt/gluu-server-{1}/install/community-edition-setup'
+                    '/output/scim-rp.jks'
+                    ).format(certs_remote_tmp, appconf.gluu_version)
             wlogger.log(tid,cmd,'debug')
             cin, cout, cerr = pc.run(cmd)
             wlogger.log(tid, cout+cerr, 'debug')

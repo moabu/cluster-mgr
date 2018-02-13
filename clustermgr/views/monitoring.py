@@ -198,8 +198,7 @@ def getData(item, step=None):
             ]
 
             for d in result[measurement_d]:
-                tt = time.localtime(d['time'])
-                djformat = time.strftime('new Date(%Y, %m, %d, %H, %M)', tt)
+                djformat = 'new Date("{}")'.format(time.ctime(d['time']))
                 tmp = [djformat]
 
                 for f in legends:
@@ -211,8 +210,7 @@ def getData(item, step=None):
             legends = []
             if result.raw.get('series'):
                 for s in result.raw['series'][0]['values']:
-                    tt = time.localtime(s[0])
-                    djformat = time.strftime('new Date(%Y, %m, %d, %H, %M)', tt)
+                    djformat = 'new Date("{}")'.format(time.ctime(s[0]))
                     tmp = [djformat]
                     for f in s[1:]:
                         if f:

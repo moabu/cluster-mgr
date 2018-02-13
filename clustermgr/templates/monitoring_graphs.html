@@ -62,7 +62,7 @@
 
            {% for d in data[h]['data'] %}
            
-           [{% for i in d %}{{i}},{%endfor%}],
+           [{% for i in d %}{{i|safe}},{%endfor%}],
            
            {% endfor %}
 
