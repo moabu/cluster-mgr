@@ -174,7 +174,7 @@ def _rotate_keys(kr, javalibs_dir, jks_path):
             c.close()
 
 
-@celery.task
+# @celery.task
 def schedule_key_rotation():
     kr = KeyRotation.query.first()
 
