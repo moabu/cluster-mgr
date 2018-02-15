@@ -220,7 +220,11 @@ def getData(item, step=None):
                     tmp = [djformat]
                     for f in s[1:]:
                         if f:
-                            tmp.append(f)
+                            if item in ['add_requests', 'search_requests',
+                                        'modify_requests', 'delete_requests']:
+                                tmp.append(abs(f))
+                            else:
+                                tmp.append(f)
                         else:
                             tmp.append('null')
                     data.append(tmp)
