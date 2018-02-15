@@ -41,6 +41,11 @@ class Config(object):
             'schedule': timedelta(seconds=60 * 60 * 24),
             'args': (),
         },
+        'schedule_key_rotation': {
+            'task': 'clustermgr.tasks.keyrotation.schedule_key_rotation',
+            'schedule': timedelta(seconds=60 * 60 * 1),
+            'args': (),
+        },
     }
 
     MAIL_SERVER = "localhost"

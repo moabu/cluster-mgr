@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% from 'macros.html' import render_radio_field, render_field %}
+
+{% block content %}
+<h2 class="page-header">oxAuth Key Rotation</h2>
+<form action="{{ url_for('keyrotation.settings') }}" method="POST">
+    {{ form.csrf_token }}
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <h3 class="panel-title">Key Rotation</h3>
+        </div>
+        <div class="panel-body">
+            <fieldset class="form-group {{ 'has-error' if form.enabled.errors else '' }}">
+                {{ form.enabled.label(class="control-label") }}
+                {{ form.enabled(class="radio") }}
+                {% for error in form.enabled.errors %}
+                    <p class="help-block">{{ error }}</p>
+                {% endfor %}
+            </fieldset>
+
+            <div class="form-group {{ 'has-error' if form.interval.errors else '' }}">
+                {{ form.interval.label(class="control-label") }}
+                <div class="input-group">
+                    {{ form.interval(class="form-control") }}
+                    <span class="input-group-addon">days</span>
+                </div>
+                {% for error in form.interval.errors %}
+                    <p class="help-block">{{ error }}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Rotate Key</button>
+</form>
+{% endblock %}
+
+{% block js%}
+    <script src="{{ url_for('static', filename='js/key-rotation.js') }}"></script>
+{% endblock %}

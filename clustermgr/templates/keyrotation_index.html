@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block header %}
+    <h1>KeyRotation</h1>
+    <ol class="breadcrumb">
+        <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+        <li class="active">KeyRotation</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+<div class="box box-primary">
+    <div class="box-header with-border">
+        <h3 class="panel-title">Overview</h3>
+    </div>
+    <div class="box-body">
+        <dl class="dl-horizontal">
+            <dt>Enabled</dt>
+            <dd>{{ "Yes" if kr.enabled else "No" }}</dd>
+            <dt>Rotation Interval</dt>
+            <dd>{{ kr.interval }} day(s)</dd>
+            <dt>Backend</dt>
+            <dd>{{ kr.type }}</dd>
+        </dl>
+    </div>
+    <div class="box-footer">
+        <a href="{{ url_for('keyrotation.settings') }}" class="btn btn-primary pull-right">Settings</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+{% endblock %}
