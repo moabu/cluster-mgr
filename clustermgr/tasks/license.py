@@ -51,7 +51,7 @@ def send_reminder_email(self):
         if not all([now.day == t.day, now.month == t.month, now.year == t.year]):
             continue
 
-        # email must be send only once
+        # if email has been previously sent in the same day, skip the process
         if last_sent == t.strftime("%Y-%m-%d"):
             return
 

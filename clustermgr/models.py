@@ -85,6 +85,7 @@ class AppConfiguration(db.Model):
 
     ldap_update_period = db.Column(db.Integer)
 
+
 class KeyRotation(db.Model):
     __tablename__ = "keyrotation"
 
@@ -99,21 +100,11 @@ class KeyRotation(db.Model):
     # rotation type based on available backends (oxeleven or jks)
     type = db.Column(db.String(16))
 
-    oxeleven_url = db.Column(db.String(255))
-
-    # token used for accessing oxEleven
-    # note, token is encrypted when we save into database;
-    # to get the actual token, we need to decrypt it
-    oxeleven_token = db.Column(db.LargeBinary)
-
-    # random key for token encryption
-    oxeleven_token_key = db.Column(db.LargeBinary)
-
-    # random iv for token encryption
-    oxeleven_token_iv = db.Column(db.LargeBinary)
-
     # inum appliance, useful for searching oxAuth config in LDAP
     inum_appliance = db.Column(db.String(255))
+
+    # whether rotation is enabled or not
+    enabled = db.Column(db.Boolean, default=False)
 
     def should_rotate(self):
         # determine whether we need to rotate the key

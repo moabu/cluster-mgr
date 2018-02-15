@@ -8,11 +8,14 @@ def generate_jks(passwd, javalibs_dir, jks_path, exp=365,
     if os.path.exists(jks_path):
         os.unlink(jks_path)
 
+    dn = "CN=oxAuth CA Certificates"
+
     cmd = " ".join([
         "java",
         "-jar", os.path.join(javalibs_dir, "keygen.jar"),
-        "-algorithms", alg,
-        "-dnname", "{!r}".format("CN=oxAuth CA Certificates"),
+        "-enc_keys", alg,
+        "-sig_keys", alg,
+        "-dnname", "{!r}".format(dn),
         "-expiration", "{}".format(exp),
         "-keystore", jks_path,
         "-keypasswd", passwd,

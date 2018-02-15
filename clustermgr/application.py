@@ -77,6 +77,7 @@ def create_app():
     from clustermgr.views.license import license_bp
     from clustermgr.views.auth import auth_bp
     from clustermgr.views.logserver import log_mgr
+    from clustermgr.views.keyrotation import keyrotation_bp
 
     app.register_blueprint(index, url_prefix="")
     app.register_blueprint(server_view, url_prefix="/server")
@@ -86,6 +87,7 @@ def create_app():
     app.register_blueprint(license_bp, url_prefix="/license")
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(monitoring, url_prefix="/monitoring")
+    app.register_blueprint(keyrotation_bp, url_prefix="/keyrotation")
 
     @app.context_processor
     def hash_processor():

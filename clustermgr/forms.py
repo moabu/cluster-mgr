@@ -39,14 +39,14 @@ class AppConfigForm(FlaskForm):
     # admin_email = StringField("Admin Email", validators=[Optional(), Email("Please enter valid email address")])
 
 
-    ldap_update_period = SelectField('LDAP Status Check Period (mins)', 
+    ldap_update_period = SelectField('LDAP Status Check Period (mins)',
             choices=[(str(i),str(i)) for i in range(1,11)],
             default = '5',
             )
 
     modify_hosts =  BooleanField('Add IP Addresses and hostnames to '
                                 '/etc/hosts file on each server')
-    
+
     update = SubmitField("Update Configuration")
 
 
@@ -80,20 +80,22 @@ class LDIFForm(FlaskForm):
 
 class KeyRotationForm(FlaskForm):
     interval = IntegerField("Rotation Interval", validators=[DataRequired()])
-    type = RadioField(
-        "Rotation Type",
-        choices=[("oxeleven", "oxEleven",), ("jks", "JKS")],
-        validators=[AnyOf(["oxeleven", "jks"])],
+    enabled = RadioField(
+        "Enable Rotation",
+        choices=[("true", "Yes"), ("false", "No")],
     )
-    oxeleven_url = StringField("oxEleven URL")
-    oxeleven_token = PasswordField("oxEleven Token")
-    inum_appliance = StringField("Inum Appliance", validators=[DataRequired()])
-    gluu_server = BooleanField(
-        'Installed inside chroot-ed Gluu Server', default=True)
-    gluu_version = SelectField('Gluu Server Version', choices=[
-        ('3.0.1', '3.0.1'),
-        ('3.0.2', '3.0.2'),
-    ])
+    # type = RadioField(
+    #     "Rotation Type",
+    #     choices=[("jks", "JKS")],
+    #     validators=[AnyOf(["jks"])],
+    # )
+    # inum_appliance = StringField("Inum Appliance", validators=[DataRequired()])
+    # gluu_server = BooleanField(
+    #     'Installed inside chroot-ed Gluu Server', default=True)
+    # gluu_version = SelectField('Gluu Server Version', choices=[
+    #     ('3.0.1', '3.0.1'),
+    #     ('3.0.2', '3.0.2'),
+    # ])
 
     def validate_oxeleven_url(form, field):
         if not field.data and form.type.data == "oxeleven":
