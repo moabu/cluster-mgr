@@ -300,7 +300,10 @@ def get_log(task_id):
     if result.state == 'SUCCESS' or result.state == 'FAILED':
         if result.result:
             if type(result.result) != type(True):
-                value = result.result.message
+                try:
+                    value = result.result.message
+                except:
+                    value = result.result
         wlogger.clean(task_id)
     log = {'task_id': task_id, 'state': result.state, 'messages': msgs,
            'result': value, 'error_message': error_message}
