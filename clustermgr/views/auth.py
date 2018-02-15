@@ -3,7 +3,7 @@ import os
 import socket
 import hashlib
 
-from flask import current_app
+from flask import current_app, make_response
 from flask import Blueprint
 from flask import request
 from flask import url_for
@@ -61,6 +61,12 @@ def load_user(username):
 
 @auth_bp.route("/login/", methods=["GET", "POST"])
 def login():
+    
+    oxd_config = current_app.config["OXD_CLIENT_CONFIG_FILE"]
+
+    if os.path.exists(oxd_config):
+        return redirect(url_for("auth.oxd_login"))
+    
     cfg_file = current_app.config["AUTH_CONFIG_FILE"]
 
     if not os.path.exists(cfg_file):
@@ -79,7 +85,9 @@ def login():
         if user and enc_password == user.password:
             next_ = request.values.get('next')
             login_user(user)
-            return redirect(next_ or url_for('index.home'))
+            if not next_ == 'None':
+                return redirect(next_)
+            return redirect(url_for('index.home'))
 
         flash("Invalid username or password.", "warning")
 
@@ -90,7 +98,17 @@ def login():
 @auth_bp.route("/logout/")
 def logout():
     logout_user()
-    return redirect(url_for("index.home"))
+    
+    
+    if os.path.exists(current_app.config["OXD_CLIENT_CONFIG_FILE"]):
+    
+        config = current_app.config["OXD_CLIENT_CONFIG_FILE"]
+        oxc = Client(config)
+    
+        logout_url = oxc.get_logout_uri()
+        return redirect(logout_url)
+
+    return redirect(url_for("auth.login"))
 
 
 @auth_bp.route("/oxd_login/")
@@ -104,6 +122,7 @@ def oxd_login():
         flash("Unable to locate oxd client config file.".format(config),
               "warning")
         return redirect(url_for("index.home"))
+
 
     oxc = Client(config)
 
@@ -130,6 +149,7 @@ def oxd_login_callback():
     code = request.args.get('code')
     state = request.args.get('state')
 
+
     try:
         # these following API calls may raise RuntimeError caused by internal
         # error in oxd server.
@@ -142,15 +162,19 @@ def oxd_login_callback():
 
         # ``role`` item is in ``permission`` scope, hence
         # accessing this attribute may raise KeyError
-        role = resp["role"][0].strip("[]")
+        role = ''
+        if 'role' in resp:
+            role = resp["role"][0].strip("[]")
 
         # disallow role other than ``cluster_manager``
-        if role != "cluster_manager":
-            flash("Invalid user's role '{}'.".format(role), "warning")
-        else:
-            # all's good, let's log the user in.
+        if username == 'admin' or role == "cluster_manager":
             user = User(username, "")
             login_user(user)
+            return redirect(url_for("index.home"))
+            
+        else:
+            flash("Invalid user's role.", "warning")
+
     except KeyError as exc:
         print exc  # TODO: use logging
         if exc.message == "user_name":
@@ -166,8 +190,16 @@ def oxd_login_callback():
     except socket.error as exc:
         print exc  # TODO: use logging
         flash("Unable to connect to OXD server.", "warning")
-    return redirect(url_for("index.home"))
 
+
+    logout_user()
+    logout_resp  = make_response(render_template("invalid_login.html"))
+    logout_resp.set_cookie('sub', 'null', expires=0)
+    logout_resp.set_cookie('JSESSIONID', 'null', expires=0)
+    logout_resp.set_cookie('session_state', 'null', expires=0)
+    logout_resp.set_cookie('session_id', 'null', expires=0)
+    return logout()
+    return render_template('invalid_login.html')
 
 @auth_bp.route("/oxd_logout_callback")
 def oxd_logout_callback():
