@@ -36,9 +36,13 @@ index.before_request(license_reminder)
 @index.route('/')
 def home():
     cfg_file = current_app.config["AUTH_CONFIG_FILE"]
+    oxd_file_config =  current_app.config["OXD_CLIENT_CONFIG_FILE"]
+    
+
     
     if not os.path.exists(cfg_file):
-        return redirect(url_for('auth.signup'))
+        if not os.path.exists(oxd_file_config):
+            return redirect(url_for('auth.signup'))
     
     if not current_user.is_authenticated:
         return redirect(url_for("auth.login", next='/'))
