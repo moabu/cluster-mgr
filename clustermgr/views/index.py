@@ -17,7 +17,7 @@ from flask import current_app
 from celery.result import AsyncResult
 
 from clustermgr.core.ldap_functions import LdapOLC
-# from clustermgr.tasks.all import rotate_pub_keys
+from clustermgr.tasks.cluster import upgrade_clustermgr_task
 # from clustermgr.core.utils import encrypt_text
 # from clustermgr.core.utils import generate_random_key
 # from clustermgr.core.utils import generate_random_iv
@@ -584,4 +584,16 @@ def remove_custom_schema(schema_file):
 
 
 
+@index.route('/upgrade')
+def upgrade_clustermgr():
+    """Initiates upgrading of clustermgr"""
+
+
+    task = upgrade_clustermgr_task.delay()
+    print "TASK STARTED", task.id
+    head = "Upgrading clustermgr"
+    nextpage = "index.home"
+    whatNext = "Go to Dashboard"
+    return render_template("logger.html", heading=head, server="",
+                           task=task, nextpage=nextpage, whatNext=whatNext)
 

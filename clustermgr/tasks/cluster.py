@@ -3,6 +3,7 @@
 import os
 import re
 import time
+import subprocess
 
 from flask import current_app as app
 
@@ -2208,4 +2209,20 @@ def installNGINX(self, nginx_host):
 
     wlogger.log(tid, "NGINX successfully installed")
 
+def exec_cmd(command):    
+    popen = subprocess.Popen(command, stdout=subprocess.PIPE)
+    return iter(popen.stdout.readline, b"")
 
+
+@celery.task(bind=True)
+def upgrade_clustermgr_task(self):
+    tid = self.request.id
+    
+    cmd = '/usr/bin/sudo pip install --upgrade https://github.com/GluuFederation/cluster-mgr/archive/master.zip'
+
+    wlogger.log(tid, cmd)
+
+    for line in exec_cmd(cmd.split()):
+        wlogger.log(tid, line, 'debug')
+    
+    return
