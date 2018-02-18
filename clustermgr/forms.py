@@ -84,11 +84,11 @@ class KeyRotationForm(FlaskForm):
         "Enable Rotation",
         choices=[("true", "Yes"), ("false", "No")],
     )
-    # type = RadioField(
-    #     "Rotation Type",
-    #     choices=[("jks", "JKS")],
-    #     validators=[AnyOf(["jks"])],
-    # )
+    type = RadioField(
+        "Backend Type",
+        choices=[("jks", "JKS")],
+        validators=[AnyOf(["jks"])],
+    )
     # inum_appliance = StringField("Inum Appliance", validators=[DataRequired()])
     # gluu_server = BooleanField(
     #     'Installed inside chroot-ed Gluu Server', default=True)
