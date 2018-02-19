@@ -229,7 +229,7 @@ function showLdapStat() {
 
 {% for server in servers %}
 
-    $.get("http://localhost:5000/server/ldapstat/{{server.id}}/", function(data, status){
+    $.get("{{request.host_url}}server/ldapstat/{{server.id}}/", function(data, status){
         if (data == 1) {
             $("#ldapstat{{server.id}}").addClass("bg-green");
             $("#ldapstat{{server.id}}").removeClass("bg-red");
