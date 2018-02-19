@@ -1,5 +1,5 @@
 import json
-import re
+import os
 from datetime import datetime
 
 from celery.utils.log import get_task_logger
@@ -9,9 +9,10 @@ from ldap3 import MODIFY_REPLACE
 from ldap3 import Server as Ldap3Server
 from ldap3.core.exceptions import LDAPSocketOpenError
 
-from ..core.keygen import generate_jks
 from ..core.remote import RemoteClient
 from ..core.utils import random_chars
+from ..core.utils import exec_cmd
+from ..core.utils import parse_setup_properties
 from ..extensions import celery
 from ..extensions import db
 from ..models import KeyRotation
@@ -20,11 +21,29 @@ from ..models import AppConfiguration
 
 task_logger = get_task_logger(__name__)
 
-INUM_RE = re.compile(r"inumAppliance=(.+)")
+
+def generate_jks(passwd, javalibs_dir, jks_path, exp=365,
+                 alg="RS256 RS384 RS512 ES256 ES384 ES512"):
+    if os.path.exists(jks_path):
+        os.unlink(jks_path)
+
+    dn = "CN=oxAuth CA Certificates"
+
+    cmd = " ".join([
+        "java",
+        "-jar", os.path.join(javalibs_dir, "keygen.jar"),
+        "-enc_keys", alg,
+        "-sig_keys", alg,
+        "-dnname", "{!r}".format(dn),
+        "-expiration", "{}".format(exp),
+        "-keystore", jks_path,
+        "-keypasswd", passwd,
+    ])
+    return exec_cmd(cmd)
 
 
-def get_inum(server, gluu_version):
-    inum = ""
+def get_props(server, gluu_version):
+    props = {}
     props_fn = "/opt/gluu-server-{}/install/community-edition-setup/setup.properties.last".format(gluu_version)
 
     rc = RemoteClient(server.hostname, ip=server.ip)
@@ -36,19 +55,13 @@ def get_inum(server, gluu_version):
     else:
         _, stdout, stderr = rc.run("cat {}".format(props_fn))
         if not stderr:
-            try:
-                inum = INUM_RE.search(stdout).groups()[0]
-            except IndexError:
-                pass
+            props = parse_setup_properties(stdout.splitlines())
     rc.close()
-    return inum
+    return props
 
 
 def get_remote_jks_path(server, gluu_version):
-    path = "/etc/certs/oxauth-keys.jks"
-    if server.gluu_server:
-        path = "/opt/gluu-server-{}/{}".format(gluu_version, path)
-    return path
+    return "/opt/gluu-server-{}/etc/certs/oxauth-keys.jks".format(gluu_version)
 
 
 def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass=""):
@@ -60,7 +73,7 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass=""):
     appconf = AppConfiguration.query.first()
 
     for server in Server.query:
-        inum_appliance = get_inum(server, appconf.gluu_version)
+        props = get_props(server, appconf.gluu_version)
         binddn = "cn=Directory Manager"
 
         s = Ldap3Server(host=server.ip, port=1636, use_ssl=True)
@@ -74,7 +87,7 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass=""):
         oxauth_base = ",".join([
             "ou=oxauth",
             "ou=configuration",
-            "inum={}".format(inum_appliance),
+            "inum={}".format(props.get("inumAppliance")),
             "ou=appliances",
             "o=gluu",
         ])
@@ -100,8 +113,8 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass=""):
         dyn_conf = json.loads(entry["oxAuthConfDynamic"].values[0])
         dyn_conf.update({
             "keyRegenerationEnabled": False,  # always set to False
-            "keyRegenerationInterval": kr.interval * 24,
-            # "defaultSignatureAlgorithm": "RS512",
+            "keyRegenerationInterval": kr.interval,
+            "defaultSignatureAlgorithm": "RS512",
         })
 
         dyn_conf.update({
@@ -111,6 +124,7 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass=""):
         serialized_dyn_conf = json.dumps(dyn_conf)
 
         # update the attributes
+        task_logger.info("Modifying oxAuth configuration.")
         conn.modify(entry.entry_dn, {
             'oxRevision': [(MODIFY_REPLACE, [ox_rev])],
             'oxAuthConfWebKeys': [(MODIFY_REPLACE, [serialized_keys_conf])],
@@ -126,7 +140,7 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass=""):
 
 
 @celery.task(bind=True)
-def rotate_pub_keys(t):
+def rotate_keys(t):
     javalibs_dir = celery.conf["JAVALIBS_DIR"]
     jks_path = celery.conf["JKS_PATH"]
     kr = KeyRotation.query.first()
@@ -143,6 +157,7 @@ def _rotate_keys(kr, javalibs_dir, jks_path):
     pub_keys = []
     openid_jks_pass = random_chars()
 
+    task_logger.info("Generating keys.")
     out, err, retcode = generate_jks(
         openid_jks_pass, javalibs_dir, jks_path,
     )
@@ -150,11 +165,11 @@ def _rotate_keys(kr, javalibs_dir, jks_path):
         json_out = json.loads(out)
         pub_keys = json_out["keys"]
     else:
-        task_logger.warn(err)
+        task_logger.warn("Unable to generate keys; reason={}".format(err))
 
     # update LDAP entry
     if pub_keys and modify_oxauth_config(kr, pub_keys, openid_jks_pass):
-        task_logger.info("Public keys has been updated.")
+        task_logger.info("Keys have been updated.")
         kr.rotated_at = datetime.utcnow()
         db.session.add(kr)
         db.session.commit()
@@ -170,11 +185,12 @@ def _rotate_keys(kr, javalibs_dir, jks_path):
                 continue
 
             remote_jks_path = get_remote_jks_path(server, appconf.gluu_version)
-            c.upload(jks_path, remote_jks_path)
+            task_logger.info("Copying JKS to server {}".format(server.hostname))
+            task_logger.info(c.upload(jks_path, remote_jks_path))
             c.close()
 
 
-# @celery.task
+@celery.task
 def schedule_key_rotation():
     kr = KeyRotation.query.first()
 
@@ -197,13 +213,3 @@ def schedule_key_rotation():
     javalibs_dir = celery.conf["JAVALIBS_DIR"]
     jks_path = celery.conf["JKS_PATH"]
     _rotate_keys(kr, javalibs_dir, jks_path)
-
-
-# disabled for backward-compatibility with celery 3.x
-# @celery.on_after_configure.connect
-# def setup_periodic_tasks(sender, **kwargs):
-#     sender.add_periodic_task(
-#         celery.conf['SCHEDULE_REFRESH'],
-#         schedule_key_rotation.s(),
-#         name='add every 30',
-#     )

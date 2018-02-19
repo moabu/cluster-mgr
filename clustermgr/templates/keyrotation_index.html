@@ -18,9 +18,9 @@
             <dt>Enabled</dt>
             <dd>{{ "Yes" if kr.enabled else "No" }}</dd>
             <dt>Rotation Interval</dt>
-            <dd>{{ kr.interval }} day(s)</dd>
-            <dt>Backend</dt>
-            <dd>{{ kr.type }}</dd>
+            <dd>{{ kr.interval }} hour(s)</dd>
+            <dt>Backend Type</dt>
+            <dd>{{ "JKS" if kr.type == "jks" else "N/A" }}</dd>
         </dl>
     </div>
     <div class="box-footer">

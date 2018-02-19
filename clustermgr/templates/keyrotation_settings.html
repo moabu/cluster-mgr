@@ -1,14 +1,20 @@
 {% extends "base.html" %}
 
-{% from 'macros.html' import render_radio_field, render_field %}
+{% block header %}
+    <h1>KeyRotation</h1>
+    <ol class="breadcrumb">
+        <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+        <li><a href="{{ url_for('keyrotation.index') }}">KeyRotation</a></li>
+        <li class="active">Settings</li>
+    </ol>
+{% endblock %}
 
 {% block content %}
-<h2 class="page-header">oxAuth Key Rotation</h2>
 <form action="{{ url_for('keyrotation.settings') }}" method="POST">
     {{ form.csrf_token }}
     <div class="panel panel-default">
         <div class="panel-heading">
-            <h3 class="panel-title">Key Rotation</h3>
+            <h3 class="panel-title">Settings</h3>
         </div>
         <div class="panel-body">
             <fieldset class="form-group {{ 'has-error' if form.enabled.errors else '' }}">
@@ -19,11 +25,19 @@
                 {% endfor %}
             </fieldset>
 
+            <fieldset class="form-group {{ 'has-error' if form.type.errors else '' }}">
+                {{ form.type.label(class="control-label") }}
+                {{ form.type(class="radio") }}
+                {% for error in form.type.errors %}
+                    <p class="help-block">{{ error }}</p>
+                {% endfor %}
+            </fieldset>
+
             <div class="form-group {{ 'has-error' if form.interval.errors else '' }}">
                 {{ form.interval.label(class="control-label") }}
                 <div class="input-group">
                     {{ form.interval(class="form-control") }}
-                    <span class="input-group-addon">days</span>
+                    <span class="input-group-addon">hours</span>
                 </div>
                 {% for error in form.interval.errors %}
                     <p class="help-block">{{ error }}</p>
@@ -37,5 +51,4 @@
 {% endblock %}
 
 {% block js%}
-    <script src="{{ url_for('static', filename='js/key-rotation.js') }}"></script>
 {% endblock %}

@@ -63,19 +63,12 @@ class Config(object):
 
 class ProductionConfig(Config):
     SECRET_KEY = ''
-    DATA_DIR = os.environ.get("DATA_DIR", "/opt/gluu-cluster-mgr")
-    JAVALIBS_DIR = os.path.join(DATA_DIR, "javalibs")
-    JKS_PATH = os.path.join(DATA_DIR, "oxauth-keys.jks")
-    APP_INSTANCE_DIR = os.path.join(DATA_DIR, "instance")
-    SCHEMA_DIR = os.path.join(DATA_DIR, "schema")
-    SLAPDCONF_DIR = os.path.join(DATA_DIR, "slapdconf")
-    SQLALCHEMY_DATABASE_URI = "sqlite:///{}/clustermgr.db".format(DATA_DIR)
+    SQLALCHEMY_DATABASE_URI = "sqlite:///{}/clustermgr.db".format(Config.DATA_DIR)
 
 
 class DevelopmentConfig(Config):
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = "sqlite:///{}/clustermgr.dev.db".format(
-        Config.DATA_DIR)
+    SQLALCHEMY_DATABASE_URI = "sqlite:///{}/clustermgr.dev.db".format(Config.DATA_DIR)
     SQLALCHEMY_TRACK_MODIFICATIONS = True
     LICENSE_ENFORCEMENT_ENABLED = False
     INFLUXDB_LOGGING_DB = "gluu_logs_dev"

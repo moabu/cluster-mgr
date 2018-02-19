@@ -4,14 +4,6 @@ clustermgr\.core package
 Submodules
 ----------
 
-clustermgr\.core\.keygen module
--------------------------------
-
-.. automodule:: clustermgr.core.keygen
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 clustermgr\.core\.ldaplib module
 --------------------------------
 

@@ -11,7 +11,7 @@ from ..core.utils import as_boolean
 from ..extensions import db
 from ..forms import KeyRotationForm
 from ..models import KeyRotation
-from ..tasks.keyrotation import rotate_pub_keys
+from ..tasks.keyrotation import rotate_keys
 
 keyrotation_bp = Blueprint("keyrotation", __name__)
 keyrotation_bp.before_request(prompt_license)
@@ -34,6 +34,7 @@ def settings():
     if request.method == "GET" and kr is not None:
         form.interval.data = kr.interval
         form.enabled.data = "true" if kr.enabled else "false"
+        form.type.data = kr.type
 
     if form.validate_on_submit():
         if not kr:
@@ -41,14 +42,13 @@ def settings():
 
         kr.interval = form.interval.data
         kr.enabled = as_boolean(form.enabled.data)
-        kr.type = "jks"
-        # kr.inum_appliance = form.inum_appliance.data
+        kr.type = form.type.data
         db.session.add(kr)
         db.session.commit()
 
         if kr.enabled:
             # rotate the keys immediately
-            rotate_pub_keys.delay()
+            rotate_keys.delay()
         return redirect(url_for(".index"))
 
     # show the page

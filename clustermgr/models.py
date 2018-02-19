@@ -91,7 +91,7 @@ class KeyRotation(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # key rotation interval (in days)
+    # key rotation interval (in hours)
     interval = db.Column(db.Integer)
 
     # timestamp when last rotation occured
@@ -115,7 +115,7 @@ class KeyRotation(db.Model):
     @property
     def next_rotation_at(self):
         # when will the keys supposed to be rotated
-        return self.rotated_at + timedelta(days=self.interval)
+        return self.rotated_at + timedelta(hours=self.interval)
 
 
 class OxelevenKeyID(db.Model):
