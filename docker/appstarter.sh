@@ -1,3 +1,6 @@
+#!/bin/bash
+set -e
+
 mkdir -p /root/influxdb/meta &
 /opt/influxdb-1.4.3-1/influxd &
 clustermgr-cli db upgrade &
