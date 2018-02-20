@@ -51,7 +51,7 @@ class Config(object):
 
         'get_remote_stats': {
             'task': 'clustermgr.tasks.get_remote_stats.get_remote_stats',
-            'schedule': timedelta(seconds=30),
+            'schedule': timedelta(seconds=60 * 5),
             'args': (),
         },
         

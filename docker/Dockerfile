@@ -12,8 +12,8 @@ RUN apk add --no-cache --update \
     py2-cryptography \
     py2-requests \
     py2-paramiko \
-    py2-ldap3
-
+    py2-ldap3 \
+    py2-psutil
 
 WORKDIR /app
 ADD . /app
