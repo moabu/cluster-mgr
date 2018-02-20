@@ -87,133 +87,109 @@ def install_local(self):
     
     #Getermine local OS type
     localos= get_os_type(fc)
+
     
 
     wlogger.log(tid, "Local OS was determined as {}".format(localos), "success", server_id=0)
+
+    if not localos == 'Alpine':
     
-    wlogger.log(tid, "Installing InfluxDB and Python client", "info", server_id=0)
-    
-    #commands to install influxdb on local machine for each OS type
-    if 'Ubuntu' in localos:
-        influx_cmd = [
-            'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
-            'DEBIAN_FRONTEND=noninteractive sudo apt-get install -y curl',
-            'curl -sL https://repos.influxdata.com/influxdb.key | '
-            'sudo apt-key add -'
-            ]
+        wlogger.log(tid, "Installing InfluxDB and Python client", "info", server_id=0)
+        
+        #commands to install influxdb on local machine for each OS type
+        if 'Ubuntu' in localos:
+            influx_cmd = [
+                'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
+                'DEBIAN_FRONTEND=noninteractive sudo apt-get install -y curl',
+                'curl -sL https://repos.influxdata.com/influxdb.key | '
+                'sudo apt-key add -'
+                ]
+                
+            if '14' in localos:
+                influx_cmd.append(
+                'echo "deb https://repos.influxdata.com/ubuntu '
+                'trusty stable" | sudo tee '
+                '/etc/apt/sources.list.d/influxdb.list')
+            elif '16' in localos:
+                influx_cmd.append(
+                'echo "deb https://repos.influxdata.com/ubuntu '
+                'xenial stable" | sudo tee '
+                '/etc/apt/sources.list.d/influxdb.list')
             
-        if '14' in localos:
-            influx_cmd.append(
-            'echo "deb https://repos.influxdata.com/ubuntu '
-            'trusty stable" | sudo tee '
-            '/etc/apt/sources.list.d/influxdb.list')
-        elif '16' in localos:
-            influx_cmd.append(
-            'echo "deb https://repos.influxdata.com/ubuntu '
-            'xenial stable" | sudo tee '
-            '/etc/apt/sources.list.d/influxdb.list')
+            influx_cmd += [
+                'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
+                'DEBIAN_FRONTEND=noninteractive sudo apt-get install influxdb',
+                'sudo service influxdb start',
+                'sudo pip install influxdb',
+                'sudo pip install psutil',
+                ]
         
-        influx_cmd += [
-            'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
-            'DEBIAN_FRONTEND=noninteractive sudo apt-get install influxdb',
-            'sudo service influxdb start',
-            'sudo pip install influxdb',
-            'sudo pip install psutil',
-            ]
-    
-    elif 'Debian' in localos:
-        influx_cmd = [
-            'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
-            'DEBIAN_FRONTEND=noninteractive sudo apt-get install -y curl',
-            'curl -sL https://repos.influxdata.com/influxdb.key | '
-            'sudo apt-key add -']
+        elif 'Debian' in localos:
+            influx_cmd = [
+                'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
+                'DEBIAN_FRONTEND=noninteractive sudo apt-get install -y curl',
+                'curl -sL https://repos.influxdata.com/influxdb.key | '
+                'sudo apt-key add -']
+                
+            if '7' in localos:
+                influx_cmd.append(
+                'echo "deb https://repos.influxdata.com/'
+                'debian wheezy stable" | sudo tee /etc/apt/sources.list.d/'
+                'influxdb.list')
+            elif '8' in localos:
+                influx_cmd.append(
+                'echo "deb https://repos.influxdata.com/'
+                'debian jessie stable" | sudo tee /etc/apt/sources.list.d/'
+                'influxdb.list')
             
-        if '7' in localos:
-            influx_cmd.append(
-            'echo "deb https://repos.influxdata.com/'
-            'debian wheezy stable" | sudo tee /etc/apt/sources.list.d/'
-            'influxdb.list')
-        elif '8' in localos:
-            influx_cmd.append(
-            'echo "deb https://repos.influxdata.com/'
-            'debian jessie stable" | sudo tee /etc/apt/sources.list.d/'
-            'influxdb.list')
+            influx_cmd += [
+                'sudo apt-get update',
+                'DEBIAN_FRONTEND=noninteractive sudo apt-get -y install influxdb',
+                'sudo service influxdb start',
+                'sudo pip install influxdb',
+                'sudo pip install psutil',
+                ]
+
+        elif localos == 'CentOS 7':
+            influx_cmd = [
+                            'sudo yum install -y epel-release',
+                            'sudo yum repolist',
+                            'sudo yum install -y curl',
+                            'cat <<EOF | sudo tee /etc/yum.repos.d/influxdb.repo\n'
+                            '[influxdb]\n'
+                            'name = InfluxDB Repository - RHEL \$releasever\n'
+                            'baseurl = https://repos.influxdata.com/rhel/\$releasever/\$basearch/stable\n'
+                            'enabled = 1\n'
+                            'gpgcheck = 1\n'
+                            'gpgkey = https://repos.influxdata.com/influxdb.key\n'
+                            'EOF',
+                            'sudo yum install -y influxdb',
+                            'sudo service influxdb start',
+                            'sudo pip install psutil',
+                        ]
+
+
+        #run commands to install influxdb on local machine
+        for cmd in influx_cmd:
         
-        influx_cmd += [
-            'sudo apt-get update',
-            'DEBIAN_FRONTEND=noninteractive sudo apt-get -y install influxdb',
-            'sudo service influxdb start',
-            'sudo pip install influxdb',
-            'sudo pip install psutil',
-            ]
-
-    elif localos == 'CentOS 7':
-        influx_cmd = [
-                        'sudo yum install -y epel-release',
-                        'sudo yum repolist',
-                        'sudo yum install -y curl',
-                        'cat <<EOF | sudo tee /etc/yum.repos.d/influxdb.repo\n'
-                        '[influxdb]\n'
-                        'name = InfluxDB Repository - RHEL \$releasever\n'
-                        'baseurl = https://repos.influxdata.com/rhel/\$releasever/\$basearch/stable\n'
-                        'enabled = 1\n'
-                        'gpgcheck = 1\n'
-                        'gpgkey = https://repos.influxdata.com/influxdb.key\n'
-                        'EOF',
-                        'sudo yum install -y influxdb',
-                        'sudo service influxdb start',
-                        'sudo pip install psutil',
-                    ]
-
-
-    #run commands to install influxdb on local machine
-    for cmd in influx_cmd:
-    
-        result = fc.run(cmd)
+            result = fc.run(cmd)
+            
+            rtext = "\n".join(result)
+            if rtext.strip():
+                wlogger.log(tid, rtext, "debug", server_id=0)
         
-        rtext = "\n".join(result)
-        if rtext.strip():
-            wlogger.log(tid, rtext, "debug", server_id=0)
-    
-        err = False
-    
-        if result[2].strip():
-            if not "pip install --upgrade pip" in result[2]:
-                wlogger.log(tid, "An error occurrued while executing "
-                            "{}: {}".format(cmd, result[2]),
-                            "error", server_id=0)
-                err = True
+            err = False
         
-        if not err:
-            wlogger.log(tid, "Command was run successfully: {}".format(cmd),
-                            "success", server_id=0)
-    
-    #Statistics from remote servers will be obtained by a crontab entry.
-    #The script 'get_remote_stats.py' on the local machine will be run
-    #in each 5 mins with servers as arguments
-    
-    monitoring_client = os.path.join(app.root_path, 'get_remote_stats.py')
-    
-    srv_list = [ server.hostname for server in servers]
-    
-    #since remote servers can be reached with current user vie ssh, determine 
-    #current user
-    cur_user = getpass.getuser()
-    
-    crontab_entry = (
-                        '*/5 * * * *    {}    /usr/bin/python '
-                        '{} {}\n'
-                        )
-
-    crontab_entry = crontab_entry.format(
-                                    cur_user, 
-                                    monitoring_client,
-                                    ' '.join(srv_list)
-                                )
-
-    cmd = 'echo "{}" | sudo tee /etc/cron.d/monitoring'.format(crontab_entry)
-    
-    run_and_log(fc, cmd, tid, 0)
+            if result[2].strip():
+                if not "pip install --upgrade pip" in result[2]:
+                    wlogger.log(tid, "An error occurrued while executing "
+                                "{}: {}".format(cmd, result[2]),
+                                "error", server_id=0)
+                    err = True
+            
+            if not err:
+                wlogger.log(tid, "Command was run successfully: {}".format(cmd),
+                                "success", server_id=0)
     
 
     #Statistics will be written to 'gluu_monitoring' on local influxdb server,
@@ -231,14 +207,6 @@ def install_local(self):
         wlogger.log(tid, "An error occurred while creating InfluxDB database "
                         "'gluu_monitoring': {}".format(e),
                             "fail", server_id=0)
-
-    #Restart of crontab is required for new entry to be recognised.
-    if localos == 'Centos 7':
-        cmd = 'sudo service crond restart'
-    else:
-        cmd = 'sudo service cron restart'
-
-    run_and_log(fc, cmd, tid, 0)
 
     #Flag database that configuration is done for local machine
     app_config = AppConfiguration.query.first()
