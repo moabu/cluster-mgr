@@ -876,6 +876,10 @@ def get_os_type(c):
     # 2. Linux Distribution of the server
     cin, cout, cerr = c.run("ls /etc/*release")
     files = cout.split()
+    
+    if files[0] == '/etc/alpine-release':
+        return 'Alpine'
+    
     cin, cout, cerr = c.run("cat "+files[0])
 
     if "Ubuntu" in cout and "14.04" in cout:

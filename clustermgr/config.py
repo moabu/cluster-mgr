@@ -36,16 +36,27 @@ class Config(object):
     OXD_CLIENT_CONFIG_FILE = os.path.join(DATA_DIR, "oxd-client.ini")
 
     CELERYBEAT_SCHEDULE = {
+        
         'send_reminder_email': {
             'task': 'clustermgr.tasks.license.send_reminder_email',
             'schedule': timedelta(seconds=60 * 60 * 24),
             'args': (),
         },
+        
         'schedule_key_rotation': {
             'task': 'clustermgr.tasks.keyrotation.schedule_key_rotation',
             'schedule': timedelta(seconds=60 * 60 * 1),
             'args': (),
         },
+
+        'get_remote_stats': {
+            'task': 'clustermgr.tasks.get_remote_stats.get_remote_stats',
+            'schedule': timedelta(seconds=30),
+            'args': (),
+        },
+        
+        
+        
     }
 
     MAIL_SERVER = "localhost"

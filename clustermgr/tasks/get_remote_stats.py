@@ -1,17 +1,13 @@
-# This scrpit is run via crontab entry to fecth statistics from remote
-# servers via ssh. Script '/var/monitoring/scripts/get_data.py' on
-# the remote server prints json data to stdout.
-# Server hostnames should be given as arguments to this script.
-
 import json
 import os
 import time
 import sys
 
+from clustermgr.extensions import celery
 from influxdb import InfluxDBClient
 from clustermgr.core.remote import RemoteClient
 from clustermgr.monitoring_scripts import sqlite_monitoring_tables
-
+from clustermgr.models import Server, AppConfiguration
 
 #Python client of influxdb
 client = InfluxDBClient(
@@ -82,7 +78,7 @@ def get_remote_data(host, measurement, c):
 
     start = get_last_update_time(host, measurement)
 
-    print "last update time", start, "for measuremenet", measurement, "for host", host
+    print "Monitoring: last update time {} for measuremenet {} for host {}".format(start, measurement, host)
     
     #Execute remote script and fetch standard output
     cmd = 'python /var/monitoring/scripts/get_data.py stats {} {}'.format(
@@ -96,10 +92,10 @@ def get_remote_data(host, measurement, c):
     try:
         data = json.loads(s_out)
     except:
-        print "Server did not return json data"
+        print "Monitoring: Server {} did not return json data".format(host)
         return
 
-    print len(data['data']['data']), "records received for measurement", measurement, "from host", host
+    print "Monitoring: {} records received for measurement {} from host {}".format(len(data['data']['data']), measurement, host)
     
     #wrtite fetched data to imnfluxdb
     write_influx(host, measurement, data['data'])
@@ -117,7 +113,7 @@ def get_age(host, c):
     """
 
     
-    print "Getting uptime"
+    print "Monitoring: fetting uptime for {}".format(host)
     cmd = 'python /var/monitoring/scripts/get_data.py age'
     s_in, s_out, s_err = c.run(cmd)
 
@@ -125,21 +121,26 @@ def get_age(host, c):
         data = json.loads(s_out)
         arg_d = {u'fields': ['time', u'uptime'], u'data': [[int(time.time()), data['data']['uptime']]]}
     except:
-        print "Server did not return json data"
+        print "Monitoring: server {} did not return json data".format(host)
         arg_d = {u'fields': ['time', u'uptime'], u'data': [[int(time.time()), 0]]}
     
-    print "Uptime", data['data']
+    print "Monitoring: uptime {}".format(data['data'])
     write_influx(host, 'uptime', arg_d)
     
-
-servers = sys.argv[1:]
-
-if not servers:
-    print "Usage: python get_remote_stats.py server1 server2 servser3"
-
-for server in servers:
-    c = RemoteClient(server)
-    c.startup()
-    for t in sqlite_monitoring_tables.monitoring_tables:
-        get_remote_data(server, t, c)
-    #get_age(server, c)
+@celery.task
+def get_remote_stats():
+    app_conf = AppConfiguration.query.first()
+    
+    if app_conf.monitoring:
+    
+        servers = Server.query.all()
+        for server in servers:
+            print "Monitoring: getting data for derver {}".format(server.hostname)
+            c = RemoteClient(server.hostname, ip=server.ip)
+            try:
+                c.startup()
+                for t in sqlite_monitoring_tables.monitoring_tables:
+                    get_remote_data(server.hostname, t, c)
+                    get_age(server.hostname, c)
+            except:
+                print "Monitoring: An error occurred while retreiveing monitoring data from server {}".format(server.hostname)
