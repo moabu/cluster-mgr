@@ -130,17 +130,17 @@ def get_age(host, c):
 @celery.task
 def get_remote_stats():
     app_conf = AppConfiguration.query.first()
-    
-    if app_conf.monitoring:
-    
-        servers = Server.query.all()
-        for server in servers:
-            print "Monitoring: getting data for derver {}".format(server.hostname)
-            c = RemoteClient(server.hostname, ip=server.ip)
-            try:
-                c.startup()
-                for t in sqlite_monitoring_tables.monitoring_tables:
-                    get_remote_data(server.hostname, t, c)
-                    get_age(server.hostname, c)
-            except:
-                print "Monitoring: An error occurred while retreiveing monitoring data from server {}".format(server.hostname)
+    if app_conf:
+        if app_conf.monitoring:
+        
+            servers = Server.query.all()
+            for server in servers:
+                print "Monitoring: getting data for derver {}".format(server.hostname)
+                c = RemoteClient(server.hostname, ip=server.ip)
+                try:
+                    c.startup()
+                    for t in sqlite_monitoring_tables.monitoring_tables:
+                        get_remote_data(server.hostname, t, c)
+                        get_age(server.hostname, c)
+                except:
+                    print "Monitoring: An error occurred while retreiveing monitoring data from server {}".format(server.hostname)
