@@ -1472,7 +1472,12 @@ def installGluuServer(self, server_id):
     while True:
         if channel.exit_status_ready():
             break
-        rl, wl, xl = select.select([channel], [], [], 0.0)
+        rl = ''
+        try:
+            rl, wl, xl = select.select([channel], [], [], 0.0)
+        except:
+            pass
+
         if len(rl) > 0:
             cout = channel.recv(1024)
             
