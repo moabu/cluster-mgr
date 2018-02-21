@@ -13,22 +13,24 @@ from clustermgr.core.remote import RemoteClient
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('o',  help="Old hostanme")
-parser.add_argument('n',  help="New hostname")
-parser.add_argument('h',  help="Hostname of server")
-parser.add_argument('e',  help="Email of admin")
-parser.add_argument('l',  help="City for creating certificates")
-parser.add_argument('s',  help="State for creating certificates")
-parser.add_argument('c',  help="Country for creating certificates")
-parser.add_argument('p',  help="Admin password")
-parser.add_argument('os', help="OS type: CentOS, Ubuntu", choices=['CentOS','Ubuntu'])
+parser.add_argument('-old', required=True,  help="Old hostanme")
+parser.add_argument('-new', required=True,  help="New hostname")
+parser.add_argument('-host',  required=True, help="Hostname of server")
+parser.add_argument('-mail',  required=True, help="Email of admin")
+parser.add_argument('-city',  required=True, help="City for creating certificates")
+parser.add_argument('-state',  required=True, help="State for creating certificates")
+parser.add_argument('-country',  required=True, help="Country for creating certificates")
+parser.add_argument('-password',  required=True, help="Admin password")
+parser.add_argument('-os', required=True, help="OS type: CentOS, Ubuntu", choices=['CentOS','Ubuntu'])
 
 args = parser.parse_args()
 
 
 
-old_host = args.o
-new_host = args.n
+old_host = args.old
+new_host = args.new
+
+
 
 def get_appliance_inum():
     conn.search(search_base='ou=appliances,o=gluu',
@@ -129,7 +131,7 @@ def change_uma():
                     conn.modify(r['dn'], {cattr: [MODIFY_REPLACE, r['attributes'][cattr]]})
 
 class server:
-    hostname = args.h
+    hostname = args.host
     os = args.os
     ip = None
     
@@ -185,16 +187,16 @@ installer = Installer(c, '3.1.2', server.os)
 
 
 def create_new_certs():
-    cert_city = args.l
-    cert_mail = args.e
-    cert_state = args.s
-    cert_country = args.c
+    cert_city = args.city
+    cert_mail = args.mail
+    cert_state = args.state
+    cert_country = args.country
     
     cmd_list = [
         '/usr/bin/openssl genrsa -des3 -out /etc/certs/{0}.key.orig -passout pass:secret 2048',
         '/usr/bin/openssl rsa -in /etc/certs/{0}.key.orig -passin pass:secret -out /etc/certs/{0}.key',
         '/usr/bin/openssl req -new -key /etc/certs/{0}.key -out /etc/certs/{0}.csr -subj '
-        '"/C={4}/ST={5}/L={1}/O=Gluu/CN={2}/emailAddress={3}"'.format('{0}', cert_city, server.hostname, cert_mail, cert_country, cert_state),
+        '"/C={4}/ST={5}/L={1}/O=Gluu/CN={2}/emailAddress={3}"'.format('{0}', cert_city, args.new, cert_mail, cert_country, cert_state),
         '/usr/bin/openssl x509 -req -days 365 -in /etc/certs/{0}.csr -signkey /etc/certs/{0}.key -out /etc/certs/{0}.crt',
         'chown root:gluu /etc/certs/{0}.key.orig',
         'chmod 700 /etc/certs/{0}.key.orig',
@@ -214,14 +216,20 @@ def create_new_certs():
 
         del_key = ( '/opt/jre/bin/keytool -delete -alias {}_{} -keystore '
                     '/opt/jre/jre/lib/security/cacerts -storepass changeit').format(old_host, crt)
+
+        print del_key
         print installer.run(del_key)
 
-
+        if not crt == 'saml.pem':
+            crt_key_name = crt+'.crt'
+        else:
+            crt_key_name = crt
         add_key = ('/opt/jre/bin/keytool -import -trustcacerts -alias '
-                  '{0}_{1} -file /etc/certs/{1}.crt -keystore '
-                  '/opt/jre/jre/lib/security/cacerts -storepass changeit -noprompt').format(new_host, crt)
+                  '{0}_{1} -file /etc/certs/{1} -keystore '
+                  '/opt/jre/jre/lib/security/cacerts -storepass changeit -noprompt').format(new_host, crt_key_name)
 
-        print installer.run(del_key)
+        print add_key
+        print installer.run(add_key)
         
     saml_crt_old_path = os.path.join(installer.container, 'etc/certs/saml.pem.crt')
     saml_crt_new_path = os.path.join(installer.container, 'etc/certs/saml.pem')
@@ -237,8 +245,8 @@ def change_host_name():
 
 
 
-ldap_server = Server("ldaps://{}:1636".format(args.h), use_ssl=True)
-conn = Connection(ldap_server, user="cn=directory manager", password=args.p)
+ldap_server = Server("ldaps://{}:1636".format(args.host), use_ssl=True)
+conn = Connection(ldap_server, user="cn=directory manager", password=args.password)
 conn.bind()
 
 base_inum = get_base_inum()
