@@ -1,6 +1,8 @@
 import sys
 import os
 import json
+import argparse
+
 
 from ldap3 import Server, Connection, SUBTREE, BASE, LEVEL, \
     MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
@@ -8,8 +10,25 @@ from ldap3 import Server, Connection, SUBTREE, BASE, LEVEL, \
 sys.path.append("..")
 from clustermgr.core.remote import RemoteClient
 
-old_host = 'c3.gluu.org'
-new_host = 'c2.gluu.org'
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('o',  help="Old hostanme")
+parser.add_argument('n',  help="New hostname")
+parser.add_argument('h',  help="Hostname of server")
+parser.add_argument('e',  help="Email of admin")
+parser.add_argument('l',  help="City for creating certificates")
+parser.add_argument('s',  help="State for creating certificates")
+parser.add_argument('c',  help="Country for creating certificates")
+parser.add_argument('p',  help="Admin password")
+parser.add_argument('os', help="OS type: CentOS, Ubuntu", choices=['CentOS','Ubuntu'])
+
+args = parser.parse_args()
+
+
+
+old_host = args.o
+new_host = args.n
 
 def get_appliance_inum():
     conn.search(search_base='ou=appliances,o=gluu',
@@ -110,22 +129,10 @@ def change_uma():
                     conn.modify(r['dn'], {cattr: [MODIFY_REPLACE, r['attributes'][cattr]]})
 
 class server:
-    hostname = 'c2.gluu.org'
-    os = 'CentOS 7'
-    ip = '159.89.43.71'
+    hostname = args.h
+    os = args.os
+    ip = None
     
-change_ldap_entries = False
-
-if change_ldap_entries:
-    ldap_server = Server("ldaps://c2.gluu.org:1636", use_ssl=True)
-    conn = Connection(ldap_server, user="cn=directory manager", password="Gluu1234")
-    conn.bind()
-    
-    base_inum = get_base_inum()
-    change_uma()
-    change_appliance_config()
-    change_clients()
-
 
 class Installer:
     def __init__(self, c, gluu_version, server_os):
@@ -177,85 +184,17 @@ def change_httpd_conf():
 installer = Installer(c, '3.1.2', server.os)
 
 
-def delete_key(suffix, hostname, gluu_version, tid, c, sos):
-    """Delted key of identity server
-
-    Args:
-        suffix (string): suffix of the key to be imported
-        hostname (string): hostname of server
-        gluu_version (string): version of installed gluu server
-        tid (string): id of the task running the command
-
-        c (:object:`clustermgr.core.remote.RemoteClient`): client to be used
-            for the SSH communication
-        sos: how to specify logger type
-    """
-    defaultTrustStorePW = 'changeit'
-    defaultTrustStoreFN = '/opt/jre/jre/lib/security/cacerts'
-    chroot = '/opt/gluu-server-{0}'.format(gluu_version)
-    cert = "etc/certs/%s.crt" % (suffix)
-    if c.exists(os.path.join(chroot, cert)):
-        cmd=' '.join([
-                        '/opt/jre/bin/keytool', "-delete", "-alias",
-                        "%s_%s" % (hostname, suffix),
-                        "-keystore", defaultTrustStoreFN,
-                        "-storepass", defaultTrustStorePW
-                        ])
-
-        if sos == 'CentOS 7' or sos == 'RHEL 7':
-            command = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost '{0}'".format(cmd)
-        else:
-            command = 'chroot {0} /bin/bash -c "{1}"'.format(chroot,
-                                                         cmd)
-        cin, cout, cerr = c.run(command)
-
-        print cin, cout, cerr
-
-
-def import_key(suffix, hostname, gluu_version, tid, c, sos):
-    """Imports key for identity server
-
-    Args:
-        suffix (string): suffix of the key to be imported
-        hostname (string): hostname of server
-        gluu_version (string): version of installed gluu server
-        tid (string): id of the task running the command
-
-        c (:object:`clustermgr.core.remote.RemoteClient`): client to be used
-            for the SSH communication
-        sos: how to specify logger type
-    """
-    defaultTrustStorePW = 'changeit'
-    defaultTrustStoreFN = '/opt/jre/jre/lib/security/cacerts'
-    certFolder = '/etc/certs'
-    public_certificate = '%s/%s.crt' % (certFolder, suffix)
-    cmd =' '.join([
-                    '/opt/jre/bin/keytool', "-import", "-trustcacerts",
-                    "-alias", "%s_%s" % (hostname, suffix),
-                    "-file", public_certificate, "-keystore",
-                    defaultTrustStoreFN,
-                    "-storepass", defaultTrustStorePW, "-noprompt"
-                    ])
-
-    chroot = '/opt/gluu-server-{0}'.format(gluu_version)
-
-    if sos == 'CentOS 7' or sos == 'RHEL 7':
-        command = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost '{0}'".format(cmd)
-    else:
-        command = 'chroot {0} /bin/bash -c "{1}"'.format(chroot,
-                                                         cmd)
-
-    print c.run(command)
-
 def create_new_certs():
-    cert_city = 'Samsun'
-    cert_mail = 'mustafa@gluu.org'
+    cert_city = args.l
+    cert_mail = args.e
+    cert_state = args.s
+    cert_country = args.c
     
     cmd_list = [
         '/usr/bin/openssl genrsa -des3 -out /etc/certs/{0}.key.orig -passout pass:secret 2048',
         '/usr/bin/openssl rsa -in /etc/certs/{0}.key.orig -passin pass:secret -out /etc/certs/{0}.key',
         '/usr/bin/openssl req -new -key /etc/certs/{0}.key -out /etc/certs/{0}.csr -subj '
-        '"/C=US/ST=TX/L={1}/O=Gluu/CN={2}/emailAddress={3}"'.format('{0}', cert_city, server.hostname, cert_mail),
+        '"/C={4}/ST={5}/L={1}/O=Gluu/CN={2}/emailAddress={3}"'.format('{0}', cert_city, server.hostname, cert_mail, cert_country, cert_state),
         '/usr/bin/openssl x509 -req -days 365 -in /etc/certs/{0}.csr -signkey /etc/certs/{0}.key -out /etc/certs/{0}.crt',
         'chown root:gluu /etc/certs/{0}.key.orig',
         'chmod 700 /etc/certs/{0}.key.orig',
@@ -272,8 +211,17 @@ def create_new_certs():
             cmd = cmd.format(crt)
             print "Executing", cmd
             print installer.run(cmd)
-        delete_key(crt, old_host, '3.1.2', 1, c, server.os)
-        import_key(crt, new_host, '3.1.2', 1, c, server.os)
+
+        del_key = ( '/opt/jre/bin/keytool -delete -alias {}_{} -keystore '
+                    '/opt/jre/jre/lib/security/cacerts -storepass changeit').format(old_host, crt)
+        print installer.run(del_key)
+
+
+        add_key = ('/opt/jre/bin/keytool -import -trustcacerts -alias '
+                  '{0}_{1} -file /etc/certs/{1}.crt -keystore '
+                  '/opt/jre/jre/lib/security/cacerts -storepass changeit -noprompt').format(new_host, crt)
+
+        print installer.run(del_key)
         
     saml_crt_old_path = os.path.join(installer.container, 'etc/certs/saml.pem.crt')
     saml_crt_new_path = os.path.join(installer.container, 'etc/certs/saml.pem')
@@ -286,6 +234,17 @@ def change_host_name():
     print c.put_file(hostname_file, new_host)
 
 
+
+
+
+ldap_server = Server("ldaps://{}:1636".format(args.h), use_ssl=True)
+conn = Connection(ldap_server, user="cn=directory manager", password=args.p)
+conn.bind()
+
+base_inum = get_base_inum()
+change_uma()
+change_appliance_config()
+change_clients()
 change_httpd_conf()
 create_new_certs()
 change_host_name()
