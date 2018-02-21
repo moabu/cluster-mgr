@@ -1,10 +1,20 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
-mkdir -p /root/influxdb/meta &
+# run influxdb
 /opt/influxdb-1.4.3-1/influxd &
+
+# run redis server
+redis-server /etc/redis.conf &
+
+# upgrade database schema
 clustermgr-cli db upgrade &
-redis-server /etc/redis.conf&
-clustermgr-beat &
+
+# run celery worker
 clustermgr-celery &
-clustermgr-cli run -h 0.0.0.0 -p 5000
+
+# run celery beat
+clustermgr-beat &
+
+# a workaround to catch SIG properly
+exec clustermgr-cli run -h 0.0.0.0 -p 5000
