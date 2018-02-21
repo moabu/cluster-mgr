@@ -128,19 +128,71 @@ if chane_ldap_entries:
     change_appliance_config()
     change_clients()
 
+
+class Installer:
+    def __init__(self, c, gluu_version, server_os):
+        self.c = c
+        self.gluu_version = gluu_version
+        self.server_os = server_os
+        self.container = '/opt/gluu-server-{}'.format(gluu_version)
+        
+        if ('Ubuntu' in self.server_os) or ('Debian' in self.server_os):
+            self.run_command = 'chroot {} /bin/bash -c "{}"'.format(self.container,'{}')
+        elif 'CentOS' in self.server_os:
+            self.run_command = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
+                                '-o Port=60022 -o LogLevel=QUIET -o '
+                                'StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null '
+                                '-o PubkeyAuthentication=yes root@localhost \'{}\''
+                                )
+
+    def run(self, cmd):
+        run_cmd = self.run_command.format(cmd)
+        return c.run(run_cmd)
+        
+
+
 gluu_server = '/opt/gluu-server-3.1.2'
-
-if 'CentOS' in server.os:
-    httpd_conf = os.path.join(gluu_server, 'etc/httpd/conf/httpd.conf')
-    https_gluu = os.path.join(gluu_server, 'etc/httpd/conf.d/https_gluu.conf')
-
 
 
 c = RemoteClient(server.hostname, ip=server.ip)
 c.startup()
 
-r, f = c.get_file(httpd_conf)
-if r:
-    conf = f.read()
-    conf = conf.replace(old_host, new_host)
-    c.put_file(httpd_conf, conf)
+def change_httpd_conf():
+    if 'CentOS' in server.os:
+        httpd_conf = os.path.join(gluu_server, 'etc/httpd/conf/httpd.conf')
+        https_gluu = os.path.join(gluu_server, 'etc/httpd/conf.d/https_gluu.conf')
+
+    for conf_file in (httpd_conf, https_gluu):
+        result, fileObj = c.get_file(conf_file)
+        if result:
+            config_text = fileObj.read()
+            config_text = config_text.replace(old_host, new_host)
+            c.put_file(conf_file, config_text)
+
+
+
+installer = Installer(c, '3.1.2', server.os)
+
+
+def create_httpd_cert():
+    cert_city = 'Austin'
+    cert_mail = 'mustafa@gluu.org'
+    
+    cmd_list = [
+        '/usr/bin/openssl genrsa -des3 -out /etc/certs/httpd.key.orig -passout pass:secret 2048',
+        '/usr/bin/openssl rsa -in /etc/certs/httpd.key.orig -passin pass:secret -out /etc/certs/httpd.key',
+        '/usr/bin/openssl req -new -key /etc/certs/httpd.key -out /etc/certs/httpd.csr -subj '
+        '"/C=US/ST=TX/L={}/O=Gluu/CN={}/emailAddress={}"'.format(cert_city, server.hostname, cert_mail),
+        '/usr/bin/openssl x509 -req -days 365 -in /etc/certs/httpd.csr -signkey /etc/certs/httpd.key -out /etc/certs/httpd.crt',
+        'chown root:root /etc/certs/httpd.key.orig',
+        'chmod 700 /etc/certs/httpd.key.orig',
+        'chown root:root /etc/certs/httpd.key',
+        'chmod 700 /etc/certs/httpd.key',
+        ]
+
+
+    for cmd in cmd_list:
+        print "Executing", cmd
+        print installer.run(cmd)
+
+create_httpd_cert()
