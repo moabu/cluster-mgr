@@ -170,11 +170,18 @@ c = RemoteClient(server.hostname, ip=server.ip)
 c.startup()
 
 def change_httpd_conf():
+    
     if 'CentOS' in server.os:
+        
         httpd_conf = os.path.join(gluu_server, 'etc/httpd/conf/httpd.conf')
         https_gluu = os.path.join(gluu_server, 'etc/httpd/conf.d/https_gluu.conf')
+        conf_files = [httpd_conf, https_gluu]
 
-    for conf_file in (httpd_conf, https_gluu):
+    elif 'Ubuntu' in server.os:
+        https_gluu = os.path.join(gluu_server, 'etc/apache2/sites-available/https_gluu.conf')
+        conf_files = [https_gluu]
+
+    for conf_file in conf_files:
         result, fileObj = c.get_file(conf_file)
         if result:
             config_text = fileObj.read()
@@ -242,17 +249,14 @@ def change_host_name():
     print c.put_file(hostname_file, new_host)
 
 
-
-
-
 ldap_server = Server("ldaps://{}:1636".format(args.host), use_ssl=True)
 conn = Connection(ldap_server, user="cn=directory manager", password=args.password)
 conn.bind()
 
-base_inum = get_base_inum()
-change_uma()
-change_appliance_config()
-change_clients()
-change_httpd_conf()
+#base_inum = get_base_inum()
+#change_uma()
+#change_appliance_config()
+#change_clients()
+#change_httpd_conf()
 create_new_certs()
-change_host_name()
+#change_host_name()
