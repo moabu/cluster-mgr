@@ -68,6 +68,21 @@ class RemoteClient(object):
             logging.error("Connection with IP (%s) failed.", self.ip)
             raise ClientNotSetupException('Could not connect to the host.')
 
+    def rename(self, oldpath, newpath):
+        """Rename a file or folder from oldpath to newpath.
+        Args:
+            oldpath (string): old file/folder name
+            newpath (string): new file/folder name
+
+        Returns:
+            True if rename successful else False
+        """
+        try:
+            r = self.sftpclient.rename(oldpath, newpath)
+            return True
+        except Exception as err:
+            return False
+
     def download(self, remote, local):
         """Downloads a file from remote server to the local system.
 
@@ -136,7 +151,7 @@ class RemoteClient(object):
         if not self.client:
             raise ClientNotSetupException(
                 'Cannot run procedure. Client not initialized')
-        
+
         #buffers = self.client.exec_command(command, timeout=30)
         buffers = self.client.exec_command(command)
         output = []
