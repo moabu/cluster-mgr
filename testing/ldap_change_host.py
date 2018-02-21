@@ -13,7 +13,7 @@ from clustermgr.core.remote import RemoteClient
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-old', required=True,  help="Old hostanme")
+parser.add_argument('-old', required=True,  help="Old hostname")
 parser.add_argument('-new', required=True,  help="New hostname")
 parser.add_argument('-host',  required=True, help="Hostname of server")
 parser.add_argument('-mail',  required=True, help="Email of admin")
