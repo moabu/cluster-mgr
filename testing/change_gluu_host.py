@@ -13,19 +13,23 @@ class Installer:
         self.c = c
         self.gluu_version = gluu_version
         self.server_os = server_os
-        self.container = '/opt/gluu-server-{}'.format(gluu_version)
+        if not getattr(self.c, 'fake_remote'):
         
-        if ('Ubuntu' in self.server_os) or ('Debian' in self.server_os):
-            self.run_command = 'chroot {} /bin/bash -c "{}"'.format(self.container,'{}')
-            self.install_command = 'chroot {} /bin/bash -c "apt-get install -y {}"'.format(self.container,'{}')
-        elif 'CentOS' in self.server_os:
-            self.run_command = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
+            self.container = '/opt/gluu-server-{}'.format(gluu_version)
+        
+            if ('Ubuntu' in self.server_os) or ('Debian' in self.server_os):
+                self.run_command = 'chroot {} /bin/bash -c "{}"'.format(self.container,'{}')
+                self.install_command = 'chroot {} /bin/bash -c "apt-get install -y {}"'.format(self.container,'{}')
+            elif 'CentOS' in self.server_os:
+                self.run_command = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
                                 '-o Port=60022 -o LogLevel=QUIET -o '
                                 'StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null '
                                 '-o PubkeyAuthentication=yes root@localhost \'{}\''
                                 )
             
             self.install_command = self.run_command.format('yum install -y {}')
+        else:
+            self.run_command = '{}'
 
     def run(self, cmd):
         run_cmd = self.run_command.format(cmd)
@@ -41,6 +45,9 @@ class FakeRemote:
     """Provides fake remote class with the same run() function.
     """
     
+    def __init__(self):
+        self.fake_remote = True
+    
     def run(self, cmd):
         
         """This method executes cmd as a sub-process.
@@ -52,7 +59,7 @@ class FakeRemote:
             Standard input, output and error of command
         
         """
-
+        print cmd
         cin, cout, cerr = os.popen3(cmd)
 
         return '', cout.read(), cerr.read()
@@ -64,6 +71,9 @@ class FakeRemote:
 
     def rename(self, oldname, newname):
         os.rename(oldname, newname)
+
+    def get_file(self, filename):
+        return True, open(filename)
 
 class ChangeGluuHostname:
     def __init__(self, old_host, new_host, cert_city, cert_mail, cert_state,
@@ -93,6 +103,7 @@ class ChangeGluuHostname:
         self.conn.bind()
 
         if not self.local:
+            print "NOT LOCAL?"
             self.container = '/opt/gluu-server-{}'.format(self.gluu_version)
             sys.path.append("..")
             from clustermgr.core.remote import RemoteClient
