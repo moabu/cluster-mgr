@@ -263,7 +263,8 @@ class ChangeGluuHostname:
                         '/opt/jre/jre/lib/security/cacerts -storepass changeit').format(self.old_host, crt)
 
             
-            print self.installer.run(del_key)
+            r = self.installer.run(del_key)
+            print ' '.join(r)
 
             if not crt == 'saml.pem':
                 crt_key_name = crt+'.crt'
@@ -274,7 +275,8 @@ class ChangeGluuHostname:
                       '/opt/jre/jre/lib/security/cacerts -storepass changeit -noprompt').format(self.new_host, crt_key_name)
 
             
-            print self.installer.run(add_key)
+            r = self.installer.run(add_key)
+            print ' '.join(r)
             
         saml_crt_old_path = os.path.join(self.container, 'etc/certs/saml.pem.crt')
         saml_crt_new_path = os.path.join(self.container, 'etc/certs/saml.pem')
@@ -283,6 +285,7 @@ class ChangeGluuHostname:
         self.installer.run('chown jetty:jetty /etc/certs/oxauth-keys.*')
 
     def change_host_name(self):
+        print "Changing hostname"
         hostname_file = os.path.join(self.container, 'etc/hostname')
         print self.c.put_file(hostname_file, self.new_host)
 
