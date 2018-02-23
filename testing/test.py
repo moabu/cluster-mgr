@@ -4,13 +4,13 @@ from change_gluu_host import Installer, FakeRemote, ChangeGluuHostname
 name_changer = ChangeGluuHostname(
     old_host='<current_hostname>',
     new_host='<new_hostname>',
-    cert_city='MyCity',
+    cert_city='<city>',
     cert_mail='<email>',
-    cert_state='NA',
-    cert_country='US',
+    cert_state='<state_or_region>',
+    cert_country='<country>',
     server='<actual_hostname_of_server>',
     ip_address='<ip_address_of_server>',
-    ldap_password="<pass>",
+    ldap_password="<ldap_password>",
     os_type='<linux_distro>'
     )
 
