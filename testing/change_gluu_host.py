@@ -8,6 +8,58 @@ from ldap3 import Server, Connection, SUBTREE, BASE, LEVEL, \
     MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
 
 
+def modify_etc_hosts(host_ip, old_hosts, old_host):
+
+    hosts = {
+            'ipv4':{},
+            'ipv6':{},
+            }
+
+    for l in old_hosts:
+        ls=l.strip()
+        if ls:
+            if not ls[0]=='#':
+                if ls[0]==':':
+                    h_type='ipv6'
+                else:
+                    h_type='ipv4'
+
+                lss = ls.split()
+                ip_addr = lss[0]
+                
+                if not ip_addr in hosts[h_type]:
+                    hosts[h_type][ip_addr]=[]
+                for h in lss[1:]:
+                    
+                    if (not h in hosts[h_type][ip_addr]) and (h!=old_host):
+                        hosts[h_type][ip_addr].append(h)
+
+    for h,i in host_ip:
+        if h in hosts['ipv4']['127.0.0.1']:
+            hosts['ipv4']['127.0.0.1'].remove(h)
+
+    for h,i in host_ip:
+        if h in hosts['ipv6']['::1']:
+            hosts['ipv6']['::1'].remove(h)
+            
+    for h,i in host_ip:
+        if i in hosts['ipv4']:
+            if not h in hosts['ipv4'][i]:
+                hosts['ipv4'][i].append(h)
+        else:
+            hosts['ipv4'][i] = [h]
+
+    hostse = ''
+
+    for iptype in hosts:
+        for ipaddr in hosts[iptype]:
+            host_list = [ipaddr] + hosts[iptype][ipaddr]
+            hl =  "\t".join(host_list)
+            hostse += hl +'\n'
+
+    return hostse
+
+
 class Installer:
     def __init__(self, c, gluu_version, server_os):
         self.c = c
@@ -32,11 +84,13 @@ class Installer:
             self.run_command = '{}'
 
     def run(self, cmd):
+        print "Executing:", cmd
         run_cmd = self.run_command.format(cmd)
         return self.c.run(run_cmd)
 
     def install(self, package):
         run_cmd = self.install_command.format(package)
+        print "Executing:", run_cmd
         return self.c.run(run_cmd)
 
 #Fake RemoteClient
@@ -44,10 +98,7 @@ class FakeRemote:
     
     """Provides fake remote class with the same run() function.
     """
-    
-    #def __init__(self):
-    #    self.fake_remote = True
-    
+
     def run(self, cmd):
         
         """This method executes cmd as a sub-process.
@@ -77,12 +128,13 @@ class FakeRemote:
 
 class ChangeGluuHostname:
     def __init__(self, old_host, new_host, cert_city, cert_mail, cert_state,
-                    cert_country, ldap_password, os_type, server='localhost',
+                    cert_country, ldap_password, os_type, ip_address, server='localhost',
                     gluu_version='3.1.2',
                     local=False):
 
         self.old_host = old_host
         self.new_host = new_host
+        self.ip_address = ip_address
         self.cert_city = cert_city
         self.cert_mail = cert_mail
         self.cert_state = cert_state
@@ -263,27 +315,32 @@ class ChangeGluuHostname:
 
             for cmd in cmd_list:
                 cmd = cmd.format(crt)
-                print "Executing", cmd
                 print self.installer.run(cmd)
 
-            del_key = ( '/opt/jre/bin/keytool -delete -alias {}_{} -keystore '
+
+            if not crt == 'saml.pem':
+
+                del_key = ( '/opt/jre/bin/keytool -delete -alias {}_{} -keystore '
                         '/opt/jre/jre/lib/security/cacerts -storepass changeit').format(self.old_host, crt)
 
             
-            r = self.installer.run(del_key)
-            print ' '.join(r)
+                r = self.installer.run(del_key)
+                #if r[1]:
+                #    print "Info:", r[1]
+                #if r[2]:
+                #    print "** ERROR:", r[2]
+                
+                add_key = ('/opt/jre/bin/keytool -import -trustcacerts -alias '
+                      '{0}_{1} -file /etc/certs/{2}.crt -keystore '
+                      '/opt/jre/jre/lib/security/cacerts -storepass changeit -noprompt').format(self.new_host, crt, crt)
 
-            if not crt == 'saml.pem':
-                crt_key_name = crt+'.crt'
-            else:
-                crt_key_name = crt
-            add_key = ('/opt/jre/bin/keytool -import -trustcacerts -alias '
-                      '{0}_{1} -file /etc/certs/{1} -keystore '
-                      '/opt/jre/jre/lib/security/cacerts -storepass changeit -noprompt').format(self.new_host, crt_key_name)
+                r = self.installer.run(add_key)
 
-            
-            r = self.installer.run(add_key)
-            print ' '.join(r)
+                #if r[1]:
+                #    print "Info:", r[1]
+                #if r[2]:
+                #    print "** ERROR:", r[2]
+
             
         saml_crt_old_path = os.path.join(self.container, 'etc/certs/saml.pem.crt')
         saml_crt_new_path = os.path.join(self.container, 'etc/certs/saml.pem')
@@ -296,8 +353,14 @@ class ChangeGluuHostname:
         hostname_file = os.path.join(self.container, 'etc/hostname')
         print self.c.put_file(hostname_file, self.new_host)
 
-
-
+    def modify_etc_hosts(self):
+        print "Modifying /etc/hosts"
+        hosts_file = os.path.join(self.container, 'etc/hosts')
+        r = self.c.get_file(hosts_file)
+        if r[0]:
+            old_hosts = r[1]
+            news_hosts = modify_etc_hosts([(self.new_host, self.ip_address)], old_hosts, self.old_host)
+            print self.c.put_file(hosts_file, news_hosts) 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
