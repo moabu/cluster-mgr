@@ -1,5 +1,6 @@
 # Changing Gluu Server hostname
 
+Used to change a Gluu Server from one hostname to another.
 
 **Currently tested to work with Ubuntu 16 and CentOS 7**
 
@@ -8,21 +9,28 @@ Requirements:
 - Python 2
 - Python-pip
 - ldap3
+- test.py
+- change_gluu_host.py
 
-Used to change a Gluu Server from one hostname to another.
+Download [test.py](https://github.com/GluuFederation/cluster-mgr/blob/master/testing/test.py) and [change_gluu_host.py](https://github.com/GluuFederation/cluster-mgr/blob/master/testing/change_gluu_host.py) on the Gluu Server you're trying to change the hostname of.
+
+Modify the entries inside of `test.py` using the following template:
 
 `-os` below needs to be either "Ubuntu" or "CentOS"
 
 ```
-python ldap_change_host.py -old <old_hostname> \
-  -new <new_hostname> \
-  -server <actual_hostname_or_ip_of_LDAP_server> \
-  -mail <email_for_certs> \
-  -city <city_for_certs> \
-  -state <state_for_certs> \
-  -country <country_for_certs> \
-  -password <ldap_password> \
-  -os <server_os>
+name_changer = ChangeGluuHostname(
+    old_host='<current_hostname>',
+    new_host='<new_hostname>',
+    cert_city='<city>',
+    cert_mail='<email>',
+    cert_state='<state_or_region>',
+    cert_country='<country>',
+    server='<actual_hostname_of_server>',
+    ip_address='<ip_address_of_server>',
+    ldap_password="<ldap_password>",
+    os_type='<linux_distro>'
+    )
 ```
   
   Let's take the example of me using `dev.example.org` but my customer changed their domain requirements to `idp.customer.io`, the environment wouldn't fit the spec and I would have to rebuild. Fortunately with this script, a quick turnaround to another hostname, with new certificates to match that domain name, is one command-line away.
@@ -31,16 +39,20 @@ python ldap_change_host.py -old <old_hostname> \
   
 
 ```
-python ldap_change_host.py -old dev.example.org \
-  -new idp.customer.io \
-  -server dev.example.org \
-  -mail admin@customer.io \
-  -city 'San Francisco' \
-  -state CA \
-  -country US \
-  -password MyS3crE71D4pPas$ \
-  -os Ubuntu
+name_changer = ChangeGluuHostname(
+    old_host='dev.example.org',
+    new_host='idp.customer.io',
+    cert_city='Austin',
+    cert_mail='admin@customer.io',
+    cert_state='TX',
+    cert_country='US',
+    server='dev.example.org', <------ Unless I've changed the FQDN to idp.customer.io
+    ip_address='10.36.101.25',
+    ldap_password="MyS3crE71D4pPas$",
+    os_type='Ubuntu'
+    )
 ```
 
+  Now run `python test.py`
   
-  Voila, you've successfully changed all the endpoints inside your LDAP, your Apache2/HTTPD routing, and your certificates to the new hostname. 
+  Voila, all the endpoints inside LDAP, Apache2/HTTPD, `/etc/hosts` and all certificates have been successfully changed to the new hostname. 
