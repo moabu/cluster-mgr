@@ -12,6 +12,13 @@ Requirements:
 - test.py
 - change_gluu_host.py
 
+Install python-pip and ldap3
+
+```
+apt install python-pip
+pip install ldap3
+```
+
 Download [test.py](https://github.com/GluuFederation/cluster-mgr/blob/master/testing/test.py) and [change_gluu_host.py](https://github.com/GluuFederation/cluster-mgr/blob/master/testing/change_gluu_host.py) on the Gluu Server you're trying to change the hostname of.
 
 Modify the entries inside of `test.py` using the following template:
