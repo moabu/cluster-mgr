@@ -1,23 +1,33 @@
 # Changing Gluu Server hostname
 
+
+**Currently tested to work with Ubuntu 16 and CentOS 7**
+
+Requirements:
+
+- Python 2
+- Python-pip
+- ldap3
+
 Used to change a Gluu Server from one hostname to another.
+
+`-os` below needs to be either "Ubuntu" or "CentOS"
 
 ```
 python ldap_change_host.py -old <old_hostname> \
   -new <new_hostname> \
-  -server <hostname_or_ip_of_LDAP_server> \
+  -server <actual_hostname_or_ip_of_LDAP_server> \
   -mail <email_for_certs> \
   -city <city_for_certs> \
   -state <state_for_certs> \
   -country <country_for_certs> \
-  -password <ldap_pass> \
+  -password <ldap_password> \
   -os <server_os>
-  
 ```
   
   Let's take the example of me using `dev.example.org` but my customer changed their domain requirements to `idp.customer.io`, the environment wouldn't fit the spec and I would have to rebuild. Fortunately with this script, a quick turnaround to another hostname, with new certificates to match that domain name, is one command-line away.
 
-  To achieve this with the previous example, I would run the command line script above inside the Gluu Server chroot like so:
+  To achieve this with the previous example, I would run the command line script above outside the Gluu Server chroot like so:
   
 
 ```
