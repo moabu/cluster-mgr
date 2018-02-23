@@ -300,7 +300,7 @@ class ChangeGluuHostname:
             '/usr/bin/openssl genrsa -des3 -out /etc/certs/{0}.key.orig -passout pass:secret 2048',
             '/usr/bin/openssl rsa -in /etc/certs/{0}.key.orig -passin pass:secret -out /etc/certs/{0}.key',
             '/usr/bin/openssl req -new -key /etc/certs/{0}.key -out /etc/certs/{0}.csr -subj '
-            '"/C={4}/ST={5}/L={1}/O=Gluu/CN={2}/emailAddress={3}"'.format('{0}', self.cert_city, self.server, self.cert_mail, self.cert_country, self.cert_state),
+            '"/C={4}/ST={5}/L={1}/O=Gluu/CN={2}/emailAddress={3}"'.format('{0}', self.cert_city, self.new_host, self.cert_mail, self.cert_country, self.cert_state),
             '/usr/bin/openssl x509 -req -days 365 -in /etc/certs/{0}.csr -signkey /etc/certs/{0}.key -out /etc/certs/{0}.crt',
             'chown root:gluu /etc/certs/{0}.key.orig',
             'chmod 700 /etc/certs/{0}.key.orig',
