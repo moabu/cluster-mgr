@@ -60,6 +60,6 @@ name_changer = ChangeGluuHostname(
     )
 ```
 
-  Now run `python test.py`
+  Now run `python test.py` and once completed, restart your Gluu Server.
   
   Voila, all the endpoints inside LDAP, Apache2/HTTPD, `/etc/hosts` and all certificates have been successfully changed to the new hostname. 
