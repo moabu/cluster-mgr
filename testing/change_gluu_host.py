@@ -13,8 +13,8 @@ class Installer:
         self.c = c
         self.gluu_version = gluu_version
         self.server_os = server_os
-        if not getattr(self.c, 'fake_remote'):
-        
+        if not hasattr(self.c, 'fake_remote'):
+            
             self.container = '/opt/gluu-server-{}'.format(gluu_version)
         
             if ('Ubuntu' in self.server_os) or ('Debian' in self.server_os):
@@ -45,8 +45,8 @@ class FakeRemote:
     """Provides fake remote class with the same run() function.
     """
     
-    def __init__(self):
-        self.fake_remote = True
+    #def __init__(self):
+    #    self.fake_remote = True
     
     def run(self, cmd):
         
@@ -94,30 +94,37 @@ class ChangeGluuHostname:
         self.local = local
         self.base_inum = None
         self.appliance_inum = None
-        
 
 
     def startup(self):
         ldap_server = Server("ldaps://{}:1636".format(self.server), use_ssl=True)
         self.conn = Connection(ldap_server, user="cn=directory manager", password=self.ldap_password)
-        self.conn.bind()
+        r = self.conn.bind()
+        if not r:
+            print "Can't conect to LDAP Server"
+            return False
 
+        self.container = '/opt/gluu-server-{}'.format(self.gluu_version)
         if not self.local:
             print "NOT LOCAL?"
-            self.container = '/opt/gluu-server-{}'.format(self.gluu_version)
+            
             sys.path.append("..")
             from clustermgr.core.remote import RemoteClient
             self.c = RemoteClient(self.server)
             self.c.startup()
         else:
-            self.container = '/'
             self.c = FakeRemote()
+            if os.path.exists('/etc/gluu/conf/ox-ldap.properties'):
+                self.container = '/'
+                self.c.fake_remote = True
         
+
         self.installer = Installer(self.c, self.gluu_version, self.os_type)
 
         self.appliance_inum = self.get_appliance_inum()
         self.base_inum = self.get_base_inum()
         
+        return True
     def get_appliance_inum(self):
         self.conn.search(search_base='ou=appliances,o=gluu',
                     search_filter='(objectclass=*)',
