@@ -1441,7 +1441,7 @@ def installGluuServer(self, server_id):
             ).format(gluu_server)
             
     cmd = ( 
-            'curl https://raw.githubusercontent.com/mbaser/gluu/master/setup.py -o /opt/{}/install/'
+            'curl https://raw.githubusercontent.com/afroDC/Dev/master/Gluu/setup.py -o /opt/{}/install/'
             'community-edition-setup/setup.py'
             ).format(gluu_server)
 
