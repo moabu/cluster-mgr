@@ -19,16 +19,6 @@ RUN apk add --no-cache --update \
     py2-ldap3 \
     py2-psutil
 
-WORKDIR /app
-
-# install clustermgr package
-RUN wget -q https://github.com/GluuFederation/cluster-mgr/archive/master.zip \
-    && unzip -qq master.zip \
-    && cd cluster-mgr-master \
-    && python setup.py install \
-    && rm -rf /app/cluster-mgr-master \
-    && rm -f /app/master.zip
-
 # install InfluxDB
 RUN wget -q https://dl.influxdata.com/influxdb/releases/influxdb-1.4.3-static_linux_amd64.tar.gz -P /tmp \
     && mkdir -p /etc/influxdb/ \
@@ -37,6 +27,17 @@ RUN wget -q https://dl.influxdata.com/influxdb/releases/influxdb-1.4.3-static_li
     && tar -zxf /tmp/influxdb-1.4.3-static_linux_amd64.tar.gz -C /opt \
     && rm -f /tmp/influxdb-1.4.3-static_linux_amd64.tar.gz \
     && sed  's/dir = "\/var\/lib\/influxdb\/meta"/dir = "\/root\/influxdb\/meta"/g' < /opt/influxdb-1.4.3-1/influxdb.conf > /etc/influxdb/influxdb.conf
+
+WORKDIR /app
+
+# install clustermgr package
+RUN wget -q https://github.com/GluuFederation/cluster-mgr/archive/master.zip \
+    && unzip -qq master.zip \
+    && cd cluster-mgr-master \
+    && python setup.py install \
+    && rm -rf /app/cluster-mgr-master \
+    && rm -f /app/master.zip \
+    && mkdir -p /root/.clustermgr
 
 # port for Flask app
 EXPOSE 5000
