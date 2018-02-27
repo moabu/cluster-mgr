@@ -42,8 +42,7 @@ name_changer = ChangeGluuHostname(
   
   Let's take the example of me using `dev.example.org` but my customer changed their domain requirements to `idp.customer.io`, the environment wouldn't fit the spec and I would have to rebuild. Fortunately with this script, a quick turnaround to another hostname, with new certificates to match that domain name, is one command-line away.
 
-  To achieve this with the previous example, I would run the command line script above outside the Gluu Server chroot like so:
-  
+  To achieve this with the previous example, I would modify the `test.py` file like so:
 
 ```
 name_changer = ChangeGluuHostname(
@@ -53,7 +52,7 @@ name_changer = ChangeGluuHostname(
     cert_mail='admin@customer.io',
     cert_state='TX',
     cert_country='US',
-    server='dev.example.org', <------ Unless I've changed the FQDN to idp.customer.io
+    server='dev.example.org', <------ Whatever the server resolves as. This is to connect to LDAP for modifications.
     ip_address='10.36.101.25',
     ldap_password="MyS3crE71D4pPas$",
     os_type='Ubuntu'
