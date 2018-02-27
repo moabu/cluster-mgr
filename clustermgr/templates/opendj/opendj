@@ -1,0 +1,52 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          opendj
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start daemon at boot time
+# Description:       Enable service provided by daemon.
+### END INIT INFO
+#
+# The contents of this file are subject to the terms of the Common Development and
+# Distribution License (the License). You may not use this file except in compliance with the
+# License.
+# 
+# You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+# specific language governing permission and limitations under the License.
+# 
+# When distributing Covered Software, include this CDDL Header Notice in each file and include
+# the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+# Header, with the fields enclosed by brackets [] replaced by your own identifying
+# information: "Portions Copyright [year] [name of copyright owner]".
+# 
+# chkconfig: 345 95 5
+# description: Control the Gluu-OpenDJ Directory Server
+
+# Set the path to the Gluu-OpenDJ instance to manage
+INSTALL_ROOT="/opt/opendj"
+export INSTALL_ROOT
+
+cd ${INSTALL_ROOT}
+
+# Determine what action should be performed on the server
+case "${1}" in
+start)
+  /bin/su ldap -c "${INSTALL_ROOT}/bin/start-ds --quiet"
+  exit ${?}
+  ;;
+stop)
+  /bin/su ldap -c "${INSTALL_ROOT}/bin/stop-ds --quiet"
+  exit ${?}
+  ;;
+restart)
+  /bin/su ldap -c "${INSTALL_ROOT}/bin/stop-ds --restart --quiet"
+  exit ${?}
+  ;;
+*)
+  echo "Usage:  $0 { start | stop | restart }"
+  exit 1
+  ;;
+esac
+

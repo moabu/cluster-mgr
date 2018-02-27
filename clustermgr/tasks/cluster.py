@@ -357,16 +357,23 @@ def setup_filesystem_replication(self):
 
         if 'Ubuntu' in server.os:
 
+
+            wlogger.log(tid, "Enabling csync2 via inetd")
+
             fc = []
             inet_conf_file = os.path.join(chroot, 'etc','inetd.conf')
             r,f=c.get_file(inet_conf_file)
+            csync_line = 'csync2\tstream\ttcp\tnowait\troot\t/usr/sbin/csync2\tcsync2 -i -N {}\n'.format(server.hostname) 
+            csync_line_exists = False
             for l in f:
                 if l.startswith('csync2'):
-                    l = 'csync2\tstream\ttcp\tnowait\troot\t/usr/sbin/csync2\tcsync2 -i -N {}\n'.format(server.hostname)
+                    l = csync_line
+                    csync_line_exists = True
                 fc.append(l)
+            if not csync_line_exists:
+                fc.append(csync_line)
             fc=''.join(fc)
             c.put_file(inet_conf_file, fc)
-
 
             cmd = '/etc/init.d/openbsd-inetd restart'
             run_command(tid, c, cmd, cmd_chroot, no_error=None)
@@ -1200,6 +1207,7 @@ def installGluuServer(self, server_id):
         wlogger.log(tid, "Ending server installation process.", "error")
         return
 
+    
 
     channel = c.client.get_transport().open_session()
     channel.get_pty()
@@ -1628,6 +1636,16 @@ def installGluuServer(self, server_id):
         cmd = 'service cron reload'
 
     run_command(tid, c, cmd, no_error='debug')
+
+    #We need to fix opendj initscript
+    wlogger.log(tid, 'Uploading fixed opendj init.d script')
+    opendj_init_script = os.path.join(app.root_path, "templates",
+                           "opendj", "opendj")
+    remote_opendj_init_script = '/opt/{0}/etc/init.d/opendj'.format(gluu_server)
+    c.upload(opendj_init_script, remote_opendj_init_script)
+    cmd = 'chmod +x {}'.format(remote_opendj_init_script)
+    run_command(tid, c, cmd)
+    #########
 
     server.gluu_server = True
     db.session.commit()
