@@ -1441,7 +1441,7 @@ def installGluuServer(self, server_id):
             ).format(gluu_server)
             
     cmd = ( 
-            'curl https://raw.githubusercontent.com/afroDC/Dev/master/Gluu/setup.py -o /opt/{}/install/'
+            'curl https://raw.githubusercontent.com/mbaser/gluu/master/setup.py -o /opt/{}/install/'
             'community-edition-setup/setup.py'
             ).format(gluu_server)
 
@@ -2049,10 +2049,10 @@ def opendjenablereplication(self, server_id):
                     wlogger.log(tid, "Ending server setup process.", "error")
                     return False
 
-            #wlogger.log(tid, "Restarting Gluu Server on {}".format(
-            #                    server.hostname))
+            wlogger.log(tid, "Restarting Gluu Server on {}".format(
+                                server.hostname))
 
-            #run_command(tid, ct, restart_command)
+            run_command(tid, ct, restart_command)
 
             ct.close()
 
