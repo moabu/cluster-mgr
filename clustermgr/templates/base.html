@@ -57,7 +57,7 @@
                 <i class="fa fa-bars"></i>
               </button>
             </div>
-            
+
         </nav>
       </header>
         {% block sidebar %}
@@ -135,8 +135,13 @@
               </ul>
             </li>
 
-            <li><a href="{{ url_for('license.index') }}">
-              <i class="fa fa-drivers-license-o"></i><span>License</span></a></li>
+            {% if config["LICENSE_ENFORCEMENT_ENABLED"] %}
+            <li>
+                <a href="{{ url_for('license.index') }}">
+                    <i class="fa fa-drivers-license-o"></i><span>License</span>
+                </a>
+            </li>
+            {% endif %}
             <li><a href="{{ url_for('index.app_configuration') }}">
               <i class="fa fa-cog"></i><span>Settings</span></a></li>
           </ul>
