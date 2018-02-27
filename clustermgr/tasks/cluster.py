@@ -1492,7 +1492,9 @@ def installGluuServer(self, server_id):
             else:
                 log_id += 1
                 last_debug = False
-                wlogger.log(tid, cout, "debug")
+                cout = cout.strip()
+                if cout:
+                    wlogger.log(tid, cout, "debug")
 
     
     if appconf.modify_hosts:
