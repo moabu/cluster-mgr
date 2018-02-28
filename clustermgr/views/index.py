@@ -8,11 +8,13 @@ from flask_login import current_user
 from werkzeug.utils import secure_filename
 from celery.result import AsyncResult
 
+
 from clustermgr.extensions import db, wlogger
 from clustermgr.models import AppConfiguration, Server  # , KeyRotation
 from clustermgr.forms import AppConfigForm, SchemaForm, \
     TestUser, InstallServerForm  # , KeyRotationForm
-from flask import current_app
+
+
 
 from celery.result import AsyncResult
 
@@ -25,6 +27,10 @@ from clustermgr.core.license import license_reminder
 from clustermgr.extensions import celery
 from clustermgr.core.license import prompt_license
 
+from clustermgr.core.remote import RemoteClient
+
+from clustermgr.core.clustermgr_installer import Installer
+
 from clustermgr.core.utils import get_setup_properties, \
     get_opendj_replication_status
 
@@ -35,11 +41,10 @@ index.before_request(license_reminder)
 
 @index.route('/')
 def home():
-    cfg_file = current_app.config["AUTH_CONFIG_FILE"]
-    oxd_file_config =  current_app.config["OXD_CLIENT_CONFIG_FILE"]
+    cfg_file = app.config["AUTH_CONFIG_FILE"]
+    oxd_file_config = app.config["OXD_CLIENT_CONFIG_FILE"]
     
 
-    
     if not os.path.exists(cfg_file):
         if not os.path.exists(oxd_file_config):
             return redirect(url_for('auth.signup'))
@@ -77,25 +82,24 @@ def app_configuration():
     config = AppConfiguration.query.first()
     schemafiles = os.listdir(app.config['SCHEMA_DIR'])
 
-    
+
+    # If the form is submitted and password for replication user was not
+    # not supplied, make password "**dummy**", so don't change
+    # what we have before
 
     if config:
-        del conf_form.replication_pw
-        del conf_form.replication_pw_confirm
+        if request.method == 'POST' and not conf_form.replication_pw.data.strip():
+            conf_form.replication_pw.data = '**dummy**'
+            conf_form.replication_pw_confirm.data = '**dummy**'
 
-    else:
+    if not config:
+        #del conf_form.replication_pw
+        #del conf_form.replication_pw_confirm
         config = AppConfiguration()
         db.session.add(config)
 
 
-    # If the form is submitted and password for replication user was not
-    # not supplied, make password "**dummu**", so don't change
-    # what we have before
-    #if request.method == 'POST' and not conf_form.replication_pw.data.strip():
-    #    conf_form.replication_pw.data = '**dummy**'
-    #    conf_form.replication_pw_confirm.data = '**dummy**'
-
-    # If form is submitted and ladidated process it
+    # If form is submitted and validated process it
     if conf_form.update.data and conf_form.validate_on_submit():
         # If prviously configured and admin changed replcation user (dn) and it's
         # password .this will break replication, check and war admin.
@@ -122,6 +126,46 @@ def app_configuration():
         #    config = AppConfiguration()
         #    db.session.add(config)
         #config.replication_dn = replication_dn
+        
+        if config.replication_pw:
+            new_replication_passwd = conf_form.replication_pw.data.strip()
+            if conf_form.replication_pw.data and \
+                    conf_form.replication_pw_confirm.data is not '**dummy**':
+                
+                
+                c = None
+                server = Server.query.first()
+                c = RemoteClient(server.hostname, ip=server.ip)
+                
+                try:
+                    c.startup()
+                except Exception as e:
+                    flash("Can't establish SSH connection to {}. "
+                          "Replication password is not changed".format(
+                          server.hostname),
+                            "warning")
+                if c:
+ 
+                    installer = Installer(c, config.gluu_version, server.os)
+                
+                    cmd = ('/opt/opendj/bin/ldappasswordmodify --bindDN '
+                    '\'cn=Directory Manager\' --bindPassword $\'{}\' '
+                    '--port 4444 --newPassword $\'{}\' --authzID '
+                    '\'cn=admin,cn=Administrators,cn=admin data\' '
+                    '--trustAll --useSSL'.format(
+                    
+                    server.ldap_password.replace("'","\\'"),
+                    new_replication_passwd.replace("'","\\'"),
+                    
+                    ))
+
+                    result = installer.run(cmd)
+                    if result[1].strip() == \
+                    'The LDAP password modify operation was successful':
+                        flash("Replication password is changed", "success")
+                        config.replication_pw = new_replication_passwd
+ 
+        
         config.gluu_version = conf_form.gluu_version.data.strip()
         #config.use_ip = conf_form.use_ip.data
         config.nginx_host = conf_form.nginx_host.data.strip()
