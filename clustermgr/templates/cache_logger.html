@@ -37,6 +37,11 @@
       <ul id="common_logger" class="list-group">
       </ul>
 
+
+
+        <a href="{{ url_for('cache_mgr.index', method=method) }}" class="btn btn-block btn-danger" style="display: none;" id="error_button">
+            Ops, Installation Failed, Retry</a>
+
       {% if step == 1 %}
         <a href="{{ url_for('cache_mgr.configure', method=method) }}" class="btn btn-block btn-primary" style="display: none;" id="next">
             Configure Cache Cluster</a>
@@ -144,9 +149,16 @@ function updateLog(){
             $('#removeAlertModal').modal('show');
             }
 
-        if(data.state === "SUCCESS" || data.state === "FAILURE"){
+        if (data.state === "SUCCESS" || data.state === "FAILURE"){
             clearInterval(timer);
-            $('#next').show()[0].scrollIntoView({behavior: "smooth", block: "end"});
+            
+            if (!errors) {
+                $('#next').show()[0].scrollIntoView({behavior: "smooth", block: "end"});
+            } else {
+                $('#error_button').show()[0].scrollIntoView({behavior: "smooth", block: "end"});
+                
+            }
+            
             $('#log_container_'+logging_id).collapse('hide')
                 .parent().addClass("panel-info")
                 .find('h4')
@@ -155,7 +167,7 @@ function updateLog(){
             if(errors || warnings) {
                 $.notify({
                     title: '<h5><i class="glyphicon glyphicon-warning-sign"></i> Problems Found! Review Logs</h5>',
-                    message: errors.toString()+' Errors and '+warnings+' Warnings were encountered during the process. Kindly review the log of each server before proceeding to the next step.',
+                    message: errors.toString()+' Errors and '+warnings+' Warnings were encountered during the process. Kindly review the log of each server before restarting the process.',
                 },{
                     type: "warning",
                     placement: {from: "bottom", align: "center"},
