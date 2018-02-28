@@ -182,12 +182,13 @@ def install_gluu_server(server_id):
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
 def checkNginxStatus(nginxhost):
-
-    r=  http_requests.get('https://{}/clustermgrping'.format(nginxhost),
+    try:
+        r=  http_requests.get('https://{}/clustermgrping'.format(nginxhost),
                                                         verify=False)
-
-    if r.status_code == 200:
-        return True, r.text.split()
+        if r.status_code == 200:
+            return True, r.text.split()
+    except:
+        pass
 
     return False, []
 
