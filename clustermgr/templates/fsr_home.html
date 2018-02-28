@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from 'macros.html' import render_form %}
+
+{% block header %}
+    <h1>File System Replication is Ready</h1>
+{% endblock %}
+
+{% block  content %}
+
+<div class="box box-primary">
+    <br>
+    <p>File System Replication  was installed previously and replication is active among the following servers:</p>
+    <br>
+    <ul class="list-group">
+    {% for s in servers %}
+    <li class="list-group-item">{{s}}</li>
+    {%endfor%}
+    </ul>
+    <br>
+    <a href="{{ url_for('cluster.file_system_replication', install='yes') }}" class="btn btn-block btn-warning">
+            Click Here to Re-Install</a>
+
+    
+</div>
+
+
+
+{% endblock %}
+{% block js %}
+
+{% endblock %}

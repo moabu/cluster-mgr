@@ -19,6 +19,8 @@ from clustermgr.tasks.cluster import setup_ldap_replication, \
     setup_filesystem_replication, opendjenablereplication, \
     opendjdisablereplication
 
+from clustermgr.core.remote import RemoteClient
+
 from clustermgr.forms import FSReplicationPathsForm
 
 from clustermgr.config import Config
@@ -236,20 +238,56 @@ def opendj_enable_replication(server_id):
 
 
 
-@cluster.route('/fsrep/', methods=['GET', 'POST'])
+def chekFSR(server, gluu_version):
+    c = RemoteClient(server.hostname, ip=server.ip)
+    try:
+        c.startup()
+    except Exception as e:
+        flash("Can't establish SSH connection to {}".format(server.hostname),
+              "warning")
+        return False, []
+    
+    csync_config = '/opt/gluu-server-{}/etc/csync2.cfg'.format(gluu_version)
+    result = c.get_file(csync_config)
+    
+    if result[0]:
+        
+        servers = []
+
+        for l in result[1].readlines():
+            ls = l.strip()
+            if ls.startswith('host') and ls.endswith(';'):
+                hostname = ls.split()[1][:-1]
+                servers.append(hostname)
+        
+        if servers:
+            return True, servers
+
+    return False, []
+
+@cluster.route('/fsrep', methods=['GET', 'POST'])
 def file_system_replication():
     """File System Replication view"""
 
+    app_config = AppConfiguration.query.first()
+    servers = Server.query.all()
+
+
+    if not request.args.get('install') == 'yes':
+        status = chekFSR(servers[0], app_config.gluu_version)
+
+        if status[0]:
+            return render_template("fsr_home.html", servers=status[1])
+
 
     #Check if replication user (dn) and password has been configured
-    app_config = AppConfiguration.query.first()
     if not app_config:
         flash("Repication user and/or password has not been defined."
               " Please go to 'Configuration' and set these before proceed.",
               "warning")
 
     #If there is no installed gluu servers, return to home
-    servers = Server.query.all()
+    
 
     if not servers:
         flash("Please install gluu servers", "warning")
