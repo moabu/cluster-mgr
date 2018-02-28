@@ -3,6 +3,10 @@ the servers managed in the cluster-manager
 """
 import os
 
+import requests as http_requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+http_requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
 from flask import Blueprint, render_template, url_for, flash, redirect, \
     session, request
 from flask_login import login_required
@@ -168,18 +172,37 @@ def install_gluu_server(server_id):
     task = installGluuServer.delay(server_id)
 
     print "Install Gluu Server TASK STARTED", task.id
-    head = "Installing Gluu Server ({0}) on {1}".format(appconf.gluu_version, server.hostname)
+    head = "Installing Gluu Server ({0}) on {1}".format(
+                                                    appconf.gluu_version,
+                                                    server.hostname,
+                                                    )
     nextpage = "index.home"
     whatNext = "Dashboard"
     return render_template("logger.html", heading=head, server=server.hostname,
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
+def checkNginxStatus(nginxhost):
 
-@cluster.route('/installnginx/')
+    r=  http_requests.get('https://{}/clustermgrping'.format(nginxhost),
+                                                        verify=False)
+
+    if r.status_code == 200:
+        return True, r.text.split()
+
+    return False, []
+
+
+@cluster.route('/installnginx')
 @login_required
 def install_nginx():
     """Initiates installation of nginx load balancer"""
     appconf = AppConfiguration.query.first()
+
+    if not request.args.get('next') == 'install':
+        status = checkNginxStatus(appconf.nginx_host)
+        if status[0]:
+            return render_template("nginx_home.html", servers=status[1])
+        
 
     # Start nginx  installation celery task
     task = installNGINX.delay(appconf.nginx_host)

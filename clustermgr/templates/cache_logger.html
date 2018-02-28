@@ -37,10 +37,8 @@
       <ul id="common_logger" class="list-group">
       </ul>
 
-
-
         <a href="{{ url_for('cache_mgr.index', method=method) }}" class="btn btn-block btn-danger" style="display: none;" id="error_button">
-            Ops, Installation Failed, Retry</a>
+            Oops, Installation Failed. Click Here to Retry</a>
 
       {% if step == 1 %}
         <a href="{{ url_for('cache_mgr.configure', method=method) }}" class="btn btn-block btn-primary" style="display: none;" id="next">

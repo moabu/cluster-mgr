@@ -2197,6 +2197,7 @@ def installNGINX(self, nginx_host):
     servers = Server.query.all()
     nginx_backends = []
 
+    server_list = []
 
     #read local nginx.conf template
     nginx_tmp_file = os.path.join(app.root_path, "templates", "nginx",
@@ -2206,9 +2207,11 @@ def installNGINX(self, nginx_host):
     #add all gluu servers to nginx.conf
     for s in servers:
         nginx_backends.append('  server {0}:443 max_fails=2 fail_timeout=10s;'.format(s.hostname))
-
+        server_list.append(s.hostname)
+        
     nginx_tmp = nginx_tmp.replace('{#NGINX#}', nginx_host)
     nginx_tmp = nginx_tmp.replace('{#SERVERS#}', '\n'.join(nginx_backends))
+    nginx_tmp = nginx_tmp.replace('{#PINGSTRING#}', ' '.join(server_list))
 
     #put nginx.conf to server
     remote = "/etc/nginx/nginx.conf"
