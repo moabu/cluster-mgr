@@ -25,6 +25,7 @@
                 {% endfor %}
             </fieldset>
 
+            {#
             <fieldset class="form-group {{ 'has-error' if form.type.errors else '' }}">
                 {{ form.type.label(class="control-label") }}
                 {{ form.type(class="radio") }}
@@ -32,6 +33,7 @@
                     <p class="help-block">{{ error }}</p>
                 {% endfor %}
             </fieldset>
+            #}
 
             <div class="form-group {{ 'has-error' if form.interval.errors else '' }}">
                 {{ form.interval.label(class="control-label") }}

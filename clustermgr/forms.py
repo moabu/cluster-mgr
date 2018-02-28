@@ -84,11 +84,11 @@ class KeyRotationForm(FlaskForm):
         "Enable Rotation",
         choices=[("true", "Yes"), ("false", "No")],
     )
-    type = RadioField(
-        "Backend Type",
-        choices=[("jks", "JKS")],
-        validators=[AnyOf(["jks"])],
-    )
+    # type = RadioField(
+    #     "Backend Type",
+    #     choices=[("jks", "JKS")],
+    #     validators=[AnyOf(["jks"])],
+    # )
     # inum_appliance = StringField("Inum Appliance", validators=[DataRequired()])
     # gluu_server = BooleanField(
     #     'Installed inside chroot-ed Gluu Server', default=True)
@@ -97,15 +97,15 @@ class KeyRotationForm(FlaskForm):
     #     ('3.0.2', '3.0.2'),
     # ])
 
-    def validate_oxeleven_url(form, field):
-        if not field.data and form.type.data == "oxeleven":
-            raise ValidationError("This field is required if oxEleven is "
-                                  "selected as rotation type")
+    # def validate_oxeleven_url(form, field):
+    #     if not field.data and form.type.data == "oxeleven":
+    #         raise ValidationError("This field is required if oxEleven is "
+    #                               "selected as rotation type")
 
-    def validate_oxeleven_token(form, field):
-        if not field.data and form.type.data == "oxeleven":
-            raise ValidationError("This field is required if oxEleven is "
-                                  "selected as rotation type")
+    # def validate_oxeleven_token(form, field):
+    #     if not field.data and form.type.data == "oxeleven":
+    #         raise ValidationError("This field is required if oxEleven is "
+    #                               "selected as rotation type")
 
 
 class LoggingServerForm(FlaskForm):
