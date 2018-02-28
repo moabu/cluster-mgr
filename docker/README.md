@@ -5,17 +5,18 @@
     cd clusermgrdocker
     ```
 
--   get required files
+-   get required image
+
+    ```
+    docker pull gluufederation/clustermgr
+    ```
+
+    or build the image manually
 
     ```
     wget https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/docker/Dockerfile
     wget https://github.com/GluuFederation/cluster-mgr/blob/master/docker/appstarter.sh
     wget https://github.com/GluuFederation/cluster-mgr/blob/master/docker/builder.sh
-    ```
-
--   build docker
-
-    ```
     sh builder.sh
     ```
 
