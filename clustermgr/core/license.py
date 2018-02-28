@@ -285,6 +285,10 @@ def license_reminder():
     The value will be stored in ``flask.g`` object, so template can
     obtain the value.
     """
+    # license enforcement disabled
+    if not current_app.config["LICENSE_ENFORCEMENT_ENABLED"]:
+        return
+
     msg = ""
     license_data, _ = license_manager.validate_license()
 
