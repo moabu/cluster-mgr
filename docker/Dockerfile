@@ -30,6 +30,9 @@ RUN wget -q https://dl.influxdata.com/influxdb/releases/influxdb-1.4.3-static_li
 
 WORKDIR /app
 
+# to force download master.zip, run `docker build` with `--build-arg`
+ARG CM_DOWNLOAD_TS=1519846997
+
 # install clustermgr package
 RUN wget -q https://github.com/GluuFederation/cluster-mgr/archive/master.zip \
     && unzip -qq master.zip \
