@@ -879,7 +879,7 @@ def setup_ldap_replication(self, server_id):
 
 
 def get_os_type(c):
-
+    
     # 2. Linux Distribution of the server
     cin, cout, cerr = c.run("ls /etc/*release")
     files = cout.split()

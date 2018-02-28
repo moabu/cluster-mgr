@@ -27,9 +27,10 @@ from clustermgr.core.license import license_reminder
 from clustermgr.extensions import celery
 from clustermgr.core.license import prompt_license
 
-from clustermgr.core.remote import RemoteClient
+from clustermgr.core.remote import RemoteClient, FakeRemote
 
 from clustermgr.core.clustermgr_installer import Installer
+from clustermgr.tasks.cluster import get_os_type
 
 from clustermgr.core.utils import get_setup_properties, \
     get_opendj_replication_status
@@ -244,9 +245,16 @@ def app_configuration():
             conf_form.purge_interval_min.data = pi[2]
         """
 
+    #create fake remote class that provides the same interface with RemoteClient
+    fc = FakeRemote()
+    
+    #Getermine local OS type
+    localos= get_os_type(fc)
+
+
     return render_template('app_config.html', cform=conf_form, sform=sch_form,
-                           config=config, schemafiles=schemafiles,
-                           next=request.args.get('next'))
+                        config=config, schemafiles=schemafiles, localos=localos,
+                        next=request.args.get('next'))
 
 
 # @index.route("/key_rotation", methods=["GET", "POST"])

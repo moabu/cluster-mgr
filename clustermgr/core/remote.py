@@ -1,6 +1,7 @@
 import StringIO
 import socket
 import logging
+import os
 
 from paramiko import SSHException
 from paramiko.client import SSHClient, AutoAddPolicy
@@ -241,3 +242,37 @@ class RemoteClient(object):
     def __repr__(self):
         return "RemoteClient({0}, ip={1}, user={2})".format(self.host, self.ip,
                                                             self.user)
+
+
+#Fake RemoteClient
+class FakeRemote:
+    
+    """Provides fake remote class with the same run() function.
+    """
+
+    def run(self, cmd):
+        
+        """This method executes cmd as a sub-process.
+
+        Args:
+            cmd (string): commands to run locally
+        
+        Returns:
+            Standard input, output and error of command
+        
+        """
+        print cmd
+        cin, cout, cerr = os.popen3(cmd)
+
+        return '', cout.read(), cerr.read()
+
+
+    def put_file(self, filename, filecontent):
+        with open(filename, 'w') as f:
+            f.write(filecontent)
+
+    def rename(self, oldname, newname):
+        os.rename(oldname, newname)
+
+    def get_file(self, filename):
+        return True, open(filename)
