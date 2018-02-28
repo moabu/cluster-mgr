@@ -34,7 +34,7 @@ def settings():
     if request.method == "GET" and kr is not None:
         form.interval.data = kr.interval
         form.enabled.data = "true" if kr.enabled else "false"
-        form.type.data = kr.type
+        # form.type.data = kr.type
 
     if form.validate_on_submit():
         if not kr:
@@ -42,7 +42,8 @@ def settings():
 
         kr.interval = form.interval.data
         kr.enabled = as_boolean(form.enabled.data)
-        kr.type = form.type.data
+        # kr.type = form.type.data
+        kr.type = "jks"
         db.session.add(kr)
         db.session.commit()
 
