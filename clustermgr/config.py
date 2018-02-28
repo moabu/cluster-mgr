@@ -20,11 +20,11 @@ class Config(object):
         os.path.join(os.path.expanduser("~"), ".clustermgr"),
     )
     JAVALIBS_DIR = os.path.join(DATA_DIR, "javalibs")
-    JKS_PATH = os.path.join(DATA_DIR, "oxauth-keys.jks")
     APP_INSTANCE_DIR = os.path.join(DATA_DIR, "instance")
     SCHEMA_DIR = os.path.join(DATA_DIR, "schema")
     SLAPDCONF_DIR = os.path.join(DATA_DIR, "slapdconf")
     CERTS_DIR = os.path.join(DATA_DIR, "certs")
+    JKS_PATH = os.path.join(CERTS_DIR, "oxauth-keys.jks")
     LDIF_DIR = os.path.join(DATA_DIR, "ldif")
 
     LICENSE_CONFIG_FILE = os.path.join(DATA_DIR, "license.ini")
@@ -36,13 +36,13 @@ class Config(object):
     OXD_CLIENT_CONFIG_FILE = os.path.join(DATA_DIR, "oxd-client.ini")
 
     CELERYBEAT_SCHEDULE = {
-        
+
         'send_reminder_email': {
             'task': 'clustermgr.tasks.license.send_reminder_email',
             'schedule': timedelta(seconds=60 * 60 * 24),
             'args': (),
         },
-        
+
         'schedule_key_rotation': {
             'task': 'clustermgr.tasks.keyrotation.schedule_key_rotation',
             'schedule': timedelta(seconds=60 * 60 * 1),
@@ -54,9 +54,9 @@ class Config(object):
             'schedule': timedelta(seconds=60 * 5),
             'args': (),
         },
-        
-        
-        
+
+
+
     }
 
     MAIL_SERVER = "localhost"
