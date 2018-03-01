@@ -1,0 +1,38 @@
+{% macro wizard_steps(current) -%}
+<ul class="timeline">
+    <!-- timeline time label -->
+    <li class="time-label">
+        <span class="bg-red">Incorporating</span>
+    </li>
+    <!-- /.timeline-label -->
+
+    <!-- Step 1: Analyze -->
+    <li>
+      {% if current > 1 %}
+        <i class="fa fa-check bg-green"></i>
+      {% else %}
+        <i class="fa fa-search fa-fw bg-blue"></i>
+      {% endif %}
+        <div class="timeline-item">
+            <h3 class="timeline-header">Analyzing</h3>
+            <div class="timeline-body">Existing server will be analyzed and necassary information will be gathered.</div>
+        </div>
+    </li>
+
+    <!-- Step 2: Change Hostname -->
+    <li>
+      {% if current > 2 %}
+        <i class="fa fa-check bg-green"></i>
+      {% elif current == 2 %}
+        <i class="fa fa-search fa-fw bg-blue"></i>
+      {% elif current < 2 %}
+        <i class="fa fa-adjust bg-gray"></i>
+      {% endif %}
+        <div class="timeline-item">
+            <h3 class="timeline-header">Changing Hostname</h3>
+            <div class="timeline-body">Server Hostname will be changed</div>
+        </div>
+    </li>
+
+</ul>
+{%- endmacro %}

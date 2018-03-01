@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% from 'macros.html' import render_field, render_checkbox_field, render_form %}
+
+{% block header %}
+    <h1>Making Your Standalone Gluu Server as Primary Server</h1>
+{% endblock %}
+
+{% block content %}
+<section class="content">
+
+
+<div class="box box-primary">
+    <div class="box-body">
+        <form method="POST" action="" role="form" class="">
+        
+        {{ wform.csrf_token }}
+
+        <div class="form-group  {{ 'has-error' if wform.new_hostname.errors else '' }}">
+            <label for="new_hostname" class="control-label">{{ wform.new_hostname.label}}</label>
+            <p class="help-block">This will be used as a load balancer hostname.</p>
+            {% for error in wform.new_hostname.errors %}
+                <p class="help-block">{{ error }}</p>
+            {% endfor %}
+            {{ wform.new_hostname(class="form-control") }}
+        </div>
+        
+        <div class="form-group  {{ 'has-error' if wform.nginx_ip.errors else '' }}">
+            <label for="current_hostname" class="control-label">{{ wform.nginx_ip.label}}</label>
+            <p class="help-block">Ip address of load balancer.</p>
+            {% for error in wform.nginx_ip.errors %}
+                <p class="help-block">{{ error }}</p>
+            {% endfor %}
+            {{ wform.nginx_ip(class="form-control") }}
+        </div>
+        
+        <div class="form-group  {{ 'has-error' if wform.current_hostname.errors else '' }}">
+            <label for="current_hostname" class="control-label">{{ wform.current_hostname.label}}</label>
+            <p class="help-block">This hostname will be changed to new hostname.</p>
+            {% for error in wform.current_hostname.errors %}
+                <p class="help-block">{{ error }}</p>
+            {% endfor %}
+            {{ wform.current_hostname(class="form-control") }}
+        </div>
+        
+        <div class="form-group  {{ 'has-error' if wform.ip.errors else '' }}">
+            <label for="ip" class="control-label">{{ wform.ip.label}}</label>
+            <p class="help-block">IP address of the server.</p>
+            {% for error in wform.ip.errors %}
+                <p class="help-block">{{ error }}</p>
+            {% endfor %}
+            {{ wform.ip(class="form-control") }}
+        </div>
+        
+        <p class="help-block">After you click to next button, information about your current server
+        will be gathered, missing data will be asked to you.
+        
+        <button type="submit" class="btn btn-primary pull-right">Start</button>
+    </form>
+        
+    </div>
+
+
+</section>
+
+{% endblock %}
+
+
+{% block js %}
+{% endblock %}

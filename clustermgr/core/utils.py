@@ -14,11 +14,13 @@ from cryptography.hazmat.primitives.ciphers import modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 
+
+
 from clustermgr.config import Config
 
 from clustermgr.core.remote import RemoteClient
 from clustermgr.models import Server, AppConfiguration
-
+from clustermgr.extensions import wlogger
 
 DEFAULT_CHARSET = string.ascii_uppercase + string.digits + string.lowercase
 
@@ -407,3 +409,38 @@ def decode(key, enc):
         dec_c = chr((256 + ord(enc[i]) - ord(key_c)) % 256)
         dec.append(dec_c)
     return "".join(dec)
+
+
+def run_and_log(c, cmd, tid, sid):
+    
+    """Shorthand for FakeRemote.run(). This function automatically logs
+    the commands output to be shared in the web frontend.
+
+    Args:
+        c (:object:`FakeRemote`): class to be used to run cammand
+        cmd (string): the command to be run on local server
+        tid (string): task id of the task to store the log
+        sid (integer): id of the server
+
+    Returns:
+        the output of the command or the err thrown by the command as a string
+    """
+    
+    wlogger.log(tid, "Running {}".format(cmd))
+
+    result = c.run(cmd)
+    
+    if result[2].strip():
+        if "Redirecting to /bin/systemctl" in result[2]:
+            wlogger.log(tid,result[2].strip(), "debug", server_id=sid)
+        else:
+            wlogger.log(tid, "An error occurrued while executing "
+                    "{}: {}".format(cmd, result[2]),
+                    "error", server_id=sid)
+    
+    else:
+        wlogger.log(tid, "Command was run successfully: {}".format(cmd),
+                        "success", server_id=sid)
+                                
+
+    return result

@@ -253,3 +253,13 @@ class SignUpForm(FlaskForm):
                 ])
     passwordconfirm = PasswordField("Re-enter Password", validators=[DataRequired()])
     login = SubmitField("Sign up")
+
+class WizardStep1(FlaskForm):
+    current_hostname = StringField('Current Hostname *', validators=[DataRequired()])
+    new_hostname = StringField('New Hostname *', validators=[DataRequired()])
+    ip = StringField(
+        'Current IP Address *', validators=[DataRequired(), IPAddress()])
+    nginx_ip = StringField(
+        'Load Balancer IP Address *', validators=[DataRequired(), IPAddress()])
+        
+    next = SubmitField("Next")

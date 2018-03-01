@@ -1,9 +1,12 @@
 import sys
 import os
 
+from clustermgr.extensions import wlogger
+
 class Installer:
-    def __init__(self, c, gluu_version, server_os):
+    def __init__(self, c, gluu_version, server_os, logger_tid=None):
         self.c = c
+        self.logger_tid = logger_tid
         self.gluu_version = gluu_version
         self.server_os = server_os
         if not hasattr(self.c, 'fake_remote'):
@@ -24,13 +27,27 @@ class Installer:
         else:
             self.run_command = '{}'
 
+    def log(self, result):
+        if self.logger_tid:
+            print "LOGGER", self.logger_tid, result
+            if result[1]:
+                wlogger.log(self.logger_tid, result[1], 'debug')
+            if result[2]:
+                wlogger.log(self.logger_tid, result[2], 'debug')
+
+
     def run(self, cmd):
         print "Installer> executing:", cmd
         run_cmd = self.run_command.format(cmd)
-        return self.c.run(run_cmd)
+        result = self.c.run(run_cmd)
+        self.log(result)
+        
+        return result
 
     def install(self, package):
         run_cmd = self.install_command.format(package)
         print "Installer> executing:", run_cmd
-        return self.c.run(run_cmd)
-
+        result = self.c.run(run_cmd)
+        self.log(result)
+        
+        return result

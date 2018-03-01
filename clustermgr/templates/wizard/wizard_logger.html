@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% from 'wizard/wizard_macros.html' import wizard_steps %}
+{% block header %}
+    <h1>Incorporating Existing Server</h1>
+  <ol class="breadcrumb">
+    <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+    <li class="active">Wizard</li>
+  </ol>
+{% endblock %}
+
+{% block content %}
+  <div class="row">
+    <div class="col-md-3">
+      {{ wizard_steps(step) }}
+    </div>
+    <div class="col-md-9" style="overflow: scroll;">
+      <div class="panel-group" id="accordion" role="tablist">
+        {% for server in servers %}
+            <div class="panel panel-default">
+            <div class="panel-heading">
+                <h4 class="panel-title">
+                    <a href="#log_container_{{ server.id }}" role="button" data-toggle="collapse" data-parent="#accordion">
+                        {{ server.hostname }}
+                    </a>
+                </h4>
+            </div> <!-- heading -->
+            <div id="log_container_{{ server.id }}" class="panel-collapse collapse in" role="tabpanel">
+                <ul id="logger_{{ server.id }}" class="list-group">
+                </ul>
+            </div>
+            </div>
+
+        {% endfor %}
+      </div>
+
+      <ul id="common_logger" class="list-group">
+      </ul>
+
+        <a href="{{ url_for('wizard.step1') }}" class="btn btn-block btn-danger" style="display: none;" id="error_button">
+            Oops, Installation Failed. Click Here to Retry</a>
+
+      {% if step == 1 %}
+        <a href="{{ url_for('wizard.step2') }}" class="btn btn-block btn-primary" style="display: none;" id="next">
+            Start Changing Hostname</a>
+      {% elif step == 2 %}
+        <a href="{{ url_for('index.home') }}" class="btn btn-block btn-primary" style="display: none;" id="next">
+            Go to Dashboard</a>
+      {% endif %}
+
+      <div id="dummy"></div>
+
+    </div>
+  </div>
+
+{% include "celery_exception_modal.html" %}
+
+
+{% endblock %}
+
+{% block js %}
+
+
+<script>
+var task_id = "{{ task_id }}";
+var timer;
+var errors = 0;
+var warnings = 0;
+
+
+function logitem(message, state){
+    var item = document.createElement('li');
+    item.setAttribute('class', 'list-group-item');
+    var icon = document.createElement('i');
+    if ( state === 'success' ){
+        icon.setAttribute('class', 'glyphicon glyphicon-ok-sign pull-right');
+        item.setAttribute('class', 'list-group-item text-success');
+    } else if ( state === 'error' || state === 'fail' ) {
+        icon.setAttribute('class', 'glyphicon glyphicon-remove-sign pull-right')
+        item.setAttribute('class', 'list-group-item text-danger');
+        errors++;
+    } else if ( state === 'info' ){
+        icon.setAttribute('style', 'padding-right: 5px')
+        icon.setAttribute('class', 'glyphicon glyphicon-tasks')
+        item.setAttribute('class', 'list-group-item list-group-item-info');
+    } else if ( state === 'warning' ){
+        icon.setAttribute('style', 'padding-right: 5px')
+        icon.setAttribute('class', 'glyphicon glyphicon-warning-sign')
+        item.setAttribute('class', 'list-group-item list-group-item-warning');
+        warnings++;
+    } else if ( state === 'debug' ){
+        item = document.createElement('pre');
+        item.setAttribute('class', 'list-group-item');
+    } else if (state === 'cerror' ){
+        item = document.createElement('pre');
+        item.setAttribute('class', 'list-group-item list-group-item-warning');
+        warnings++;
+    }
+    item.appendChild(icon);
+    var msgtext = document.createTextNode(message);
+    item.appendChild(msgtext);
+    return item;
+}
+
+var logging_id = 0;
+function updateLog(){
+    $.get('{{ url_for("index.get_log", task_id=task_id) }}', function(data){
+        var logs = data.messages;
+        var logged_msgs = $('.list-group-item').length;
+        for(var i=logged_msgs; i<logs.length; i++){
+            var entry = logitem(logs[i].msg, logs[i].level);
+            var s_id = parseInt(logs[i].server_id);
+
+            if (isNaN(s_id) || isNaN(logging_id)) {
+                $('#common_logger').append(entry);
+            } else {
+                $('#logger_'+s_id).append(entry);
+            }
+
+            document.getElementById('dummy').scrollIntoView({behavior: "smooth", block: "end"});
+
+            // auto hide on logger change
+            if (logging_id !== s_id) {
+                $('#log_container_'+logging_id).collapse('hide')
+                    .parent().addClass("panel-info")
+                    .find('h4')
+                    .append('<span class="glyphicon glyphicon-ok pull-right"></span>');
+                $('#log_container_'+s_id).collapse('show');
+                logging_id = s_id;
+            }
+        }
+
+        if (data.error_message) {
+            $('#exceptionModalText').text(data.error_message)
+            $('#removeAlertModal').modal('show');
+            }
+
+        if (data.state === "SUCCESS" || data.state === "FAILURE"){
+            clearInterval(timer);
+            
+            if (!errors) {
+                $('#next').show()[0].scrollIntoView({behavior: "smooth", block: "end"});
+            } else {
+                $('#error_button').show()[0].scrollIntoView({behavior: "smooth", block: "end"});
+                
+            }
+            
+            $('#log_container_'+logging_id).collapse('hide')
+                .parent().addClass("panel-info")
+                .find('h4')
+                .append('<span class="glyphicon glyphicon-ok pull-right"></span>');
+
+            if(errors || warnings) {
+                $.notify({
+                    title: '<h5><i class="glyphicon glyphicon-warning-sign"></i> Problems Found! Review Logs</h5>',
+                    message: errors.toString()+' Errors and '+warnings+' Warnings were encountered during the process. Kindly review the logs before restarting the process.',
+                },{
+                    type: "warning",
+                    placement: {from: "bottom", align: "center"},
+                    delay: 0,
+                    animate: {enter: 'animated fadeInUp', exit: 'animated fadeOutDown'}
+                });
+            }
+        }
+    });
+}
+
+
+timer = setInterval(updateLog, 1000);
+</script>
+
+{% endblock %}
