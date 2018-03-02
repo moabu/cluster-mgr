@@ -715,13 +715,17 @@ class DBManager(object):
 
         self.conn = Connection(self.server, 
                                 ldap_user,
-                                password=password, auto_bind=True)
+                                password=password)
+        result = self.conn.bind()
 
-        if not self.conn.bound and ip:
+        if not result:
             self.server = Server(ip, port=port, use_ssl=ssl)
             self.conn = Connection(
                 self.server, ldap_user,
-                password=password, auto_bind=True)
+                password=password)
+
+        self.conn.bind()
+
 
     def get_appliance_attributes(self, *args):
         """Returns the value of the attribute under the gluuAppliance entry
@@ -747,6 +751,7 @@ class DBManager(object):
         entry = self.get_appliance_attributes(attribute)
         dn = entry.entry_dn
         mod = {attribute: [(MODIFY_REPLACE, value)]}
+
         return self.conn.modify(dn, mod)
 
 

@@ -9,8 +9,10 @@
 {% endblock %}
 
 {% block content %}
+<form method="get" action="{{ url_for('cache_mgr.change')}}">
   <div class="row">
 
+    
     <div class="col-md-8">
       <div class="box box-warning">
         <div class="box-body no-padding">
@@ -20,7 +22,8 @@
                 <th>Server ID</th>
                 <th>Hostname</th>
                 <th>IP Address</th>
-                <th>Redis Installed</th>
+                <th>Cache Installed</th>
+                <th>Cache to Install</th>
                 <th>Cache Method</th>
               </tr>
             </thead>
@@ -35,8 +38,16 @@
                     <span class="glyphicon glyphicon-ok text-success"></span>
                   {% else %}
                     <span class="glyphicon glyphicon-remove text-danger"></span>
+                    
                   {% endif %}
                 </td>
+                <td class="install" align="center">
+                  {% if server.redis %}
+                    <input type="checkbox" name="server_id_{{server.id}}">
+                  {% else %}
+                    <input type="checkbox" name="server_id_{{server.id}}" checked>
+                  {% endif %}
+                
                 <td class="cache_method">{{server.cache_method}}</td>
               </tr>
               {% endfor %}
@@ -46,18 +57,22 @@
       </div>
     </div>
 
+    
+
     <div class="col-md-4">
       <div class="box box-widget">
         <div class="box-body">
-          <button id="refreshBtn" class="btn btn-info btn-block" data-loading-text="Fetching cache method ...">
-            <i class="fa fa-arrow-circle-down"></i> Fetch cache methods
+          <a id="refreshBtn" class="btn btn-info btn-block" data-loading-text="Fetching cache method ...">
+            <i class="fa fa-arrow-circle-down"></i> Fetch cache methods</a>
           </button>
-          <a id="changeBtn" class="btn btn-success btn-block" href="{{ url_for('cache_mgr.change')}}">
-            <i class="fa fa-cloud"></i> Setup Cache </a>
+          <input type="submit" class="btn btn-success btn-block" value="Setup Cache">
+            
         </div>
       </div>
     </div>
   </div>
+
+</form>
 
 {% endblock %}
 

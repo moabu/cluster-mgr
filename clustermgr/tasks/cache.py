@@ -167,7 +167,7 @@ class StunnelInstaller(BaseInstaller):
 
 
 @celery.task(bind=True)
-def install_cache_components(self, method):
+def install_cache_components(self, method, server_list):
     """Celery task that installs the redis, stunnel and twemproxy applications
     in the required servers.
 
@@ -183,7 +183,14 @@ def install_cache_components(self, method):
     
     tid = self.request.id
     installed = 0
-    servers = Server.query.all()
+    all_servers = Server.query.all()
+    
+    servers = []
+    
+    for server in all_servers:
+        if str(server.id) in server_list:
+            servers.append(server)
+    
     for server in servers:
         wlogger.log(tid, "Installing Redis in server {0}".format(
             server.hostname), "info", server_id=server.id)
@@ -210,11 +217,12 @@ def install_cache_components(self, method):
             wlogger.log(tid, "Stunnel install failed", "fail",
                         server_id=server.id)
         # Save the redis and stunnel install situation to the db
-        db.session.commit()
+        
 
         if redis_installed and stunnel_installed:
             installed += 1
 
+        db.session.commit()
     if method != 'STANDALONE':
         # No need to install twemproxy for "SHARDED" configuration
         return True
@@ -451,6 +459,7 @@ def __update_LDAP_cache_method(tid, server, server_string, method):
 
     result = dbm.set_applicance_attribute('oxCacheConfiguration',
                                           [json.dumps(cache_conf)])
+    
     if not result:
         wlogger.log(tid, "oxCacheConfigutaion update failed", "fail",
                     server_id=server.id)
@@ -483,7 +492,9 @@ def setup_proxied(tid):
 
     # Setup Stunnel and Redis in each server
     for server in servers:
-        __update_LDAP_cache_method(tid, server, 'localhost:7000', 'STANDALONE')
+        #Since replication is active, we only need to update on primary server
+        if server.primary_server:
+            __update_LDAP_cache_method(tid, server, 'localhost:7000', 'STANDALONE')
         stunnel_conf = [
             "[redis-server]",
             "client = no",
