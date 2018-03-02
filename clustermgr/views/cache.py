@@ -1,5 +1,7 @@
 """A Flask blueprint with the views and logic dealing with the Cache Management
 of Gluu Servers"""
+import os
+
 from flask import Blueprint, render_template, url_for, flash, redirect, \
     jsonify, request, session
 
@@ -150,3 +152,34 @@ def finish_clustering(method):
     task = restart_services.delay(method)
     return render_template('cache_logger.html', servers=servers, step=3,
                            task_id=task.id)
+
+
+@cache_mgr.route('/status/')
+@login_required
+def get_status():
+    status={'redis':{}, 'stunnel':{}}
+    servers = Server.query.all()
+    for server in servers:
+        r = os.popen3("nc -zv {} 7777".format(server.ip))
+        stat = r[2].read()
+        if stat.strip().endswith('open') or stat.strip().endswith('succeeded!'):
+            status['stunnel'][server.id]=True
+        else:
+            status['stunnel'][server.id]=False
+            
+        c = RemoteClient(host=server.hostname, ip=server.ip)
+        try:
+            c.startup()
+        except:
+            status['stunnel'][server.id] = False
+            
+        r = c.run('nc -zv localhost 6379')
+        stat = r[2].strip()
+        if stat.strip().endswith('open') or stat.strip().endswith('succeeded!'):
+            status['redis'][server.id]=True
+        else:
+            status['redis'][server.id]=False
+        
+            
+    return jsonify(status)
+

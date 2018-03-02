@@ -22,8 +22,10 @@
                 <th>Server ID</th>
                 <th>Hostname</th>
                 <th>IP Address</th>
-                <th>Cache Installed</th>
-                <th>Cache to Install</th>
+                <th align="center">Stunnel Status</th>
+                <th align="center">Redis Status</th>
+                <th align="center">Cache Installed</th>
+                <th align="center">Cache to Install</th>
                 <th>Cache Method</th>
               </tr>
             </thead>
@@ -33,7 +35,9 @@
                 <td class="id">{{server.id}}</td>
                 <td class="hostname">{{server.hostname}}</td>
                 <td class="ip">{{server.ip}}</td>
-                <td class="redis">
+                <td align="center"> <span class="badge" id="stunnelstat{{server.id}}"></span> </td>
+                <td align="center"> <span class="badge" id="redisstat{{server.id}}"></span> </td>
+                <td class="redis" align="center">
                   {% if server.redis %}
                     <span class="glyphicon glyphicon-ok text-success"></span>
                   {% else %}
@@ -115,5 +119,40 @@
       }
     });
   }
+  
+  
+
+function cacheStat() {
+
+
+    $.get("{{request.host_url}}cache/status/", function(data, status){
+        for (var key in data.redis) {
+            
+            if (data.redis[key]) {
+                $("#redisstat"+key).addClass("bg-green");
+                $("#redisstat"+key).text("Live");
+            } else {
+            
+                $("#redisstat"+key).addClass("bg-red");
+                $("#redisstat"+key).text("Down");
+            }
+            
+            if (data.stunnel[key]) {
+                $("#stunnelstat"+key).addClass("bg-green");
+                $("#stunnelstat"+key).text("Live");
+            } else {
+            
+                $("#stunnelstat"+key).addClass("bg-red");
+                $("#stunnelstat"+key).text("Down");
+            }
+        }
+    
+    });
+    
+
+}
+
+cacheStat();
+  
 </script>
 {% endblock %}
