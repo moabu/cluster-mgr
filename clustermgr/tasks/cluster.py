@@ -39,6 +39,8 @@ def run_command(tid, c, command, container=None, no_error='error'):
                                                          command)
 
     wlogger.log(tid, command, "debug")
+
+
     cin, cout, cerr = c.run(command)
     output = ''
     if cout:
@@ -1965,6 +1967,7 @@ def opendjenablereplication(self, server_id):
                         primary_server.hostname,
                         server.hostname,
                         )
+
 
             cmd = cmd_run.format(cmd)
             run_command(tid, c, cmd, chroot)

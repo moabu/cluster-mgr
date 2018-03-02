@@ -73,6 +73,8 @@ def wizard_step1(self):
     
     gluu_path = '/opt/gluu-server-{}'.format(gluu_version)
     
+    server.gluu_server = True
+    
     setup_properties_last = os.path.join(gluu_path, 
                         'install/community-edition-setup/setup.properties.last')
     
