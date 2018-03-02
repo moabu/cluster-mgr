@@ -35,10 +35,16 @@ class Installer:
             if result[2]:
                 wlogger.log(self.logger_tid, result[2], 'debug')
 
+    def log_command(self, cmd):
+        if self.logger_tid:
+            wlogger.log(self.logger_tid, "Running {}".format(cmd), 'debug')
+            
+
 
     def run(self, cmd):
         print "Installer> executing:", cmd
         run_cmd = self.run_command.format(cmd)
+        self.log_command(run_cmd)
         result = self.c.run(run_cmd)
         self.log(result)
         
@@ -47,7 +53,22 @@ class Installer:
     def install(self, package):
         run_cmd = self.install_command.format(package)
         print "Installer> executing:", run_cmd
+        self.log_command(cmd)
         result = self.c.run(run_cmd)
         self.log(result)
         
+        return result
+
+    def restart_gluu(self):
+        if self.server_os == 'CentOS 7' or self.server_os == 'RHEL 7':
+            cmd = '/sbin/gluu-serverd-{0} restart'.format(
+                                self.gluu_version)
+        else:
+            cmd = '/etc/init.d/gluu-server-{0} restart'.format(
+                                self.gluu_version)
+        
+        print "Installer> executing:", cmd
+        self.log_command(cmd)
+        result = self.c.run(cmd)
+        self.log(result)
         return result
