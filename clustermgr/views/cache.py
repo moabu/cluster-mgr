@@ -113,7 +113,7 @@ def change():
     method = 'STANDALONE'
 
     if not servers:
-        return redirect(url_for('cache.index'))
+        return redirect(url_for('cache_mgr.index'))
     
     task = install_cache_components.delay(method, session_list)
     return render_template('cache_logger.html', method=method, step=1,
