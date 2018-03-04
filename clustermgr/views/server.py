@@ -348,8 +348,6 @@ def upload_setup_properties(server_id):
 
         setup_prop = parse_setup_properties(f.stream)
 
-        print setup_prop
-
         for rf in ('oxauthClient_encoded_pw',
                    'encoded_ldap_pw',
                    'scim_rp_client_jks_pass',
@@ -368,7 +366,8 @@ def upload_setup_properties(server_id):
                    'scim_rs_client_jks_pass',
                    'shibJksPass',
                    ):
-            del setup_prop[rf]
+            if rf in setup_prop:
+                del setup_prop[rf]
 
         appconf = AppConfiguration.query.first()
         server = Server.query.get(server_id)
