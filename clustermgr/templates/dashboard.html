@@ -105,6 +105,12 @@
                         
                         <td>{{ server.os }}</td>
                         <td>
+                                <a id="drybutton" class="btn btn-default btn-xs" href="#" onClick="dryRun({{server.id}})" class="btn btn-info btn-block">
+                                    
+                                    <i id="dryicon" class="fa fa-spinner"></i> Dry-run
+                                
+                                
+                                </a>
                             <a class="btn btn-default btn-xs" href="{{ url_for('server.edit', server_id=server.id) }}">Edit</a>
                             <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal"
                                data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Remove</a>
@@ -199,6 +205,41 @@
 
 
 
+<!-- Dry-run modal -->
+<div id="dry_run_modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"
+                        aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">Port Status</h4>
+            </div>
+            <div class="modal-body">
+                <p><b>Host reachable via SSH: </b> <span id="host_ssh"></span></p>
+                <p><b>Load Balancer reachable via SSH: </b> <span id="nginx_ssh"></span></p>
+                <table class="table table-bordered">
+                <th>Port</th><th align="center">Current Status</th><th align="center">Reachable from loadbalancer</th>
+                {% for p in [1689, 443, 4444, 1636, 80, 8989, 7777, 30865] %}
+                <tr>
+                    <th>{{p}}</th>
+                    <td align="center"><span id="sport_{{p}}"></span></td>
+                    <td align="center"><span id="nport_{{p}}"></span></td>
+                </tr>
+                {% endfor %}
+                </table>
+                
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default"
+                        data-dismiss="modal">Close
+                </button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+
 {% endblock %}
 
 {% block js %}
@@ -254,6 +295,77 @@ setInterval(function() {
     showLdapStat();
 }, {% if app_conf.ldap_update_period %}{{app_conf.ldap_update_period}}{%else%}5{%endif%}*60*1000);
 
+
+function dryRun(server_id) {
+    
+    
+    
+    if ($("#drybutton").attr("disabled") !== 'disabled') {
+    
+        
+    
+    
+        $("#dryicon").addClass("fa-spin"); 
+        $("#drybutton").attr('disabled', true);
+    
+    }
+        $.get("{{request.host_url}}server/dryrun/"+server_id, function(data, status) {
+        
+        
+        console.log(data)
+        
+        if (data['server']['ssh']) {
+                
+            $('#host_ssh').addClass("fa fa-check");
+            $('#host_ssh').addClass("text-success");
+        } else {
+            $('#host_ssh').addClass("fa fa-times");
+            $('#host_ssh').addClass("text-danger");
+        }
+        
+        if (data['nginx']['ssh']) {
+                
+            $('#nginx_ssh').addClass("fa fa-check");
+            $('#nginx_ssh').addClass("text-success");
+        } else {
+            $('#nginx_ssh').addClass("fa fa-times");
+            $('#nginx_ssh').addClass("text-danger");
+        }
+
+        
+        var ports = ["1689", "443", "4444", "1636", "80", "8989", "7777", "30865"];
+        
+        for (var i = 0; i < ports.length; i++) {
+        
+            if (data['server']['port_status'][ports[i]]) {
+                $('#sport_' + ports[i]).addClass("fa fa-check");
+                $('#sport_'+ ports[i]).addClass("text-success");
+            } else {
+                $('#sport_'+ ports[i]).addClass("fa fa-times");
+                $('#sport_'+ ports[i]).addClass("text-danger");
+            }
+
+            if (data['nginx']['port_status'][ports[i]]) {
+                $('#nport_' + ports[i]).addClass("fa fa-check");
+                $('#nport_'+ ports[i]).addClass("text-success");
+            } else {
+                $('#nport_'+ ports[i]).addClass("fa fa-times");
+                $('#nport_'+ ports[i]).addClass("text-danger");
+                }
+
+        }
+        
+        $("#drybutton").attr('disabled', false);
+        
+        $("#dryicon").removeClass("fa-spin");
+        
+        $("#dry_run_modal").modal("show");
+        
+        });
+    
+    //console.log($("#drybutton").attr("disabled"));
+    
+    }
 
 </script>
 {% endblock %}

@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 
 import os
+import time
 # import uuid
 
 from flask import Blueprint, render_template, redirect, url_for, flash, \
-    request
+    request, jsonify
 from flask_login import login_required
 
 from clustermgr.extensions import db
@@ -479,3 +480,86 @@ def get_ldap_stat(server_id):
         except:
             pass
     return "0"
+
+
+def test_port(server, client, port):
+    try:
+        channel = server.client.get_transport().open_session()
+        channel.get_pty()
+        cmd = 'netcat -l {} {}'.format(server.ip, port)
+        channel.exec_command(cmd)
+        i = 1
+        while True:
+            if channel.exit_status_ready():
+                break
+            time.sleep(0.1)
+            cmd2 = 'nc -zv {} {}'.format(server.ip, port)
+            r = client.run(cmd2)
+            if r[2].strip().endswith('open') or r[2].strip().endswith('succeeded!'):
+                return True
+            i += 1
+            if i > 5:
+                break
+    except:
+        return False
+
+
+@server_view.route('/dryrun/<int:server_id>')
+def dry_run(server_id):
+    
+    #return jsonify({'nginx': {'port_status': {7777: True, 1636: True, 80: True, 30865: True, 1689: True, 443: True, 4444: False, 8989: True}, 'ssh': True}, 'server': {'port_status': {7777: True, 1636: True, 80: True, 30865: True, 1689: True, 443: True, 4444: False, 8989: False}, 'ssh': True}})
+    
+    
+    result = {'server':{'ssh':False, 'port_status':{}}, 'nginx':{'ssh':False, 'port_status':{}}}
+    server_ports = [1689, 443, 4444, 1636, 80, 8989, 7777, 30865]
+    
+    for p in server_ports:
+        result['nginx']['port_status'][p] = False
+        result['server']['port_status'][p] = False
+    
+    server = Server.query.get(server_id)
+    appconf = AppConfiguration.query.first()
+
+    print "server", server.hostname, server.ip
+
+    c = RemoteClient(server.hostname, server.ip)
+    
+    try:
+        c.startup()
+        result['server']['ssh']=True
+    except:
+        pass
+    
+    if result['server']['ssh']:
+        #Test is any process listening ports that will be used by gluu-server
+        for p in server_ports:
+            r = c.run('nc -zv {} {}'.format(server.ip, p))
+            print r
+            if r[2].strip().endswith('open') or r[2].strip().endswith('succeeded!'):
+                result['server']['port_status'][p] = True
+    
+        c_nginx = RemoteClient(appconf.nginx_host, appconf.nginx_ip)
+        try:
+            c_nginx.startup()
+            result['nginx']['ssh']=True
+        except:
+            pass
+            
+        if result['nginx']['ssh']:
+            for p in server_ports:
+                if not result['server']['port_status'][p]:
+                    r = test_port(c, c_nginx, p)
+                    if r:
+                        result['nginx']['port_status'][p] = True
+                else:
+                    r = c_nginx.run('nc -zv {} {}'.format(server.ip, p))
+                    if r[2].strip().endswith('open') or r[2].strip().endswith('succeeded!'):
+                        result['nginx']['port_status'][p] = True
+
+    
+    
+    
+    return jsonify(result)
+    
+    
+    
