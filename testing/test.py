@@ -11,7 +11,8 @@ name_changer = ChangeGluuHostname(
     server='<actual_hostname_of_server>',
     ip_address='<ip_address_of_server>',
     ldap_password="<ldap_password>",
-    os_type='<linux_distro>'
+    os_type='<linux_distro>',
+    local= True
     )
 
 r = name_changer.startup()
