@@ -36,7 +36,8 @@ name_changer = ChangeGluuHostname(
     server='<actual_hostname_of_server>',
     ip_address='<ip_address_of_server>',
     ldap_password="<ldap_password>",
-    os_type='<linux_distro>'
+    os_type='<linux_distro>',
+    local=True
     )
 ```
   
@@ -55,7 +56,8 @@ name_changer = ChangeGluuHostname(
     server='dev.example.org', <------ Whatever the server resolves as. This is to connect to LDAP for modifications.
     ip_address='10.36.101.25',
     ldap_password="MyS3crE71D4pPas$",
-    os_type='Ubuntu'
+    os_type='Ubuntu',
+    local=True
     )
 ```
 
