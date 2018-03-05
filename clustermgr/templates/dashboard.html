@@ -105,9 +105,9 @@
                         
                         <td>{{ server.os }}</td>
                         <td>
-                                <a id="drybutton" class="btn btn-default btn-xs" href="#" onClick="dryRun({{server.id}})" class="btn btn-info btn-block">
+                                <a id="drybutton{{server.id}}" class="btn btn-default btn-xs" href="#" onClick="dryRun({{server.id}})" class="btn btn-info btn-block">
                                     
-                                    <i id="dryicon" class="fa fa-spinner"></i> Dry-run
+                                    <i id="dryicon{{server.id}}" class="fa fa-spinner"></i> Dry-run
                                 
                                 
                                 </a>
@@ -305,8 +305,8 @@ function dryRun(server_id) {
         
     
     
-        $("#dryicon").addClass("fa-spin"); 
-        $("#drybutton").attr('disabled', true);
+        $("#dryicon"+server_id).addClass("fa-spin"); 
+        $("#drybutton"+server_id).attr('disabled', true);
     
     }
         $.get("{{request.host_url}}server/dryrun/"+server_id, function(data, status) {
@@ -355,9 +355,9 @@ function dryRun(server_id) {
 
         }
         
-        $("#drybutton").attr('disabled', false);
+        $("#drybutton"+server_id).attr('disabled', false);
         
-        $("#dryicon").removeClass("fa-spin");
+        $("#dryicon"+server_id).removeClass("fa-spin");
         
         $("#dry_run_modal").modal("show");
         

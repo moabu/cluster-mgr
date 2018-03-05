@@ -520,7 +520,6 @@ def dry_run(server_id):
     server = Server.query.get(server_id)
     appconf = AppConfiguration.query.first()
 
-    print "server", server.hostname, server.ip
 
     c = RemoteClient(server.hostname, server.ip)
     
@@ -534,7 +533,6 @@ def dry_run(server_id):
         #Test is any process listening ports that will be used by gluu-server
         for p in server_ports:
             r = c.run('nc -zv {} {}'.format(server.ip, p))
-            print r
             if r[2].strip().endswith('open') or r[2].strip().endswith('succeeded!'):
                 result['server']['port_status'][p] = True
     
@@ -555,9 +553,6 @@ def dry_run(server_id):
                     r = c_nginx.run('nc -zv {} {}'.format(server.ip, p))
                     if r[2].strip().endswith('open') or r[2].strip().endswith('succeeded!'):
                         result['nginx']['port_status'][p] = True
-
-    
-    
     
     return jsonify(result)
     
