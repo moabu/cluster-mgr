@@ -204,12 +204,15 @@ class ChangeGluuHostname:
 
 
         for dns, cattr in (
+                    ('', 'oxIDPAuthentication'),
                     ('oxauth', 'oxAuthConfDynamic'),
                     ('oxidp', 'oxConfApplication'),
                     ('oxtrust', 'oxTrustConfApplication'),
                     ):
-
-            dn = 'ou={},{}'.format(dns, config_dn)
+            if dns:
+                dn = 'ou={},{}'.format(dns, config_dn)
+            else:
+                dn = 'inum={},ou=appliances,o=gluu'.format(self.appliance_inum)
 
             self.conn.search(search_base=dn,
                         search_filter='(objectClass=*)',
