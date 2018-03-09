@@ -82,7 +82,8 @@ class OpenDjSchema:
         with open(file_name, 'w') as f:
             for o in self.schema:
                 if  o.__class__ is str:
-                    f.write(o+'\n')
+                    if o.strip():
+                        f.write(o.strip()+'\n')
                 elif o.__class__ is AttributeType:
                     f.write('attributeTypes: {}\n'.format(o.__str__()))
                 elif o.__class__ is ObjectClass:
