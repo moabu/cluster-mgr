@@ -1,73 +1,47 @@
-from ldap.schema import AttributeType, ObjectClass
+from ldap.schema import AttributeType, ObjectClass, LDAPSyntax
+from ldif import LDIFParser
+import os
 
-import re
-
-atypeRegex = re.compile('^attributeTypes:\s', re.IGNORECASE)
-obclassRegex = re.compile('^objectClasses:\s', re.IGNORECASE)
-
-
-class OpenDjSchema:
+class OpenDjSchema(LDIFParser):
 
     def __init__(self, schema_file):
-        self.schema_file = schema_file
-        self.schema=[]
         self.attribute_names = []
         self.class_names = []
-        self.lines = []
-        self._startread()
-        self.parse_lines()
+        self.schema_file = schema_file
+        LDIFParser.__init__(self,open(schema_file, 'rb'))
+        self.parse()
 
-    def _make_line(self, _tmp):
-        if _tmp:
-            nl = ''.join(_tmp)
-            while '  ' in nl:
-                nl=nl.replace('  ', ' ')
-            self.lines.append(nl)
+    def handle(self, dn, entry):
+        self.schema={
+                    'dn': dn,
+                    'objectClass': entry['objectClass'],
+                    'objectClasses': [],
+                    'attributeTypes': [],
+                    'ldapSyntaxes': entry.get('ldapSyntaxes',[]),
+                    }
         
-    def _startread(self):
-        f = open(self.schema_file)
-        _tmp = []
-        for l in f:
-            ls = l.strip()
-            if atypeRegex.match(ls) or obclassRegex.match(ls):
-                self._make_line(_tmp)
-                _tmp = []
-                _tmp.append(l[:-1])
-            elif l[0] == ' ':
-                _tmp.append(l[1:-1])
-            else:
-                self.lines.append(l[:-1])
-        self._make_line(_tmp)
-            
-    def parse_lines(self):
-        for l in self.lines:
-            n = l.find(':')
-            if atypeRegex.match(l):
-                a = AttributeType(l[n+1:])
-                self.schema.append(a)
-                for name in a.names:
-                    self.attribute_names.append(name)
-                
-            elif obclassRegex.match(l):
-                c = ObjectClass(l[n+1:])
-                self.schema.append(c)
-                for name in c.names:
-                    self.class_names.append(name)
-            else:
-                self.schema.append(l)
+        for ocls in entry.get('objectClasses',[]):
+            o = ObjectClass(ocls)
+            self.schema['objectClasses'].append(o)
+            for name in o.names:
+                self.class_names.append(name)
+
+        for atyp in entry.get('attributeTypes',[]):
+            a = AttributeType(atyp)
+            self.schema['attributeTypes'].append(a)
+            for name in a.names:
+                self.attribute_names.append(name)
 
     def get_attribute_by_name(self, name):
-        
-        for o in self.schema:
-           if o.__class__ is AttributeType:
-                if name in o.names:
-                    return o
+        for o in self.schema['attributeTypes']:
+            if name in o.names:
+                return o
 
     def get_class_by_name(self, name):
-        for o in self.schema:
-            if o.__class__ is ObjectClass:            
-                if name in o.names:
-                    return o
+        for o in self.schema['objectClasses']:
+            if name in o.names:
+                return o
+
     def add_attribute_to_class(self, class_name, attribute_name):
         c = self.get_class_by_name(class_name)
         if c:
@@ -80,14 +54,19 @@ class OpenDjSchema:
         if not file_name:
             file_name = self.schema_file
         with open(file_name, 'w') as f:
-            for o in self.schema:
-                if  o.__class__ is str:
-                    if o.strip():
-                        f.write(o.strip()+'\n')
-                elif o.__class__ is AttributeType:
-                    f.write('attributeTypes: {}\n'.format(o.__str__()))
-                elif o.__class__ is ObjectClass:
-                    f.write('objectClasses: {}\n'.format(o.__str__()))
+            f.write('dn: {}\n'.format(self.schema['dn']))
+            for oc in self.schema['objectClass']:
+                f.write('objectClass: {}\n'.format(oc))
+            
+            for syn in  self.schema['ldapSyntaxes']:
+                f.write('ldapSyntaxes: {}\n'.format(syn))
+            
+            for atyp in  self.schema['attributeTypes']:
+                f.write('attributeTypes: {}\n'.format(atyp.__str__()))
+            
+            for ocls in self.schema['objectClasses']:
+                f.write('objectClasses: {}\n'.format(ocls.__str__()))
+
     def add_attribute(self, oid, names, syntax, origin,
                       desc='',
                       sup=(),
@@ -120,14 +99,12 @@ class OpenDjSchema:
         a.no_user_mod = no_user_mod
         a.usage = usage
 
-        for i,o in enumerate(self.schema):
-            if o.__class__ is ObjectClass:
-                break
-        self.schema.insert(i,a)
+        self.schema['attributeTypes'].append(a)
 
 if __name__ == "__main__":
 
-    m=OpenDjSchema('/tmp/96-eduperson.ldif')
+    """
+    m=OpenDjSchema('/tmp/schema/96-eduperson.ldif')
 
     m.add_attribute(oid='oxSectorIdentifierURI-oid',
                     names=['oxSectorIdentifierURI'],
@@ -140,6 +117,12 @@ if __name__ == "__main__":
     m.write('/tmp/x.lidf')
 
 
+    """
+    
+    for s in os.listdir('/tmp/schema/'):
+        print "processing", s
+        m=OpenDjSchema('/tmp/schema/'+s)
+        m.write('/tmp/x/' + s)
 
 
 
