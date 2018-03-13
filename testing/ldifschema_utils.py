@@ -100,6 +100,20 @@ class OpenDjSchema(LDIFParser):
         a.usage = usage
 
         self.schema['attributeTypes'].append(a)
+        for name in a.names:
+            self.attribute_names.append(name)
+
+    def add_attributes(self, s):
+        a = AttributeType(s)
+        self.schema['attributeTypes'].append(a)
+        for name in a.names:
+            self.attribute_names.append(name)
+
+    def add_classs(self, s):
+        o = ObjectClass(s)
+        self.schema['objectClasses'].append(o)
+        for name in o.names:
+            self.class_names.append(name)
 
 if __name__ == "__main__":
 
