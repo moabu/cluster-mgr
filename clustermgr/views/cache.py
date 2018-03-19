@@ -95,51 +95,26 @@ def refresh_methods():
 @login_required
 def change():
     
-    all_servers = Server.query.all()
-    servers = []
-    
-    
-    
-    session_list = []
-    
-    for s in all_servers:
-        s_tmp = 'server_id_{}'.format(s.id)
-        if request.args.get(s_tmp) == 'on':
-            servers.append(s)
-            session_list.append(str(s.id))
+    servers = Server.query.all()
 
-    
-    
     method = 'STANDALONE'
 
     if not servers:
         return redirect(url_for('cache_mgr.index'))
     
-    task = install_cache_components.delay(method, session_list)
+    task = install_cache_components.delay(method)
     return render_template('cache_logger.html', method=method, step=1,
                            task_id=task.id, servers=servers,
-                           server_list = '&'.join(session_list),
                            )
 
 
 @cache_mgr.route('/configure/<method>/')
 @login_required
 def configure(method):
-    
-    server_list_str = request.args.get('server_list')
-    
-    server_list = server_list_str.split('&')
-    
+
     task = configure_cache_cluster.delay(method)
-    all_servers = Server.query.all()
-    
-    servers = []
-    
-    for server in all_servers:
-        if str(server.id) in server_list:
-            servers.append(server)
-        
-        
+    servers = Server.query.all()
+
     return render_template('cache_logger.html', method=method, servers=servers,
                            step=2, task_id=task.id)
 

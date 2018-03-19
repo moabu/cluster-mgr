@@ -25,7 +25,6 @@
                 <th align="center">Stunnel Status</th>
                 <th align="center">Redis Status</th>
                 <th align="center">Cache Installed</th>
-                <th align="center">Cache to Install</th>
                 <th>Cache Method</th>
               </tr>
             </thead>
@@ -45,12 +44,6 @@
                     
                   {% endif %}
                 </td>
-                <td class="install" align="center">
-                  {% if server.redis %}
-                    <input type="checkbox" name="server_id_{{server.id}}">
-                  {% else %}
-                    <input type="checkbox" name="server_id_{{server.id}}" checked>
-                  {% endif %}
                 
                 <td class="cache_method">{{server.cache_method}}</td>
               </tr>

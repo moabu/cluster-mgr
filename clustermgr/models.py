@@ -46,7 +46,7 @@ class Server(db.Model):
     filebeat = db.Column(db.Boolean)
 
     def __repr__(self):
-        return '<Server %d %s>' % (self.id, self.hostname)
+        return '<Server {} {}>'.format(self.id, self.hostname)
 
 
 class AppConfiguration(db.Model):

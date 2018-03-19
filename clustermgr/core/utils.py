@@ -225,6 +225,9 @@ def parse_setup_properties(content):
                 if eq_loc > 0:
                     k = ls[:eq_loc]
                     v = ls[eq_loc+1:]
+                    v=v.replace('\\=','=')
+                    v=v.replace("\\'","'")
+                    v=v.replace('\\"','"')
                     if v == 'True':
                         v = True
                     elif v == 'False':
