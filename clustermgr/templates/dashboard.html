@@ -219,7 +219,7 @@
                 <p><b>Host reachable via SSH: </b> <span id="host_ssh"></span></p>
                 <p><b>Load Balancer reachable via SSH: </b> <span id="nginx_ssh"></span></p>
                 <table class="table table-bordered">
-                <th>Port</th><th align="center">Current Status</th><th align="center">Reachable from loadbalancer</th>
+                <th>Port</th><th align="center">Current Status</th><th align="center">Accessible</th>
                 {% for p in [1689, 443, 4444, 1636, 80, 8989, 7777, 30865] %}
                 <tr>
                     <th>{{p}}</th>

@@ -486,7 +486,7 @@ def test_port(server, client, port):
     try:
         channel = server.client.get_transport().open_session()
         channel.get_pty()
-        cmd = 'netcat -l {} {}'.format(server.ip, port)
+        cmd = 'netcat -l -p {}'.format(port)
         channel.exec_command(cmd)
         i = 1
         while True:
