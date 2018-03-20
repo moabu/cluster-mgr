@@ -41,7 +41,7 @@
             Oops, Installation Failed. Click Here to Retry</a>
 
       {% if step == 1 %}
-        <a href="{{ url_for('cache_mgr.configure', method=method, server_list=server_list) }}" class="btn btn-block btn-primary" style="display: none;" id="next">
+        <a href="{{ url_for('cache_mgr.configure', method=method) }}" class="btn btn-block btn-primary" style="display: none;" id="next">
             Configure Cache Cluster</a>
       {% elif step == 2 %}
         <a href="{{ url_for('cache_mgr.finish_clustering', method=method) }}" class="btn btn-block btn-primary" style="display: none;" id="next">
