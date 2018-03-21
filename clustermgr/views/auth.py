@@ -55,15 +55,6 @@ def user_from_config(cfg_file, username):
 
 @login_manager.user_loader
 def load_user(username):
-    
-    mf = os.path.join(current_app.config['DATA_DIR'],'monitoring')
-    if os.path.exists(mf):
-        current_app.jinja_env.globals['monitoring'] = True
-    else:
-        current_app.jinja_env.globals['monitoring'] = False
-        
-    print current_app.jinja_env.globals['monitoring']
-    
     user = User(username, "")
     return user
 

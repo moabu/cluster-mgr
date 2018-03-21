@@ -45,6 +45,9 @@ class Server(db.Model):
     # Is filebeat installed
     filebeat = db.Column(db.Boolean)
 
+    # Is monitoring installed
+    monitoring = db.Column(db.Boolean)
+    
     def __repr__(self):
         return '<Server {} {}>'.format(self.id, self.hostname)
 

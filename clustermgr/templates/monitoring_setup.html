@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block header %}
+<h1>Monitoring Setup</h1>
+<ol class="breadcrumb">
+    <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+    <li><a href="{{ url_for('log_mgr.index') }}">Monitoring</a></li>
+    <li class="active">Setup</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="box box-warning">
+            <div class="box-body no-padding">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                        <th>Server ID</th>
+                        <th>Hostname</th>
+                        <th>IP Address</th>
+                        <th>Monitoring Installed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for server in servers %}
+                        <tr id="server_{{server.id}}">
+                        <td class="id">{{server.id}}</td>
+                        <td class="hostname">{{server.hostname}}</td>
+                        <td class="ip">{{server.ip}}</td>
+                        <td class="filebeat">
+                            {% if server.monitoring %}
+                            <span class="glyphicon glyphicon-ok text-success"></span>
+                            {% else %}
+                            <span class="glyphicon glyphicon-remove text-danger"></span>
+                            {% endif %}
+                        </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="box box-widget">
+            <div class="box-body">
+                <a class="btn btn-success btn-block" href="{{ url_for('monitoring.setup')}}">
+                    <i class="fa fa-wrench"></i> Install Monitoring
+                </a>
+                <a class="btn btn-danger btn-block" href="{{ url_for('monitoring.remove')}}">
+                    <i class="fa fa-trash"></i> Uninstall Monitoring
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+{% endblock %}

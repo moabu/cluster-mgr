@@ -363,6 +363,15 @@ def home():
                             )
 
 
+@monitoring.route('/setup')
+def setup_index():
+    
+    """This view provides setting up monitoring"""
+    
+    servers = Server.query.all()
+    return render_template("monitoring_setup.html", servers=servers)
+
+
 
 @monitoring.route('/setuplocal')
 def setup_local():

@@ -214,9 +214,6 @@ def install_local(self):
     app_config.monitoring = True
     db.session.commit()
 
-    mf = os.path.join(app.config['DATA_DIR'],'monitoring')
-    open(mf,'w')
-
     return True
 
 
@@ -359,7 +356,10 @@ def install_monitoring(self):
             if not err:
                 wlogger.log(tid, "Command was run successfully: {}".format(cmd),
                                 "success", server_id=server.id)
+        server.monitoring = True
 
+    db.session.commit()
+    return True
 
 @celery.task(bind=True)
 def remove_monitoring(self, local_id):
@@ -427,7 +427,8 @@ def remove_monitoring(self, local_id):
             rtext = "\n".join(result)
             if rtext.strip():
                 wlogger.log(tid, rtext, "debug", server_id=server.id)
-
+        
+        server.monitoring = False
     # 5. Remove local settings
     
     #create fake remote class that provides the same interface with RemoteClient
@@ -459,9 +460,5 @@ def remove_monitoring(self, local_id):
     app_config = AppConfiguration.query.first()
     app_config.monitoring = False
     db.session.commit()
-
-    mf = os.path.join(app.config['DATA_DIR'],'monitoring')
-    if os.path.exists(mf):
-        os.remove(mf)
 
     return True
