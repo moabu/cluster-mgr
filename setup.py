@@ -46,11 +46,10 @@ setup(
         "influxdb",
     ],
     entry_points={
-        "console_scripts": ["clustermgr-cli=clusterapp:cli",
-                            "clustermgr-beat=clusterapp:run_celerybeat",
+        "console_scripts": ["clustermgr-beat=clusterapp:run_celerybeat",
                             "clustermgr-celery=clusterapp:run_celery_worker"],
     },
-    scripts=['clusterapp.py'],
+    scripts=['clusterapp.py', 'clustermgr-cli'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Web Environment',
