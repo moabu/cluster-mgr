@@ -129,7 +129,7 @@ clustermgr-celery &
 Open another terminal to run clustermgr-cli:
 
 ```
-clustermgr-cli run
+clustermgr-cli
 ```
 
 ### Create Credentials
