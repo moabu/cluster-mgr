@@ -144,6 +144,7 @@ def install_local(self):
             
             influx_cmd += [
                 'sudo apt-get update',
+                'sudo apt-get -y remove influxdb',
                 'DEBIAN_FRONTEND=noninteractive sudo apt-get -y install influxdb',
                 'sudo service influxdb start',
                 'sudo pip install influxdb',
@@ -163,11 +164,11 @@ def install_local(self):
                             'gpgcheck = 1\n'
                             'gpgkey = https://repos.influxdata.com/influxdb.key\n'
                             'EOF',
+                            'sudo yum remove -y influxdb',
                             'sudo yum install -y influxdb',
                             'sudo service influxdb start',
                             'sudo pip install psutil',
                         ]
-
 
         #run commands to install influxdb on local machine
         for cmd in influx_cmd:
@@ -213,6 +214,9 @@ def install_local(self):
     app_config.monitoring = True
     db.session.commit()
 
+    mf = os.path.join(app.config['DATA_DIR'],'monitoring')
+    open(mf,'w')
+
     return True
 
 
@@ -223,8 +227,7 @@ def install_monitoring(self):
 
     :param self: the celery task
 
-    :return: the number of servers where both stunnel and redis were installed
-        successfully
+    :return: wether monitoring were installed successfully
     """
     
     tid = self.request.id
@@ -358,6 +361,107 @@ def install_monitoring(self):
                                 "success", server_id=server.id)
 
 
+@celery.task(bind=True)
+def remove_monitoring(self, local_id):
+    
+    """Celery task that removes monitoring components to remote server.
 
+    :param self: the celery task
+
+    :return: wether monitoring were removed successfully
+    """
+    tid = self.request.id
+    installed = 0
+    servers = Server.query.all()
+    app_config = AppConfiguration.query.first()
+    for server in servers:
+        # 1. Make SSH Connection to the remote server
+        wlogger.log(tid, "Making SSH connection to the server {0}".format(
+            server.hostname), "info", server_id=server.id)
+
+        c = RemoteClient(server.hostname, ip=server.ip)
+        try:
+            c.startup()
+        except Exception as e:
+            wlogger.log(
+                tid, "Cannot establish SSH connection {0}".format(e), 
+                "warning",  server_id=server.id)
+            wlogger.log(tid, "Ending server setup process.", 
+                                "error", server_id=server.id)
+            return False
+        
+        # 2. remove monitoring directory
+        result = c.run('rm -r /var/monitoring/')
+
+        ctext = "\n".join(result)
+        if ctext.strip():
+            wlogger.log(tid, ctext,
+                         "debug", server_id=server.id)
+
+        wlogger.log(tid, "Directory /var/monitoring/ directory "
+                        "were removed", "success", server_id=server.id)
+        
+        # 3. remove crontab entry to collect data in every 5 minutes
+
+        c.run('rm /etc/cron.d/monitoring')
+        wlogger.log(tid, "Crontab entry was removed", 
+                            "info", server_id=server.id)
+   
+        
+        if ('CentOS' in server.os) or ('RHEL' in server.os):
+            package_cmd = [ 
+                            'service crond restart'
+                            ]
+                            
+        else:
+            package_cmd = [ 
+                            'service cron restart',
+                            ]
+        # 4. Executing commands
+        wlogger.log(tid, "Restarting crontab", 
+                            "info", server_id=server.id)
         
         
+        for cmd in package_cmd:
+            result = c.run(cmd)
+            rtext = "\n".join(result)
+            if rtext.strip():
+                wlogger.log(tid, rtext, "debug", server_id=server.id)
+
+    # 5. Remove local settings
+    
+    #create fake remote class that provides the same interface with RemoteClient
+    fc = FakeRemote()
+    
+    #Getermine local OS type
+    localos= get_os_type(fc)
+
+    
+
+    if 'Ubuntu' or 'Debian' in localos:
+        influx_cmd = ['sudo apt-get -y remove influxdb',]
+
+    elif localos == 'CentOS 7':
+        influx_cmd = ['sudo yum remove -y influxdb',]
+        
+        
+    #run commands to install influxdb on local machine
+    for cmd in influx_cmd:
+        
+        result = fc.run(cmd)
+        
+        rtext = "\n".join(result)
+        if rtext.strip():
+            wlogger.log(tid, rtext, "debug", server_id=local_id)
+
+
+    #Flag database that configuration is done for local machine
+    app_config = AppConfiguration.query.first()
+    app_config.monitoring = False
+    db.session.commit()
+
+    mf = os.path.join(app.config['DATA_DIR'],'monitoring')
+    if os.path.exists(mf):
+        os.remove(mf)
+
+    return True

@@ -113,7 +113,7 @@ def get_age(host, c):
     """
 
     
-    print "Monitoring: fetting uptime for {}".format(host)
+    print "Monitoring: fetching uptime for {}".format(host)
     cmd = 'python /var/monitoring/scripts/get_data.py age'
     s_in, s_out, s_err = c.run(cmd)
 

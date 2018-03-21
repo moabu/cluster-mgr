@@ -8,7 +8,6 @@ from flask import request
 
 from clustermgr.extensions import db, csrf, migrate, wlogger, \
     login_manager, mailer
-
 from .core.license import license_manager
 
 from . import __version__

@@ -281,8 +281,6 @@ def setup_filesystem_replication(self):
             csync2_config.append('')
 
 
-
-
             for f in exclude_files:
                 csync2_config.append('  exclude {};'.format(f))
 

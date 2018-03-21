@@ -301,3 +301,30 @@
     #}
 </ul>
 {%- endmacro %}
+
+{% macro remove_monitoring_steps(current) -%}
+<ul class="timeline">
+    <!-- timeline time label -->
+    <li class="time-label">
+        <span class="bg-red">
+            Remove Monitoring
+        </span>
+    </li>
+    <!-- /.timeline-label -->
+
+    <!-- Step 1: Install -->
+    <li>
+      {% if current > 1 %}
+        <i class="fa fa-check bg-green"></i>
+      {% else %}
+        <i class="fa fa-trash fa-fw bg-blue"></i>
+      {% endif %}
+        <div class="timeline-item">
+            <h3 class="timeline-header">Remove Components</h3>
+            <div class="timeline-body">
+              Removes Monitoring componenets both on servers and localhost.
+            </div>
+        </div>
+    </li>
+</ul>
+{%- endmacro %}

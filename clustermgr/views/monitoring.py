@@ -17,7 +17,8 @@ from clustermgr.core.license import prompt_license
 
 from clustermgr.models import Server, AppConfiguration
 
-from clustermgr.tasks.monitoring import install_monitoring, install_local
+from clustermgr.tasks.monitoring import install_monitoring, install_local, \
+    remove_monitoring
 
 from clustermgr.monitoring_defs import left_menu, items, periods
 
@@ -529,3 +530,28 @@ def ldap_single(item):
                             item=item,
                             periods=periods,
                             )
+
+@monitoring.route('/remove')
+def remove():
+    """This view will remove monitoring components"""
+    
+    servers = Server.query.all()
+    appconf = AppConfiguration.query.first()
+    if not appconf:
+        flash("The application needs to be configured first. Kindly set the "
+              "values before attempting clustering.", "warning")
+        return redirect(url_for("index.app_configuration"))
+
+    if not servers:
+        flash("Add servers to the cluster before attempting to manage cache",
+              "warning")
+        return redirect(url_for('index.home'))
+
+    servers = Server.query.all()
+    local_id = 100000000
+    local_server = Server( hostname='localhost', id=local_id)
+    servers.append(local_server)
+    
+    task = remove_monitoring.delay(local_id=local_id)
+    return render_template('monitoring_remove_logger.html', step=1,
+                           task_id=task.id, servers=servers)

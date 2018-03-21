@@ -118,6 +118,9 @@
               <ul class="treeview-menu">
                 <li><a href="{{ url_for('monitoring.home') }}"> <i class="fa fa-bar-chart"></i><span>Statistics</span></a> </li>
                 <li><a href="#" data-toggle="modal" data-target="#install_monitoring_modal"> <i class="fa fa-wrench"></i><span>Setup Monitoring</span></a> </li>
+                {% if monitoring %}
+                <li><a href="#" data-toggle="modal" data-target="#remove_monitoring_modal"> <i class="fa fa-trash"></i><span>Remove Monitoring</span></a> </li>
+                {% endif %}
               </ul>
             </li>
             <!---------end of replication tree----------->
@@ -218,6 +221,34 @@
         </div><!-- /.modal-dialog -->
     </div><!-- /.modal -->
 
+
+    {% if monitoring %}
+    <!-- Alert Modal before removing monitoring components -->
+    <div id="remove_monitoring_modal" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"
+                            aria-label="Close"><span
+                            aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">Remove Monitoring Componenets</h4>
+                </div>
+                <div class="modal-body">
+                    <p>This will iremove components of monitoring on your servers .
+                        Are you sure you want to remove?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default"
+                            data-dismiss="modal">Close
+                    </button>
+                    <a id="remove_url" class="btn btn-danger" href="#">Confirm</a>
+                </div>
+            </div><!-- /.modal-content -->
+        </div><!-- /.modal-dialog -->
+    </div><!-- /.modal -->
+    {% endif %}
+
+
     {% block modals %} {% endblock modals %}
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
@@ -232,6 +263,16 @@
     $('#install_monitoring_modal').on('show.bs.modal', function (event) {
         $('#setup_url').attr('href', '{{ url_for("monitoring.setup") }}');
     });
+
+    {% if monitoring %}
+
+    $('#remove_monitoring_modal').on('show.bs.modal', function (event) {
+        $('#remove_url').attr('href', '{{ url_for("monitoring.remove") }}');
+    });
+    
+    {% endif %}
+
+    
 </script>
 
 
