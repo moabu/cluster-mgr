@@ -124,12 +124,12 @@ clustermgr-beat &
 clustermgr-celery &
 ```
 
-### Run clustermgr-cli
+### Run clustermgr
 
-Open another terminal to run clustermgr-cli:
+Open another terminal to run clustermgr as:
 
 ```
-clustermgr-cli
+clustermgr.sh
 ```
 
 ### Create Credentials
