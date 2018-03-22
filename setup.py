@@ -44,6 +44,8 @@ setup(
         "enum34",
         "oxdpython",
         "influxdb",
+        'gunicorn',
+        'psutil',
     ],
     entry_points={
         "console_scripts": [
