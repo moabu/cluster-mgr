@@ -1421,6 +1421,8 @@ def installGluuServer(self, server_id):
                     l = 'ip={0}\n'.format(server.ip)
                 elif l.startswith('ldapPass='):
                     ldap_passwd = l.split('=')[1].strip()
+                elif l.startswith('hostname='):
+                    l = 'hostname={0}\n'.format(appconf.nginx_host)
                 new_setup_properties += l
 
             #put setup.properties to server

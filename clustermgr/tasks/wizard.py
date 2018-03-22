@@ -10,7 +10,8 @@ from clustermgr.core.utils import run_and_log
 from clustermgr.tasks.cluster import get_os_type
 from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.config import Config
-from clustermgr.core.utils import get_setup_properties
+from clustermgr.core.utils import get_setup_properties, \
+        write_setup_properties_file
 from clustermgr.core.change_gluu_host import ChangeGluuHostname
 
 from flask import current_app as app
@@ -82,16 +83,19 @@ def wizard_step1(self):
     
     result = c.download(setup_properties_last, setup_properties_local)
     
+    prop = get_setup_properties()
+    prop['hostname'] = app_conf.nginx_host
+    write_setup_properties_file(prop)
+    
+    
     if not result.startswith('Download successful'):
         wlogger.log(tid, result,'fail')
         wlogger.log(tid, "Ending analyzation of server.", 'error')
         return
     
-    wlogger.log(tid, "setpu.properties file was downloaded", 'debug')
+    wlogger.log(tid, "setup.properties file was downloaded", 'debug')
     
-    setup_prop = get_setup_properties()
-    
-    server.ldap_password = setup_prop['ldapPass']
+    server.ldap_password = prop['ldapPass']
     
     wlogger.log(tid, "LDAP Bind password was identifed", 'success')
     
