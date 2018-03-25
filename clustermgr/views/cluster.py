@@ -272,13 +272,12 @@ def file_system_replication():
     app_config = AppConfiguration.query.first()
     servers = Server.query.all()
 
-
-    if not request.args.get('install') == 'yes':
-        status = chekFSR(servers[0], app_config.gluu_version)
-
-        if status[0]:
-            return render_template("fsr_home.html", servers=status[1])
-
+    if request.method == 'GET':
+        if not request.args.get('install') == 'yes':
+            status = chekFSR(servers[0], app_config.gluu_version)
+            
+            if status[0]:
+                return render_template("fsr_home.html", servers=status[1])
 
     #Check if replication user (dn) and password has been configured
     if not app_config:
@@ -287,6 +286,7 @@ def file_system_replication():
               "warning")
 
     #If there is no installed gluu servers, return to home
+
     
 
     if not servers:

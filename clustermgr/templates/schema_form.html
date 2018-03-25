@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% from 'macros.html' import render_form %}
+
+{% block header %}
+    <h1>Create Custom Schemas</h1>
+{% endblock %}
+
+{% block content %}
+<section class="content">
+
+
+<div class="box box-primary">
+    <div class="box-body">
+        <form method="POST" action="" role="form" class="">
+        
+        {{ form.csrf_token }}
+        {{render_form(form)}}
+    </form>
+        
+    </div>
+
+
+</section>
+
+{% endblock %}
+
+
+{% block js %}
+{% endblock %}

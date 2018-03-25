@@ -190,6 +190,24 @@
     </div>
 </div>
 
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <h3 class="panel-title">Custom Schemas</h3>
+    </div>
+    <div class="panel-body">
+        <ul class="list-group">
+            {% for sf in schemas %}
+            <li class="list-group-item">{{ sf }} <a href="{{ url_for('index.remove_schema', schema_file=sf) }}"><span class="glyphicon glyphicon-trash"></span></a></li>
+            {% endfor %}
+        </ul>
+        
+        <a class="btn btn-default" href="{{ url_for('index.create_schema') }}">New Schema</a>
+        
+    </div>
+</div>
+
+
+
 {% if localos != 'Alpine' %}
 
     <div class="panel panel-default">

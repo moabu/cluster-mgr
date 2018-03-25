@@ -148,6 +148,11 @@ def setup_filesystem_replication(self):
     app_config = AppConfiguration.query.first()
 
     chroot = '/opt/gluu-server-' + app_config.gluu_version
+    
+    cysnc_hosts = []
+    for server in servers:
+        cysnc_hosts.append(('csync{}.gluu'.format(server.id), server.ip))
+
 
     for server in servers:
 
@@ -160,7 +165,8 @@ def setup_filesystem_replication(self):
 
         c = RemoteClient(server.hostname, ip=server.ip)
         c.startup()
-
+        
+        modify_hosts(tid, c, cysnc_hosts, chroot=chroot)
 
         run_cmd = "{}"
         cmd_chroot = chroot
@@ -264,8 +270,8 @@ def setup_filesystem_replication(self):
 
             all_servers = Server.query.all()
 
-            for srv in all_servers:
-                csync2_config.append('  host {};'.format(srv.hostname))
+            for srv in cysnc_hosts:
+                csync2_config.append('  host {};'.format(srv[0]))
 
             csync2_config.append('')
             csync2_config.append('  key /etc/csync2.key;')
@@ -357,13 +363,12 @@ def setup_filesystem_replication(self):
 
         if 'Ubuntu' in server.os:
 
-
             wlogger.log(tid, "Enabling csync2 via inetd")
 
             fc = []
             inet_conf_file = os.path.join(chroot, 'etc','inetd.conf')
             r,f=c.get_file(inet_conf_file)
-            csync_line = 'csync2\tstream\ttcp\tnowait\troot\t/usr/sbin/csync2\tcsync2 -i -N {}\n'.format(server.hostname) 
+            csync_line = 'csync2\tstream\ttcp\tnowait\troot\t/usr/sbin/csync2\tcsync2 -i -N csync{}.gluu\n'.format(server.id) 
             csync_line_exists = False
             for l in f:
                 if l.startswith('csync2'):
@@ -399,7 +404,7 @@ def setup_filesystem_replication(self):
                 '}\n')
 
             inet_conf_file = os.path.join(chroot, 'etc', 'xinetd.d', 'csync2')
-            inetd_conf = inetd_conf % ({'HOSTNAME':server.hostname})
+            inetd_conf = inetd_conf % ({'HOSTNAME': 'csync{}.gluu'.format(server.id)})
             c.put_file(inet_conf_file, inetd_conf)
 
 
@@ -411,8 +416,8 @@ def setup_filesystem_replication(self):
         #run time sync in every minute
         cron_file = os.path.join(chroot, 'etc', 'cron.d', 'csync2')
         c.put_file(cron_file,
-            '* * * * *    root    {} -N {} -xv 2>/var/log/csync2.log\n'.format(
-            csync2_path, server.hostname))
+            '* * * * *    root    {} -N csync{}.gluu -xv 2>/var/log/csync2.log\n'.format(
+            csync2_path, server.id))
 
         wlogger.log(tid, 'Crontab entry was created to sync files in every minute',
                          'debug')
@@ -1049,7 +1054,7 @@ def modify_hosts(tid, c, hosts, chroot=None, server_host=None):
 
     if chroot:
 
-        h_file = chroot+'etc/hosts'
+        h_file = os.path.join(chroot, 'etc/hosts')
         
         r, old_hosts = c.get_file(h_file)
         

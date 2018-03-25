@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import json
 from flask import Blueprint, render_template, redirect, url_for, flash, \
     request, jsonify, session
 from flask import current_app as app
@@ -12,13 +13,18 @@ from celery.result import AsyncResult
 from clustermgr.extensions import db, wlogger
 from clustermgr.models import AppConfiguration, Server  # , KeyRotation
 from clustermgr.forms import AppConfigForm, SchemaForm, \
-    TestUser, InstallServerForm  # , KeyRotationForm
+    TestUser, InstallServerForm, LdapSchema  # , KeyRotationForm
 
 
 
 from celery.result import AsyncResult
+from ldap.schema import AttributeType, ObjectClass, LDAPSyntax
 
 from clustermgr.core.ldap_functions import LdapOLC
+from clustermgr.core.ldifschema_utils import OpenDjSchema
+
+
+
 from clustermgr.tasks.cluster import upgrade_clustermgr_task
 # from clustermgr.core.utils import encrypt_text
 # from clustermgr.core.utils import generate_random_key
@@ -34,6 +40,8 @@ from clustermgr.tasks.cluster import get_os_type
 
 from clustermgr.core.utils import get_setup_properties, \
     get_opendj_replication_status
+
+from clustermgr.core.ldifschema_utils import OpenDjSchema
 
 index = Blueprint('index', __name__)
 index.before_request(prompt_license)
@@ -649,3 +657,66 @@ def upgrade_clustermgr():
     return render_template("logger.html", heading=head, server="",
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
+
+@index.route('/removeschema')
+def remove_schema():
+    return "Not implemented"
+    
+
+@index.route('/create_schema', methods=['GET', 'POST'])
+def create_schema():
+    
+    syntax_file = os.path.join(app.config["DATA_DIR"],'syntaxes.json')
+    if not os.path.exists(syntax_file):
+        
+        server = Server.query.filter_by(primary_server=True).first()
+        #MB: TODO: Change hostname later
+        ldp = getLdapConn(  "c2.gluu.org",
+                            #server.hostname,
+                            "cn=directory manager",
+                            server.ldap_password)
+        ldap_response = ldp.getSyntaxes()
+        attr_list = []
+
+        for ats in ldap_response[0]['attributes']['ldapSyntaxes']:
+            print ats
+            a=AttributeType(ats)
+            attr_list.append((a.oid, a.desc))
+            with open(syntax_file, 'w') as sf:
+                json.dump(attr_list, sf)
+    else:
+        attr_list = json.loads(open(syntax_file).read())
+    
+    form = LdapSchema()
+    form.syntax.choices = attr_list
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            
+            oid = '1.3.6.1.4.1.48710.1.3.100'
+            names = form.names.data.strip()
+            x_origin = 'Gluu created attribute'
+            desc = form.desc.data.strip()
+            syntax_len = form.syntax_len.data
+            syntax = form.syntax.data
+            substr = form.substr.data
+            single_value = form.single_value.data
+            obsolete = form.obsolete.data
+            collective = form.collective.data
+            
+            ldif_schema = OpenDjSchema('/tmp/a.ldif')
+
+            ldif_schema.add_attribute(
+                        oid=oid,
+                        names=str(names),
+                        syntax=str(syntax),
+                        origin=str(x_origin),
+                        desc=str(desc),
+                        substr=str(substr),
+                        single_value=single_value,
+                        obsolete=obsolete,
+                        syntax_len=syntax_len,
+                        collective=collective,
+                        )
+            ldif_schema.write()
+    
+    return render_template('schema_form.html', form=form)

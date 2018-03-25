@@ -692,7 +692,12 @@ class LdapOLC(object):
                 oxidp_s = json.dumps(oxidp)
                 return self.conn.modify(
                                 r[0]['dn'], {"oxIDPAuthentication": [MODIFY_REPLACE, oxidp_s]})
-                
+    def getSyntaxes(self):
+        self.conn.search(search_base='cn=schema',
+                                search_filter='(objectclass=*)',
+                                search_scope=BASE, attributes=["ldapSyntaxes"])
+
+        return self.conn.response
 
 class DBManager(object):
     """A wrapper class to operate on the o=gluu DIT of the LDAP.

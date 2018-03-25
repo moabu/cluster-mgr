@@ -263,3 +263,29 @@ class WizardStep1(FlaskForm):
         'Load Balancer IP Address *', validators=[DataRequired(), IPAddress()])
         
     next = SubmitField("Next")
+
+class LdapSchema(FlaskForm):
+    names = StringField('Name', validators=[DataRequired()])
+    desc = StringField("Description")
+    usage = StringField("Usage")
+    syntax_len = IntegerField("Maximum Length")
+    syntax = SelectField("Syntax", choices=[])
+    substr = SelectField("Substring Role",
+                        choices = (('',''),
+                          ('caseExactSubstringsMatch', 'caseExactSubstringsMatch'),
+                                ('caseIgnoreIA5SubstringsMatch', 'caseIgnoreIA5SubstringsMatch'),
+                                ('caseIgnoreListSubstringsMatch', 'caseIgnoreListSubstringsMatch'),
+                                ('caseIgnoreSubstringsMatch', 'caseIgnoreSubstringsMatch'),
+                                ('numericStringSubstringsMatch', 'numericStringSubstringsMatch'),
+                                ('telephoneNumberSubstringsMatch', 'telephoneNumberSubstringsMatch'),
+                            )
+            )
+    equality = SelectField("Equality", choices=[
+                                ('',''),
+                                
+                                ])
+                                
+                                
+    single_value = BooleanField("Single Valued")
+    obsolete = BooleanField("Obsolete")
+    collective = BooleanField("Collective")
