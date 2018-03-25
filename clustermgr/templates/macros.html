@@ -328,3 +328,32 @@
     </li>
 </ul>
 {%- endmacro %}
+
+
+{% macro fsr_install_process_steps(current) -%}
+<ul class="timeline">
+    <!-- timeline time label -->
+    <li class="time-label">
+        <span class="bg-red">
+            Install File System Replication
+        </span>
+    </li>
+    <!-- /.timeline-label -->
+
+    <!-- Step 1: Install -->
+    <li>
+      {% if current > 1 %}
+        <i class="fa fa-spinner fa-spin fa-fw bg-blue"></i>
+      {% else %}
+        <i class="fa fa-spinner fa-fw bg-blue"></i>
+      {% endif %}
+        <div class="timeline-item">
+            <h3 class="timeline-header">Install File System Replication</h3>
+            <div class="timeline-body">
+             Install csync2 file system replication on all hosts.
+            </div>
+        </div>
+    </li>
+</ul>
+{%- endmacro %}
+

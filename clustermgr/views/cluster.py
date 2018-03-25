@@ -276,8 +276,12 @@ def file_system_replication():
         if not request.args.get('install') == 'yes':
             status = chekFSR(servers[0], app_config.gluu_version)
             
+            for server in servers:
+                if 'csync{}.gluu'.format(server.id) in status[1]:
+                    server.csync = True
+            
             if status[0]:
-                return render_template("fsr_home.html", servers=status[1])
+                return render_template("fsr_home.html", servers=servers)
 
     #Check if replication user (dn) and password has been configured
     if not app_config:
@@ -286,8 +290,6 @@ def file_system_replication():
               "warning")
 
     #If there is no installed gluu servers, return to home
-
-    
 
     if not servers:
         flash("Please install gluu servers", "warning")
@@ -327,12 +329,12 @@ def file_system_replication():
         F.write(fs_paths_form.fs_paths.data)
 
 
-    nextpage = 'index.home'
-    whatNext = "Home"
     task = setup_filesystem_replication.delay()
-    head = "Setting up File System Replication on All Servers"
-    s = 'All Servers'
 
+    return render_template('fsr_install_logger.html', step=1,
+                           task_id=task.id, servers=servers)
+                           
 
-    return render_template('logger.html', heading=head, server=s,
-                           task=task, nextpage=nextpage, whatNext=whatNext)
+@cluster.route('/removefsrep')
+def remove_file_system_replication():
+    return "Not implemented"

@@ -16,7 +16,7 @@ from clustermgr.config import Config
 import uuid
 import select
 
-def run_command(tid, c, command, container=None, no_error='error'):
+def run_command(tid, c, command, container=None, no_error='error',  server_id=''):
     """Shorthand for RemoteClient.run(). This function automatically logs
     the commands output at appropriate levels to the WebLogger to be shared
     in the web frontend.
@@ -38,26 +38,26 @@ def run_command(tid, c, command, container=None, no_error='error'):
         command = 'chroot {0} /bin/bash -c "{1}"'.format(container,
                                                          command)
 
-    wlogger.log(tid, command, "debug")
+    wlogger.log(tid, command, "debug", server_id=server_id)
 
 
     cin, cout, cerr = c.run(command)
     output = ''
     if cout:
-        wlogger.log(tid, cout, "debug")
+        wlogger.log(tid, cout, "debug", server_id=server_id)
         output += "\n" + cout
     if cerr:
         # For some reason slaptest decides to send success message as err, so
         if 'config file testing succeeded' in cerr:
-            wlogger.log(tid, cerr, "success")
+            wlogger.log(tid, cerr, "success", server_id=server_id)
         else:
-            wlogger.log(tid, cerr, no_error)
+            wlogger.log(tid, cerr, no_error, server_id=server_id)
         output += "\n" + cerr
 
     return output
 
 
-def upload_file(tid, c, local, remote):
+def upload_file(tid, c, local, remote, server_id=''):
     """Shorthand for RemoteClient.upload(). This function automatically handles
     the logging of events to the WebLogger
 
@@ -69,10 +69,10 @@ def upload_file(tid, c, local, remote):
         remote (string): location of the file in remote server
     """
     out = c.upload(local, remote)
-    wlogger.log(tid, out, 'error' if 'Error' in out else 'success')
+    wlogger.log(tid, out, 'error' if 'Error' in out else 'success', server_id=server_id)
 
 
-def download_file(tid, c, remote, local):
+def download_file(tid, c, remote, local, server_id=''):
     """Shorthand for RemoteClient.download(). This function automatically
      handles the logging of events to the WebLogger
 
@@ -84,7 +84,7 @@ def download_file(tid, c, remote, local):
         local (string): local location of the file to upload
     """
     out = c.download(remote, local)
-    wlogger.log(tid, out, 'error' if 'Error' in out else 'success')
+    wlogger.log(tid, out, 'error' if 'Error' in out else 'success', server_id=server_id)
 
 
 def modifyOxLdapProperties(server, c, tid, pDict, chroot):
@@ -158,15 +158,10 @@ def setup_filesystem_replication(self):
 
         print "Satrting csync2 installation on", server.hostname
 
-        wlogger.log(tid,
-                "Installing csync2 for filesystem replication on {}".format(
-                            server.hostname),
-                'head')
-
         c = RemoteClient(server.hostname, ip=server.ip)
         c.startup()
         
-        modify_hosts(tid, c, cysnc_hosts, chroot=chroot)
+        modify_hosts(tid, c, cysnc_hosts, chroot=chroot, server_id=server.id)
 
         run_cmd = "{}"
         cmd_chroot = chroot
@@ -180,35 +175,35 @@ def setup_filesystem_replication(self):
 
         if 'Ubuntu' in server.os:
             cmd = 'localedef -i en_US -f UTF-8 en_US.UTF-8'
-            run_command(tid, c, cmd, chroot)
+            run_command(tid, c, cmd, chroot, server_id=server.id)
 
             cmd = 'locale-gen en_US.UTF-8'
-            run_command(tid, c, cmd, chroot)
+            run_command(tid, c, cmd, chroot, server_id=server.id)
 
             install_command = 'DEBIAN_FRONTEND=noninteractive apt-get'
 
             cmd = '{} update'.format(install_command)
-            run_command(tid, c, cmd, chroot)
+            run_command(tid, c, cmd, chroot, server_id=server.id)
 
             cmd = '{} install -y apt-utils'.format(install_command)
-            run_command(tid, c, cmd, chroot, no_error=None)
+            run_command(tid, c, cmd, chroot, no_error=None, server_id=server.id)
 
 
             cmd = '{} install -y csync2'.format(install_command)
-            run_command(tid, c, cmd, chroot)
+            run_command(tid, c, cmd, chroot, server_id=server.id)
 
 
             cmd = 'apt-get install -y csync2'
-            run_command(tid, c, cmd, chroot)
+            run_command(tid, c, cmd, chroot, server_id=server.id)
 
         elif 'CentOS' in server.os:
 
 
             cmd = run_cmd.format('yum install -y epel-release')
-            run_command(tid, c, cmd, cmd_chroot, no_error=None)
+            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
             cmd = run_cmd.format('yum repolist')
-            run_command(tid, c, cmd, cmd_chroot, no_error=None)
+            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
             if server.os == 'CentOS 7':
                 csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos7.x86_64.rpm'
@@ -216,20 +211,20 @@ def setup_filesystem_replication(self):
                 csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos6.x86_64.rpm'
 
             cmd = run_cmd.format('yum install -y ' + csync_rpm)
-            run_command(tid, c, cmd, cmd_chroot, no_error=None)
+            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
             cmd = run_cmd.format('service xinetd stop')
-            run_command(tid, c, cmd, cmd_chroot, no_error=None)
+            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
         if server.os == 'CentOS 6':
             cmd = run_cmd.format('yum install -y crontabs')
-            run_command(tid, c, cmd, cmd_chroot, no_error=None)
+            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
         cmd = run_cmd.format('rm -f /var/lib/csync2/*.db3')
-        run_command(tid, c, cmd, cmd_chroot, no_error=None)
+        run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
         cmd = run_cmd.format('rm -f /etc/csync2*')
-        run_command(tid, c, cmd, cmd_chroot, no_error=None)
+        run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
 
         if server.primary_server:
@@ -245,8 +240,8 @@ def setup_filesystem_replication(self):
 
             for cmdi in key_command:
                 cmd = run_cmd.format(cmdi)
-                wlogger.log(tid, cmd, 'debug')
-                run_command(tid, c, cmd, cmd_chroot, no_error=None)
+                wlogger.log(tid, cmd, 'debug', server_id=server.id)
+                run_command(tid, c, cmd, cmd_chroot, no_error=None,  server_id=server.id)
 
 
             replication_user_file = os.path.join(Config.DATA_DIR,
@@ -333,7 +328,7 @@ def setup_filesystem_replication(self):
             csync2_config = '\n'.join(csync2_config)
             remote_file = os.path.join(chroot, 'etc', 'csync2.cfg')
 
-            wlogger.log(tid, "Uploading csync2.cfg", 'debug')
+            wlogger.log(tid, "Uploading csync2.cfg", 'debug', server_id=server.id)
 
             c.put_file(remote_file,  csync2_config)
 
@@ -342,7 +337,7 @@ def setup_filesystem_replication(self):
             wlogger.log(tid, "Downloading csync2.cfg, csync2.key, "
                         "csync2_ssl_cert.csr, csync2_ssl_cert.pem, and"
                         "csync2_ssl_key.pem from primary server and uploading",
-                        'debug')
+                        'debug', server_id=server.id)
 
             down_list = ['csync2.cfg', 'csync2.key', 'csync2_ssl_cert.csr',
                     'csync2_ssl_cert.pem', 'csync2_ssl_key.pem']
@@ -363,7 +358,7 @@ def setup_filesystem_replication(self):
 
         if 'Ubuntu' in server.os:
 
-            wlogger.log(tid, "Enabling csync2 via inetd")
+            wlogger.log(tid, "Enabling csync2 via inetd", server_id=server.id)
 
             fc = []
             inet_conf_file = os.path.join(chroot, 'etc','inetd.conf')
@@ -381,7 +376,7 @@ def setup_filesystem_replication(self):
             c.put_file(inet_conf_file, fc)
 
             cmd = '/etc/init.d/openbsd-inetd restart'
-            run_command(tid, c, cmd, cmd_chroot, no_error=None)
+            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
         elif 'CentOS' in server.os:
             inetd_conf = (
@@ -420,20 +415,20 @@ def setup_filesystem_replication(self):
             csync2_path, server.id))
 
         wlogger.log(tid, 'Crontab entry was created to sync files in every minute',
-                         'debug')
+                         'debug', server_id=server.id)
 
         if ('CentOS' in server.os) or ('RHEL' in server.os):
             cmd = 'service crond reload'
             cmd = run_cmd.format('service xinetd start')
-            run_command(tid, c, cmd, cmd_chroot, no_error=None)
+            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
             cmd = run_cmd.format('service crond restart')
-            run_command(tid, c, cmd, cmd_chroot, no_error='debug')
+            run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
 
         else:
             cmd = run_cmd.format('service cron reload')
-            run_command(tid, c, cmd, cmd_chroot, no_error='debug')
+            run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
             cmd = run_cmd.format('service openbsd-inetd restart')
-            run_command(tid, c, cmd, cmd_chroot, no_error='debug')
+            run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
 
         c.close()
 
@@ -1037,8 +1032,8 @@ def delete_key(suffix, hostname, gluu_version, tid, c, sos):
         wlogger.log(tid, cout+cerr, 'debug')
 
 
-def modify_hosts(tid, c, hosts, chroot=None, server_host=None):
-    wlogger.log(tid, "Modifying /etc/hosts")
+def modify_hosts(tid, c, hosts, chroot=None, server_host=None, server_id=''):
+    wlogger.log(tid, "Modifying /etc/hosts", server_id=server_id)
     
     h_file = '/etc/hosts'
     
@@ -1047,9 +1042,9 @@ def modify_hosts(tid, c, hosts, chroot=None, server_host=None):
     if r:
         new_hosts = modify_etc_hosts(hosts, old_hosts)
         c.put_file(h_file, new_hosts)
-        wlogger.log(tid, "{} was modified".format(h_file), 'success')
+        wlogger.log(tid, "{} was modified".format(h_file), 'success', server_id=server_id)
     else:
-        wlogger.log(tid, "Can't receive {}".format(h_file), 'fail')
+        wlogger.log(tid, "Can't receive {}".format(h_file), 'fail', server_id=server_id)
 
 
     if chroot:
@@ -1066,9 +1061,9 @@ def modify_hosts(tid, c, hosts, chroot=None, server_host=None):
         if r:
             new_hosts = modify_etc_hosts(hosts, old_hosts)
             c.put_file(h_file, new_hosts)
-            wlogger.log(tid, "{} was modified".format(h_file), 'success')
+            wlogger.log(tid, "{} was modified".format(h_file), 'success', server_id=server_id)
         else:
-            wlogger.log(tid, "Can't receive {}".format(h_file), 'fail')
+            wlogger.log(tid, "Can't receive {}".format(h_file), 'fail', server_id=server_id)
 
 
 def download_and_upload_custom_schema(tid, pc, c, ldap_type, gluu_server):
