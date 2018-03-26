@@ -6,7 +6,7 @@ from wtforms import StringField, SelectField, BooleanField, IntegerField, \
     PasswordField, RadioField, SubmitField, validators, TextAreaField, \
     HiddenField
 from wtforms.validators import DataRequired, AnyOf, \
-    ValidationError, URL, IPAddress, Email, Length
+    ValidationError, URL, IPAddress, Email, Length, Optional
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 
 
@@ -265,10 +265,11 @@ class WizardStep1(FlaskForm):
     next = SubmitField("Next")
 
 class LdapSchema(FlaskForm):
+    oid = HiddenField('OID')
     names = StringField('Name', validators=[DataRequired()])
     desc = StringField("Description")
     usage = StringField("Usage")
-    syntax_len = IntegerField("Maximum Length")
+    syntax_len = IntegerField("Maximum Length", validators=[Optional()])
     syntax = SelectField("Syntax", choices=[])
     substr = SelectField("Substring Role",
                         choices = (('',''),
@@ -278,14 +279,40 @@ class LdapSchema(FlaskForm):
                                 ('caseIgnoreSubstringsMatch', 'caseIgnoreSubstringsMatch'),
                                 ('numericStringSubstringsMatch', 'numericStringSubstringsMatch'),
                                 ('telephoneNumberSubstringsMatch', 'telephoneNumberSubstringsMatch'),
-                            )
-            )
-    equality = SelectField("Equality", choices=[
-                                ('',''),
+                            ))
+            
+    equality = SelectField("Equality", choices=(('',''),
+                                ('bitStringMatch', 'bitStringMatch'),
+                                ('booleanMatch', 'booleanMatch'),
+                                ('caseExactIA5Match', 'caseExactIA5Match'),
+                                ('caseExactMatch', 'caseExactMatch'),
+                                ('caseIgnoreIA5Match', 'caseIgnoreIA5Match'),
+                                ('caseIgnoreListMatch', 'caseIgnoreListMatch'),
+                                ('caseIgnoreMatch', 'caseIgnoreMatch'),
+                                ('directoryStringFirstComponentMatch', 'directoryStringFirstComponentMatch'),
+                                ('distinguishedNameMatch', 'distinguishedNameMatch'),
+                                ('generalizedTimeMatch', 'generalizedTimeMatch'),
+                                ('integerFirstComponentMatch', 'integerFirstComponentMatch'),
+                                ('integerMatch', 'integerMatch'),
+                                ('keywordMatch', 'keywordMatch'),
+                                ('numericStringMatch', 'numericStringMatch'),
+                                ('objectIdentifierFirstComponentMatch', 'objectIdentifierFirstComponentMatch'),
+                                ('objectIdentifierMatch', 'objectIdentifierMatch'),
+                                ('octetStringMatch', 'octetStringMatch'),
+                                ('telephoneNumberMatch', 'telephoneNumberMatch'),
+                                ('uniqueMemberMatch', 'uniqueMemberMatch'),
+                                ))
                                 
-                                ])
-                                
-                                
+    ordering = SelectField("Ordering", choices=(('',''),
+                            ('caseExactOrderingMatch', 'caseExactOrderingMatch'),
+                            ('caseIgnoreOrderingMatch', 'caseIgnoreOrderingMatch'),
+                            ('generalizedTimeOrderingMatch', 'generalizedTimeOrderingMatch'),
+                            ('integerOrderingMatch', 'integerOrderingMatch'),
+                            ('numericStringOrderingMatch', 'numericStringOrderingMatch'),
+                            ('octetStringOrderingMatch', 'octetStringOrderingMatch'),
+                                ))
+    
+    
     single_value = BooleanField("Single Valued")
     obsolete = BooleanField("Obsolete")
     collective = BooleanField("Collective")

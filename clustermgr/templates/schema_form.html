@@ -3,7 +3,11 @@
 {% from 'macros.html' import render_form %}
 
 {% block header %}
-    <h1>Create Custom Schemas</h1>
+    {% if form.oid.data %}
+      <h1>Editing Custom Attribute {{form.oid.data}}</h1>
+    {% else %}
+      <h1>Create Custom Attribute</h1>
+    {% endif %}
 {% endblock %}
 
 {% block content %}
@@ -16,6 +20,9 @@
         
         {{ form.csrf_token }}
         {{render_form(form)}}
+        {% if form.oid.data %}
+            <a class="btn btn-danger pull-right" href="{{ url_for('index.remove_attribute',oid=form.oid.data) }}">Remove This Attribute</a>
+        {% endif %}
     </form>
         
     </div>

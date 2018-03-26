@@ -19,7 +19,7 @@ from clustermgr.forms import AppConfigForm, SchemaForm, \
 
 from celery.result import AsyncResult
 from ldap.schema import AttributeType, ObjectClass, LDAPSyntax
-
+from clustermgr.core.utils import get_setup_properties
 from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.core.ldifschema_utils import OpenDjSchema
 
@@ -90,6 +90,13 @@ def app_configuration():
     sch_form = SchemaForm()
     config = AppConfiguration.query.first()
     schemafiles = os.listdir(app.config['SCHEMA_DIR'])
+
+
+    custom_schema_path = get_custom_schema_path()
+    
+    if os.path.exists(custom_schema_path):
+        ldif_schema = OpenDjSchema(custom_schema_path)
+        schema_attributes = ldif_schema.schema['attributeTypes']
 
 
     # If the form is submitted and password for replication user was not
@@ -262,6 +269,7 @@ def app_configuration():
 
     return render_template('app_config.html', cform=conf_form, sform=sch_form,
                         config=config, schemafiles=schemafiles, localos=localos,
+                        schema_attributes=schema_attributes,
                         next=request.args.get('next'))
 
 
@@ -455,8 +463,6 @@ def multi_master_replication():
 
 
     ldap_errors = []
-
-    
 
     prop = get_setup_properties()
 
@@ -663,9 +669,19 @@ def remove_schema():
     return "Not implemented"
     
 
-@index.route('/create_schema', methods=['GET', 'POST'])
+
+def get_custom_schema_path():
+    setup_prop = get_setup_properties()
+    inumOrgFN = setup_prop['inumOrgFN']
+    custom_schema_file = '102-{}.ldif'.format(inumOrgFN)
+    custom_schema_path = os.path.join(app.config["DATA_DIR"], custom_schema_file)
+    return custom_schema_path
+
+@index.route('/edit_schema', methods=['GET', 'POST'])
 def create_schema():
-    
+
+    editing = request.args.get('edit')
+    custom_schema_path = get_custom_schema_path()
     syntax_file = os.path.join(app.config["DATA_DIR"],'syntaxes.json')
     if not os.path.exists(syntax_file):
         
@@ -689,11 +705,67 @@ def create_schema():
     
     form = LdapSchema()
     form.syntax.choices = attr_list
+    
+    if request.method == 'GET':
+        if editing:
+        
+            ldif_schema = OpenDjSchema(custom_schema_path)
+        
+            for a in ldif_schema.schema['attributeTypes']:
+                if a.oid == editing:
+                    form.oid.data = a.oid
+                    form.names.data = ' '.join(a.names)
+                    form.desc.data = a.desc
+                    form.syntax_len.data = a.syntax_len
+                    form.syntax.data = a.syntax
+                    form.single_value.data = a.single_value
+                    form.obsolete.data = a.obsolete
+                    form.collective.data = a.collective
+                    if a.substr:
+                        form.substr.data = a.substr
+                    if a.equality:
+                        form.equality.data = a.equality
+                    if a.ordering:
+                        form.ordering.data = a.ordering
+                    break
+        
     if request.method == 'POST':
+                
+        ldif_schema = OpenDjSchema(custom_schema_path)
         if form.validate_on_submit():
-            
-            oid = '1.3.6.1.4.1.48710.1.3.100'
-            names = form.names.data.strip()
+
+            oid = form.oid.data
+            if not oid:
+
+                oid_n = 0
+                
+                if not os.path.exists(custom_schema_path):
+                    with open(custom_schema_path, 'w') as f:
+                        f.write('dn: cn=schema\n'
+                                'objectClass: top\n'
+                                'objectClass: ldapSubentry\n'
+                                'objectClass: subschema\n'
+                                'cn: schema\n')
+                    oid_n = 100
+                
+                
+                if not oid_n:
+                    for a in ldif_schema.schema['attributeTypes']:
+                        tmp_n = a.oid.split('.')[-1]
+                        tmp_n = int(tmp_n)
+                        if tmp_n > oid_n:
+                            oid_n = tmp_n
+                
+                    oid_n += 1 
+                
+                oid = '1.3.6.1.4.1.48710.1.3.{}'.format(oid_n)
+            else:
+                for a in ldif_schema.schema['attributeTypes'][:]:
+                    if a.oid == editing:
+                        ldif_schema.schema['attributeTypes'].remove(a)
+                        break
+                        
+            names = form.names.data.strip().replace(' ','')
             x_origin = 'Gluu created attribute'
             desc = form.desc.data.strip()
             syntax_len = form.syntax_len.data
@@ -702,12 +774,13 @@ def create_schema():
             single_value = form.single_value.data
             obsolete = form.obsolete.data
             collective = form.collective.data
+            equality = form.equality.data
+            ordering = form.ordering.data
             
-            ldif_schema = OpenDjSchema('/tmp/a.ldif')
 
             ldif_schema.add_attribute(
                         oid=oid,
-                        names=str(names),
+                        names=[str(names)],
                         syntax=str(syntax),
                         origin=str(x_origin),
                         desc=str(desc),
@@ -716,7 +789,44 @@ def create_schema():
                         obsolete=obsolete,
                         syntax_len=syntax_len,
                         collective=collective,
+                        ordering = str(ordering),
+                        equality = str(equality),
                         )
             ldif_schema.write()
-    
+            
+            return redirect(url_for('index.app_configuration'))
+        
     return render_template('schema_form.html', form=form)
+
+@index.route('/uploadschemaprimary')
+def upload_schema_to_primary():
+    server = Server.query.filter_by(primary_server=True).first()
+    c = RemoteClient(server.hostname, ip=server.ip)
+    appconf = AppConfiguration.query.first()
+    
+    try:
+        c.startup()
+    except Exception as e:
+        flash("Can't establish SSH connection to {}. "
+                          "Replication password is not changed".format(
+                          server.hostname),
+                            "warning")
+    if c:
+        custom_schema_path = get_custom_schema_path()
+        container = '/opt/gluu-server-{}'.format(appconf.gluu_version)
+        remote_path = os.path.join(container, 'opt', 'opendj', 'config', 'schema', os.path.basename(custom_schema_path))
+        c.upload(custom_schema_path, remote_path)
+        flash("Schema file is uploaded to server", "success")
+    return redirect(url_for('index.app_configuration'))
+
+@index.route('/removeattribute/<oid>')
+def remove_attribute(oid):
+    custom_schema_path = get_custom_schema_path()
+    ldif_schema = OpenDjSchema(custom_schema_path)
+    
+    for a in ldif_schema.schema['attributeTypes'][:]:
+        if a.oid == oid:
+            ldif_schema.schema['attributeTypes'].remove(a)
+            break
+    ldif_schema.write()
+    return redirect(url_for('index.app_configuration'))
