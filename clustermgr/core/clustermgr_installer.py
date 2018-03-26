@@ -2,14 +2,48 @@ import sys
 import os
 
 from clustermgr.extensions import wlogger
+from clustermgr.core.remote import RemoteClient
 
 class Installer:
-    def __init__(self, c, gluu_version, server_os, logger_tid=None):
+    def __init__(self, c, gluu_version, server_os=None, logger_tid=None, server_id=None):
         self.c = c
         self.logger_tid = logger_tid
         self.gluu_version = gluu_version
         self.server_os = server_os
-        if not hasattr(self.c, 'fake_remote'):
+        self.server_id=server_id
+        
+        if not "RemoteClient" in str(type(c)):
+            self.server_os = c.os
+            self.server_id = c.id
+            self.c = RemoteClient(c.hostname, c.ip)
+
+
+            wlogger.log(
+                        self.logger_tid, 
+                        "Making SSH connection to {} ...".format(c.hostname),
+                        'info',
+                        server_id=self.server_id,
+                        )
+
+            
+            try:
+                self.c.startup()
+                wlogger.log(
+                        self.logger_tid, 
+                        "SSH connection to {} was successful.".format(c.hostname),
+                        'success',
+                        server_id=self.server_id,
+                        )
+            except:
+                self.c = None
+                wlogger.log(
+                        self.logger_tid, 
+                        "Can't make SSH connection to {}".format(c.hostname),
+                        'fail',
+                        server_id=self.server_id,
+                    )
+                
+        if self.c and (not hasattr(self.c, 'fake_remote')):
             
             self.container = '/opt/gluu-server-{}'.format(gluu_version)
         
@@ -29,20 +63,19 @@ class Installer:
 
     def log(self, result):
         if self.logger_tid:
-            print "LOGGER", self.logger_tid, result
             if result[1]:
-                wlogger.log(self.logger_tid, result[1], 'debug')
+                wlogger.log(self.logger_tid, result[1], 'debug', server_id=self.server_id)
             if result[2]:
-                wlogger.log(self.logger_tid, result[2], 'debug')
+                wlogger.log(self.logger_tid, result[2], 'debug', server_id=self.server_id)
 
     def log_command(self, cmd):
         if self.logger_tid:
-            wlogger.log(self.logger_tid, "Running {}".format(cmd), 'debug')
-            
+            wlogger.log(self.logger_tid, "Running {}".format(cmd), 'debug', server_id=self.server_id)
+
 
 
     def run(self, cmd):
-        print "Installer> executing:", cmd
+        print "Installer> executing: {}".format(cmd)
         run_cmd = self.run_command.format(cmd)
         self.log_command(run_cmd)
         result = self.c.run(run_cmd)
@@ -52,7 +85,7 @@ class Installer:
 
     def install(self, package):
         run_cmd = self.install_command.format(package)
-        print "Installer> executing:", run_cmd
+        print "Installer> executing: {}".format(run_cmd)
         self.log_command(cmd)
         result = self.c.run(run_cmd)
         self.log(result)
@@ -67,7 +100,7 @@ class Installer:
             cmd = '/etc/init.d/gluu-server-{0} restart'.format(
                                 self.gluu_version)
         
-        print "Installer> executing:", cmd
+        print "Installer> executing: {}".format(cmd)
         self.log_command(cmd)
         result = self.c.run(cmd)
         self.log(result)

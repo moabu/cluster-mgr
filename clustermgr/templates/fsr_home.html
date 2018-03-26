@@ -20,7 +20,7 @@
                         <th>Server ID</th>
                         <th>Hostname</th>
                         <th>IP Address</th>
-                        <th>file_system_replication Installed</th>
+                        <th>File System Replication Installed</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -50,9 +50,11 @@
                 <a class="btn btn-success btn-block" href="{{ url_for('cluster.file_system_replication', install='yes') }}">
                     <i class="fa fa-wrench"></i> Install File System Replication
                 </a>
-                <a class="btn btn-danger btn-block" href="{{ url_for('cluster.remove_file_system_replication')}}">
-                    <i class="fa fa-trash"></i> Uninstall File System Replication
-                </a>
+                {% if csync %}
+                    <a class="btn btn-danger btn-block" href="{{ url_for('cluster.remove_file_system_replication')}}">
+                        <i class="fa fa-trash"></i> Uninstall File System Replication</a>
+                {% endif %}
+                
             </div>
         </div>
     </div>

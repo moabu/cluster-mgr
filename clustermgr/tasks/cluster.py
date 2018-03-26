@@ -12,6 +12,8 @@ from clustermgr.extensions import wlogger, db, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.core.utils import get_setup_properties, modify_etc_hosts
+from clustermgr.core.clustermgr_installer import Installer
+
 from clustermgr.config import Config
 import uuid
 import select
@@ -434,6 +436,33 @@ def setup_filesystem_replication(self):
 
     return True
 
+
+@celery.task(bind=True)
+def remove_filesystem_replication(self):
+    tid = self.request.id
+    
+    app_config = AppConfiguration.query.first()
+    servers = Server.query.all()
+    
+    for server in servers:
+        installer = Installer(server, app_config.gluu_version, logger_tid=tid)
+        if not installer.c:
+            return False
+        installer.run('rm /etc/cron.d/csync2')
+        
+        if 'CentOS' in server.os or 'RHEL' in server.os :
+            installer.run('rm /etc/xinetd.d/csync2')
+            services = ['xinetd', 'crond']
+            
+        else:
+            installer.run("sed 's/^csync/#&/' -i /etc/inetd.conf")
+            services = ['openbsd-inetd', 'cron']
+            
+        for s in services:
+            installer.run('service {} restart '.format(s))
+            
+        installer.run('rm  /var/lib/csync2/*.*')
+           
 @celery.task(bind=True)
 def setup_ldap_replication(self, server_id):
     """Deploys ldap replicaton
@@ -2267,3 +2296,5 @@ def upgrade_clustermgr_task(self):
         wlogger.log(tid, line, 'debug')
     
     return
+
+

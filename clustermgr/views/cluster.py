@@ -17,7 +17,7 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cluster import setup_ldap_replication, \
     installGluuServer, removeMultiMasterDeployement, installNGINX, \
     setup_filesystem_replication, opendjenablereplication, \
-    opendjdisablereplication
+    opendjdisablereplication, remove_filesystem_replication
 
 from clustermgr.core.remote import RemoteClient
 
@@ -272,6 +272,8 @@ def file_system_replication():
     app_config = AppConfiguration.query.first()
     servers = Server.query.all()
 
+    csync = 0
+
     if request.method == 'GET':
         if not request.args.get('install') == 'yes':
             status = chekFSR(servers[0], app_config.gluu_version)
@@ -279,9 +281,10 @@ def file_system_replication():
             for server in servers:
                 if 'csync{}.gluu'.format(server.id) in status[1]:
                     server.csync = True
+                    csync += 1
             
             if status[0]:
-                return render_template("fsr_home.html", servers=servers)
+                return render_template("fsr_home.html", servers=servers, csync=csync)
 
     #Check if replication user (dn) and password has been configured
     if not app_config:
@@ -337,4 +340,9 @@ def file_system_replication():
 
 @cluster.route('/removefsrep')
 def remove_file_system_replication():
-    return "Not implemented"
+    servers = Server.query.all()
+    task = remove_filesystem_replication.delay()
+
+    return render_template('fsr_remove_logger.html', step=1,
+                           task_id=task.id, servers=servers)
+                           
