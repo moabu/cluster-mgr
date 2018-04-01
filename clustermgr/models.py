@@ -88,6 +88,8 @@ class AppConfiguration(db.Model):
 
     ldap_update_period = db.Column(db.Integer)
 
+    object_class_base = db.Column(db.String(50))
+    attribute_oid = db.Column(db.Integer, default=100)
 
 class KeyRotation(db.Model):
     __tablename__ = "keyrotation"

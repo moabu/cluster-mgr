@@ -20,9 +20,7 @@
         
         {{ form.csrf_token }}
         {{render_form(form)}}
-        {% if form.oid.data %}
-            <a class="btn btn-danger pull-right" href="{{ url_for('index.remove_attribute',oid=form.oid.data) }}">Remove This Attribute</a>
-        {% endif %}
+
     </form>
         
     </div>

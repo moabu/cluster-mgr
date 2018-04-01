@@ -155,9 +155,10 @@ def setup_filesystem_replication(self):
     for server in servers:
         cysnc_hosts.append(('csync{}.gluu'.format(server.id), server.ip))
 
+    server_counter = 0
 
     for server in servers:
-
+        
         print "Satrting csync2 installation on", server.hostname
 
         c = RemoteClient(server.hostname, ip=server.ip)
@@ -308,14 +309,14 @@ def setup_filesystem_replication(self):
 
 
 
-            csync2_config.append('\n'
-                  '  action\n'
-                  '  {\n'
-                  '    pattern /opt/symas/etc/openldap/schema/*;\n'
-                  '    exec "/sbin/service solserver restart";\n'
-                  '    logfile "/var/log/csync2_action.log";\n'
-                  '    do-local;\n'
-                  '  }\n')
+            #csync2_config.append('\n'
+            #      '  action\n'
+            #      '  {\n'
+            #      '    pattern /opt/opendj/config/schema/*;\n'
+            #      '    exec "/etc/init.d/opendj restart";\n'
+            #      '    logfile "/var/log/csync2_action.log";\n'
+            #      '    do-local;\n'
+            #      '  }\n')
 
             csync2_config.append('  backup-directory /var/backups/csync2;')
             csync2_config.append('  backup-generations 3;')
@@ -413,9 +414,11 @@ def setup_filesystem_replication(self):
         #run time sync in every minute
         cron_file = os.path.join(chroot, 'etc', 'cron.d', 'csync2')
         c.put_file(cron_file,
-            '* * * * *    root    {} -N csync{}.gluu -xv 2>/var/log/csync2.log\n'.format(
-            csync2_path, server.id))
+            '{}-59/2 * * * *    root    {} -N csync{}.gluu -xv 2>/var/log/csync2.log\n'.format(
+            server_counter, csync2_path, server.id))
 
+        server_counter += 1
+        
         wlogger.log(tid, 'Crontab entry was created to sync files in every minute',
                          'debug', server_id=server.id)
 
@@ -461,7 +464,7 @@ def remove_filesystem_replication(self):
         for s in services:
             installer.run('service {} restart '.format(s))
             
-        installer.run('rm  /var/lib/csync2/*.*')
+        installer.run('rm /var/lib/csync2/*.*')
            
 @celery.task(bind=True)
 def setup_ldap_replication(self, server_id):
@@ -1957,7 +1960,7 @@ def opendjenablereplication(self, server_id):
             wlogger.log(tid, "Enabling replication on server {}".format(
                                                             server.hostname))
 
-            for base in ('gluu', 'site'):
+            for base in ('gluu',): #, 'site'):
                 cmd_run = '{}'
 
                 if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):

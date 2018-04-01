@@ -314,5 +314,5 @@ class LdapSchema(FlaskForm):
     
     
     single_value = BooleanField("Single Valued")
-    obsolete = BooleanField("Obsolete")
+    #obsolete = BooleanField("Obsolete")
     collective = BooleanField("Collective")

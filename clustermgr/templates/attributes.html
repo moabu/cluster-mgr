@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block header %}
+    <h1>LDAP Custom Attributes</h1>
+    <ol class="breadcrumb">
+        <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+        <li class="active">Attributes</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+<div class="box box-primary">
+    
+
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <h3 class="panel-title">Custom Attributes</h3>
+    </div>
+    <div class="panel-body">
+        
+        
+            {% if attrib_list %}
+                <table class="table table-condensed table-hover">
+                    <thead>
+                        <tr><th>OID</th><th>Name</th><th>Description</th><th>In ObjectClass</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for a in attrib_list %}
+                        
+                        <tr>
+                          <td>{{a.oid}}</td>
+                          <td>{{a.names[0]}}</td>
+                          <td>{{a.desc}}</td>
+                          <td> {% if a.names[0] in attrib_list_in_class %} <i class="fa fa-check text-success"></i> {% endif %}  </td> 
+                        
+                          <td><a class="btn btn-default btn-xs" href="{{ url_for('attributes.edit_attribute', oid=a.oid)}}"><i class="fa fa-edit"></i>Edit</a> &nbsp; &nbsp;&nbsp;
+                            <a class="btn btn-xs btn-danger"  href="{{ url_for('attributes.remove_attribute', oid=a.oid, name=a.names[0])}}"> <i class="fa fa-trash"></i>  Delete</a>
+                          </td>
+                        </tr>
+                        
+                        {% endfor %}
+                        
+                    </tbody>
+                </table>
+            {% else %}
+            No custom attribtes has been created.
+           {% endif %}
+        <br><br><a class="btn btn-primary" href="{{ url_for('attributes.edit_attribute') }}">Create New Attribute</a>
+    </div>
+</div>
+
+
+
+{% endblock %}
+
+
+{% block js %}
+<script>
+$('#objectClassName').on('keypress', function (e) {
+   $('#customClassName').prop("checked", true);
+})
+</script>
+{% endblock %}

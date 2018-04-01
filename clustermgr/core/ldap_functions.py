@@ -8,6 +8,8 @@ from ldap3 import Server, Connection, SUBTREE, BASE, LEVEL, \
 
 from clustermgr.models import Server as ServerModel
 from clustermgr.core.utils import ldap_encode, get_setup_properties
+from ldap.schema import AttributeType, ObjectClass, LDAPSyntax
+
 
 logger = logging.getLogger(__name__)
 
@@ -698,6 +700,105 @@ class LdapOLC(object):
                                 search_scope=BASE, attributes=["ldapSyntaxes"])
 
         return self.conn.response
+    
+    def getAttributes(self):
+        self.conn.search(search_base='cn=schema',
+                                search_filter='(objectclass=*)',
+                                search_scope=BASE, attributes=["attributeTypes"])
+
+        return self.conn.response
+
+
+    def getCustomAttributes(self):
+        setup_prop = get_setup_properties()
+        inumOrgFN = setup_prop['inumOrgFN']
+        x_origin = "X-ORIGIN '{}'".format(inumOrgFN)
+        
+        atrributes = self.getAttributes()
+        ret_list = []
+        for ats in atrributes[0]['attributes']['attributeTypes']:
+            if x_origin in ats:
+                ret_list.append(ats)
+        return ret_list
+
+    def getObjectClasses(self):
+        self.conn.search(search_base='cn=schema',
+                                search_filter='(objectclass=*)',
+                                search_scope=BASE, attributes=["objectClasses"])
+
+        return self.conn.response
+    
+    def getObjectClass(self, object_class_name):
+        object_classes = self.getObjectClasses()
+        name = "'{}'".format(object_class_name)
+        for objcl in object_classes[0]['attributes']['objectClasses']:
+            if name in objcl:
+                return objcl
+    
+    def addAtributeToObjectClass(self, object_class_name, attribute_name):
+        objcl_s = self.getObjectClass(object_class_name)
+        if objcl_s:
+            self.conn.modify("cn=schema", {'objectClasses': [MODIFY_DELETE, objcl_s]})
+            if not self.conn.result['description']== 'success':
+                return False, self.conn.result['description']+'({})'.format(self.conn.result['message'])
+        else:
+            objcl_s = "( 1.3.6.1.4.1.48710.1.4.200 NAME '{}' SUP top AUXILIARY )".format(object_class_name)
+        
+        obcl_obj = ObjectClass(objcl_s)
+        if not object_class_name in obcl_obj.may:
+            may_list = list(obcl_obj.may)
+            may_list.append(attribute_name)
+            obcl_obj.may = tuple(may_list)
+            self.conn.modify("cn=schema", {'objectClasses': [MODIFY_ADD, str(obcl_obj)]})
+            if not self.conn.result['description']== 'success':
+                return False, self.conn.result['description']
+
+        return True, 'success'
+    
+    def removeAtributeFromObjectClass(self, object_class_name, attribute_name):
+        objcl_s = self.getObjectClass(object_class_name)
+        if objcl_s:
+            obcl_obj = ObjectClass(objcl_s)
+            may_list = list(obcl_obj.may)
+            if attribute_name in may_list:
+                self.conn.modify("cn=schema", {'objectClasses': [MODIFY_DELETE, objcl_s]})
+                if not self.conn.result['description']== 'success':
+                    return False, self.conn.result['description']
+                may_list.remove(attribute_name)
+                obcl_obj.may = tuple(may_list)
+                self.conn.modify("cn=schema", {'objectClasses': [MODIFY_ADD, str(obcl_obj)]})
+                if not self.conn.result['description']== 'success':
+                    return False, self.conn.result['description']
+                    
+        return True, 'success'
+    def addAttribute(self, attribute):
+        
+        name = "'{}'".format(attribute.names[0])
+        
+        atrributes = self.getAttributes()
+        
+        for ats in atrributes[0]['attributes']['attributeTypes']:
+            if name in ats:
+                return False, 'This attribute name exists'
+        
+        r = self.conn.modify("cn=schema", {'attributeTypes': [MODIFY_ADD, attribute]})
+
+        if r:
+            return True, ''
+        else:
+            return False, self.conn.result['description']
+
+    def getAttributebyOID(self, oid):
+        atrributes = self.getCustomAttributes()
+        for ats in atrributes:
+            if oid in ats:
+                return ats
+    def removeAttribute(self, oid):
+        atrribute = self.getAttributebyOID(oid)
+        if atrribute:
+            self.conn.modify("cn=schema", {'attributeTypes': [MODIFY_DELETE, atrribute]})
+            print self.conn.result
+
 
 class DBManager(object):
     """A wrapper class to operate on the o=gluu DIT of the LDAP.
