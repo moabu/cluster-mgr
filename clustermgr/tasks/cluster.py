@@ -366,7 +366,7 @@ def setup_filesystem_replication(self):
             fc = []
             inet_conf_file = os.path.join(chroot, 'etc','inetd.conf')
             r,f=c.get_file(inet_conf_file)
-            csync_line = 'csync2\tstream\ttcp\tnowait\troot\t/usr/sbin/csync2\tcsync2 -i -N csync{}.gluu\n'.format(server.id) 
+            csync_line = 'csync2\tstream\ttcp\tnowait\troot\t/usr/sbin/csync2\tcsync2 -i -l -N csync{}.gluu\n'.format(server.id) 
             csync_line_exists = False
             for l in f:
                 if l.startswith('csync2'):
@@ -393,7 +393,7 @@ def setup_filesystem_replication(self):
                 'user            = root\n'
                 'group           = root\n'
                 'server          = /usr/sbin/csync2\n'
-                'server_args     = -i -N %(HOSTNAME)s\n'
+                'server_args     = -i -l -N %(HOSTNAME)s\n'
                 'port            = 30865\n'
                 'type            = UNLISTED\n'
                 '#log_on_failure += USERID\n'
