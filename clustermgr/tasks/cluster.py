@@ -10,10 +10,9 @@ from flask import current_app as app
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import wlogger, db, celery
 from clustermgr.core.remote import RemoteClient
-from clustermgr.core.ldap_functions import LdapOLC
+from clustermgr.core.ldap_functions import LdapOLC, getLdapConn
 from clustermgr.core.utils import get_setup_properties, modify_etc_hosts
 from clustermgr.core.clustermgr_installer import Installer
-
 from clustermgr.config import Config
 import uuid
 import select
@@ -2300,4 +2299,41 @@ def upgrade_clustermgr_task(self):
     
     return
 
+
+@celery.task(bind=True)
+def register_objectclass(self, objcls):
+    print "Register objectclass task"
+    tid = self.request.id
+    primary = Server.query.filter_by(primary_server=True).first()
+
+    servers = Server.query.all()
+    appconf = AppConfiguration.query.first()
+
+    
+    wlogger.log(tid, "Making LDAP connection to primary server {}".format(primary.hostname))
+    
+    ldp = getLdapConn(  primary.hostname,
+                        "cn=directory manager",
+                        primary.ldap_password
+                        )
+    
+    r = ldp.registerObjectClass(objcls)
+ 
+    if not r:
+        wlogger.log(tid, "Attribute cannot be registered".format(primary.hostname), 'error')
+        return False
+    else:
+        wlogger.log(tid, "Object class is registered",'success')
+
+
+    for server in servers:
+        installer = Installer(server, appconf.gluu_version, logger_tid=tid)
+        if installer.c:
+            wlogger.log(tid, "Restarting idendity at {}".format(server.hostname))
+            installer.run('/etc/init.d/identity restart')
+    
+    appconf.object_class_base = objcls
+    db.session.commit()
+    
+    return True
 

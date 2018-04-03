@@ -862,6 +862,25 @@ class LdapOLC(object):
         return True, ''
             
 
+def getLdapConn(addr, dn, passwd):
+    """this function gets address, dn and password for ldap server, makes
+    connection and return LdapOLC object."""
+
+    ldp = LdapOLC('ldaps://{}:1636'.format(addr), dn, passwd)
+    r = None
+    try:
+        r = ldp.connect()
+    except Exception as e:
+        flash("Connection to LDAPserver {0} at port 1636 failed: {1}".format(
+            addr, e), "danger")
+        return
+    if not r:
+        flash("Connection to LDAPserver {0} at port 1636 failed: {1}".format(
+            addr, ldp.conn.result['description']), "danger")
+        return
+    return ldp
+
+
 class DBManager(object):
     """A wrapper class to operate on the o=gluu DIT of the LDAP.
 

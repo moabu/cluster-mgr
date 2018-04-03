@@ -11,8 +11,6 @@ from flask_login import login_required
 from clustermgr.extensions import db
 from clustermgr.models import Server, AppConfiguration
 
-from index import getLdapConn
-
 import ldap3
 
 from clustermgr.forms import ServerForm, InstallServerForm, \
@@ -25,6 +23,8 @@ from ..core.license import prompt_license
 
 from clustermgr.core.utils import parse_setup_properties, \
     write_setup_properties_file, get_setup_properties
+
+from clustermgr.core.ldap_functions import getLdapConn
 
 
 server_view = Blueprint('server', __name__)

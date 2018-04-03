@@ -375,25 +375,6 @@ def get_log(task_id):
     return jsonify(log)
 
 
-def getLdapConn(addr, dn, passwd):
-    """this function gets address, dn and password for ldap server, makes
-    connection and return LdapOLC object."""
-
-    ldp = LdapOLC('ldaps://{}:1636'.format(addr), dn, passwd)
-    r = None
-    try:
-        r = ldp.connect()
-    except Exception as e:
-        flash("Connection to LDAPserver {0} at port 1636 failed: {1}".format(
-            addr, e), "danger")
-        return
-    if not r:
-        flash("Connection to LDAPserver {0} at port 1636 failed: {1}".format(
-            addr, ldp.conn.result['description']), "danger")
-        return
-    return ldp
-
-
 @index.route('/install_ldapserver', methods=['GET', 'POST'])
 def install_ldap_server():
     """This view provides installing non-gluu ldap server - depreceated"""

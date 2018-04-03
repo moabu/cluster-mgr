@@ -21,7 +21,6 @@ from clustermgr.config import Config
 from clustermgr.core.remote import RemoteClient
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import wlogger
-
 DEFAULT_CHARSET = string.ascii_uppercase + string.digits + string.lowercase
 
 
@@ -245,7 +244,7 @@ def write_setup_properties_file(setup_prop):
         for k, v in setup_prop.items():
             f.write('{0}={1}\n'.format(k, v))
 
-def get_setup_properties():
+def get_setup_properties(createNew=False):
     """This fucntion returns properties for setup.properties file."""
 
     #We are goint to deal with these properties with cluster-mgr
@@ -283,10 +282,11 @@ def get_setup_properties():
 
         setup_prop.update(setup_prop_f)
 
-    #Every time this function is called, create new inum
-    inum_org, inum_appliance = get_inums()
-    setup_prop['inumOrg'] = inum_org
-    setup_prop['inumAppliance'] = inum_appliance
+    if createNew:
+        #Every time this function is called, create new inum
+        inum_org, inum_appliance = get_inums()
+        setup_prop['inumOrg'] = inum_org
+        setup_prop['inumAppliance'] = inum_appliance
 
     return setup_prop
 
@@ -447,3 +447,4 @@ def run_and_log(c, cmd, tid, sid):
                                 
 
     return result
+

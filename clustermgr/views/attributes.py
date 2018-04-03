@@ -16,13 +16,12 @@ from clustermgr.forms import AppConfigForm, SchemaForm, \
     TestUser, InstallServerForm, LdapSchema  # , KeyRotationForm
 
 from ldap.schema import AttributeType, ObjectClass, LDAPSyntax
-from clustermgr.views.index import getLdapConn
 from clustermgr.core.utils import get_setup_properties
-from clustermgr.core.ldap_functions import LdapOLC
+from clustermgr.core.ldap_functions import LdapOLC, getLdapConn
 from clustermgr.core.ldifschema_utils import OpenDjSchema
 
 
-from clustermgr.tasks.cluster import upgrade_clustermgr_task
+from clustermgr.tasks.cluster import upgrade_clustermgr_task, register_objectclass
 from clustermgr.core.license import license_reminder
 from clustermgr.extensions import celery
 from clustermgr.core.license import prompt_license
@@ -86,30 +85,29 @@ def object_class():
 @attributes.route('/createobjecclass')
 def create_objecclass():
     server = Server.query.filter_by(primary_server=True).first()
-    object_class_choice = request.args.get('gluuObjectClass', '1')
-    if object_class_choice == '1':
-        object_class = 'gluuCustomPerson'
-    else:
-        object_class = request.args.get('objectClassname')
-        if not object_class:
-            object_class = 'clustermgrAttributes'
-    appconf = AppConfiguration.query.first()
-    appconf.object_class_base = object_class
-    db.session.commit()
-    
-    ldp = getLdapConn(  server.hostname,
-                        "cn=directory manager",
-                        server.ldap_password
-                        )
-    
-    r = ldp.registerObjectClass(object_class)
-    #TODO: requires restart of identity on all servers
-    
-    if not r:
-        flash(r[1],'danger')
+    #object_class_choice = request.args.get('gluuObjectClass', '1')
+    #if object_class_choice == '1':
+    #    object_class = 'gluuCustomPerson'
+    #else:
+    #    object_class = request.args.get('objectClassname')
+    #    if not object_class:
+    #        object_class = 'clustermgrAttributes'
+            
+    object_class = request.args.get('objectClassname')
+    if not object_class.strip():
+        object_class='clustermgrAttributes'
     
     
-    return redirect(url_for('attributes.home'))
+    
+    task = register_objectclass.delay(object_class)
+    head = "Registering Object Class {}".format(object_class)
+
+    nextpage = "attributes.home"
+    whatNext = "Custom Attributes"
+
+    return render_template("logger.html", heading=head, server=server,
+                           task=task, nextpage=nextpage, whatNext=whatNext)
+    
 
 
 def get_custom_schema_path():
@@ -302,7 +300,7 @@ def repopulate_objectclass():
     r = ldp.addAtributeToObjectClass(appconf.object_class_base, attrib_name_list)
 
     if not r[0]:
-        flash(r1, 'danger')
-    
-    flash("Object Class re-populated", 'success')
+        flash(r[1], 'danger')
+    else:
+        flash("Object Class re-populated", 'success')
     return redirect(url_for('attributes.home'))
