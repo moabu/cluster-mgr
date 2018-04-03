@@ -18,14 +18,15 @@
     <div class="panel-body">
         
         <form method="GET" action="{{ url_for('attributes.create_objecclass')}}">
-        Please chose Object Class for custom attributes:<br>
+        Please create Object Class for custom attributes:<br>
         <div class="form-group ">
             
-          <div class="radio">
+        <!--
+        <div class="radio">
             <label><input type="radio" name="gluuObjectClass" value="1" checked>Use gluuCustomPerson</label>
           </div>
         </div>
-        
+        -->
         <div class="form-group ">
           <div class="radio">
             <label><input id="customClassName" type="radio" name="gluuObjectClass" value="2">Create Object Class:</label> <input id="objectClassName" placeholder="clustermgrAttributes" type="text" name="objectClassname">

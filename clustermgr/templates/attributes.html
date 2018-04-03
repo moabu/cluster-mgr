@@ -14,7 +14,7 @@
 
 <div class="panel panel-default">
     <div class="panel-heading">
-        <h3 class="panel-title">Custom Attributes</h3>
+        <h3 class="panel-title">Custom Attributes [in Object Class <b>{{ojectclass}}</b>]</h3>
     </div>
     <div class="panel-body">
         
@@ -45,7 +45,8 @@
             {% else %}
             No custom attribtes has been created.
            {% endif %}
-        <br><br><a class="btn btn-primary" href="{{ url_for('attributes.edit_attribute') }}">Create New Attribute</a>
+        <br><br><a class="btn btn-success" href="{{ url_for('attributes.edit_attribute') }}">Create New Attribute</a>
+        <a class="btn btn-primary pull-right" href="{{ url_for('attributes.repopulate_objectclass') }}">Re-populate Object Class</a>
     </div>
 </div>
 

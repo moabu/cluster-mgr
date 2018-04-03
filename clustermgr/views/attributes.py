@@ -69,7 +69,11 @@ def home():
     attrib_list = [ AttributeType(a) for a in attrib_list_s ]
    
    
-    return render_template('attributes.html', attrib_list_in_class=attrib_list_in_class, attrib_list=attrib_list)
+    return render_template('attributes.html', 
+                            attrib_list_in_class=attrib_list_in_class, 
+                            attrib_list=attrib_list,
+                            ojectclass=appconf.object_class_base
+                            )
     
 @attributes.route('/objectclass')
 def object_class():
@@ -81,7 +85,7 @@ def object_class():
     
 @attributes.route('/createobjecclass')
 def create_objecclass():
-    
+    server = Server.query.filter_by(primary_server=True).first()
     object_class_choice = request.args.get('gluuObjectClass', '1')
     if object_class_choice == '1':
         object_class = 'gluuCustomPerson'
@@ -92,6 +96,19 @@ def create_objecclass():
     appconf = AppConfiguration.query.first()
     appconf.object_class_base = object_class
     db.session.commit()
+    
+    ldp = getLdapConn(  server.hostname,
+                        "cn=directory manager",
+                        server.ldap_password
+                        )
+    
+    r = ldp.registerObjectClass(object_class)
+    #TODO: requires restart of identity on all servers
+    
+    if not r:
+        flash(r[1],'danger')
+    
+    
     return redirect(url_for('attributes.home'))
 
 
@@ -200,7 +217,7 @@ def edit_attribute():
             a.no_user_mod = False
             a.usage = False
             a.obsolete = False
-            result = ldp.addAttribute(a)
+            result = ldp.addAttribute(a, editing, appconf.object_class_base)
             
             if not result[0]:
                 flash(result[1], 'danger')
@@ -255,3 +272,37 @@ def remove_attribute(oid,name):
 
     return redirect(url_for('attributes.home'))
 
+
+@attributes.route('/repopulateobjectclass')
+def repopulate_objectclass():
+    server = Server.query.filter_by(primary_server=True).first()
+    appconf = AppConfiguration.query.first()
+        
+    setup_prop = get_setup_properties()
+    inumOrgFN = setup_prop['inumOrgFN']
+    
+    ldp = getLdapConn(  server.hostname,
+                        "cn=directory manager",
+                        server.ldap_password
+                        )
+
+    ldp = getLdapConn(  server.hostname,
+                        "cn=directory manager",
+                        server.ldap_password
+                        )
+                        
+    attrib_list_in_class = []
+    
+    objcl_s = ldp.getObjectClass(appconf.object_class_base)
+
+    attrib_list_s = ldp.getCustomAttributes()
+    attrib_list = [ AttributeType(a) for a in attrib_list_s ]
+    attrib_name_list = [ a.names[0] for a in attrib_list ]
+
+    r = ldp.addAtributeToObjectClass(appconf.object_class_base, attrib_name_list)
+
+    if not r[0]:
+        flash(r1, 'danger')
+    
+    flash("Object Class re-populated", 'success')
+    return redirect(url_for('attributes.home'))

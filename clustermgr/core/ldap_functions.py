@@ -736,6 +736,10 @@ class LdapOLC(object):
                 return objcl
     
     def addAtributeToObjectClass(self, object_class_name, attribute_name):
+        
+        if not type(attribute_name) == type([]):
+            attribute_name = [attribute_name]
+        
         objcl_s = self.getObjectClass(object_class_name)
         if objcl_s:
             self.conn.modify("cn=schema", {'objectClasses': [MODIFY_DELETE, objcl_s]})
@@ -745,13 +749,18 @@ class LdapOLC(object):
             objcl_s = "( 1.3.6.1.4.1.48710.1.4.200 NAME '{}' SUP top AUXILIARY )".format(object_class_name)
         
         obcl_obj = ObjectClass(objcl_s)
-        if not object_class_name in obcl_obj.may:
-            may_list = list(obcl_obj.may)
-            may_list.append(attribute_name)
-            obcl_obj.may = tuple(may_list)
-            self.conn.modify("cn=schema", {'objectClasses': [MODIFY_ADD, str(obcl_obj)]})
-            if not self.conn.result['description']== 'success':
-                return False, self.conn.result['description']
+        
+        may_list = list(obcl_obj.may)
+        
+        
+        for attribute in attribute_name:
+            if not attribute in may_list:
+                may_list.append(attribute)
+        
+        obcl_obj.may = tuple(may_list)
+        self.conn.modify("cn=schema", {'objectClasses': [MODIFY_ADD, str(obcl_obj)]})
+        if not self.conn.result['description']== 'success':
+            return False, self.conn.result['description']
 
         return True, 'success'
     
@@ -771,16 +780,29 @@ class LdapOLC(object):
                     return False, self.conn.result['description']
                     
         return True, 'success'
-    def addAttribute(self, attribute):
+        
+    def addAttribute(self, attribute, editing=None, objcls=None):
+        
+        print "EDITING", editing
         
         name = "'{}'".format(attribute.names[0])
         
         atrributes = self.getAttributes()
         
         for ats in atrributes[0]['attributes']['attributeTypes']:
-            if name in ats:
-                return False, 'This attribute name exists'
-        
+            if editing:
+                if editing in ats:
+                    a = AttributeType(ats)
+                    r = self.removeAtributeFromObjectClass(objcls, a.names[0])
+                    if not r:
+                        return False, self.conn.result['description']
+                    r = self.removeAttribute(editing)
+                    if not r[0]:
+                        return r
+            else:
+                if name in ats:
+                    return False, 'This attribute name exists'
+
         r = self.conn.modify("cn=schema", {'attributeTypes': [MODIFY_ADD, attribute]})
 
         if r:
@@ -793,12 +815,52 @@ class LdapOLC(object):
         for ats in atrributes:
             if oid in ats:
                 return ats
+
     def removeAttribute(self, oid):
         atrribute = self.getAttributebyOID(oid)
         if atrribute:
-            self.conn.modify("cn=schema", {'attributeTypes': [MODIFY_DELETE, atrribute]})
-            print self.conn.result
+            r = self.conn.modify("cn=schema", {'attributeTypes': [MODIFY_DELETE, atrribute]})
+            if not r:
+                return False, self.conn.result['description']
+        return True, ''
 
+    def registerObjectClass(self, obcls):
+
+        setup_prop = get_setup_properties()
+        inumAppliance = setup_prop['inumAppliance']
+        dn='ou=oxtrust,ou=configuration,inum={},ou=appliances,o=gluu'.format(inumAppliance)
+
+        print dn
+
+        r = self.conn.search(dn,
+                    search_filter='(objectclass=*)',
+                    search_scope=BASE, 
+                    attributes=["oxTrustConfApplication"],
+                    )
+
+        print r, self.conn.result
+
+        jstr = self.conn.response[0]['attributes']['oxTrustConfApplication'][0]
+        jdata = json.loads(jstr)
+
+        change = False
+
+        if not obcls  in jdata["personObjectClassTypes"]:
+            jdata["personObjectClassTypes"].append(obcls)
+            change = True
+        if not obcls in jdata["personObjectClassDisplayNames"]:
+            jdata["personObjectClassDisplayNames"].append(obcls)
+            change = True
+            
+        if change:
+            print "changing"
+            jstr = json.dumps(jdata)
+            r = self.conn.modify(dn, {'oxTrustConfApplication': [MODIFY_REPLACE, jstr]})
+            if not r:
+                return False, self.conn.result['description']
+        
+        return True, ''
+            
 
 class DBManager(object):
     """A wrapper class to operate on the o=gluu DIT of the LDAP.

@@ -46,6 +46,7 @@ setup(
         "influxdb",
         'gunicorn',
         'psutil',
+        'python-ldap',
     ],
     entry_points={
         "console_scripts": [
