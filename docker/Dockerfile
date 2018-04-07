@@ -17,7 +17,8 @@ RUN apk add --no-cache --update \
     py2-requests \
     py2-paramiko \
     py2-ldap3 \
-    py2-psutil
+    py2-psutil \
+    py2-pyldap
 
 # install InfluxDB
 RUN wget -q https://dl.influxdata.com/influxdb/releases/influxdb-1.4.3-static_linux_amd64.tar.gz -P /tmp \
