@@ -77,7 +77,7 @@ Install the necessary dependencies on the Gluu Cluster Manager machine:
 
 ```
 sudo apt-get update
-sudo apt-get install python-pip python-dev libffi-dev libssl-dev redis-server default-jre
+sudo apt-get install python-pip python-dev libffi-dev libssl-dev python-ldap redis-server default-jre
 (default-jre is for license requirements. Not necessary if Java already installed)
 sudo pip install --upgrade setuptools influxdb
 ```
