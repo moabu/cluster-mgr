@@ -22,7 +22,7 @@ from ..core.license import license_reminder
 from ..core.license import prompt_license
 
 from clustermgr.core.utils import parse_setup_properties, \
-    write_setup_properties_file, get_setup_properties
+    write_setup_properties_file, get_setup_properties, get_inums
 
 from clustermgr.core.ldap_functions import getLdapConn
 
@@ -271,6 +271,14 @@ def install_gluu(server_id):
     setup_prop['ip'] = server.ip
     setup_prop['ldapPass'] = server.ldap_password
 
+
+    #required for inum fields
+    #if request.method == 'POST':
+    #    if not form.inumOrg.data.strip():
+    #        inumOrg, inumAppliance = get_inums()
+    #        form.inumOrg.data = inumOrg
+    #        form.inumAppliance.data = inumAppliance
+
     # If form is submitted and validated, create setup.properties file.
     if form.validate_on_submit():
         setup_prop['countryCode'] = form.countryCode.data.strip()
@@ -278,8 +286,13 @@ def install_gluu(server_id):
         setup_prop['city'] = form.city.data.strip()
         setup_prop['orgName'] = form.orgName.data.strip()
         setup_prop['admin_email'] = form.admin_email.data.strip()
-        setup_prop['inumOrg'] = form.inumOrg.data.strip()
-        setup_prop['inumAppliance'] = form.inumAppliance.data.strip()
+        
+        setup_prop['inumOrg'], setup_prop['inumAppliance'] = get_inums()
+        
+        #setup_prop['inumOrg'] = form.inumOrg.data.strip()
+        #setup_prop['inumAppliance'] = form.inumAppliance.data.strip()
+        
+        
         for o in ('installOxAuth',
                   'installOxTrust',
                   'installLDAP',
@@ -296,6 +309,7 @@ def install_gluu(server_id):
 
         write_setup_properties_file(setup_prop)
 
+
         # Redirect to cluster.install_gluu_server to start installation.
         return redirect(url_for('cluster.install_gluu_server',
                                 server_id=server_id))
@@ -308,8 +322,8 @@ def install_gluu(server_id):
         form.city.data = setup_prop['city']
         form.orgName.data = setup_prop['orgName']
         form.admin_email.data = setup_prop['admin_email']
-        form.inumOrg.data = setup_prop['inumOrg']
-        form.inumAppliance.data = setup_prop['inumAppliance']
+        #form.inumOrg.data = setup_prop['inumOrg']
+        #form.inumAppliance.data = setup_prop['inumAppliance']
 
         for o in ('installOxAuth',
                   'installOxTrust',

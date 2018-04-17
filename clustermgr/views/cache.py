@@ -134,10 +134,13 @@ def finish_clustering(method):
 def get_status():
     status={'redis':{}, 'stunnel':{}}
     servers = Server.query.all()
+    
+    check_cmd = 'python -c "import socket;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);print s.connect_ex((\'{0}\', {1}))"'
+    
     for server in servers:
-        r = os.popen3("nc -zv {} 7777".format(server.ip))
-        stat = r[2].read()
-        if stat.strip().endswith('open') or stat.strip().endswith('succeeded!'):
+        r = os.popen3(check_cmd.format(server.ip, 7777))
+        stat = r[1].read().strip()
+        if stat == '0':
             status['stunnel'][server.id]=True
         else:
             status['stunnel'][server.id]=False
@@ -148,9 +151,10 @@ def get_status():
         except:
             status['stunnel'][server.id] = False
             
-        r = c.run('nc -zv localhost 6379')
-        stat = r[2].strip()
-        if stat.strip().endswith('open') or stat.strip().endswith('succeeded!'):
+        r = c.run(check_cmd.format('localhost', 6379))
+        stat = r[1].strip()
+
+        if stat == '0':
             status['redis'][server.id]=True
         else:
             status['redis'][server.id]=False

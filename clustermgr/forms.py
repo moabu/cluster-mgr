@@ -11,7 +11,7 @@ from flask_wtf.file import FileField, FileRequired, FileAllowed
 
 
 class AppConfigForm(FlaskForm):
-    versions = ['3.1.2']
+    versions = ['3.1.2','3.1.3']
     gluu_version = SelectField('Gluu Server Version',
                                choices=[(v, v) for v in versions])
     # use_ip = BooleanField('Use IP Address in place of Hostname for replication')
@@ -156,8 +156,8 @@ class InstallServerForm(FlaskForm):
     city = StringField('City *', validators=[DataRequired()])
     orgName = StringField('Organization Name *', validators=[DataRequired()])
     admin_email = StringField('Admin E-mail *', validators=[DataRequired()])
-    inumOrg = StringField("inumOrg * (Please don't change this unless you know what you do)", validators=[DataRequired()])
-    inumAppliance = StringField("inumAppliance * (Please don't change this unless you know what you do)", validators=[DataRequired()])
+    #inumOrg = StringField("inumOrg * (Please don't change this unless you know what you do)", validators=[DataRequired()])
+    #inumAppliance = StringField("inumAppliance * (Please don't change this unless you know what you do)", validators=[DataRequired()])
 
     installOxAuth = BooleanField('Install oxAuth', default=True)
     installOxTrust = BooleanField('Install oxTrust', default=True)

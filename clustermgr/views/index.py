@@ -144,35 +144,38 @@ def app_configuration():
                 
                 c = None
                 server = Server.query.first()
-                c = RemoteClient(server.hostname, ip=server.ip)
                 
-                try:
-                    c.startup()
-                except Exception as e:
-                    flash("Can't establish SSH connection to {}. "
-                          "Replication password is not changed".format(
-                          server.hostname),
-                            "warning")
-                if c:
- 
-                    installer = Installer(c, config.gluu_version, server.os)
+                if server:
                 
-                    cmd = ('/opt/opendj/bin/ldappasswordmodify --bindDN '
-                    '\'cn=Directory Manager\' --bindPassword $\'{}\' '
-                    '--port 4444 --newPassword $\'{}\' --authzID '
-                    '\'cn=admin,cn=Administrators,cn=admin data\' '
-                    '--trustAll --useSSL'.format(
+                    c = RemoteClient(server.hostname, ip=server.ip)
                     
-                    server.ldap_password.replace("'","\\'"),
-                    new_replication_passwd.replace("'","\\'"),
+                    try:
+                        c.startup()
+                    except Exception as e:
+                        flash("Can't establish SSH connection to {}. "
+                              "Replication password is not changed".format(
+                              server.hostname),
+                                "warning")
+                    if c:
+     
+                        installer = Installer(c, config.gluu_version, server.os)
                     
-                    ))
+                        cmd = ('/opt/opendj/bin/ldappasswordmodify --bindDN '
+                        '\'cn=Directory Manager\' --bindPassword $\'{}\' '
+                        '--port 4444 --newPassword $\'{}\' --authzID '
+                        '\'cn=admin,cn=Administrators,cn=admin data\' '
+                        '--trustAll --useSSL'.format(
+                        
+                        server.ldap_password.replace("'","\\'"),
+                        new_replication_passwd.replace("'","\\'"),
+                        
+                        ))
 
-                    result = installer.run(cmd)
-                    if result[1].strip() == \
-                    'The LDAP password modify operation was successful':
-                        flash("Replication password is changed", "success")
-                        config.replication_pw = new_replication_passwd
+                        result = installer.run(cmd)
+                        if result[1].strip() == \
+                        'The LDAP password modify operation was successful':
+                            flash("Replication password is changed", "success")
+                            config.replication_pw = new_replication_passwd
  
         
         config.gluu_version = conf_form.gluu_version.data.strip()

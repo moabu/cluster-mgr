@@ -1063,10 +1063,10 @@ def delete_key(suffix, hostname, gluu_version, tid, c, sos):
         wlogger.log(tid, cout+cerr, 'debug')
 
 
-def modify_hosts(tid, c, hosts, chroot=None, server_host=None, server_id=''):
+def modify_hosts(tid, c, hosts, chroot='/', server_host=None, server_id=''):
     wlogger.log(tid, "Modifying /etc/hosts", server_id=server_id)
     
-    h_file = '/etc/hosts'
+    h_file = os.path.join(chroot,'etc/hosts')
     
     r, old_hosts = c.get_file(h_file)
     
@@ -1240,9 +1240,9 @@ def installGluuServer(self, server_id):
 
     
 
-    channel = c.client.get_transport().open_session()
-    channel.get_pty()
-    channel.exec_command("python /tmp/pb.py")
+    #channel = c.client.get_transport().open_session()
+    #channel.get_pty()
+    #channel.exec_command("python /tmp/pb.py")
 
     wlogger.log(tid, "Preparing for Installation")
 
@@ -1268,7 +1268,7 @@ def installGluuServer(self, server_id):
         run_command(tid, c, cmd, no_error='debug')
 
         if 'Ubuntu' in server.os:
-            cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
+            cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" '
                '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
         elif 'Debian' in server.os:
             cmd = ('echo "deb https://repo.gluu.org/debian/ stable main" '
@@ -1306,7 +1306,13 @@ def installGluuServer(self, server_id):
         if server.os == 'CentOS 6':
             cmd = 'wget https://repo.gluu.org/centos/Gluu-centos6.repo -O /etc/yum.repos.d/Gluu.repo'
         elif server.os == 'CentOS 7':
+            
             cmd = 'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O /etc/yum.repos.d/Gluu.repo'
+            
+            #testing
+            cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-testing.repo -O /etc/yum.repos.d/Gluu.repo'
+            
+            
         elif server.os == 'RHEL 7':
             cmd = 'wget https://repo.gluu.org/rhel/Gluu-rhel7.repo -O /etc/yum.repos.d/Gluu.repo'
 
@@ -1472,27 +1478,26 @@ def installGluuServer(self, server_id):
 
     #run setup.py on the server
 
-    
+    if appconf.gluu_version < '3.1.3':
+        wlogger.log(tid, "Downloading setup.py")
+        cmd = ( 
+                'curl  https://raw.githubusercontent.com/GluuFederation/'
+                'community-edition-setup/master/setup.py  -o /opt/{}/install/'
+                'community-edition-setup/setup.py'
+                ).format(gluu_server)
+                
+        cmd = ( 
+                'curl https://raw.githubusercontent.com/mbaser/gluu/master/setup.py -o /opt/{}/install/'
+                'community-edition-setup/setup.py'
+                ).format(gluu_server)
 
-    wlogger.log(tid, "Downloading setup.py")
-    cmd = ( 
-            'curl  https://raw.githubusercontent.com/GluuFederation/'
-            'community-edition-setup/master/setup.py  -o /opt/{}/install/'
-            'community-edition-setup/setup.py'
-            ).format(gluu_server)
-            
-    cmd = ( 
-            'curl https://raw.githubusercontent.com/mbaser/gluu/master/setup.py -o /opt/{}/install/'
-            'community-edition-setup/setup.py'
-            ).format(gluu_server)
-
-    
-            
-    run_command(tid, c, cmd, no_error='debug')
-    
-    cmd = 'chmod +x /opt/{}/install/community-edition-setup/setup.py'.format(
-        gluu_server)
-    run_command(tid, c, cmd)
+        
+                
+        run_command(tid, c, cmd, no_error='debug')
+        
+        cmd = 'chmod +x /opt/{}/install/community-edition-setup/setup.py'.format(
+            gluu_server)
+        run_command(tid, c, cmd)
     
     #run setup.py on the server
     wlogger.log(tid, "Running setup.py - Be patient this process will take a while ...")
@@ -1503,6 +1508,7 @@ def installGluuServer(self, server_id):
         
         cmd = 'chroot /opt/{}  /bin/bash -c "cd /install/community-edition-setup/ && ./setup.py -n -v"'.format(gluu_server)
 
+    wlogger.log(tid ,cmd, "debug")
 
     channel = c.client.get_transport().open_session()
     channel.get_pty()
@@ -1959,7 +1965,7 @@ def opendjenablereplication(self, server_id):
             wlogger.log(tid, "Enabling replication on server {}".format(
                                                             server.hostname))
 
-            for base in ('gluu',): #, 'site'):
+            for base in ('gluu','site'):
                 cmd_run = '{}'
 
                 if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):
@@ -2112,9 +2118,9 @@ def opendjenablereplication(self, server_id):
 
             ct.close()
 
-    #if 'CentOS' in primary_server.os:
-    #    wlogger.log(tid, "Waiting for Gluu to finish starting")
-    #    time.sleep(30)
+    if 'CentOS' in primary_server.os:
+        wlogger.log(tid, "Waiting for Gluu to finish starting")
+        time.sleep(60)
     
 
     wlogger.log(tid, "Checking replication status")

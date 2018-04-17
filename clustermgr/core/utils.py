@@ -349,8 +349,8 @@ def as_boolean(val, default=False):
 def modify_etc_hosts(host_ip, old_hosts):
 
     hosts = {
-            'ipv4':{},
-            'ipv6':{},
+            'ipv4':{'127.0.0.1':['localhost']},
+            'ipv6':{'::1':['ip6-localhost', 'ip6-loopback']},
             }
 
     for l in old_hosts:

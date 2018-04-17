@@ -107,9 +107,10 @@ class RedisInstaller(BaseInstaller):
     def install_in_centos(self):
         # To automatically start redis on boot
         # systemctl enable redis
-        self.run_command("yum update -y")
+        # MB: Do we need to update ?
+        #self.run_command("yum update -y")
         self.run_command("yum install epel-release -y")
-        self.run_command("yum update -y")
+        #self.run_command("yum update -y")
 
         cin, cout, cerr = self.run_command("yum install redis -y")
         wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
@@ -153,7 +154,7 @@ class StunnelInstaller(BaseInstaller):
             return False
 
     def install_in_centos(self):
-        self.run_command("yum update -y")
+        #self.run_command("yum update -y")
         cin, cout, cerr = self.run_command("yum install stunnel -y")
         wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
         if cerr:
