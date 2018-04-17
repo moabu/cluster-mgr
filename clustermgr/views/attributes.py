@@ -125,7 +125,8 @@ def edit_attribute():
     editing = request.args.get('oid')
     syntax_file = os.path.join(app.config["DATA_DIR"],'syntaxes.json')
     setup_prop = get_setup_properties()
-    inumOrgFN = setup_prop['inumOrgFN']
+    inumOrg = setup_prop['inumOrg']
+    inumOrgFN = inumOrg.replace('@','').replace('!','').replace('.','')
     
     ldp = getLdapConn(  server.hostname,
                         "cn=directory manager",

@@ -711,7 +711,8 @@ class LdapOLC(object):
 
     def getCustomAttributes(self):
         setup_prop = get_setup_properties()
-        inumOrgFN = setup_prop['inumOrgFN']
+        inumOrg = setup_prop['inumOrg']
+        inumOrgFN = inumOrg.replace('@','').replace('!','').replace('.','')
         x_origin = "X-ORIGIN '{}'".format(inumOrgFN)
         
         atrributes = self.getAttributes()
