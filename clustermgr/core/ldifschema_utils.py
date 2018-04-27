@@ -126,15 +126,10 @@ def parse_open_ldap_schema(fn):
 
     for i,l in enumerate(f):
 
-        
-        if i==len(f)-1:
-            print "yesy"
-
         if l.lower().startswith('attributetype') or l.lower().startswith('objectclass') or (i==len(f)-1):
             entry_finished = False
             objs = ' '.join(new_entry)
-            print l
-            print
+
             if objs.lower().startswith('attributetype'):
                 attributes.append(AttributeType(objs[14:]))
             elif objs.lower().startswith('objectclass'):
