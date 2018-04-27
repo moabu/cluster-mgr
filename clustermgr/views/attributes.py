@@ -278,8 +278,8 @@ def repopulate_objectclass():
     appconf = AppConfiguration.query.first()
         
     setup_prop = get_setup_properties()
-    inumOrgFN = setup_prop['inumOrgFN']
-    
+    inumOrg = setup_prop['inumOrg']
+    inumOrgFN = inumOrg.replace('@','').replace('!','').replace('.','')
     ldp = getLdapConn(  server.hostname,
                         "cn=directory manager",
                         server.ldap_password
@@ -295,7 +295,7 @@ def repopulate_objectclass():
     objcl_s = ldp.getObjectClass(appconf.object_class_base)
 
     attrib_list_s = ldp.getCustomAttributes()
-    attrib_list = [ AttributeType(a) for a in attrib_list_s ]
+    attrib_list = [ AttributeType(str(a)) for a in attrib_list_s ]
     attrib_name_list = [ a.names[0] for a in attrib_list ]
 
     r = ldp.addAtributeToObjectClass(appconf.object_class_base, attrib_name_list)
