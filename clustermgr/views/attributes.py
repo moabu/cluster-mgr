@@ -156,7 +156,7 @@ def edit_attribute():
         
             a_s=ldp.getAttributebyOID(editing)
             if a_s:
-                a = AttributeType(a_s)
+                a = AttributeType(str(a_s))
         
                 form.oid.data = a.oid
                 form.names.data = ' '.join(a.names)
