@@ -271,7 +271,7 @@ class LdapSchema(FlaskForm):
     usage = StringField("Usage")
     syntax_len = IntegerField("Maximum Length", validators=[Optional()])
     syntax = SelectField("Syntax", choices=[])
-    substr = SelectField("Substring Role",
+    substr = SelectField("Substring Rule",
                         choices = (('',''),
                           ('caseExactSubstringsMatch', 'caseExactSubstringsMatch'),
                                 ('caseIgnoreIA5SubstringsMatch', 'caseIgnoreIA5SubstringsMatch'),
