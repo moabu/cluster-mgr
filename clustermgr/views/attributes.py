@@ -64,7 +64,7 @@ def home():
    
     attrib_list = []
     attrib_list_s = ldp.getCustomAttributes()
-    attrib_list = [ AttributeType(a) for a in attrib_list_s ]
+    attrib_list = [ AttributeType(str(a)) for a in attrib_list_s ]
    
    
     return render_template('attributes.html', 
