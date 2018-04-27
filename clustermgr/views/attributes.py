@@ -22,9 +22,8 @@ from clustermgr.core.ldifschema_utils import OpenDjSchema
 
 
 from clustermgr.tasks.cluster import upgrade_clustermgr_task, register_objectclass
-from clustermgr.core.license import license_reminder
+from clustermgr.core.license import license_reminder, prompt_license
 from clustermgr.extensions import celery
-from clustermgr.core.license import prompt_license
 
 
 from clustermgr.core.clustermgr_installer import Installer
@@ -112,7 +111,8 @@ def create_objecclass():
 
 def get_custom_schema_path():
     setup_prop = get_setup_properties()
-    inumOrgFN = setup_prop['inumOrgFN']
+    inumOrg = setup_prop['inumOrg']
+    inumOrgFN = inumOrg.replace('@','').replace('!','').replace('.','')
     custom_schema_file = '102-{}.ldif'.format(inumOrgFN)
     custom_schema_path = os.path.join(app.config["DATA_DIR"], custom_schema_file)
     return custom_schema_path
