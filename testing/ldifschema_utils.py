@@ -115,6 +115,37 @@ class OpenDjSchema(LDIFParser):
         for name in o.names:
             self.class_names.append(name)
 
+def parse_open_ldap_schema(fn):
+    f = open(fn).readlines()
+    
+    entry_finished = True
+    new_entry= []
+    new_object = []
+    attributes = []
+    objectclasses = []
+
+    for i,l in enumerate(f):
+
+        if l.lower().startswith('attributetype') or l.lower().startswith('objectclass') or (i==len(f)-1):
+            entry_finished = False
+            objs = ' '.join(new_entry)
+
+            if objs.lower().startswith('attributetype'):
+                attributes.append(AttributeType(objs[14:]))
+            elif objs.lower().startswith('objectclass'):
+                objectclasses.append(ObjectClass(objs[12:]))
+                
+            new_entry = []
+
+        if not entry_finished:
+            if not l.startswith('#'):
+                ls = l.strip()
+                if ls:
+                    new_entry.append(ls)
+
+    
+    return {'attributes': attributes, 'objectclasses': objectclasses}
+
 if __name__ == "__main__":
 
     """
