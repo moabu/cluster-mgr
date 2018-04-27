@@ -140,11 +140,11 @@ def edit_attribute():
         attr_list = []
 
         for ats in ldap_response[0]['attributes']['ldapSyntaxes']:
-            print ats
-            a=AttributeType(ats)
+            a=AttributeType(str(ats))
             attr_list.append((a.oid, a.desc))
-            with open(syntax_file, 'w') as sf:
-                json.dump(attr_list, sf)
+
+        with open(syntax_file, 'w') as sf:
+            json.dump(attr_list, sf)
     else:
         attr_list = json.loads(open(syntax_file).read())
     
