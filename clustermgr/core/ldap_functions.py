@@ -793,7 +793,7 @@ class LdapOLC(object):
         for ats in atrributes[0]['attributes']['attributeTypes']:
             if editing:
                 if editing in ats:
-                    a = AttributeType(ats)
+                    a = AttributeType(str(ats))
                     r = self.removeAtributeFromObjectClass(objcls, a.names[0])
                     if not r:
                         return False, self.conn.result['description']
