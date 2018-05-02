@@ -1310,7 +1310,7 @@ def installGluuServer(self, server_id):
             cmd = 'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O /etc/yum.repos.d/Gluu.repo'
             
             #testing
-            cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-testing.repo -O /etc/yum.repos.d/Gluu.repo'
+            #cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-testing.repo -O /etc/yum.repos.d/Gluu.repo'
             
             
         elif server.os == 'RHEL 7':
@@ -1965,7 +1965,7 @@ def opendjenablereplication(self, server_id):
             wlogger.log(tid, "Enabling replication on server {}".format(
                                                             server.hostname))
 
-            for base in ('gluu','site'):
+            for base in ['gluu', 'site']:
                 cmd_run = '{}'
 
                 if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):

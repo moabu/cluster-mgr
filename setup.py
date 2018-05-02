@@ -50,6 +50,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
+                            "clustermgr-cli=clusterapp:cli",
                             "clustermgr-beat=clusterapp:run_celerybeat",
                             "clustermgr-celery=clusterapp:run_celery_worker"
                             ],
