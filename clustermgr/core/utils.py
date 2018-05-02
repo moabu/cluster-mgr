@@ -448,3 +448,16 @@ def run_and_log(c, cmd, tid, sid):
 
     return result
 
+def get_redis_config(f):
+    addr_list = []
+
+    for l in f:
+        ls=l.strip()
+        if ls:
+            if ls.startswith('connect'):
+                n = ls.find('=')
+                addr_port = ls[n+1:].strip()
+                addr_port_s = addr_port.split(':')
+                addr_list.append(addr_port_s[0])
+
+    return addr_list

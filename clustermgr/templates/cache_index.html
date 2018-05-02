@@ -40,7 +40,8 @@
                   {% if server.redis %}
                     <span class="glyphicon glyphicon-ok text-success"></span>
                   {% else %}
-                    <span class="glyphicon glyphicon-remove text-danger"></span>
+                    <!-- <span class="glyphicon glyphicon-remove text-danger"></span> -->
+                    <a href="{{url_for('cache_mgr.change', id=server.id)}}" class="btn btn-success btn-sm">Install</a>
                     
                   {% endif %}
                 </td>

@@ -14,27 +14,13 @@ from ..core.license import license_reminder
 from ..core.license import prompt_license
 from ..core.license import license_required
 from clustermgr.core.remote import RemoteClient
-
+from clustermgr.core.utils import get_redis_config
 
 cache_mgr = Blueprint('cache_mgr', __name__, template_folder='templates')
 cache_mgr.before_request(prompt_license)
 cache_mgr.before_request(license_required)
 cache_mgr.before_request(license_reminder)
 
-
-def get_redis_config(f):
-    addr_list = []
-
-    for l in f:
-        ls=l.strip()
-        if ls:
-            if ls.startswith('connect'):
-                n = ls.find('=')
-                addr_port = ls[n+1:].strip()
-                addr_port_s = addr_port.split(':')
-                addr_list.append(addr_port_s[0])
-
-    return addr_list
 
 @cache_mgr.route('/')
 @login_required
@@ -91,20 +77,37 @@ def refresh_methods():
 
 
 
+
+def get_servers_and_list():
+    server_id = request.args.get('id')
+    
+    if server_id:
+        servers = [ Server.query.get(int(server_id)) ]
+    else:
+        servers = Server.query.all()
+
+    server_id_list = [ s.id for s in servers ]
+    
+    return servers, server_id_list, server_id
+
 @cache_mgr.route('/change/', methods=['GET', 'POST'])
 @login_required
 def change():
+    servers, server_id_list, server_id = get_servers_and_list()
     
-    servers = Server.query.all()
-
     method = 'STANDALONE'
 
     if not servers:
         return redirect(url_for('cache_mgr.index'))
     
-    task = install_cache_components.delay(method)
-    return render_template('cache_logger.html', method=method, step=1,
-                           task_id=task.id, servers=servers,
+    task = install_cache_components.delay(method, server_id_list)
+    
+    return render_template( 'cache_logger.html', 
+                            method=method,
+                            step=1,
+                            task_id=task.id,
+                            servers=servers, 
+                            server_id=server_id
                            )
 
 
@@ -112,26 +115,63 @@ def change():
 @login_required
 def configure(method):
 
-    task = configure_cache_cluster.delay(method)
-    servers = Server.query.all()
+    servers, server_id_list, server_id = get_servers_and_list()
 
-    return render_template('cache_logger.html', method=method, servers=servers,
-                           step=2, task_id=task.id)
+    task = configure_cache_cluster.delay(method, server_id_list)
+
+
+
+    return render_template( 'cache_logger.html', 
+                            method=method, 
+                            servers=servers,
+                            server_id=server_id,
+                            step=2, 
+                            task_id=task.id)
 
 
 @cache_mgr.route('/finish_clustering/<method>/')
 @login_required
 def finish_clustering(method):
-    servers = Server.query.filter(Server.redis.is_(True)).filter(
-        Server.stunnel.is_(True)).all()
-    task = restart_services.delay(method)
-    return render_template('cache_logger.html', servers=servers, step=3,
-                           task_id=task.id)
+    
+    server_id = request.args.get('id')
 
+    if server_id:
+        servers = []
+        qserver = Server.query.filter(
+                                    Server.redis.is_(True)
+                                ).filter(
+                                    Server.stunnel.is_(True)
+                                ).filter(
+                                    Server.id.is_(int(server_id))
+                                ).first()
+        
+        if qserver:
+            servers.append(qserver)
+    else:
+
+        servers = Server.query.filter(
+                                    Server.redis.is_(True)
+                                ).filter(
+                                    Server.stunnel.is_(True)
+                                ).all()
+
+
+    server_id_list = [ s.id for s in servers ]
+    
+    
+    task = restart_services.delay(method, server_id_list)
+    
+    return render_template( 'cache_logger.html', 
+                            servers=servers, 
+                            step=3,
+                            server_id=server_id,
+                            task_id=task.id
+                           )
 
 @cache_mgr.route('/status/')
 @login_required
 def get_status():
+
     status={'redis':{}, 'stunnel':{}}
     servers = Server.query.all()
     

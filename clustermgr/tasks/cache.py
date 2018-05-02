@@ -9,12 +9,12 @@ from clustermgr.extensions import db, wlogger, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import DBManager
 from clustermgr.tasks.cluster import get_os_type
-from clustermgr.core.utils import parse_setup_properties
+from clustermgr.core.utils import parse_setup_properties, get_redis_config
 
 from ldap3.core.exceptions import LDAPSocketOpenError
 from flask import current_app as app
 
-    
+
 class BaseInstaller(object):
     """Base class for component installers.
 
@@ -168,7 +168,7 @@ class StunnelInstaller(BaseInstaller):
 
 
 @celery.task(bind=True)
-def install_cache_components(self, method):
+def install_cache_components(self, method, server_id_list):
     """Celery task that installs the redis, stunnel and twemproxy applications
     in the required servers.
 
@@ -184,9 +184,12 @@ def install_cache_components(self, method):
     
     tid = self.request.id
     installed = 0
-    servers = Server.query.all()
+    
+    servers = []
 
-    for server in servers:
+    for server_id in server_id_list:
+        
+        server = Server.query.get(server_id)
         
         ri = RedisInstaller(server, tid)
         ri.rc.startup()
@@ -293,11 +296,11 @@ def install_cache_components(self, method):
 
 
 @celery.task(bind=True)
-def configure_cache_cluster(self, method):
+def configure_cache_cluster(self, method, server_id_list):
     if method == 'SHARDED':
         return setup_sharded(self.request.id)
     elif method == 'STANDALONE':
-        return setup_proxied(self.request.id)
+        return setup_proxied(self.request.id, server_id_list)
     elif method == 'CLUSTER':
         return setup_redis_cluster(self.request.id)
 
@@ -468,17 +471,27 @@ def __update_LDAP_cache_method(tid, server, server_string, method):
                     server_id=server.id)
 
 
-def setup_proxied(tid):
+def setup_proxied(tid, server_id_list):
     """Configures the servers to use the Twemproxy installed in proxy server
     for Redis caching securely via stunnel.
 
     :param tid: task id for log identification
     :return: None
     """
-    servers = Server.query.filter(Server.redis.is_(True)).filter(
-        Server.stunnel.is_(True)).all()
-        
     
+    servers = []
+    
+    for server_id in server_id_list:
+        qserver = Server.query.filter(
+                                Server.redis.is_(True)
+                            ).filter(
+                                Server.stunnel.is_(True)
+                            ).filter(
+                                Server.id.is_(server_id)
+                            ).first()
+        if qserver:
+            servers.append(qserver)
+
     appconf = AppConfiguration.query.first()
     chdir = "/opt/gluu-server-" + appconf.gluu_version
     stunnel_base_conf = [
@@ -493,6 +506,9 @@ def setup_proxied(tid):
     if not primary:
         wlogger.log(tid, "Primary Server is not setup yet. Cannot setup "
                     "clustered caching.", "error")
+
+    
+    
 
 
     # Setup Stunnel and Redis in each server
@@ -528,6 +544,8 @@ def setup_proxied(tid):
         twemproxy_servers.append("   - 127.0.0.1:{0}:1".format(7000+server.id))
 
 
+
+
     wlogger.log(tid, "Configuring the proxy server ...")
     
     
@@ -541,6 +559,27 @@ def setup_proxied(tid):
                     "failed.", "error")
         return
     mock_server.os = get_os_type(rc)
+
+
+    #get previously intsalled servers
+    result = rc.get_file('/etc/stunnel/stunnel.conf')
+    installed_servers = []
+    if result[0]:
+        i_servers = get_redis_config(result[1])
+        for iserver_ip in i_servers:
+            qserver = Server.query.filter_by( ip= iserver_ip).first()
+            if qserver:
+                if not qserver.id in server_id_list:
+                    installed_servers.append(qserver)
+        
+
+    for preserver in installed_servers:
+        proxy_stunnel_conf += [
+            "[redis{0}]".format(preserver.id),
+            "client = yes",
+            "accept = 127.0.0.1:{0}".format(7000+preserver.id),
+            "connect = {0}:7777".format(preserver.ip)
+        ]
 
     if rc.exists('/usr/bin/redis-server') or rc.exists('/bin/redis-server'):
         wlogger.log(tid, "Redis was already installed on server {0}".format(
@@ -700,15 +739,15 @@ def run_and_log(rc, cmd, tid, server_id=None):
 
 
 @celery.task(bind=True)
-def restart_services(self, method):
+def restart_services(self, method, server_id_list):
     tid = self.request.id
-    servers = Server.query.filter(Server.redis.is_(True)).filter(
-        Server.stunnel.is_(True)).all()
+
     appconf = AppConfiguration.query.first()
     chdir = "/opt/gluu-server-" + appconf.gluu_version
     ips = []
 
-    for server in servers:
+    for server_id in server_id_list:
+        server = Server.query.get(server_id)
         ips.append(server.ip)
         wlogger.log(tid, "(Re)Starting services ... ", "info",
                     server_id=server.id)
@@ -744,7 +783,12 @@ def restart_services(self, method):
             # restart the service
             run_and_log(rc, get_cmd('service apache2 restart'), tid, server.id)
 
+        wlogger.log(tid, "(Re)Starting oxauth", "info", server_id=server.id)
+
         run_and_log(rc, get_cmd('service oxauth restart'), tid, server.id)
+        
+        wlogger.log(tid, "(Re)Starting identity", "info", server_id=server.id)
+        
         run_and_log(rc, get_cmd('service identity restart'), tid, server.id)
         rc.close()
 
