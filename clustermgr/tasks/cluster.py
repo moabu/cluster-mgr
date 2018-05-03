@@ -141,8 +141,6 @@ def setup_filesystem_replication(self):
     """Deploys File System replicaton
     """
 
-    print "Setting up File System Replication started"
-
     tid = self.request.id
 
     servers = Server.query.all()
@@ -158,8 +156,6 @@ def setup_filesystem_replication(self):
 
     for server in servers:
         
-        print "Satrting csync2 installation on", server.hostname
-
         c = RemoteClient(server.hostname, ip=server.ip)
         c.startup()
         
@@ -472,8 +468,6 @@ def setup_ldap_replication(self, server_id):
     Args:
         server_id (integer): id of server to be deployed replication
     """
-
-    print "Setting up LDAP Replication started"
 
     tid = self.request.id
     app_config = AppConfiguration.query.first()
@@ -1395,9 +1389,9 @@ def installGluuServer(self, server_id):
                                 cout = cout.strip()
                                 wlogger.log(tid, "...", "debug", log_id="logc-{}".format(log_id), new_log_id=True)
                                 last_debug = True
-                                print "Creating new log id", log_id
 
                             wlogger.log(tid, cout, "debugc", log_id="logc-{}".format(log_id))
+
                         else:
                             log_id += 1
                             last_debug = False
@@ -1533,7 +1527,6 @@ def installGluuServer(self, server_id):
                     cout = cout.strip()
                     wlogger.log(tid, "...", "debug", log_id="logc-{}".format(log_id), new_log_id=True)
                     last_debug = True
-                    print "Creating new log id", log_id
 
                 wlogger.log(tid, cout, "debugc", log_id="logc-{}".format(log_id))
             else:
@@ -2308,7 +2301,7 @@ def upgrade_clustermgr_task(self):
 
 @celery.task(bind=True)
 def register_objectclass(self, objcls):
-    print "Register objectclass task"
+    
     tid = self.request.id
     primary = Server.query.filter_by(primary_server=True).first()
 
