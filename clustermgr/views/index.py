@@ -139,7 +139,7 @@ def app_configuration():
         if config.replication_pw:
             new_replication_passwd = conf_form.replication_pw.data.strip()
             if conf_form.replication_pw.data and \
-                    conf_form.replication_pw_confirm.data is not '**dummy**':
+                    conf_form.replication_pw_confirm.data != '**dummy**':
                 
                 
                 c = None
@@ -186,7 +186,8 @@ def app_configuration():
         config.ldap_update_period = conf_form.ldap_update_period.data
 
         if getattr(conf_form, 'replication_pw'):
-            config.replication_pw = conf_form.replication_pw.data.strip()
+            if conf_form.replication_pw_confirm.data != '**dummy**':
+                config.replication_pw = conf_form.replication_pw.data.strip()
     
         config.gluu_version = conf_form.gluu_version.data.strip()
         
