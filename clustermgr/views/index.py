@@ -46,6 +46,7 @@ index = Blueprint('index', __name__)
 index.before_request(prompt_license)
 index.before_request(license_reminder)
 
+msg_text = ''
 
 @index.route('/')
 def home():
@@ -355,6 +356,9 @@ def app_configuration():
 
 @index.route('/log/<task_id>')
 def get_log(task_id):
+    
+    global msg_text
+    
     msgs = wlogger.get_messages(task_id)
     result = AsyncResult(id=task_id, app=celery)
     value = 0
@@ -377,13 +381,24 @@ def get_log(task_id):
            'result': value, 'error_message': error_message}
 
     ts = strftime('[%Y-%b-%d %H:%M]')
-    logger.error('[Celery] %s %s %s %s %s',
-                      ts,
-                      result.state,
-                      msgs,
-                      value,
-                      error_message
-                )
+    
+    log_ = False
+    
+    if msgs:
+        if msgs[-1].get('msg','') != msg_text:
+            
+            msg_text = msgs[-1].get('msg','')
+            log_ = True
+    
+    if log_ or error_message:
+        
+        logger.error('%s [Celery] %s %s %s %s',
+                          ts,
+                          result.state,
+                          msg_text,
+                          value,
+                          error_message
+                    )
 
     return jsonify(log)
 

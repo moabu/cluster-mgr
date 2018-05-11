@@ -1,7 +1,7 @@
 #logging credit: ivanleoncz <https://gist.github.com/ivanlmj/dbf29670761cbaed4c5c787d9c9c006b>
 
 import os
-
+import traceback
 import click
 from flask.cli import FlaskGroup
 from celery.bin import beat
@@ -55,14 +55,16 @@ def after_request(response):
     # This avoids the duplication of registry in the log,
     # since that 500 is already logged via @app.errorhandler.
     if response.status_code != 500:
-        ts = strftime('[%Y-%b-%d %H:%M]')
-        logger.error('%s %s %s %s %s %s',
-                      ts,
-                      request.remote_addr,
-                      request.method,
-                      request.scheme,
-                      request.full_path,
-                      response.status)
+        
+        if not request.full_path.startswith('/log/'):
+            ts = strftime('[%Y-%b-%d %H:%M]')
+            logger.error('%s %s %s %s %s %s',
+                          ts,
+                          request.remote_addr,
+                          request.method,
+                          request.scheme,
+                          request.full_path,
+                          response.status)
     return response
 
 
