@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+from time import strftime
 import json
 from flask import Blueprint, render_template, redirect, url_for, flash, \
     request, jsonify, session
@@ -15,11 +16,9 @@ from clustermgr.models import AppConfiguration, Server  # , KeyRotation
 from clustermgr.forms import AppConfigForm, SchemaForm, \
     TestUser, InstallServerForm, LdapSchema  # , KeyRotationForm
 
-
-
 from celery.result import AsyncResult
 from ldap.schema import AttributeType, ObjectClass, LDAPSyntax
-from clustermgr.core.utils import get_setup_properties
+from clustermgr.core.utils import get_setup_properties, logger
 from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.core.ldifschema_utils import OpenDjSchema
 
@@ -352,6 +351,8 @@ def app_configuration():
 #     return jsonify({}), 204
 
 
+
+
 @index.route('/log/<task_id>')
 def get_log(task_id):
     msgs = wlogger.get_messages(task_id)
@@ -363,7 +364,7 @@ def get_log(task_id):
     if result.result != None:
         if getattr(result, 'traceback'):
             error_message = str(result.traceback)
-
+            
     if result.state == 'SUCCESS' or result.state == 'FAILED':
         if result.result:
             if type(result.result) != type(True):
@@ -374,6 +375,15 @@ def get_log(task_id):
         wlogger.clean(task_id)
     log = {'task_id': task_id, 'state': result.state, 'messages': msgs,
            'result': value, 'error_message': error_message}
+
+    ts = strftime('[%Y-%b-%d %H:%M]')
+    logger.error('[Celery] %s %s %s %s %s',
+                      ts,
+                      result.state,
+                      msgs,
+                      value,
+                      error_message
+                )
 
     return jsonify(log)
 

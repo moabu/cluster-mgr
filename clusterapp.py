@@ -1,10 +1,6 @@
+#logging credit: ivanleoncz <https://gist.github.com/ivanlmj/dbf29670761cbaed4c5c787d9c9c006b>
+
 import os
-
-import logging
-import traceback
-from time import strftime
-from logging.handlers import RotatingFileHandler
-
 
 import click
 from flask.cli import FlaskGroup
@@ -14,21 +10,15 @@ from celery.bin import worker
 from clustermgr.application import create_app, init_celery
 from clustermgr.extensions import celery
 
+
+from clustermgr.core.utils import logger
+from time import strftime
+
 from flask import request, render_template
 
 app = create_app()
 
-
-#logging credit: ivanleoncz <https://gist.github.com/ivanlmj/dbf29670761cbaed4c5c787d9c9c006b>
-
-handler = RotatingFileHandler(app.config['LOG_FILE'], maxBytes=10000, backupCount=3)
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.ERROR)
-logger.addHandler(handler)
-
-
 init_celery(app, celery)
-
 
 def create_cluster_app(info):
     return create_app()
@@ -73,7 +63,6 @@ def after_request(response):
                       request.scheme,
                       request.full_path,
                       response.status)
-    print response
     return response
 
 

@@ -21,7 +21,20 @@ from clustermgr.config import Config
 from clustermgr.core.remote import RemoteClient
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import wlogger
+
+import logging
+import traceback
+from logging.handlers import RotatingFileHandler
+
+
 DEFAULT_CHARSET = string.ascii_uppercase + string.digits + string.lowercase
+
+
+
+handler = RotatingFileHandler(Config.LOG_FILE, maxBytes= 5*1024*1024, backupCount=3)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.ERROR)
+logger.addHandler(handler)
 
 
 def parse_slapdconf(old_conf=None):
