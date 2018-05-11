@@ -1,5 +1,11 @@
 import os
 
+import logging
+import traceback
+from time import strftime
+from logging.handlers import RotatingFileHandler
+
+
 import click
 from flask.cli import FlaskGroup
 from celery.bin import beat
@@ -8,7 +14,19 @@ from celery.bin import worker
 from clustermgr.application import create_app, init_celery
 from clustermgr.extensions import celery
 
+from flask import request, render_template
+
 app = create_app()
+
+
+#logging credit: ivanleoncz <https://gist.github.com/ivanlmj/dbf29670761cbaed4c5c787d9c9c006b>
+
+handler = RotatingFileHandler(app.config['LOG_FILE'], maxBytes=10000, backupCount=3)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.ERROR)
+logger.addHandler(handler)
+
+
 init_celery(app, celery)
 
 
@@ -39,6 +57,45 @@ def run_celery_worker():
         "loglevel": "INFO",
     }
     runner.run(**config)
+
+
+@app.after_request
+def after_request(response):
+    """ Logging after every request. """
+    # This avoids the duplication of registry in the log,
+    # since that 500 is already logged via @app.errorhandler.
+    if response.status_code != 500:
+        ts = strftime('[%Y-%b-%d %H:%M]')
+        logger.error('%s %s %s %s %s %s',
+                      ts,
+                      request.remote_addr,
+                      request.method,
+                      request.scheme,
+                      request.full_path,
+                      response.status)
+    print response
+    return response
+
+
+@app.errorhandler(Exception)
+def exceptions(e):
+    
+    """ Logging after every Exception. """
+    ts = strftime('[%Y-%b-%d %H:%M]')
+    tb = traceback.format_exc()
+    
+    print tb
+    
+    logger.error('%s %s %s %s %s 5xx INTERNAL SERVER ERROR\n%s',
+                  ts,
+                  request.remote_addr,
+                  request.method,
+                  request.scheme,
+                  request.full_path,
+                  tb)
+
+    return render_template('exception.html', tb=tb)
+
 
 
 if __name__ == "__main__":
