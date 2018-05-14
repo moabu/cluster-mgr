@@ -10,11 +10,11 @@ start() {
     /usr/local/bin/clusterapp.py db upgrade
     
     echo "Starting Celery Worker"
-    celery multi start worker -A clusterapp.celery  --pidfile=$CELERY_PID --logfile="$HOME/.clustermgr/celery.log" --detach
+    celery multi start worker -A clusterapp.celery  --pidfile=$CELERY_PID --logfile="$HOME/.clustermgr/logs/celery.log" --detach
     echo "Starting Celery Beat"
-    celery beat -A clusterapp.celery --pidfile=$CELERY_BEAT_PID --logfile="$HOME/.clustermgr/celery-beat.log" -s "$HOME/.clustermgr/celerybeat-schedule" --detach
+    celery beat -A clusterapp.celery --pidfile=$CELERY_BEAT_PID --logfile="$HOME/.clustermgr/logs/celery-beat.log" -s "$HOME/.clustermgr/celerybeat-schedule" --detach
     echo "Starting Gunicorn Web Server"
-    gunicorn --daemon --pid $GUNICORN_PID -w 2 -b 127.0.0.1:5000 clusterapp:app
+    gunicorn --daemon --pid $GUNICORN_PID  --error-logfile "$HOME/.clustermgr/logs/gunicorn_error.log"   -w 2 -b 127.0.0.1:5000 clusterapp:app
 }
 
 stop() {

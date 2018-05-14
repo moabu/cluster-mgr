@@ -20,10 +20,16 @@ class Config(object):
         os.path.join(os.path.expanduser("~"), ".clustermgr"),
     )
     
+    LOGS_DIR = os.path.join(DATA_DIR, 'logs')
+    
     if not os.path.exists(DATA_DIR):
         os.mkdir(DATA_DIR)
+
+    if not os.path.exists(LOGS_DIR):
+        os.mkdir(LOGS_DIR)
     
-    LOG_FILE = os.path.join(DATA_DIR, 'clustermgr.log')
+    
+    LOG_FILE = os.path.join(LOGS_DIR, 'clustermgr.log')
     JAVALIBS_DIR = os.path.join(DATA_DIR, "javalibs")
     APP_INSTANCE_DIR = os.path.join(DATA_DIR, "instance")
     SCHEMA_DIR = os.path.join(DATA_DIR, "schema")
