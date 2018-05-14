@@ -10,11 +10,28 @@ start() {
     /usr/local/bin/clusterapp.py db upgrade
     
     echo "Starting Celery Worker"
-    celery multi start worker -A clusterapp.celery  --pidfile=$CELERY_PID --logfile="$HOME/.clustermgr/logs/celery.log" --detach
+    if [ -f "$CELERY_PID" ]
+    then
+        echo "Celery Worker pid file $CELERY_PID exists, not starting"
+    else
+        celery multi start worker -A clusterapp.celery  --pidfile=$CELERY_PID --logfile="$HOME/.clustermgr/logs/celery.log" --detach
+    fi
+    
     echo "Starting Celery Beat"
-    celery beat -A clusterapp.celery --pidfile=$CELERY_BEAT_PID --logfile="$HOME/.clustermgr/logs/celery-beat.log" -s "$HOME/.clustermgr/celerybeat-schedule" --detach
+    if [ -f "$CELERY_BEAT_PID" ]
+    then
+        echo "Celery Beat pid file $CELERY_BEAT_PID exists, not starting"
+    else
+        celery beat -A clusterapp.celery --pidfile=$CELERY_BEAT_PID --logfile="$HOME/.clustermgr/logs/celery-beat.log" -s "$HOME/.clustermgr/celerybeat-schedule" --detach
+    fi
+
     echo "Starting Gunicorn Web Server"
-    gunicorn --daemon --pid $GUNICORN_PID  --error-logfile "$HOME/.clustermgr/logs/gunicorn_error.log"   -w 2 -b 127.0.0.1:5000 clusterapp:app
+    if [ -f "$GUNICORN_PID" ]
+    then
+        echo "Gunicorn pid file $GUNICORN_PID exists, not starting"
+    else
+        gunicorn --daemon --pid $GUNICORN_PID  --error-logfile "$HOME/.clustermgr/logs/gunicorn_error.log"   -w 2 -b 127.0.0.1:5000 clusterapp:app
+    fi
 }
 
 stop() {
