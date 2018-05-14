@@ -54,7 +54,7 @@ setup(
                             "clustermgr-celery=clusterapp:run_celery_worker"
                             ],
     },
-    scripts=['clustermgr-cli'],
+    scripts=['clusterapp.py', 'clustermgr-cli'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Web Environment',
