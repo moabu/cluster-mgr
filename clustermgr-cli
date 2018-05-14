@@ -1,30 +1,51 @@
 #!/bin/sh
-#gunicorn  --access-logfile - --error-log - -w 2 -b 127.0.0.1:5000 clusterapp:app
 
 export PYTHONPATH=/usr/local/bin
+CELERY_PID="$HOME/.clustermgr/celery.pid"
+CELERY_BEAT_PID="$HOME/.clustermgr/celery-beat.pid"
+GUNICORN_PID="$HOME/.clustermgr/gunicorn.pid"
 
 start() { 
     echo "Upgrading Database"
     /usr/local/bin/clusterapp.py db upgrade
     
     echo "Starting Celery Worker"
-    celery multi start worker -A clusterapp.celery  --pidfile="$HOME/.clustermgr/celery.pid" --logfile="$HOME/.clustermgr/celery.log" --detach
+    celery multi start worker -A clusterapp.celery  --pidfile=$CELERY_PID --logfile="$HOME/.clustermgr/celery.log" --detach
     echo "Starting Celery Beat"
-    celery beat -A clusterapp.celery --pidfile="$HOME/.clustermgr/celery-beat.pid" --logfile="$HOME/.clustermgr/celery-beat.log" -s "$HOME/.clustermgr/celerybeat-schedule" --detach
+    celery beat -A clusterapp.celery --pidfile=$CELERY_BEAT_PID --logfile="$HOME/.clustermgr/celery-beat.log" -s "$HOME/.clustermgr/celerybeat-schedule" --detach
     echo "Starting Gunicorn Web Server"
-    gunicorn --daemon -w 2 -b 127.0.0.1:5000 clusterapp:app
+    gunicorn --daemon --pid $GUNICORN_PID -w 2 -b 127.0.0.1:5000 clusterapp:app
 }
 
 stop() {
     
     echo "Stopping Celery Workers"
     ps auxww | grep 'celery worker' | awk '{print $2}' | xargs kill -9
-    rm "$HOME/.clustermgr/celery.pid"
+    
+    if [ -f "$CELERY_PID" ]
+    then
+        rm "$CELERY_PID"
+    fi
+
+    
     echo "Stopping Celery Beats"
     ps auxww | grep 'celery beat' | awk '{print $2}' | xargs kill -9
-    rm "$HOME/.clustermgr/celery-beat.pid"
+
+    if [ -f "$CELERY_BEAT_PID" ]
+    then
+        rm "$CELERY_BEAT_PID"
+    fi
+
+
     echo "Stopping Gunicorn Web Server"
     ps auxww | grep 'gunicorn --daemon' | awk '{print $2}' | xargs kill -9
+
+    if [ -f "$GUNICORN_PID" ]
+    then
+        rm "$GUNICORN_PID"
+    fi
+
+
 
 }
 
