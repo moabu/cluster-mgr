@@ -286,6 +286,7 @@ def install_gluu(server_id):
         setup_prop['city'] = form.city.data.strip()
         setup_prop['orgName'] = form.orgName.data.strip()
         setup_prop['admin_email'] = form.admin_email.data.strip()
+        setup_prop['application_max_ram'] = str(form.application_max_ram.data)
         
         setup_prop['inumOrg'], setup_prop['inumAppliance'] = get_inums()
         
@@ -304,6 +305,7 @@ def install_gluu(server_id):
                   'installOxAuthRP',
                   'installPassport',
                   'ldap_type',
+                  'application_max_ram',
                   ):
             setup_prop[o] = getattr(form, o).data
 
@@ -322,6 +324,9 @@ def install_gluu(server_id):
         form.city.data = setup_prop['city']
         form.orgName.data = setup_prop['orgName']
         form.admin_email.data = setup_prop['admin_email']
+        form.application_max_ram.data = setup_prop['application_max_ram']
+        
+        
         #form.inumOrg.data = setup_prop['inumOrg']
         #form.inumAppliance.data = setup_prop['inumAppliance']
 
@@ -336,6 +341,7 @@ def install_gluu(server_id):
                   'installOxAuthRP',
                   'installPassport',
                   'ldap_type',
+                  'application_max_ram',
                   ):
             getattr(form, o).data = setup_prop.get(o, '')
 

@@ -148,6 +148,7 @@ class InstallServerForm(FlaskForm):
         'IP Address *', validators=[DataRequired(), IPAddress()])
     ldap_password = StringField(
         'LDAP Admin Password *', validators=[DataRequired()])
+    application_max_ram = IntegerField("Max RAM to be used by Gluu Server (MB)", default=3072)
     countryCode = StringField(
         'Two Letter Country Code *', validators=[Length(min=2, max=2),
                                                  DataRequired()])
