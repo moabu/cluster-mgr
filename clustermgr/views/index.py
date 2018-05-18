@@ -3,7 +3,7 @@ import os
 from time import strftime
 import json
 from flask import Blueprint, render_template, redirect, url_for, flash, \
-    request, jsonify, session
+    request, jsonify, session, current_app
 from flask import current_app as app
 from flask_login import login_required
 from flask_login import current_user
@@ -11,7 +11,7 @@ from werkzeug.utils import secure_filename
 from celery.result import AsyncResult
 
 
-from clustermgr.extensions import db, wlogger
+from clustermgr.extensions import db, wlogger, csrf
 from clustermgr.models import AppConfiguration, Server  # , KeyRotation
 from clustermgr.forms import AppConfigForm, SchemaForm, \
     TestUser, InstallServerForm, LdapSchema  # , KeyRotationForm
@@ -32,7 +32,7 @@ from clustermgr.core.license import license_reminder
 from clustermgr.extensions import celery
 from clustermgr.core.license import prompt_license
 
-from clustermgr.core.remote import RemoteClient, FakeRemote
+from clustermgr.core.remote import RemoteClient, FakeRemote, ClientNotSetupException
 
 from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.tasks.cluster import get_os_type
@@ -76,6 +76,33 @@ def home():
     servers = Server.query.all()
     if not servers:
         return render_template('intro.html', setup='server')
+
+
+    ask_passphrase = False
+    
+    c = RemoteClient(appconf.nginx_host, appconf.nginx_ip)
+    try:
+        c.startup()
+    
+    except ClientNotSetupException as e:
+
+        if str(e) == 'Pubkey is encrypted.':
+            ask_passphrase = True
+            flash("Pubkey seems to password protected. "
+                "Please set passphrase.",
+                'warning')
+        elif str(e) == 'Could not deserialize key data.':
+            ask_passphrase = True
+            flash("Password your provided for pubkey did not work. "
+                "Please set valid passphrase.",
+                'warning')
+        else:
+            flash("SSH connection to {} failed. Please check if your pub key is "
+                "asdded to /root/.ssh/authorized_keys on this server. Reason: {}".format(
+                                                appconf.nginx_host, e), 'error')
+
+        return render_template('index_passphrase.html', e=e, ask_passphrase=ask_passphrase)
+    
 
     return render_template('dashboard.html', servers=servers, app_conf=appconf)
 
@@ -665,4 +692,19 @@ def upgrade_clustermgr():
     return render_template("logger.html", heading=head, server="",
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
+
+@index.route('/setpassphrase/', methods=['POST'])
+@login_required
+@csrf.exempt
+def set_passphrase():
+
+    print current_app.config["PUBKEY_PASSPHRASE"]
+
+    passphrase = request.form['passphrase']
+
+    print passphrase
+
+    current_app.config["PUBKEY_PASSPHRASE"] = passphrase
+
+    return jsonify({"PUBKEY_PASSPHRASE":passphrase})
 

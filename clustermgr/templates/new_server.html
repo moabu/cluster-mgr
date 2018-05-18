@@ -36,3 +36,33 @@
 
 </div>
 {% endblock %}
+
+
+{% block modals %}
+
+{% include 'passphrase_modal.html' %}
+
+{% endblock %}
+
+
+{% block js %}
+<script>
+{% if ask_passphrase %}
+
+    $("#passphrase_modal").modal("show");
+
+{% endif %}
+
+$('#submit_passphrase').click(function(e){
+      e.preventDefault();
+      $.post('{{request.host_url}}setpassphrase/', 
+         $('#passphrase_form').serialize(), 
+         function(data, status, xhr){
+           console.log("Status: " + status);
+         });
+    $("#passphrase_modal").modal("hide");
+});
+
+</script>
+{% endblock %}
+

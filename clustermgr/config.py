@@ -8,6 +8,7 @@ class Config(object):
     SQLALCHEMY_DATABASE_URI = ''
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = 'prettysecret'
+    PUBKEY_PASSPHRASE = None
     BASE_DN = 'o=gluu'
     CELERY_BROKER_URL = 'redis://localhost:6379'
     CELERY_RESULT_BACKEND = 'redis://localhost:6379'

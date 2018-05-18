@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="box">
+    <div class="box-body jumbotron">
+        <h1>Gluu Cluster Manager</h1>
+        <p>Error accessing Nginx Load Balancer. {{e}}
+        <p>Before proceeding please fix it.</p>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block modals %}
+
+{% include 'passphrase_modal.html' %}
+
+{% endblock %}
+
+
+{% block js %}
+<script>
+{% if ask_passphrase %}
+    $("#passphrase").attr("autocomplete", "off");
+    $("#passphrase_modal").modal("show");
+
+{% endif %}
+
+$('#submit_passphrase').click(function(e){
+      e.preventDefault();
+      $.post('{{request.host_url}}setpassphrase/', 
+         $('#passphrase_form').serialize(), 
+         function(data, status, xhr){
+           console.log("Status: " + status);
+         });
+    $("#passphrase_modal").modal("hide");
+    location.reload(); 
+});
+
+</script>
+{% endblock %}

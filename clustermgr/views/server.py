@@ -5,7 +5,8 @@ import time
 # import uuid
 
 from flask import Blueprint, render_template, redirect, url_for, flash, \
-    request, jsonify
+    request, jsonify, current_app
+
 from flask_login import login_required
 
 from clustermgr.extensions import db
@@ -47,6 +48,7 @@ def index():
     """Route for URL /server/. GET returns ServerForm to add a server,
     POST accepts the ServerForm, validates and creates a new Server object
     """
+    
     appconfig = AppConfiguration.query.first()
     if not appconfig:
         flash("Kindly set default values for the application before adding"
@@ -70,20 +72,43 @@ def index():
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
         server.mmr = False
-        
+        ask_passphrase = False
         
         c = RemoteClient(server.hostname, server.ip)
         try:
             c.startup()
-        except:
-            flash("SSH connection to {} failed. Please check if your pub key is "
-                "asdded to /root/.ssh/authorized_keys on this server".format(
-                                                    server.hostname))
-            
+        
+        except ClientNotSetupException as e:
+
+            if str(e) == 'Pubkey is encrypted.':
+                ask_passphrase = True
+                flash("Pubkey seems to password protected. "
+                    "After setting your passphrase re-submit this form.",
+                    'warning')
+            elif str(e) == 'Could not deserialize key data.':
+                ask_passphrase = True
+                flash("Password your provided for pubkey did not work. "
+                    "After setting your passphrase re-submit this form.",
+                    'warning')
+            else:
+                flash("SSH connection to {} failed. Please check if your pub key is "
+                    "asdded to /root/.ssh/authorized_keys on this server. Reason: {}".format(
+                                                    server.hostname, e), 'error')
+
+        
+        #except:
+        #    flash("SSH connection to {} failed. Please check if your pub key is "
+        #        "asdded to /root/.ssh/authorized_keys on this server".format(
+        #                                            server.hostname))
+        
+            print "ask_passphrase", ask_passphrase
+        
             return render_template('new_server.html',
                        form=form,
                        header=header,
-                       server_id=None)
+                       server_id=None,
+                       ask_passphrase=ask_passphrase,
+                       )
         
         if primary_server:
             server.ldap_password = primary_server.ldap_password

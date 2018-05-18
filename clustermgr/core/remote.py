@@ -5,7 +5,8 @@ import os
 
 from paramiko import SSHException
 from paramiko.client import SSHClient, AutoAddPolicy
-
+from paramiko.ssh_exception import PasswordRequiredException 
+from flask import current_app
 
 class ClientNotSetupException(Exception):
     """Exception raised when the client is not initialized because
@@ -31,10 +32,13 @@ class RemoteClient(object):
             for all the file transfer operations over the SSH.
     """
 
-    def __init__(self, host, ip=None, user='root'):
+    def __init__(self, host, ip=None, user='root', passphrase=None):
         self.host = host
         self.ip = ip
         self.user = user
+        if not passphrase:
+            passphrase = current_app.config["PUBKEY_PASSPHRASE"]
+        self.passphrase = passphrase
         self.client = SSHClient()
         self.sftpclient = None
         self.client.set_missing_host_key_policy(AutoAddPolicy())
@@ -48,9 +52,16 @@ class RemoteClient(object):
         """
         try:
             logging.debug("Trying to connect to remote server %s", self.host)
-            self.client.connect(self.host, port=22, username=self.user)
+            self.client.connect(self.host, port=22, username=self.user, 
+                                    passphrase=self.passphrase)
             self.sftpclient = self.client.open_sftp()
-        except (SSHException, socket.error):
+        except PasswordRequiredException:
+            raise ClientNotSetupException('Pubkey is encrypted.')
+        
+        except SSHException as e:
+            raise ClientNotSetupException(e)
+        
+        except:
             if self.ip:
                 logging.warning("Connection with hostname failed. Retrying "
                                 "with IP")
@@ -63,9 +74,16 @@ class RemoteClient(object):
     def _try_with_ip(self):
         try:
             logging.debug("Connecting to IP:%s User:%s", self.ip, self.user )
-            self.client.connect(self.ip, port=22, username=self.user)
+            self.client.connect(self.ip, port=22, username=self.user,
+                                passphrase=self.passphrase)
             self.sftpclient = self.client.open_sftp()
-        except (SSHException, socket.error):
+        except PasswordRequiredException:
+            raise ClientNotSetupException('Pubkey is encrypted.')
+
+        except SSHException as e:
+            raise ClientNotSetupException(e)
+
+        except socket.error:
             logging.error("Connection with IP (%s) failed.", self.ip)
             raise ClientNotSetupException('Could not connect to the host.')
 

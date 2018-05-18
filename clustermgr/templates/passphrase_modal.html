@@ -1,0 +1,21 @@
+<!-- Passphrase Modal -->
+<div id="passphrase_modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Passphrase</h4>
+            </div>
+            <form id="passphrase_form" method="post" autocomplete="off">
+                
+            <div class="modal-body">
+                <p>Your pubkey seems protected with password. Please enter your passphrase.</p>
+                
+                <p><b>Pubkey Passphrase: </b><input type="password" id="passphrase" name="passphrase" autocomplete="new-password"></p>
+            </div>
+            <div class="modal-footer">
+                <a id="submit_passphrase" class="btn btn-danger" href="#">Submit</a>
+            </div>
+            </form>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
