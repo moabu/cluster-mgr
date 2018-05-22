@@ -273,6 +273,9 @@ def install_gluu(server_id):
     # If current server is not primary server, and primary server was installed,
     # start installation by redirecting to cluster.install_gluu_server
     if not server.primary_server:
+        
+        
+        
         return redirect(url_for('cluster.install_gluu_server',
                                 server_id=server_id))
 
@@ -338,8 +341,11 @@ def install_gluu(server_id):
 
 
         # Redirect to cluster.install_gluu_server to start installation.
-        return redirect(url_for('cluster.install_gluu_server',
-                                server_id=server_id))
+        
+        return redirect(url_for('server.confirm_setup_properties', server_id=server_id))
+        
+        #return redirect(url_for('cluster.install_gluu_server',
+        #                        server_id=server_id))
 
     # If this view is requested, rather than post, display form to
     # admin to determaine which elements to be installed.
@@ -440,6 +446,7 @@ def upload_setup_properties(server_id):
                     'asimba',
                     'oxTrustRemovedFolder',
                     'idp3_cml_keygenerator',
+                    'os_type',
                    ):
             if rf in setup_prop:
                 del setup_prop[rf]
@@ -458,12 +465,41 @@ def upload_setup_properties(server_id):
         flash("Setup properties file has been uploaded sucessfully. ",
               "success")
 
-        return redirect(url_for('cluster.install_gluu_server',
-                                server_id=server_id))
+        return redirect(url_for('server.confirm_setup_properties', server_id=server_id))
+        
+        #return redirect(url_for('cluster.install_gluu_server',
+        #                       server_id=server_id))
     else:
         flash("Please upload valid setup properties file", "danger")
 
+        
+        
         return redirect(url_for('server.install_gluu', server_id=server_id))
+
+
+@server_view.route('/confirmproperties/<int:server_id>/', methods=['GET'])
+@login_required
+def confirm_setup_properties(server_id):
+
+    setup_prop = get_setup_properties()
+
+    appconf = AppConfiguration.query.first()
+    server = Server.query.get(server_id)
+
+    setup_prop['hostname'] = appconf.nginx_host
+    setup_prop['ip'] = server.ip
+    setup_prop['ldapPass'] = server.ldap_password
+
+    keys = setup_prop.keys()
+    keys.sort()
+
+    return render_template(
+                        'server_confirm_properties.html',
+                        server_id = server_id,
+                        setup_prop = setup_prop,
+                        keys = keys,
+                    )
+
 
 
 @server_view.route('/editslapdconf/<int:server_id>/', methods=['GET', 'POST'])
