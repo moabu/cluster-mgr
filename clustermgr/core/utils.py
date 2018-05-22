@@ -474,3 +474,4 @@ def get_redis_config(f):
                 addr_list.append(addr_port_s[0])
 
     return addr_list
+

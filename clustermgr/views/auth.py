@@ -107,6 +107,11 @@ def logout():
     
         logout_url = oxc.get_logout_uri()
         return redirect(logout_url)
+        
+    pw_file = os.path.join(current_app.config['DATA_DIR'], '.pw')
+    
+    if pw_file:
+        os.remove(pw_file)
 
     return redirect(url_for("auth.login"))
 

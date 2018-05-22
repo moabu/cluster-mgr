@@ -74,9 +74,7 @@ def exceptions(e):
     """ Logging after every Exception. """
     ts = strftime('[%Y-%b-%d %H:%M]')
     tb = traceback.format_exc()
-    
-    print tb
-    
+
     logger.error('%s %s %s %s %s 5xx INTERNAL SERVER ERROR\n%s',
                   ts,
                   request.remote_addr,

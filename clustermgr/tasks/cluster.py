@@ -947,13 +947,14 @@ def check_gluu_installation(c):
 
 @celery.task
 def collect_server_details(server_id):
+    print "Start collecting server details task"
     server = Server.query.get(server_id)
     appconf = AppConfiguration.query.first()
     c = RemoteClient(server.hostname, ip=server.ip)
-    try:
-        c.startup()
-    except:
-        return
+    #try:
+    c.startup()
+    #except:
+    #    return
 
     # 0. Make sure it is a Gluu Server
     chdir = "/opt/gluu-server-" + appconf.gluu_version

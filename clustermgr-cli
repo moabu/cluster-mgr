@@ -4,6 +4,9 @@ export PYTHONPATH=/usr/local/bin
 CELERY_PID="$HOME/.clustermgr/celery.pid"
 CELERY_BEAT_PID="$HOME/.clustermgr/celery-beat.pid"
 GUNICORN_PID="$HOME/.clustermgr/gunicorn.pid"
+PW_FILE="$HOME/.clustermgr/.pw"
+NEW_UUID=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1`
+
 
 start() { 
     echo "Upgrading Database"
@@ -14,7 +17,7 @@ start() {
     then
         echo "Celery Worker pid file $CELERY_PID exists, not starting"
     else
-        celery multi start worker -A clusterapp.celery  --pidfile=$CELERY_PID --logfile="$HOME/.clustermgr/logs/celery.log" --detach
+        NEW_UUID=$NEW_UUID celery multi start worker -A clusterapp.celery --pidfile=$CELERY_PID --logfile="$HOME/.clustermgr/logs/celery.log" --detach
     fi
     
     echo "Starting Celery Beat"
@@ -22,7 +25,7 @@ start() {
     then
         echo "Celery Beat pid file $CELERY_BEAT_PID exists, not starting"
     else
-        celery beat -A clusterapp.celery --pidfile=$CELERY_BEAT_PID --logfile="$HOME/.clustermgr/logs/celery-beat.log" -s "$HOME/.clustermgr/celerybeat-schedule" --detach
+        NEW_UUID=$NEW_UUID celery beat -A clusterapp.celery --pidfile=$CELERY_BEAT_PID --logfile="$HOME/.clustermgr/logs/celery-beat.log" -s "$HOME/.clustermgr/celerybeat-schedule" --detach
     fi
 
     echo "Starting Gunicorn Web Server"
@@ -30,7 +33,7 @@ start() {
     then
         echo "Gunicorn pid file $GUNICORN_PID exists, not starting"
     else
-        gunicorn --daemon --pid $GUNICORN_PID  --error-logfile "$HOME/.clustermgr/logs/gunicorn_error.log"   -w 2 -b 127.0.0.1:5000 clusterapp:app
+        NEW_UUID=$NEW_UUID gunicorn --daemon --pid $GUNICORN_PID  --error-logfile "$HOME/.clustermgr/logs/gunicorn_error.log"   -w 2 -b 127.0.0.1:5000 clusterapp:app
     fi
 }
 
@@ -62,7 +65,10 @@ stop() {
         rm "$GUNICORN_PID"
     fi
 
-
+    if [ -f "$PW_FILE" ]
+    then
+        rm "$PW_FILE"
+    fi
 
 }
 

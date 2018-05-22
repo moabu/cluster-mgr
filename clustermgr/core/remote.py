@@ -2,11 +2,23 @@ import StringIO
 import socket
 import logging
 import os
+import base64
 
 from paramiko import SSHException
 from paramiko.client import SSHClient, AutoAddPolicy
 from paramiko.ssh_exception import PasswordRequiredException 
 from flask import current_app
+
+
+
+def decode(key, enc):
+    dec = []
+    enc = base64.urlsafe_b64decode(enc)
+    for i in range(len(enc)):
+        key_c = key[i % len(key)]
+        dec_c = chr((256 + ord(enc[i]) - ord(key_c)) % 256)
+        dec.append(dec_c)
+    return "".join(dec)
 
 class ClientNotSetupException(Exception):
     """Exception raised when the client is not initialized because
@@ -36,8 +48,16 @@ class RemoteClient(object):
         self.host = host
         self.ip = ip
         self.user = user
+                
         if not passphrase:
-            passphrase = current_app.config["PUBKEY_PASSPHRASE"]
+            pw_file = os.path.join(current_app.config['DATA_DIR'], '.pw')
+            if os.path.exists(pw_file):
+                encoded_passphrase = open(pw_file).read()
+            
+                passphrase = decode(
+                                os.getenv('NEW_UUID'), 
+                                encoded_passphrase
+                                )
         self.passphrase = passphrase
         self.client = SSHClient()
         self.sftpclient = None

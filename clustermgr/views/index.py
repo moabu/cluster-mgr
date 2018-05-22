@@ -18,7 +18,7 @@ from clustermgr.forms import AppConfigForm, SchemaForm, \
 
 from celery.result import AsyncResult
 from ldap.schema import AttributeType, ObjectClass, LDAPSyntax
-from clustermgr.core.utils import get_setup_properties, logger
+from clustermgr.core.utils import get_setup_properties, logger, encode
 from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.core.ldifschema_utils import OpenDjSchema
 
@@ -53,7 +53,6 @@ def home():
     cfg_file = app.config["AUTH_CONFIG_FILE"]
     oxd_file_config = app.config["OXD_CLIENT_CONFIG_FILE"]
     
-
     if not os.path.exists(cfg_file):
         if not os.path.exists(oxd_file_config):
             return redirect(url_for('auth.signup'))
@@ -683,7 +682,6 @@ def remove_custom_schema(schema_file):
 def upgrade_clustermgr():
     """Initiates upgrading of clustermgr"""
 
-
     task = upgrade_clustermgr_task.delay()
     print "TASK STARTED", task.id
     head = "Upgrading clustermgr"
@@ -697,14 +695,12 @@ def upgrade_clustermgr():
 @login_required
 @csrf.exempt
 def set_passphrase():
-
-    print current_app.config["PUBKEY_PASSPHRASE"]
-
     passphrase = request.form['passphrase']
 
-    print passphrase
+    encoded_passphrase = encode(os.getenv('NEW_UUID'), passphrase)
 
-    current_app.config["PUBKEY_PASSPHRASE"] = passphrase
+    with open(os.path.join(current_app.config['DATA_DIR'], '.pw'),'w') as f:
+        f.write(encoded_passphrase)
 
-    return jsonify({"PUBKEY_PASSPHRASE":passphrase})
+    return jsonify({"PUBKEY_PASSPHRASE":encoded_passphrase})
 
