@@ -61,12 +61,7 @@ class SchemaForm(FlaskForm):
 
 
 class SetupPropertiesLastForm(FlaskForm):
-    setup_properties = FileField(validators=[
-        FileRequired(),
-        FileAllowed(
-            ['last'],
-            'Upload only setup.properties.last files with .last extension.')
-    ])
+    setup_properties = FileField(validators=[FileRequired()])
     upload = SubmitField("Upload Setup Properties")
 
 

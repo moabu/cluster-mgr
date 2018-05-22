@@ -387,6 +387,11 @@ def install_gluu(server_id):
 @server_view.route('/uploadsetupproperties/<int:server_id>', methods=['POST'])
 def upload_setup_properties(server_id):
     setup_properties_form = SetupPropertiesLastForm()
+    
+    print setup_properties_form.upload.data
+    print setup_properties_form.validate_on_submit()
+
+    
     if setup_properties_form.upload.data and \
             setup_properties_form.validate_on_submit():
 
@@ -441,6 +446,8 @@ def upload_setup_properties(server_id):
 
         appconf = AppConfiguration.query.first()
         server = Server.query.get(server_id)
+
+    
 
         setup_prop['hostname'] = appconf.nginx_host
         setup_prop['ip'] = server.ip
