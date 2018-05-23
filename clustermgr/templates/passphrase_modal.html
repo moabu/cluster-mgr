@@ -5,7 +5,7 @@
             <div class="modal-header">
                 <h4 class="modal-title">Passphrase</h4>
             </div>
-            <form id="passphrase_form" method="post" autocomplete="off">
+            <form id="passphrase_form" method="post" autocomplete="off" action="{{request.host_url}}setpassphrase/?next={{next}}">
                 
             <div class="modal-body">
                 <p>Your pubkey seems protected with password. Please enter your passphrase.</p>

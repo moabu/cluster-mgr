@@ -108,6 +108,7 @@ def index():
                        header=header,
                        server_id=None,
                        ask_passphrase=ask_passphrase,
+                       next=url_for('server.index')
                        )
         
         if primary_server:

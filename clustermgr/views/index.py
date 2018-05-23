@@ -100,7 +100,7 @@ def home():
                 "asdded to /root/.ssh/authorized_keys on this server. Reason: {}".format(
                                                 appconf.nginx_host, e), 'error')
 
-        return render_template('index_passphrase.html', e=e, ask_passphrase=ask_passphrase)
+        return render_template('index_passphrase.html', e=e, ask_passphrase=ask_passphrase, next='/')
     
 
     return render_template('dashboard.html', servers=servers, app_conf=appconf)
@@ -691,7 +691,7 @@ def upgrade_clustermgr():
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
 
-@index.route('/setpassphrase/', methods=['POST'])
+@index.route('/setpassphrase/', methods=['POST','GET'])
 @login_required
 @csrf.exempt
 def set_passphrase():
@@ -702,5 +702,8 @@ def set_passphrase():
     with open(os.path.join(current_app.config['DATA_DIR'], '.pw'),'w') as f:
         f.write(encoded_passphrase)
 
-    return jsonify({"PUBKEY_PASSPHRASE":encoded_passphrase})
-
+    next_url = request.args.get('next')
+    if not next_url:
+        next_url = '/'
+    
+    return redirect(next_url)
