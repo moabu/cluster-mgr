@@ -39,6 +39,16 @@ body {
                     {% endfor %}
                 </div>
             </div>
+            
+             <div class="form-group">
+                <label class="control-label col-md-3"></label>
+                <div class="col-md-9">
+                    Cluster Manager is licensed under the <a target="_blank" href="https://github.com/GluuFederation/cluster-mgr/blob/master/LICENSE" target="_top">GLUU-SUPPORT license</a>, and requires an active Gluu support subscription for use in production. By signing in you agree to the terms of the license.
+                    
+                </div>
+            </div>
+            
+            
         </div>
         <input type="hidden" value="{{ request.values.get('next') }}" name="next">
         <div class="box-footer">

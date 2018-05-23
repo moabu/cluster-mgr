@@ -248,6 +248,11 @@ class SignUpForm(FlaskForm):
                                message='Passwords must match')
                 ])
     passwordconfirm = PasswordField("Re-enter Password", validators=[DataRequired()])
+    
+    license_confirm = BooleanField('Check here to indicate that you have read and agree to the terms of the <a target="_blank" href="https://github.com/GluuFederation/cluster-mgr/blob/master/LICENSE">GLUU-SUPPORT license</a>' , validators=[DataRequired()])
+    
+    
+    
     login = SubmitField("Sign up")
 
 class WizardStep1(FlaskForm):
