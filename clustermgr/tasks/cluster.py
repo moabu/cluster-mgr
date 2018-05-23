@@ -1837,7 +1837,7 @@ def opendjdisablereplication(self, server_id, remove_server=False):
         return False
 
     cmd = ('/opt/opendj/bin/dsreplication disable --disableAll --port 4444 '
-            '--hostname {} --adminUID admin --adminPassword {} '
+            '--hostname {} --adminUID admin --adminPassword $\'{}\' '
             '--trustAll --no-prompt').format(
                             server.hostname,
                             app_config.replication_pw)
@@ -1848,7 +1848,7 @@ def opendjdisablereplication(self, server_id, remove_server=False):
     wlogger.log(tid, "Checking replication status")
 
     cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
-            '-p 1444 -I admin -w {}').format(
+            '-p 1444 -I admin -w $\'{}\'').format(
                     primary_server.hostname,
                     app_config.replication_pw)
 

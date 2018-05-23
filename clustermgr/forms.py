@@ -260,6 +260,13 @@ class WizardStep1(FlaskForm):
         
     next = SubmitField("Next")
 
+class CacheSettingsForm(FlaskForm):
+    redis_port = IntegerField("Redis Port", validators=[DataRequired()], default="6379")
+    stunnel_port = IntegerField("Stunnel Port", validators=[DataRequired()], default="8888")
+    save = SubmitField("Save Settings")
+
+
+
 class LdapSchema(FlaskForm):
     oid = HiddenField('OID')
     names = StringField('Name', validators=[DataRequired()])

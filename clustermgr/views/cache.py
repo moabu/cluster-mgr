@@ -15,6 +15,7 @@ from ..core.license import prompt_license
 from ..core.license import license_required
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.utils import get_redis_config
+from clustermgr.forms import CacheSettingsForm
 
 cache_mgr = Blueprint('cache_mgr', __name__, template_folder='templates')
 cache_mgr.before_request(prompt_license)
@@ -66,7 +67,9 @@ def index():
               " Gluu Server version 3.1.1 and above", "danger")
         return redirect(url_for('index.home'))
 
-    return render_template('cache_index.html', servers=servers)
+    form = CacheSettingsForm()
+
+    return render_template('cache_index.html', servers=servers, form=form)
 
 
 @cache_mgr.route('/refresh_methods')
