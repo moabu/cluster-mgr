@@ -110,7 +110,7 @@ def logout():
         
     pw_file = os.path.join(current_app.config['DATA_DIR'], '.pw')
     
-    if os.path.exist(pw_file):
+    if os.path.exists(pw_file):
         os.remove(pw_file)
 
     return redirect(url_for("auth.login"))
