@@ -645,5 +645,20 @@ def dry_run(server_id):
     
     return jsonify(result)
     
+@server_view.route('/makeprimary/<int:server_id>/', methods=['GET'])
+@login_required
+def make_primary(server_id):
+    cur_primary = Server.query.filter_by(primary_server=True).first()
     
+    if cur_primary:
+        cur_primary.primary_server = None
+    server = Server.query.get(server_id)
     
+    if server:
+        server.primary_server = True
+    
+    db.session.commit()
+    
+    flash("Server {} was set as Primary Server".format(server.hostname), "info")
+    
+    return redirect(url_for('index.home'))

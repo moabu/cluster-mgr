@@ -114,6 +114,7 @@
                             <a class="btn btn-default btn-xs" href="{{ url_for('server.edit', server_id=server.id) }}">Edit</a>
                             <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal"
                                data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Remove</a>
+                            
                             {% if not server.gluu_server %}
                             <br>
                             <a class="btn btn-default btn-xs" href="{{ url_for('server.install_gluu', server_id=server.id) }}">Install Gluu</a>
@@ -124,6 +125,14 @@
                                data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Re-install</a>
                            
                             {% endif %}
+
+                            {% if not server.primary_server %}
+                            <a class="btn btn-default btn-xs" href="#" data-toggle="modal" data-target="#change_primary_server_modal"
+                               data-pserverid="{{server.id}}" data-phostname="{{ server.hostname }}">Make Primary</a>
+
+                            {% endif %}
+                            
+
 
                             <!--
                             {% if server.gluu_server and server.primary_server %}
@@ -205,6 +214,30 @@
 
 
 
+<!-- Alert before changing primary server -->
+<div id="change_primary_server_modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"
+                        aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">Changing Primary Server</h4>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to set <b><span id="primary-server-host"></span></b> as Primary Server?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default"
+                        data-dismiss="modal">Close
+                </button>
+                <a id="makeprimary_url" class="btn btn-danger" href="#">Confirm</a>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+
 <!-- Dry-run modal -->
 <div id="dry_run_modal" class="modal fade" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
@@ -265,6 +298,24 @@
         modal.find('.modal-title').text('Re-install ' + hostname);
         $('#reinstall_url').attr('href', reinstall_server_url);
     });
+
+    $('#change_primary_server_modal').on('show.bs.modal', function (event) {
+        var button = $(event.relatedTarget);
+        var server_id = button.data('pserverid');
+        var hostname = button.data('phostname');
+        
+        $('#primary-server-host').text(hostname);
+        
+        var make_primary_url="{{request.host_url}}server/makeprimary/"
+        
+        make_primary_url += server_id;
+        
+        $('#makeprimary_url').attr('href', make_primary_url);
+        
+    });
+
+
+
 
 function showLdapStat() {
 
