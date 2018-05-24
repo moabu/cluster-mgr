@@ -66,7 +66,7 @@ def modify_etc_hosts(host_ip, old_hosts, old_host):
 class ChangeGluuHostname:
     def __init__(self, old_host, new_host, cert_city, cert_mail, cert_state,
                     cert_country, ldap_password, os_type, ip_address,
-                    server='localhost', gluu_version='3.1.2', local=False,
+                    server='localhost', gluu_version='3.1.3', local=False,
                     ):
 
         self.old_host = old_host
