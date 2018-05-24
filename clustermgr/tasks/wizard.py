@@ -122,8 +122,6 @@ def wizard_step2(self):
         wlogger.log(tid, "Can't establish SSH connection",'fail')
         wlogger.log(tid, "Ending changing name.", 'error')
         return
-
-    app_conf
     
     name_changer = ChangeGluuHostname(
             old_host = server.hostname,
@@ -136,6 +134,7 @@ def wizard_step2(self):
             ip_address = server.ip,
             ldap_password = setup_prop['ldapPass'],
             os_type = server.os,
+            gluu_version = app_conf.gluu_version
         )
 
     name_changer.logger_tid = tid
