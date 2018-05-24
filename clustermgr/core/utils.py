@@ -283,6 +283,7 @@ def get_setup_properties(createNew=False):
         'installOxAuthRP':False,
         'installPassport':False,
         'ldap_type': 'opendj',
+        'application_max_ram': 3072,
         }
 
     #Check if there exists a previously created setup.properties file.
