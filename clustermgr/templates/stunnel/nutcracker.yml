@@ -1,0 +1,11 @@
+alpha:
+  listen: 127.0.0.1:2222
+  hash: fnv1a_64
+  distribution: ketama
+  auto_eject_hosts: true
+  redis: true
+  server_retry_timeout: 30000
+  server_failure_limit: 2
+  timeout: 400
+  preconnect: true
+  servers:

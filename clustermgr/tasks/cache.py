@@ -437,7 +437,7 @@ def __configure_stunnel(tid, server, stunnel_conf, chdir, setup_props=None):
 
 
 def __update_LDAP_cache_method(tid, server, server_string, method):
-    """Connects to LDAP and updates the cache method and the cache servers
+    """Connects to LDAP and updathe cache method and the cache servers
 
     :param tid: task id for log identification
     :param server: :object:`clustermgr.models.Server` to connect to
@@ -507,9 +507,6 @@ def setup_proxied(tid, server_id_list):
         wlogger.log(tid, "Primary Server is not setup yet. Cannot setup "
                     "clustered caching.", "error")
 
-    
-    
-
 
     # Setup Stunnel and Redis in each server
     for server in servers:
@@ -540,10 +537,16 @@ def setup_proxied(tid, server_id_list):
             "accept = 127.0.0.1:{0}".format(7000+server.id),
             "connect = {0}:7777".format(server.ip)
         ]
-        proxy_stunnel_conf +=client_conf
-        twemproxy_servers.append("   - 127.0.0.1:{0}:1".format(7000+server.id))
+        proxy_stunnel_conf += client_conf
 
+    
+    all_servers = Server.query.all()
 
+    for server in all_servers:
+        if server.redis:
+            twemproxy_tmp = "   - 127.0.0.1:{0}:1".format(7000+server.id)
+            print (twemproxy_tmp)
+            twemproxy_servers.append(twemproxy_tmp)
 
 
     wlogger.log(tid, "Configuring the proxy server ...")
@@ -621,22 +624,18 @@ def setup_proxied(tid, server_id_list):
 
     # Setup Twemproxy
     wlogger.log(tid, "Writing Twemproxy configuration")
-    twemproxy_conf = [
-        "alpha:",
-        "  listen: 127.0.0.1:2222",
-        "  hash: fnv1a_64",
-        "  distribution: ketama",
-        "  auto_eject_hosts: true",
-        "  redis: true",
-        "  server_retry_timeout: 30000",
-        "  server_failure_limit: 2",
-        "  timeout: 400",
-        "  preconnect: true",
-        "  servers:"
-    ]
-    twemproxy_conf.extend(twemproxy_servers)
+    
+    twemproxy_conf_tmp_file = os.path.join(
+                                    app.root_path,
+                                    'templates',
+                                    'stunnel',
+                                    'nutcracker.yml'
+                                )
+    
+    twemproxy_conf = open(twemproxy_conf_tmp_file).read()
+    twemproxy_conf += '\n'.join(twemproxy_servers)
     remote = "/etc/nutcracker/nutcracker.yml"
-    rc.put_file(remote, "\n".join(twemproxy_conf))
+    rc.put_file(remote, twemproxy_conf)
 
     wlogger.log(tid, "Configuration complete", "success")
 
