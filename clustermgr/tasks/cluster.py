@@ -1801,6 +1801,79 @@ def removeMultiMasterDeployement(self, server_id):
 
 
 
+def do_disable_replication(tid, server, primary_server, app_config):
+
+
+    c = RemoteClient(primary_server.hostname, ip=primary_server.ip)
+    chroot = '/opt/gluu-server-' + app_config.gluu_version
+
+
+    cmd_run = '{}'
+
+    if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):
+        chroot = None
+        cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
+                '-o Port=60022 -o LogLevel=QUIET '
+                '-o StrictHostKeyChecking=no '
+                '-o UserKnownHostsFile=/dev/null '
+                '-o PubkeyAuthentication=yes root@localhost "{}"')
+
+
+    
+    wlogger.log(tid, 
+        "Disabling replication for {0}".format(
+        primary_server.hostname)
+        )
+
+
+    wlogger.log(tid, 
+            "Making SSH connection to primary server {0}".format(
+            primary_server.hostname), 'debug'
+            )
+
+    try:
+        c.startup()
+    except Exception as e:
+        wlogger.log(
+            tid, "Cannot establish SSH connection {0}".format(e), "warning")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return False
+
+    wlogger.log(tid, "SSH connection successful", 'success')
+
+    cmd = ('/opt/opendj/bin/dsreplication disable --disableAll --port 4444 '
+            '--hostname {} --adminUID admin --adminPassword $\'{}\' '
+            '--trustAll --no-prompt').format(
+                            server.hostname,
+                            app_config.replication_pw)
+
+    cmd = cmd_run.format(cmd)
+    run_command(tid, c, cmd, chroot)
+
+    wlogger.log(tid, "Checking replication status", 'debug')
+
+    cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
+            '-p 1444 -I admin -w $\'{}\'').format(
+                    primary_server.hostname,
+                    app_config.replication_pw)
+
+    cmd = cmd_run.format(cmd)
+    run_command(tid, c, cmd, chroot)
+
+    server.mmr = False
+
+
+    return True
+
+@celery.task(bind=True)
+def opendj_disable_replication_task(self, server_id):
+    server = Server.query.get(server_id)
+    primary_server = Server.query.filter_by(primary_server=True).first()
+    app_config = AppConfiguration.query.first()
+    tid = self.request.id
+    r = do_disable_replication(tid, server, primary_server, app_config)
+    return r
+
 @celery.task(bind=True)
 def remove_server_from_cluster(self, server_id, remove_server=False, 
                                                 disable_replication=True):
@@ -1862,8 +1935,6 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
     proxy_stunnel_conf = '\n'.join(proxy_stunnel_conf)
     remote = '/etc/stunnel/stunnel.conf'
     r = proxy_c.put_file(remote, proxy_stunnel_conf)
-    
-    
 
     if not r[0]:
         wlogger.log(tid, "An error occurred while uploadng stunnel.conf.", "error")
@@ -1875,64 +1946,11 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
 
     proxy_c.close()
 
-    c = RemoteClient(primary_server.hostname, ip=primary_server.ip)
-    chroot = '/opt/gluu-server-' + app_config.gluu_version
-
-
-    cmd_run = '{}'
-
-    if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):
-        chroot = None
-        cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
-                '-o Port=60022 -o LogLevel=QUIET '
-                '-o StrictHostKeyChecking=no '
-                '-o UserKnownHostsFile=/dev/null '
-                '-o PubkeyAuthentication=yes root@localhost "{}"')
-
 
     if disable_replication:
-
-        wlogger.log(tid, 
-            "Disabling replication for {0}".format(
-            primary_server.hostname)
-            )
-
-
-        wlogger.log(tid, 
-                "Making SSH connection to primary server {0}".format(
-                primary_server.hostname), 'debug'
-                )
-
-        try:
-            c.startup()
-        except Exception as e:
-            wlogger.log(
-                tid, "Cannot establish SSH connection {0}".format(e), "warning")
-            wlogger.log(tid, "Ending server setup process.", "error")
+        r = do_disable_replication(tid, server, primary_server, app_config)
+        if not r:
             return False
-
-        wlogger.log(tid, "SSH connection successful", 'success')
-
-        cmd = ('/opt/opendj/bin/dsreplication disable --disableAll --port 4444 '
-                '--hostname {} --adminUID admin --adminPassword $\'{}\' '
-                '--trustAll --no-prompt').format(
-                                server.hostname,
-                                app_config.replication_pw)
-
-        cmd = cmd_run.format(cmd)
-        run_command(tid, c, cmd, chroot)
-
-        wlogger.log(tid, "Checking replication status", 'debug')
-
-        cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
-                '-p 1444 -I admin -w $\'{}\'').format(
-                        primary_server.hostname,
-                        app_config.replication_pw)
-
-        cmd = cmd_run.format(cmd)
-        run_command(tid, c, cmd, chroot)
-
-        server.mmr = False
 
     if remove_server:
         db.session.delete(server)

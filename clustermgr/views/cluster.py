@@ -17,7 +17,8 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cluster import setup_ldap_replication, \
     installGluuServer, removeMultiMasterDeployement, installNGINX, \
     setup_filesystem_replication, opendjenablereplication, \
-    remove_server_from_cluster, remove_filesystem_replication
+    remove_server_from_cluster, remove_filesystem_replication, \
+    opendj_disable_replication_task
 
 from clustermgr.core.remote import RemoteClient
 
@@ -74,6 +75,22 @@ def deploy_config(server_id):
 
     return render_template("logger.html", heading=head, server=s,
                            task=task, nextpage=nextpage, whatNext=whatNext)
+
+
+@cluster.route('/opendjdisablereplication/<int:server_id>/')
+def opendj_disable_replication(server_id):
+    server = Server.query.get(server_id)
+    task = opendj_disable_replication_task.delay(
+                                            server.id, 
+                                        )
+    head = "Disabling LDAP Replication for {}".format(server.hostname)
+    nextpage = "index.multi_master_replication"
+    whatNext = "Multi Master Replication"
+
+
+    return render_template("logger.html", heading=head, server=server,
+                           task=task, nextpage=nextpage, whatNext=whatNext)
+
 
 
 @cluster.route('/removeserverfromcluster/<int:server_id>/')
