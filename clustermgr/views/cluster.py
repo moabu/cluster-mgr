@@ -17,7 +17,7 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cluster import setup_ldap_replication, \
     installGluuServer, removeMultiMasterDeployement, installNGINX, \
     setup_filesystem_replication, opendjenablereplication, \
-    opendjdisablereplication, remove_filesystem_replication
+    remove_server_from_cluster, remove_filesystem_replication
 
 from clustermgr.core.remote import RemoteClient
 
@@ -76,7 +76,7 @@ def deploy_config(server_id):
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
 
-@cluster.route('/opendjdisablereplication/<int:server_id>/')
+@cluster.route('/removeserverfromcluster/<int:server_id>/')
 def opendj_disable_replication(server_id):
     """Initiates removal of replications"""
     remove_server = False
@@ -84,8 +84,8 @@ def opendj_disable_replication(server_id):
         remove_server = True
     #Start non-gluu ldap server installation celery task
     server = Server.query.get(server_id)
-    task = opendjdisablereplication.delay(server.id, remove_server)
-    head = "Disabling Replication Server on {}".format(server.hostname)
+    task = remove_server_from_cluster.delay(server.id, remove_server)
+    head = "Removing server {} from cluster".format(server.hostname)
 
     if request.args.get('next') == 'dashboard':
         nextpage = "index.home"

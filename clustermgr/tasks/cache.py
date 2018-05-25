@@ -8,8 +8,9 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, wlogger, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import DBManager
-from clustermgr.tasks.cluster import get_os_type
-from clustermgr.core.utils import parse_setup_properties, get_redis_config
+from clustermgr.tasks.cluster import get_os_type, run_command
+from clustermgr.core.utils import parse_setup_properties, \
+        get_redis_config, make_proxy_stunnel_conf, make_twem_proxy_conf
 
 from ldap3.core.exceptions import LDAPSocketOpenError
 from flask import current_app as app
@@ -494,15 +495,11 @@ def setup_proxied(tid, server_id_list):
 
     appconf = AppConfiguration.query.first()
     chdir = "/opt/gluu-server-" + appconf.gluu_version
-    stunnel_base_conf = [
-        "cert = /etc/stunnel/cert.pem",
-        "pid = /var/run/stunnel.pid",
-        "output = /var/log/stunnel4/stunnel.log"
-    ]
-    proxy_stunnel_conf = stunnel_base_conf[:]
-    twemproxy_servers = []
+
+
     proxy_ip = socket.gethostbyname(appconf.nginx_host)
     primary = Server.query.filter(Server.primary_server.is_(True)).first()
+
     if not primary:
         wlogger.log(tid, "Primary Server is not setup yet. Cannot setup "
                     "clustered caching.", "error")
@@ -515,6 +512,9 @@ def setup_proxied(tid, server_id_list):
             __update_LDAP_cache_method(tid, server, 'localhost:7000', 'STANDALONE')
        
         stunnel_conf = [
+            "cert = /etc/stunnel/cert.pem",
+            "pid = /var/run/stunnel.pid",
+            "output = /var/log/stunnel4/stunnel.log",
             "[redis-server]",
             "client = no",
             "accept = {0}:7777".format(server.ip),
@@ -525,64 +525,26 @@ def setup_proxied(tid, server_id_list):
             "connect = {0}:8888".format(proxy_ip)
         ]
      
-        status = __configure_stunnel(tid, server, stunnel_base_conf + stunnel_conf, chdir)
+        status = __configure_stunnel(tid, server, stunnel_conf, chdir)
+
         if not status:
             continue
 
-        # if the setup was successful add the server to the list of stunnel
-        # clients in the proxy server configuration
-        client_conf = [
-            "[redis{0}]".format(server.id),
-            "client = yes",
-            "accept = 127.0.0.1:{0}".format(7000+server.id),
-            "connect = {0}:7777".format(server.ip)
-        ]
-        proxy_stunnel_conf += client_conf
-
-    
-    all_servers = Server.query.all()
-
-    for server in all_servers:
-        if server.redis:
-            twemproxy_tmp = "   - 127.0.0.1:{0}:1".format(7000+server.id)
-            print (twemproxy_tmp)
-            twemproxy_servers.append(twemproxy_tmp)
-
-
     wlogger.log(tid, "Configuring the proxy server ...")
-    
     
     # Setup Stunnel in the proxy server
     mock_server = Server()
     mock_server.hostname = appconf.nginx_host
     mock_server.ip = proxy_ip
     rc = __get_remote_client(mock_server, tid)
+    
     if not rc:
         wlogger.log(tid, "Couldn't connect to proxy server. Twemproxy setup "
                     "failed.", "error")
         return
+    
     mock_server.os = get_os_type(rc)
 
-
-    #get previously intsalled servers
-    result = rc.get_file('/etc/stunnel/stunnel.conf')
-    installed_servers = []
-    if result[0]:
-        i_servers = get_redis_config(result[1])
-        for iserver_ip in i_servers:
-            qserver = Server.query.filter_by( ip= iserver_ip).first()
-            if qserver:
-                if not qserver.id in server_id_list:
-                    installed_servers.append(qserver)
-        
-
-    for preserver in installed_servers:
-        proxy_stunnel_conf += [
-            "[redis{0}]".format(preserver.id),
-            "client = yes",
-            "accept = 127.0.0.1:{0}".format(7000+preserver.id),
-            "connect = {0}:7777".format(preserver.ip)
-        ]
 
     if rc.exists('/usr/bin/redis-server') or rc.exists('/bin/redis-server'):
         wlogger.log(tid, "Redis was already installed on server {0}".format(
@@ -610,13 +572,8 @@ def setup_proxied(tid, server_id_list):
     prc.close()
     rc.upload(local, "/tmp/setup.properties")
 
-    twem_server_conf = [
-        "[twemproxy]",
-        "client = no",
-        "accept = {0}:8888".format(proxy_ip),
-        "connect = 127.0.0.1:2222"
-    ]
-    proxy_stunnel_conf.extend(twem_server_conf)
+    proxy_stunnel_conf = make_proxy_stunnel_conf()
+    
     status = __configure_stunnel(tid, mock_server, proxy_stunnel_conf, None,
                                  "/tmp/setup.properties")
     if not status:
@@ -624,18 +581,10 @@ def setup_proxied(tid, server_id_list):
 
     # Setup Twemproxy
     wlogger.log(tid, "Writing Twemproxy configuration")
-    
-    twemproxy_conf_tmp_file = os.path.join(
-                                    app.root_path,
-                                    'templates',
-                                    'stunnel',
-                                    'nutcracker.yml'
-                                )
-    
-    twemproxy_conf = open(twemproxy_conf_tmp_file).read()
-    twemproxy_conf += '\n'.join(twemproxy_servers)
+    twemproxy_conf = make_twem_proxy_conf()
     remote = "/etc/nutcracker/nutcracker.yml"
     rc.put_file(remote, twemproxy_conf)
+    run_command(tid, rc, 'service nutcracker restart')
 
     wlogger.log(tid, "Configuration complete", "success")
 

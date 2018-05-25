@@ -11,7 +11,8 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import wlogger, db, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import LdapOLC, getLdapConn
-from clustermgr.core.utils import get_setup_properties, modify_etc_hosts
+from clustermgr.core.utils import get_setup_properties, modify_etc_hosts, \
+        make_nginx_proxy_conf, make_twem_proxy_conf, make_proxy_stunnel_conf
 from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.config import Config
 import uuid
@@ -1801,19 +1802,83 @@ def removeMultiMasterDeployement(self, server_id):
 
 
 @celery.task(bind=True)
-def opendjdisablereplication(self, server_id, remove_server=False):
+def remove_server_from_cluster(self, server_id, remove_server=False):
 
     app_config = AppConfiguration.query.first()
     primary_server = Server.query.filter_by(primary_server=True).first()
     server = Server.query.get(server_id)
     tid = self.request.id
 
+    proxy_c = RemoteClient(app_config.nginx_host, ip=app_config.nginx_ip)
+
+    wlogger.log(tid, "Reconfiguring proxy server {}".format(
+                                                        app_config.nginx_host))
+
+    wlogger.log(tid,
+            "Making SSH connection to load balancer {0}".format(
+            app_config.nginx_host), 'debug'
+            )
+
+    try:
+        proxy_c.startup()
+    except Exception as e:
+        wlogger.log(
+            tid, "Cannot establish SSH connection {0}".format(e), "warning")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return False
+
+    wlogger.log(tid, "SSH connection successful", 'success')
+
+    # Update nginx
+    nginx_config = make_nginx_proxy_conf(exception=server_id)
+    remote = "/etc/nginx/nginx.conf"
+    r = proxy_c.put_file(remote, nginx_config)
+    
+    if not r[0]:
+        wlogger.log(tid, "An error occurred while uploadng nginx.conf.", "error")
+        return False
+
+    wlogger.log(tid, "nginx configuration updated", 'success')
+    wlogger.log(tid, "Restarting nginx", 'debug')
+    run_command(tid, proxy_c, 'service nginx restart')
+    
+    # Update Twemproxy
+    wlogger.log(tid, "Updating Twemproxy configuration",'debug')
+    twemproxy_conf = make_twem_proxy_conf(exception=server_id)
+    remote = "/etc/nutcracker/nutcracker.yml"
+    r = proxy_c.put_file(remote, twemproxy_conf)
+
+    if not r[0]:
+        wlogger.log(tid, "An error occurred while uploadng nutcracker.yml.", "error")
+        return False
+
+    wlogger.log(tid, "Twemproxy configuration updated", 'success')
+
+    run_command(tid, proxy_c, 'service nutcracker restart')
+
+    # Update stunnel
+    proxy_stunnel_conf = make_proxy_stunnel_conf(exception=server_id)
+    proxy_stunnel_conf = '\n'.join(proxy_stunnel_conf)
+    remote = '/etc/stunnel/stunnel.conf'
+    r = proxy_c.put_file(remote, proxy_stunnel_conf)
+    
+    
+
+    if not r[0]:
+        wlogger.log(tid, "An error occurred while uploadng stunnel.conf.", "error")
+        return False
+
+    wlogger.log(tid, "Stunnel configuration updated", 'success')
+
+    run_command(tid, proxy_c, 'service stunnel4 restart')
+
+    proxy_c.close()
+
     c = RemoteClient(primary_server.hostname, ip=primary_server.ip)
     chroot = '/opt/gluu-server-' + app_config.gluu_version
 
 
     cmd_run = '{}'
-
 
     if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):
         chroot = None
@@ -1824,8 +1889,14 @@ def opendjdisablereplication(self, server_id, remove_server=False):
                 '-o PubkeyAuthentication=yes root@localhost "{}"')
 
     wlogger.log(tid, 
-            "Making SSH connection to primary server {0}".format(
+            "Disabling replication for {0}".format(
             primary_server.hostname)
+            )
+
+
+    wlogger.log(tid, 
+            "Making SSH connection to primary server {0}".format(
+            primary_server.hostname), 'debug'
             )
 
     try:
@@ -1836,6 +1907,8 @@ def opendjdisablereplication(self, server_id, remove_server=False):
         wlogger.log(tid, "Ending server setup process.", "error")
         return False
 
+    wlogger.log(tid, "SSH connection successful", 'success')
+
     cmd = ('/opt/opendj/bin/dsreplication disable --disableAll --port 4444 '
             '--hostname {} --adminUID admin --adminPassword $\'{}\' '
             '--trustAll --no-prompt').format(
@@ -1845,7 +1918,7 @@ def opendjdisablereplication(self, server_id, remove_server=False):
     cmd = cmd_run.format(cmd)
     run_command(tid, c, cmd, chroot)
 
-    wlogger.log(tid, "Checking replication status")
+    wlogger.log(tid, "Checking replication status", 'debug')
 
     cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 1444 -I admin -w $\'{}\'').format(
@@ -2034,8 +2107,6 @@ def opendjenablereplication(self, server_id):
 
 
     db.session.commit()
-
-
 
     servers = Server.query.all()
 
@@ -2230,28 +2301,11 @@ def installNGINX(self, nginx_host):
             wlogger.log(tid, "Ending server setup process.", "error")
             return False
 
-    servers = Server.query.all()
-    nginx_backends = []
-
-    server_list = []
-
-    #read local nginx.conf template
-    nginx_tmp_file = os.path.join(app.root_path, "templates", "nginx",
-                           "nginx.temp")
-    nginx_tmp = open(nginx_tmp_file).read()
-
-    #add all gluu servers to nginx.conf
-    for s in servers:
-        nginx_backends.append('  server {0}:443 max_fails=2 fail_timeout=10s;'.format(s.hostname))
-        server_list.append(s.hostname)
-        
-    nginx_tmp = nginx_tmp.replace('{#NGINX#}', nginx_host)
-    nginx_tmp = nginx_tmp.replace('{#SERVERS#}', '\n'.join(nginx_backends))
-    nginx_tmp = nginx_tmp.replace('{#PINGSTRING#}', ' '.join(server_list))
+    nginx_config = make_nginx_proxy_conf()
 
     #put nginx.conf to server
     remote = "/etc/nginx/nginx.conf"
-    r = c.put_file(remote, nginx_tmp)
+    r = c.put_file(remote, nginx_config)
 
     if r[0]:
          wlogger.log(tid, "File {} uploaded".format(remote), "success")
@@ -2271,7 +2325,9 @@ def installNGINX(self, nginx_host):
     if app_config.modify_hosts:
         
         host_ip = []
-        
+
+        servers = Server.query.all()
+
         for ship in servers:
             host_ip.append((ship.hostname, ship.ip))
 

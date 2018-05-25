@@ -21,6 +21,8 @@ from clustermgr.config import Config
 from clustermgr.core.remote import RemoteClient
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import wlogger
+from flask import current_app as app
+
 
 import logging
 import traceback
@@ -476,3 +478,75 @@ def get_redis_config(f):
 
     return addr_list
 
+def make_proxy_stunnel_conf(exception):
+
+    tmp_conf = [
+        'cert = /etc/stunnel/cert.pem',
+        'pid = /var/run/stunnel.pid',
+        'output = /var/log/stunnel4/stunnel.log',
+        ]
+
+    servers = Server.query.all()
+    app_config = AppConfiguration.query.first()
+    
+    for server in servers:
+        if (server.id != exception) and server.redis:
+            tmp_conf += [
+                            '[redis{}]'.format(server.id),
+                            'client = yes',
+                            'accept = 127.0.0.1:700{}'.format(server.id),
+                            'connect = {}:7777'.format(server.ip),
+                        ]
+
+    tmp_conf += [
+                    '[twemproxy]',
+                    'client = no',
+                    'accept = {}:8888'.format(app_config.nginx_ip),
+                    'connect = 127.0.0.1:2222',
+                ]
+    
+    return tmp_conf
+    
+def make_twem_proxy_conf(exception):
+    
+    twemproxy_conf_tmp_file = os.path.join(
+                                    app.root_path,
+                                    'templates',
+                                    'stunnel',
+                                    'nutcracker.yml'
+                                )
+
+    twemproxy_conf = open(twemproxy_conf_tmp_file).read()
+
+    servers = Server.query.all()
+
+    for server in servers:
+        if (server.id != exception) and server.redis:
+            twemproxy_conf += '   - 127.0.0.1:{0}:1\n'.format(7000+server.id)
+    
+    
+    return twemproxy_conf
+    
+def make_nginx_proxy_conf(exception):
+    servers = Server.query.all()
+    app_config = AppConfiguration.query.first()
+    nginx_backends = []
+
+    server_list = []
+
+    #read local nginx.conf template
+    nginx_tmp_file = os.path.join(app.root_path, "templates", "nginx",
+                           "nginx.temp")
+    nginx_tmp = open(nginx_tmp_file).read()
+
+    #add all gluu servers to nginx.conf
+    for s in servers:
+        if s.id != exception:
+            nginx_backends.append('  server {0}:443 max_fails=2 fail_timeout=10s;'.format(s.hostname))
+            server_list.append(s.hostname)
+        
+    nginx_tmp = nginx_tmp.replace('{#NGINX#}', app_config.nginx_host)
+    nginx_tmp = nginx_tmp.replace('{#SERVERS#}', '\n'.join(nginx_backends))
+    nginx_tmp = nginx_tmp.replace('{#PINGSTRING#}', ' '.join(server_list))
+
+    return nginx_tmp
