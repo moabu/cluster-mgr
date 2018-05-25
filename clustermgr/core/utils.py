@@ -478,7 +478,7 @@ def get_redis_config(f):
 
     return addr_list
 
-def make_proxy_stunnel_conf(exception):
+def make_proxy_stunnel_conf(exception=None):
 
     tmp_conf = [
         'cert = /etc/stunnel/cert.pem',
@@ -507,7 +507,7 @@ def make_proxy_stunnel_conf(exception):
     
     return tmp_conf
     
-def make_twem_proxy_conf(exception):
+def make_twem_proxy_conf(exception=None):
     
     twemproxy_conf_tmp_file = os.path.join(
                                     app.root_path,
@@ -527,7 +527,7 @@ def make_twem_proxy_conf(exception):
     
     return twemproxy_conf
     
-def make_nginx_proxy_conf(exception):
+def make_nginx_proxy_conf(exception=None):
     servers = Server.query.all()
     app_config = AppConfiguration.query.first()
     nginx_backends = []
