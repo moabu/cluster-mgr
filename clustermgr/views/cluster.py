@@ -77,14 +77,28 @@ def deploy_config(server_id):
 
 
 @cluster.route('/removeserverfromcluster/<int:server_id>/')
-def opendj_disable_replication(server_id):
+def remove_server_from_cluster_view(server_id):
     """Initiates removal of replications"""
     remove_server = False
+    
     if request.args.get('removeserver'):
         remove_server = True
+    
+    disable_replication = True if request.args.get(
+                                    'disablereplication',''
+                                    ).lower() == 'true' else False
+    
+    
+    print request.args.get('disablereplication'), disable_replication
+    
     #Start non-gluu ldap server installation celery task
     server = Server.query.get(server_id)
-    task = remove_server_from_cluster.delay(server.id, remove_server)
+    task = remove_server_from_cluster.delay(
+                                            server.id, 
+                                            remove_server, 
+                                            disable_replication
+                                        )
+
     head = "Removing server {} from cluster".format(server.hostname)
 
     if request.args.get('next') == 'dashboard':

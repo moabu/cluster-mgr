@@ -221,6 +221,8 @@ def remove(server_id):
 
     setup_prop = get_setup_properties()
 
+    disable_replication = True if request.args.get('disablereplication') == \
+                               'true' else False
     
     if setup_prop['ldap_type'] == 'openldap':
         if server.mmr:
@@ -230,8 +232,9 @@ def remove(server_id):
                 remove_provider_from_consumer_f(consumer.id, provider_addr)
     else:
 
-        return redirect(url_for('cluster.opendj_disable_replication',
+        return redirect(url_for('cluster.remove_server_from_cluster_view',
                                     server_id=server_id, removeserver=True,
+                                    disablereplication=disable_replication,
                                     next='dashboard',
                                     ))
  

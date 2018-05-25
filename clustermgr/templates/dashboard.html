@@ -173,12 +173,15 @@
             <div class="modal-body">
                 <p>This will remove the server from the cluster. Are you sure
                     you want it removed?</p>
+                    <div class="checkbox">
+                    <label><input type="checkbox" id="disable-replication" checked> Disable replication</label>
+                    </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-default"
                         data-dismiss="modal">Close
                 </button>
-                <a id="remove_url" class="btn btn-danger" href="#">Confirm</a>
+                <input type="button" id="remove_url" class="btn btn-danger" value="Confirm">
             </div>
         </div><!-- /.modal-content -->
     </div><!-- /.modal-dialog -->
@@ -277,16 +280,34 @@
 
 {% block js %}
 <script>
+    var remove_server_url;
+    
     $('#remove_alert_modal').on('show.bs.modal', function (event) {
+
         var button = $(event.relatedTarget);
         var server_id = button.data('serverid');
         var hostname = button.data('hostname');
-        var remove_server_url = '{{ url_for("server.remove", server_id=9999) }}';
-        remove_server_url = remove_server_url.replace('9999', server_id);
+        
+        remove_server_url = '{{request.host_url}}server/remove/';
+        remove_server_url = remove_server_url + server_id;
+
+        console.log(remove_server_url);
+
         var modal = $(this);
         modal.find('.modal-title').text('Remove ' + hostname);
-        $('#remove_url').attr('href', remove_server_url);
     });
+
+
+    $('#remove_url').click(function(){
+
+        if($("#disable-replication").is(':checked')) {
+            remove_server_url = remove_server_url + '?disablereplication=true';
+            
+            }
+        window.location.href = remove_server_url;
+
+    });
+
 
     $('#reinstall_alert_modal').on('show.bs.modal', function (event) {
         var button = $(event.relatedTarget);
