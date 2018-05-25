@@ -174,7 +174,7 @@
                 <p>This will remove the server from the cluster. Are you sure
                     you want it removed?</p>
                     <div class="checkbox">
-                    <label><input type="checkbox" id="disable-replication" checked> Disable replication</label>
+                    <label><input type="checkbox" id="disable-replication" checked> Disable LDAP replication?</label>
                     </div>
             </div>
             <div class="modal-footer">
@@ -294,7 +294,7 @@
         console.log(remove_server_url);
 
         var modal = $(this);
-        modal.find('.modal-title').text('Remove ' + hostname);
+        modal.find('.modal-title').text('Remove ' + hostname+'?');
     });
 
 
