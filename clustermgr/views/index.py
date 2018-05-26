@@ -476,7 +476,7 @@ def multi_master_replication():
     # Check if replication user (dn) and password has been configured
     app_config = AppConfiguration.query.first()
     ldaps = Server.query.all()
-    
+    primary_server = Server.query.filter_by(primary_server=True).first()
     if not app_config:
         flash("Repication user and/or password has not been defined."
               " Please go to 'Configuration' and set these before proceed.",
@@ -526,6 +526,7 @@ def multi_master_replication():
                                ldapservers=ldaps,
                                serverStats=serverStats,
                                ldap_errors=ldap_errors,
+                               replication_status = sstat[primary_server.id],
                                )
 
     else:

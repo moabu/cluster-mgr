@@ -46,11 +46,13 @@
                     </td>
                     <td><center> <span class="badge" id="ldapstat{{server.id}}"></span> </center></td>
                     <td>
-                    {% if not server.primary_server %}
-                        <a class="btn btn-primary btn-xs" href="{{ url_for('cluster.opendj_enable_replication', server_id=server.id) }}">
-                            {% if server.mmr %}Re-Enable Replication{%else%}Enable Replication{%endif%}</a>
-                        {% if server.mmr %}
-                        <a class="btn btn-primary btn-xs" href="{{ url_for('cluster.opendj_disable_replication', server_id=server.id) }}">Disable Replication</a>
+                    {% if stat %}
+                        {% if not server.primary_server %}
+                            <a class="btn btn-primary btn-xs" href="{{ url_for('cluster.opendj_enable_replication', server_id=server.id) }}">
+                                {% if server.mmr %}Re-Enable Replication{%else%}Enable Replication{%endif%}</a>
+                            {% if server.mmr %}
+                            <a class="btn btn-primary btn-xs" href="{{ url_for('cluster.opendj_disable_replication', server_id=server.id) }}">Disable Replication</a>
+                            {% endif %}
                         {% endif %}
                     {% endif %}
                     </td>
