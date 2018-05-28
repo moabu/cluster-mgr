@@ -1850,6 +1850,11 @@ def do_disable_replication(tid, server, primary_server, app_config):
     cmd = cmd_run.format(cmd)
     run_command(tid, c, cmd, chroot)
 
+    server.mmr = False
+    db.session.commit()
+
+    configure_OxIDPAuthentication(tid, exclude=server.id)
+
     wlogger.log(tid, "Checking replication status", 'debug')
 
     cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
@@ -1860,9 +1865,9 @@ def do_disable_replication(tid, server, primary_server, app_config):
     cmd = cmd_run.format(cmd)
     run_command(tid, c, cmd, chroot)
 
-    server.mmr = False
+    
 
-
+    
     return True
 
 @celery.task(bind=True)
@@ -1959,10 +1964,61 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
     return True
 
 
+
+
+#################
+def configure_OxIDPAuthentication(tid, exclude=None):
+    
+    #app_config = AppConfiguration.query.first()
+
+    primary_server = Server.query.filter_by(primary_server=True).first()
+    
+    app_config = AppConfiguration.query.first()
+
+    gluu_installed_servers = Server.query.filter_by(gluu_server=True).all()
+
+    oxIDP=['localhost:1636']
+
+    for server in gluu_installed_servers:
+        if not server.id == exclude:
+            laddr = server.ip if app_config.use_ip else server.hostname
+            oxIDP.append(laddr+':1636')
+
+    adminOlc = LdapOLC('ldaps://{}:1636'.format(primary_server.hostname),
+                        'cn=directory manager', primary_server.ldap_password)
+
+    try:
+        adminOlc.connect()
+    except Exception as e:
+        wlogger.log(
+            tid, "Connection to LDAPserver as directory manager at port 1636"
+            " has failed: {0}".format(e), "error")
+        wlogger.log(tid, "Ending server setup process.", "error")
+        return
+
+
+    if adminOlc.configureOxIDPAuthentication(oxIDP):
+        wlogger.log(tid,
+                'oxIDPAuthentication entry is modified to include all privders',
+                'success')
+    else:
+        wlogger.log(tid, 'Modifying oxIDPAuthentication entry is failed: {}'.format(
+                adminOlc.conn.result['description']), 'success')
+
+
+
+
+
+
+
+
+
+####################
+
+
+
 @celery.task(bind=True)
 def opendjenablereplication(self, server_id):
-
-    app_config = AppConfiguration.query.first()
 
     primary_server = Server.query.filter_by(primary_server=True).first()
     tid = self.request.id
@@ -2020,33 +2076,6 @@ def opendjenablereplication(self, server_id):
             wlogger.log(tid, result, "warning")
             wlogger.log(tid, "Ending server setup process.", "error")
             return False
-
-    oxIDP=['localhost:1636']
-
-    for server in gluu_installed_servers:
-        laddr = server.ip if app_config.use_ip else server.hostname
-        oxIDP.append(laddr+':1636')
-
-    adminOlc = LdapOLC('ldaps://{}:1636'.format(primary_server.hostname),
-                        'cn=directory manager', primary_server.ldap_password)
-
-    try:
-        adminOlc.connect()
-    except Exception as e:
-        wlogger.log(
-            tid, "Connection to LDAPserver as directory manager at port 1636"
-            " has failed: {0}".format(e), "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return
-
-
-    if adminOlc.configureOxIDPAuthentication(oxIDP):
-        wlogger.log(tid,
-                'oxIDPAuthentication entry is modified to include all privders',
-                'success')
-    else:
-        wlogger.log(tid, 'Modifying oxIDPAuthentication entry is failed: {}'.format(
-                adminOlc.conn.result['description']), 'success')
 
     primary_server_secured = False
 
@@ -2130,6 +2159,8 @@ def opendjenablereplication(self, server_id):
 
 
     db.session.commit()
+
+    configure_OxIDPAuthentication(tid)
 
     servers = Server.query.all()
 
