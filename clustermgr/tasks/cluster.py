@@ -1968,6 +1968,7 @@ def opendjenablereplication(self, server_id):
     tid = self.request.id
     app_config = AppConfiguration.query.first()
 
+    gluu_installed_servers = Server.query.filter_by(gluu_server=True).all()
 
     if server_id == 'all':
         servers = Server.query.all()
@@ -2022,7 +2023,7 @@ def opendjenablereplication(self, server_id):
 
     oxIDP=['localhost:1636']
 
-    for server in servers:
+    for server in gluu_installed_servers:
         laddr = server.ip if app_config.use_ip else server.hostname
         oxIDP.append(laddr+':1636')
 
@@ -2133,7 +2134,7 @@ def opendjenablereplication(self, server_id):
     servers = Server.query.all()
 
     pDict = {}
-    for server in servers:
+    for server in gluu_installed_servers:
         if server.mmr:
             laddr = server.ip if app_config.use_ip else server.hostname
             ox_auth = [ laddr+':1636' ]
