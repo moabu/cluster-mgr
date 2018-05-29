@@ -91,8 +91,8 @@ def get_remote_data(host, measurement, c):
     #in json format
     try:
         data = json.loads(s_out)
-    except:
-        print "Monitoring: Server {} did not return json data".format(host)
+    except Exception as e:
+        print "Monitoring: Server {} did not return json data. Error {}".format(host, e)
         return
 
     print "Monitoring: {} records received for measurement {} from host {}".format(len(data['data']['data']), measurement, host)
@@ -120,8 +120,8 @@ def get_age(host, c):
     try:
         data = json.loads(s_out)
         arg_d = {u'fields': ['time', u'uptime'], u'data': [[int(time.time()), data['data']['uptime']]]}
-    except:
-        print "Monitoring: server {} did not return json data".format(host)
+    except Exception as e:
+        print "Monitoring: server {} did not return json data. Error: {}".format(host, e)
         arg_d = {u'fields': ['time', u'uptime'], u'data': [[int(time.time()), 0]]}
     
     print "Monitoring: uptime {}".format(data['data'])
@@ -142,5 +142,5 @@ def get_remote_stats():
                     for t in sqlite_monitoring_tables.monitoring_tables:
                         get_remote_data(server.hostname, t, c)
                         get_age(server.hostname, c)
-                except:
-                    print "Monitoring: An error occurred while retreiveing monitoring data from server {}".format(server.hostname)
+                except Exception as e:
+                    print "Monitoring: An error occurred while retreiveing monitoring data from server {}. Error {e}".format(server.hostname, e)
