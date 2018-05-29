@@ -55,6 +55,8 @@ def execute_query(table, data, options=None):
     if not options:
         options = monitoring_tables[table]
     
+    options = ['`{0}`'.format(o) for o in options]
+    
     query = 'INSERT INTO {0} (time, {1}) VALUES ({2}, {3})'.format(
                                         table,
                                         ', '.join(options), 
