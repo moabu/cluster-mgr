@@ -26,58 +26,6 @@
                 <p class="help-block">{{ error }}</p>
                 {% endfor %}
             </div>
-
-        <!--{#
-        <div class="panel panel-primary">
-        <div class="panel-body">
-      
-            <div class="text-on-pannel text-primary"><strong> OpenLDAP Options </strong></div>
-            <div class="form-group {{ 'has-error' if cform.replication_dn.errors else '' }}">
-                {{ cform.replication_dn.label(class="control-label col-md-3") }}
-                <div class="col-md-9">
-                    <div class="input-group">
-                        <span class="input-group-addon">cn=</span>
-                        {{ cform.replication_dn(class="form-control") }}
-                        <span class="input-group-addon">,o=gluu</span>
-                    </div>
-                    <p class="help-block">This will be used by the Open LDAP servers to securely communicate for replication.</p>
-                    {% for error in cform.replication_dn.errors %}
-                        <p class="help-block">{{ error }}</p>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label class="control-label col-md-3">Access Log Purge</label>
-                <div class="col-md-9">
-                    <div class="row">
-                        <div class="col-md-2 text-right"><label>Age</label></div>
-                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_age_day(class='form-control') }} Days</div>
-                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_age_hour(class='form-control') }} Hours</div>
-                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_age_min (class='form-control')}} Minutes</div>
-                        <div class="col-md-1"></div>
-                        <div class="col-md-2 text-right"><label>Interval</label></div>
-                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_interval_day(class='form-control') }} Days</div>
-                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_interval_hour(class='form-control') }} Hours</div>
-                        <div class="col-md-1" style="padding-left: 0; padding-right: 0;">{{ cform.purge_interval_min (class='form-control')}} Minutes</div>
-                        <div class="col-md-1"></div>
-                    </div>
-                    <p class="help-block">Defines both the maximum age for log entries to be retained in the database and how often to scan the database for old entries.</p>
-                </div>
-
-            </div>
-
-
-            <div class="form-group">
-                <div class="col-md-offset-3 col-md-9">
-                    {{ render_checkbox_field(cform.use_ip) }}
-                </div>
-            </div>
-        </div>
-
-        </div>
-        
-        #}-->
         
             {% if cform.replication_pw %}
                 <div class="form-group {{ 'has-error' if cform.replication_pw.errors else '' }}">
@@ -99,25 +47,63 @@
 
             {% endif %}
 
-            <div class="form-group {{ 'has-error' if cform.nginx_host.errors else '' }}">
-                {{ cform.nginx_host.label(class="control-label col-md-3") }}
-                <div class="col-md-9">
-                    {{ cform.nginx_host(class="form-control") }}
-                    {% for error in cform.nginx_host.errors %}
-                        <p class="help-block">{{ error }}</p>
-                    {% endfor %}
+
+            <div class="well well-sm">
+
+                <div class="form-group {{ 'has-error' if cform.nginx_host.errors else '' }}">
+                    {{ cform.nginx_host.label(class="control-label col-md-3") }}
+                    <div class="col-md-9">
+                        {{ cform.nginx_host(class="form-control") }}
+                        {% for error in cform.nginx_host.errors %}
+                            <p class="help-block">{{ error }}</p>
+                        {% endfor %}
+                    </div>
                 </div>
+
+                <div class="form-group {{ 'has-error' if cform.nginx_ip.errors else '' }}">
+                    {{ cform.nginx_ip.label(class="control-label col-md-3") }}
+                    <div class="col-md-9">
+                        {{ cform.nginx_ip(class="form-control") }}
+                        {% for error in cform.nginx_ip.errors %}
+                            <p class="help-block">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="col-md-offset-3 col-md-9">
+                        {{ render_checkbox_field(cform.external_load_balancer) }}
+                    </div>
+                </div>
+
+
             </div>
 
-            <div class="form-group {{ 'has-error' if cform.nginx_ip.errors else '' }}">
-                {{ cform.nginx_ip.label(class="control-label col-md-3") }}
-                <div class="col-md-9">
-                    {{ cform.nginx_ip(class="form-control") }}
-                    {% for error in cform.nginx_ip.errors %}
-                        <p class="help-block">{{ error }}</p>
-                    {% endfor %}
+            <div class="well well-sm" {% if not cform.external_load_balancer.data %}style="display: none"{% endif %} id="external-load-balancer-box">
+
+                <div class="form-group {{ 'has-error' if cform.cache_host.errors else '' }}">
+                    {{ cform.cache_host.label(class="control-label col-md-3") }}
+                    <div class="col-md-9">
+                        {{ cform.cache_host(class="form-control") }}
+                        {% for error in cform.cache_host.errors %}
+                            <p class="help-block">{{ error }}</p>
+                        {% endfor %}
+                    </div>
                 </div>
+
+
+                <div class="form-group {{ 'has-error' if cform.cache_ip.errors else '' }}">
+                    {{ cform.cache_ip.label(class="control-label col-md-3") }}
+                    <div class="col-md-9">
+                        {{ cform.cache_ip(class="form-control") }}
+                        {% for error in cform.cache_ip.errors %}
+                            <p class="help-block">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
             </div>
+
 
             <div class="form-group {{ 'has-error' if cform.ldap_update_period.errors else '' }}">
                 {{ cform.ldap_update_period.label(class="control-label col-md-3") }}
@@ -134,7 +120,7 @@
                     {{ render_checkbox_field(cform.modify_hosts) }}
                 </div>
             </div>
-            
+
         </div>
 
         {#
@@ -211,8 +197,23 @@
 
 {% block js %}
 <script>
-$('#objectClassName').on('keypress', function (e) {
-   $('#customClassName').prop("checked", true);
-})
+
+    $('#objectClassName').on('keypress', function (e) {
+        $('#customClassName').prop("checked", true);
+    });
+
+
+    $('#external_load_balancer').change(function() {
+        if(this.checked) {
+            $('#external-load-balancer-box').removeAttr('style');
+            
+    } else {
+        
+        $('#external-load-balancer-box').attr('style',  'display: none');
+        
+        }
+        
+    });
+
 </script>
 {% endblock %}

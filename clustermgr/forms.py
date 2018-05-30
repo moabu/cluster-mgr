@@ -27,6 +27,8 @@ class AppConfigForm(FlaskForm):
     nginx_host = StringField('Load Balancer Hostname', validators=[DataRequired()])
 
     nginx_ip = StringField('Load Balancer IP Address', validators=[DataRequired()])
+    
+    
 
     # purge_age_day = SelectField(choices=[(str(d), str(d)) for d in range(0, 31)])
     # purge_age_hour = SelectField(choices=[(str(h), str(h)) for h in range(0, 25)], default="24")
@@ -46,6 +48,13 @@ class AppConfigForm(FlaskForm):
 
     modify_hosts =  BooleanField('Add IP Addresses and hostnames to '
                                 '/etc/hosts file on each server')
+
+    external_load_balancer = BooleanField('This is external load balancer')
+
+    cache_host = StringField('Cache Proxy Hostname', validators=[DataRequired()])
+
+    cache_ip = StringField('Cache Proxy IP Address', validators=[DataRequired()])
+
 
     update = SubmitField("Update Configuration")
 

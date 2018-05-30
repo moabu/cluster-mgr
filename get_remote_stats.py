@@ -3,11 +3,92 @@ import os
 import time
 import sys
 
-from clustermgr.extensions import celery
 from influxdb import InfluxDBClient
-from clustermgr.core.remote import RemoteClient
 from clustermgr.monitoring_scripts import sqlite_monitoring_tables
 from clustermgr.models import Server, AppConfiguration
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+
+import StringIO
+import socket
+import logging
+import os
+
+from paramiko import SSHException
+from paramiko.client import SSHClient, AutoAddPolicy
+from paramiko.ssh_exception import PasswordRequiredException 
+
+
+
+class RemoteClient(object):
+
+    def __init__(self, host, ip=None, user='root'):
+        self.host = host
+        self.ip = ip
+        self.user = user
+        self.client = SSHClient()
+        self.sftpclient = None
+        self.client.set_missing_host_key_policy(AutoAddPolicy())
+        self.client.load_system_host_keys()
+        logging.debug("RemoteClient created for host: %s", host)
+
+    def startup(self):
+        try:
+            logging.debug("Trying to connect to remote server %s", self.host)
+            self.client.connect(self.host, port=22, username=self.user)
+            self.sftpclient = self.client.open_sftp()
+        except PasswordRequiredException:
+            raise ClientNotSetupException('Pubkey is encrypted.')
+        
+        except SSHException as e:
+            raise ClientNotSetupException(e)
+        
+        except:
+            if self.ip:
+                logging.warning("Connection with hostname failed. Retrying "
+                                "with IP")
+                self._try_with_ip()
+            else:
+                logging.error("Connection to %s failed.", self.host)
+                raise ClientNotSetupException('Could not connect to the host.')
+
+
+    def _try_with_ip(self):
+        try:
+            logging.debug("Connecting to IP:%s User:%s", self.ip, self.user )
+            self.client.connect(self.ip, port=22, username=self.user)
+            self.sftpclient = self.client.open_sftp()
+        except PasswordRequiredException:
+            raise ClientNotSetupException('Pubkey is encrypted.')
+
+        except SSHException as e:
+            raise ClientNotSetupException(e)
+
+        except socket.error:
+            logging.error("Connection with IP (%s) failed.", self.ip)
+            raise ClientNotSetupException('Could not connect to the host.')
+
+
+    def run(self, command):
+        if not self.client:
+            raise ClientNotSetupException(
+                'Cannot run procedure. Client not initialized')
+
+        buffers = self.client.exec_command(command)
+        output = []
+        for buf in buffers:
+            try:
+                output.append(buf.read())
+            except IOError:
+                output.append('')
+
+        return tuple(output)
+
+
+
+
 
 #Python client of influxdb
 client = InfluxDBClient(
@@ -40,7 +121,7 @@ def write_influx(host, measurement, data):
                             "time": d[0],
                             "fields": fields,
                             })
-    
+    print "Writing data to InfluxDB"
     client.write_points(json_body, time_precision='s')
 
 
@@ -127,15 +208,14 @@ def get_age(host, c):
     print "Monitoring: uptime {}".format(data['data'])
     write_influx(host, 'uptime', arg_d)
     
-@celery.task
 def get_remote_stats():
-    app_conf = AppConfiguration.query.first()
+    app_conf = session.query(AppConfiguration).first()
     if app_conf:
         if app_conf.monitoring:
         
-            servers = Server.query.all()
+            servers = session.query(Server).all()
             for server in servers:
-                print "Monitoring: getting data for server {}".format(server.hostname)
+                print "Monitoring: getting data for derver {}".format(server.hostname)
                 c = RemoteClient(server.hostname, ip=server.ip)
                 try:
                     c.startup()
@@ -144,3 +224,12 @@ def get_remote_stats():
                         get_age(server.hostname, c)
                 except Exception as e:
                     print "Monitoring: An error occurred while retreiveing monitoring data from server {}. Error {e}".format(server.hostname, e)
+
+
+SQLALCHEMY_DATABASE_URI = "sqlite:///{}/clustermgr.dev.db".format(os.path.join(os.path.expanduser("~"), ".clustermgr"))
+print SQLALCHEMY_DATABASE_URI
+some_engine = create_engine(SQLALCHEMY_DATABASE_URI)
+Session = sessionmaker(bind=some_engine)
+session = Session()
+
+get_remote_stats()

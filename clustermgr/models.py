@@ -90,6 +90,11 @@ class AppConfiguration(db.Model):
 
     object_class_base = db.Column(db.String(50))
     attribute_oid = db.Column(db.Integer, default=100)
+    
+    external_load_balancer = db.Column(db.Boolean())
+    cache_host = db.Column(db.String(50))
+    cache_ip = db.Column(db.String(50))
+    
 
 class KeyRotation(db.Model):
     __tablename__ = "keyrotation"
