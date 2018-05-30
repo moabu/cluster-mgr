@@ -121,7 +121,7 @@ def modifyOxLdapProperties(server, c, tid, pDict, chroot):
         if r[0]:
             wlogger.log(tid,
                 'ox-ldap.properties file on {0} modified to include '
-                'all providers'.format(server.hostname),
+                'all replicating servers'.format(server.hostname),
                 'success')
         else:
             temp = r[1]
@@ -131,7 +131,7 @@ def modifyOxLdapProperties(server, c, tid, pDict, chroot):
     if temp:
         wlogger.log(tid,
                 'ox-ldap.properties file on {0} was not modified to '
-                'include all providers: {1}'.format(server.hostname, temp),
+                'include all replicating servers: {1}'.format(server.hostname, temp),
                 'warning')
 
 
@@ -1526,7 +1526,8 @@ def configure_OxIDPAuthentication(tid, exclude=None):
 
     if adminOlc.configureOxIDPAuthentication(oxIDP):
         wlogger.log(tid,
-                'oxIDPAuthentication entry is modified to include all privders',
+                'oxIDPAuthentication entry is modified to include all '
+                'replicating servers',
                 'success')
     else:
         wlogger.log(tid, 'Modifying oxIDPAuthentication entry is failed: {}'.format(
@@ -1634,12 +1635,12 @@ def opendjenablereplication(self, server_id):
                                                                 server.hostname))
 
                 cmd = ('/opt/opendj/bin/dsreplication initialize --baseDN \'o={}\' '
-                        '--adminUID admin --adminPassword $\'{}\' --hostSource {} '
+                        '--adminUID admin --adminPassword $\'{}\' '
                         '--portSource 4444  --hostDestination {} --portDestination 4444 '
                         '--trustAll -X -n').format(
                             base,
                             app_config.replication_pw.replace("'","\\'"),
-                            primary_server.hostname,
+                            #primary_server.hostname,
                             server.hostname,
                             )
 
