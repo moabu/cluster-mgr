@@ -731,13 +731,28 @@ def restart_services(self, method, server_id_list):
             # restart the service
             run_and_log(rc, get_cmd('service apache2 restart'), tid, server.id)
 
-        wlogger.log(tid, "(Re)Starting oxauth", "info", server_id=server.id)
 
-        run_and_log(rc, get_cmd('service oxauth restart'), tid, server.id)
+
+        restart_command  = 'service gluu-server-{0} restart'.format(
+                                                        appconf.gluu_version)
+
+        if 'CentOS' in server.os or 'RHEL' in server.os:
+            restart_command   = '/sbin/gluu-serverd-{0} restart'.format(
+                                                        appconf.gluu_version)
+         
+        wlogger.log(tid, "(Re)Starting Gluu Server", "info", server_id=server.id)
+
+        run_and_log(rc, restart_command, tid, server.id)
+
+
+        #wlogger.log(tid, "(Re)Starting oxauth", "info", server_id=server.id)
+
+        #run_and_log(rc, get_cmd('service oxauth restart'), tid, server.id)
         
-        wlogger.log(tid, "(Re)Starting identity", "info", server_id=server.id)
+        #wlogger.log(tid, "(Re)Starting identity", "info", server_id=server.id)
         
-        run_and_log(rc, get_cmd('service identity restart'), tid, server.id)
+        #run_and_log(rc, get_cmd('service identity restart'), tid, server.id)
+        
         rc.close()
 
     if method != 'STANDALONE':
