@@ -14,8 +14,6 @@ from cryptography.hazmat.primitives.ciphers import modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 
-
-
 from clustermgr.config import Config
 
 from clustermgr.core.remote import RemoteClient
@@ -489,6 +487,12 @@ def make_proxy_stunnel_conf(exception=None):
     servers = Server.query.all()
     app_config = AppConfiguration.query.first()
     
+    if app_config.external_load_balancer:
+        cache_ip = app_config.cache_ip
+    else:
+        cache_ip = app_config.nginx_ip
+    
+    
     for server in servers:
         if (server.id != exception) and server.redis:
             tmp_conf += [
@@ -501,7 +505,7 @@ def make_proxy_stunnel_conf(exception=None):
     tmp_conf += [
                     '[twemproxy]',
                     'client = no',
-                    'accept = {}:8888'.format(app_config.nginx_ip),
+                    'accept = {}:8888'.format(cache_ip),
                     'connect = 127.0.0.1:2222',
                 ]
     

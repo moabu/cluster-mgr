@@ -41,12 +41,22 @@ def index():
               "warning")
         return redirect(url_for('index.home'))
 
-    c = RemoteClient(host=appconf.nginx_host, ip=appconf.nginx_ip)
+
+    if appconf.external_load_balancer:
+        c_host = appconf.cache_host
+        c_ip = appconf.cache_ip
+    else:
+        c_host = appconf.nginx_host
+        c_ip = appconf.nginx_ip
+        
+
+
+    c = RemoteClient(host=c_host, ip=c_ip)
     
     try:
         c.startup()
     except:
-        flash("SSH connection can't be established to load balancer", "warning")
+        flash("SSH connection can't be established to cache server", "warning")
 
     result = c.get_file('/etc/stunnel/stunnel.conf')
     

@@ -243,8 +243,19 @@ def install_cache_components(self, method, server_id_list):
 
     # Install twemproxy in the Nginx load balancing proxy server
     app_conf = AppConfiguration.query.first()
-    host = app_conf.nginx_host
-    rc = RemoteClient(host)
+    
+    mock_server = Server()
+    
+    if app_conf.external_load_balancer:
+        mock_server.hostname = app_conf.cache_host
+        mock_server.ip = app_conf.cache_ip
+    else:
+        mock_server.hostname = app_conf.nginx_host
+        mock_server.ip = app_conf.nginx_ip
+
+
+    rc = RemoteClient(mock_server.hostname)
+
     try:
         rc.startup()
     except Exception as e:
@@ -253,16 +264,15 @@ def install_cache_components(self, method, server_id_list):
 
     server_os = get_os_type(rc)
 
-    mock_server = Server()
-    mock_server.hostname = host
+    
     si = StunnelInstaller(mock_server, tid)
     si.rc.startup()
     stunnel_installed = 0
     if si.rc.exists('/usr/bin/stunnel') or si.rc.exists('/bin/stunnel'):
-        wlogger.log(tid, "Stunnel was already installed on proxy server")
+        wlogger.log(tid, "Stunnel was already installed on cache server")
         stunnel_installed = 1
     else:
-        wlogger.log(tid, "Installing Stunnel in proxy server")    
+        wlogger.log(tid, "Installing Stunnel in cache server")    
         stunnel_installed = si.install()
         if stunnel_installed:
             wlogger.log(tid, "Stunnel install successful", "success")
@@ -291,7 +301,7 @@ def install_cache_components(self, method, server_id_list):
         #run_and_log(rc, "mkdir -p /etc/nutcracker", tid)
         run_and_log(rc, "touch /etc/nutcracker/nutcracker.yml", tid)
     else:
-        wlogger.log(tid, "Twemproxy was already installed on proxy server")
+        wlogger.log(tid, "Twemproxy was already installed on cache server")
     rc.close()
     return installed
 
@@ -497,7 +507,11 @@ def setup_proxied(tid, server_id_list):
     chdir = "/opt/gluu-server-" + appconf.gluu_version
 
 
-    proxy_ip = socket.gethostbyname(appconf.nginx_host)
+    if appconf.external_load_balancer:
+        cache_ip = appconf.cache_ip
+    else:
+        cache_ip = appconf.nginx_ip
+    
     primary = Server.query.filter(Server.primary_server.is_(True)).first()
 
     if not primary:
@@ -522,7 +536,7 @@ def setup_proxied(tid, server_id_list):
             "[twemproxy]",
             "client = yes",
             "accept = 127.0.0.1:7000",
-            "connect = {0}:8888".format(proxy_ip)
+            "connect = {0}:8888".format(cache_ip)
         ]
      
         status = __configure_stunnel(tid, server, stunnel_conf, chdir)
@@ -530,12 +544,18 @@ def setup_proxied(tid, server_id_list):
         if not status:
             continue
 
-    wlogger.log(tid, "Configuring the proxy server ...")
+    wlogger.log(tid, "Configuring the cahce server ...")
     
     # Setup Stunnel in the proxy server
     mock_server = Server()
-    mock_server.hostname = appconf.nginx_host
-    mock_server.ip = proxy_ip
+    
+    if appconf.external_load_balancer:
+        mock_server.hostname = appconf.cache_host
+        mock_server.ip = appconf.cache_ip
+    else:
+        mock_server.hostname = appconf.nginx_host
+        mock_server.ip = appconf.nginx_ip
+    
     rc = __get_remote_client(mock_server, tid)
     
     if not rc:
@@ -759,8 +779,15 @@ def restart_services(self, method, server_id_list):
         wlogger.log(tid, "All services restarted.", "success")
         return
 
-    host = appconf.nginx_host
+    
     mock_server = Server()
+    
+    if appconf.external_load_balancer:
+        host = appconf.cache_host
+    else:
+        host = appconf.nginx_host
+        
+    
     mock_server.hostname = host
     rc = __get_remote_client(mock_server, tid)
     if not rc:

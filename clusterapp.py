@@ -13,6 +13,7 @@ from clustermgr.extensions import celery
 
 from clustermgr.core.utils import logger
 from time import strftime
+from clustermgr.models import AppConfiguration
 
 from flask import request, render_template
 
@@ -47,6 +48,12 @@ def run_celery_worker():
         "loglevel": "INFO",
     }
     runner.run(**config)
+
+@app.before_request
+def before_request():
+    appconf = AppConfiguration.query.first()
+    if appconf:
+        app.jinja_env.globals['external_load_balancer'] = appconf.external_load_balancer
 
 
 @app.after_request

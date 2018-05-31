@@ -1356,38 +1356,64 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
     server = Server.query.get(server_id)
     tid = self.request.id
 
-    proxy_c = RemoteClient(app_config.nginx_host, ip=app_config.nginx_ip)
+    proxy_c = None
 
-    wlogger.log(tid, "Reconfiguring proxy server {}".format(
-                                                        app_config.nginx_host))
+    if not app_config.external_load_balancer:
+        proxy_c = RemoteClient(app_config.nginx_host, ip=app_config.nginx_ip)
 
-    wlogger.log(tid,
-            "Making SSH connection to load balancer {0}".format(
-            app_config.nginx_host), 'debug'
-            )
+        wlogger.log(tid, "Reconfiguring proxy server {}".format(
+                                                            app_config.nginx_host))
 
-    try:
-        proxy_c.startup()
-    except Exception as e:
-        wlogger.log(
-            tid, "Cannot establish SSH connection {0}".format(e), "warning")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return False
+        wlogger.log(tid,
+                "Making SSH connection to load balancer {0}".format(
+                app_config.nginx_host), 'debug'
+                )
 
-    wlogger.log(tid, "SSH connection successful", 'success')
+        try:
+            proxy_c.startup()
+        except Exception as e:
+            wlogger.log(
+                tid, "Cannot establish SSH connection {0}".format(e), "warning")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return False
 
-    # Update nginx
-    nginx_config = make_nginx_proxy_conf(exception=server_id)
-    remote = "/etc/nginx/nginx.conf"
-    r = proxy_c.put_file(remote, nginx_config)
+        wlogger.log(tid, "SSH connection successful", 'success')
+
+        # Update nginx
+        nginx_config = make_nginx_proxy_conf(exception=server_id)
+        remote = "/etc/nginx/nginx.conf"
+        r = proxy_c.put_file(remote, nginx_config)
+        
+        if not r[0]:
+            wlogger.log(tid, "An error occurred while uploadng nginx.conf.", "error")
+            return False
+
+        wlogger.log(tid, "nginx configuration updated", 'success')
+        wlogger.log(tid, "Restarting nginx", 'debug')
+        run_command(tid, proxy_c, 'service nginx restart')
     
-    if not r[0]:
-        wlogger.log(tid, "An error occurred while uploadng nginx.conf.", "error")
-        return False
+    
+    if not proxy_c:
+        
+        proxy_c = RemoteClient(app_config.cache_host, ip=app_config.cache_ip)
+        
+        
+        wlogger.log(tid,
+                "Making SSH connection to cache server {0}".format(
+                app_config.cache_host), 'debug'
+                )
 
-    wlogger.log(tid, "nginx configuration updated", 'success')
-    wlogger.log(tid, "Restarting nginx", 'debug')
-    run_command(tid, proxy_c, 'service nginx restart')
+        try:
+            proxy_c.startup()
+        except Exception as e:
+            wlogger.log(
+                tid, "Cannot establish SSH connection {0}".format(e), "warning")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return False
+
+        wlogger.log(tid, "SSH connection successful", 'success')
+
+        
     
     # Update Twemproxy
     wlogger.log(tid, "Updating Twemproxy configuration",'debug')
@@ -1415,7 +1441,13 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
 
     wlogger.log(tid, "Stunnel configuration updated", 'success')
 
-    run_command(tid, proxy_c, 'service stunnel4 restart')
+
+    os_type = get_os_type(proxy_c)
+
+    if 'CentOS' or 'RHEL' in os_type:
+        run_command(tid, proxy_c, 'systemctl restart stunnel')
+    else:
+        run_command(tid, proxy_c, 'service stunnel4 restart')
 
     proxy_c.close()
 
@@ -1684,7 +1716,6 @@ def opendjenablereplication(self, server_id):
 
     for server in servers:
 
-
         if server.os == 'CentOS 7' or server.os == 'RHEL 7':
             restart_command = '/sbin/gluu-serverd-{0} restart'.format(
                                 app_config.gluu_version)
@@ -1693,19 +1724,22 @@ def opendjenablereplication(self, server_id):
                                 app_config.gluu_version)
 
 
-            wlogger.log(tid, "Making SSH connection to the server %s" %
-                    server.hostname)
+        wlogger.log(tid, "Making SSH connection to the server %s" %
+                server.hostname)
 
-            ct = RemoteClient(server.hostname, ip=server.ip)
+        ct = RemoteClient(server.hostname, ip=server.ip)
 
-            try:
-                ct.startup()
-            except Exception as e:
-                wlogger.log(
-                    tid, "Cannot establish SSH connection {0}".format(e),
-                    "warning")
-                wlogger.log(tid, "Ending server setup process.", "error")
-                return False
+        try:
+            ct.startup()
+        except Exception as e:
+            wlogger.log(
+                tid, "Cannot establish SSH connection {0}".format(e),
+                "warning")
+            wlogger.log(tid, "Ending server setup process.", "error")
+            return False
+
+
+        if not server.primary_server:
 
             wlogger.log(tid, "Uploading OpenDj certificate files")
             for cf in opendj_cert_files:
@@ -1724,12 +1758,12 @@ def opendjenablereplication(self, server_id):
                     wlogger.log(tid, "Ending server setup process.", "error")
                     return False
 
-            wlogger.log(tid, "Restarting Gluu Server on {}".format(
-                                server.hostname))
+        wlogger.log(tid, "Restarting Gluu Server on {}".format(
+                            server.hostname))
 
-            run_command(tid, ct, restart_command)
+        run_command(tid, ct, restart_command)
 
-            ct.close()
+        ct.close()
 
     if 'CentOS' in primary_server.os:
         wlogger.log(tid, "Waiting for Gluu to finish starting")

@@ -98,7 +98,7 @@ def home():
         else:
             flash("SSH connection to {} failed. Please check if your pub key is "
                 "asdded to /root/.ssh/authorized_keys on this server. Reason: {}".format(
-                                                appconf.nginx_host, e), 'error')
+                                                servers[0].hostname, e), 'error')
 
         return render_template('index_passphrase.html', e=e, ask_passphrase=ask_passphrase, next='/')
     

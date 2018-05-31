@@ -77,15 +77,15 @@
 
               <ul class="treeview-menu">
                 <li><a href="{{ url_for('server.index') }}"><i class="fa fa-plus-square"></i>Add Server</a></li>
+                {% if not external_load_balancer %}
                 <li><a href="{{ url_for('cluster.install_nginx') }}"><i class="fa fa-plus-square"></i>Install Nginx</a></li>
+                {% endif %}
               </ul>
 
-              <ul class="treeview-menu">
-                <li><a href="{{ url_for('server.index') }}"><i class="fa fa-plus-square"></i>Add Server</a></li>
-                <li><a href="{{ url_for('cluster.install_nginx') }}"><i class="fa fa-plus-square"></i>Install Nginx</a></li>
-              </ul>
+            
             </li>
 
+            
             <!-------replication tree----------------->
             <li class="treeview">
               <a href="#">
@@ -209,5 +209,6 @@
 
 
     {% block js %} {% endblock js %}
+
   </body>
 </html>

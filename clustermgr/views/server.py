@@ -454,8 +454,6 @@ def upload_setup_properties(server_id):
         appconf = AppConfiguration.query.first()
         server = Server.query.get(server_id)
 
-    
-
         setup_prop['hostname'] = appconf.nginx_host
         setup_prop['ip'] = server.ip
         setup_prop['ldapPass'] = server.ldap_password
@@ -624,7 +622,15 @@ def dry_run(server_id):
             if r[2].strip().endswith('open') or r[2].strip().endswith('succeeded!'):
                 result['server']['port_status'][p] = True
     
-        c_nginx = RemoteClient(appconf.nginx_host, appconf.nginx_ip)
+    
+        if appconf.external_load_balancer:
+            c_host = appconf.cache_host
+            c_ip = appconf.cache_ip
+        else:
+            c_host = appconf.nginx_host
+            c_ip = appconf.nginx_ip
+    
+        c_nginx = RemoteClient(c_host, c_ip)
         try:
             c_nginx.startup()
             result['nginx']['ssh']=True
