@@ -51,9 +51,12 @@ def run_celery_worker():
 
 @app.before_request
 def before_request():
-    appconf = AppConfiguration.query.first()
-    if appconf:
-        app.jinja_env.globals['external_load_balancer'] = appconf.external_load_balancer
+    try:
+        appconf = AppConfiguration.query.first()
+        if appconf:
+            app.jinja_env.globals['external_load_balancer'] = appconf.external_load_balancer
+    except:
+        print "Database is not ready"
 
 
 @app.after_request

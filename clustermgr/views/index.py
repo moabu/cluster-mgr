@@ -236,6 +236,10 @@ def app_configuration():
         conf_form.modify_hosts.data = config.modify_hosts
         conf_form.nginx_ip.data = config.nginx_ip
         conf_form.external_load_balancer.data = config.external_load_balancer
+        if config.external_load_balancer:
+            conf_form.cache_host.data = config.cache_host
+            conf_form.cache_ip.data = config.cache_ip
+        
         conf_form.ldap_update_period.data = str(config.ldap_update_period) if config.ldap_update_period else '5'
         
         #conf_form.use_ip.data = config.use_ip
