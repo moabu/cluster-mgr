@@ -122,6 +122,7 @@ def app_configuration():
     # not supplied, make password "**dummy**", so don't change
     # what we have before
 
+    external_lb_checked = False
     
     if request.method == 'POST':
         if config and not conf_form.replication_pw.data.strip():
@@ -131,6 +132,9 @@ def app_configuration():
         if not conf_form.external_load_balancer.data:
             conf_form.cache_host.validators = []
             conf_form.cache_ip.validators= []
+        else:
+            external_lb_checked = True
+
 
     if not config:
         #del conf_form.replication_pw
@@ -267,6 +271,7 @@ def app_configuration():
 
     return render_template('app_config.html', cform=conf_form, sform=sch_form,
                         config=config, schemafiles=schemafiles, localos=localos,
+                        external_lb_checked=external_lb_checked,
                         next=request.args.get('next'))
 
 

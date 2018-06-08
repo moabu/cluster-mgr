@@ -31,7 +31,7 @@
                 <div class="form-group {{ 'has-error' if cform.replication_pw.errors else '' }}">
                     {{ cform.replication_pw.label(class="control-label col-md-3") }}
                     <div class="col-md-9">
-                        {{ cform.replication_pw(class="form-control") }}
+                        {{ cform.replication_pw(class="form-control", required=False) }}
                         {% for error in cform.replication_pw.errors %}
                             <p class="help-block">{{ error }}</p>
                         {% endfor %}
@@ -41,7 +41,7 @@
                 <div class="form-group">
                     {{ cform.replication_pw_confirm.label(class="control-label col-md-3") }}
                     <div class="col-md-9">
-                        {{ cform.replication_pw_confirm(class="form-control") }}
+                        {{ cform.replication_pw_confirm(class="form-control", required=False) }}
                     </div>
                 </div>
 
@@ -72,19 +72,23 @@
 
                 <div class="form-group">
                     <div class="col-md-offset-3 col-md-9">
-                        {{ render_checkbox_field(cform.external_load_balancer) }}
+                        {{ render_checkbox_field(cform.external_load_balancer, checked=external_lb_checked) }}
                     </div>
                 </div>
 
 
             </div>
 
-            <div class="well well-sm" {% if not cform.external_load_balancer.data %}style="display: none"{% endif %} id="external-load-balancer-box">
+            <div class="well well-sm" 
+                {% if not external_lb_checked %}
+                    {% if not cform.external_load_balancer.data %}style="display: none"{% endif %} 
+                {% endif %}
+                id="external-load-balancer-box">
 
                 <div class="form-group {{ 'has-error' if cform.cache_host.errors else '' }}">
                     {{ cform.cache_host.label(class="control-label col-md-3") }}
                     <div class="col-md-9">
-                        {{ cform.cache_host(class="form-control") }}
+                        {{ cform.cache_host(class="form-control", required=False) }}
                         {% for error in cform.cache_host.errors %}
                             <p class="help-block">{{ error }}</p>
                         {% endfor %}
@@ -95,7 +99,7 @@
                 <div class="form-group {{ 'has-error' if cform.cache_ip.errors else '' }}">
                     {{ cform.cache_ip.label(class="control-label col-md-3") }}
                     <div class="col-md-9">
-                        {{ cform.cache_ip(class="form-control") }}
+                        {{ cform.cache_ip(class="form-control", required=False) }}
                         {% for error in cform.cache_ip.errors %}
                             <p class="help-block">{{ error }}</p>
                         {% endfor %}
@@ -191,18 +195,12 @@
     </div>
 {% endif %}
 
-
 {% endblock %}
 
 
 {% block js %}
 <script>
-
-    $('#objectClassName').on('keypress', function (e) {
-        $('#customClassName').prop("checked", true);
-    });
-
-
+    
     $('#external_load_balancer').change(function() {
         if(this.checked) {
             $('#external-load-balancer-box').removeAttr('style');
@@ -211,7 +209,7 @@
         
         $('#external-load-balancer-box').attr('style',  'display: none');
         
-        }
+    }
         
     });
 
