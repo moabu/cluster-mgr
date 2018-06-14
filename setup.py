@@ -36,7 +36,7 @@ setup(
         "requests",
         "flask-migrate",
         "ldap3",
-        "paramiko",
+        "paramiko>=2.4.0",
         "flask-login",
         "Flask-Mail",
         "cryptography",
