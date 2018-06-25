@@ -433,15 +433,8 @@ def setup_filesystem_replication(self):
 
     return True
 
+def remove_filesystem_replication_do(server, app_config, tid):
 
-@celery.task(bind=True)
-def remove_filesystem_replication(self):
-    tid = self.request.id
-    
-    app_config = AppConfiguration.query.first()
-    servers = Server.query.all()
-    
-    for server in servers:
         installer = Installer(server, app_config.gluu_version, logger_tid=tid)
         if not installer.c:
             return False
@@ -459,6 +452,19 @@ def remove_filesystem_replication(self):
             installer.run('service {} restart '.format(s))
             
         installer.run('rm /var/lib/csync2/*.*')
+
+        return True
+
+
+@celery.task(bind=True)
+def remove_filesystem_replication(self):
+    tid = self.request.id
+    
+    app_config = AppConfiguration.query.first()
+    servers = Server.query.all()
+    
+    for server in servers:
+        return remove_filesystem_replication_do(server, app_config, tid)
            
 @celery.task(bind=True)
 def setup_ldap_replication(self, server_id):
@@ -1333,9 +1339,6 @@ def do_disable_replication(tid, server, primary_server, app_config):
     cmd = cmd_run.format(cmd)
     run_command(tid, c, cmd, chroot)
 
-    
-
-    
     return True
 
 @celery.task(bind=True)
@@ -1355,6 +1358,8 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
     primary_server = Server.query.filter_by(primary_server=True).first()
     server = Server.query.get(server_id)
     tid = self.request.id
+
+    remove_filesystem_replication_do(server, app_config, tid)
 
     proxy_c = None
 

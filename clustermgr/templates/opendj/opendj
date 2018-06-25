@@ -21,7 +21,7 @@
 # Header, with the fields enclosed by brackets [] replaced by your own identifying
 # information: "Portions Copyright [year] [name of copyright owner]".
 # 
-# chkconfig: 345 95 5
+# chkconfig: 345 50 5
 # description: Control the Gluu-OpenDJ Directory Server
 
 # Set the path to the Gluu-OpenDJ instance to manage
