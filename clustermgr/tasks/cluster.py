@@ -464,8 +464,10 @@ def remove_filesystem_replication(self):
     servers = Server.query.all()
     
     for server in servers:
-        return remove_filesystem_replication_do(server, app_config, tid)
-           
+        r = remove_filesystem_replication_do(server, app_config, tid)
+        if not r:
+            return r
+
 @celery.task(bind=True)
 def setup_ldap_replication(self, server_id):
     """Deploys ldap replicaton
