@@ -5,5 +5,5 @@
 /opt/shibboleth-idp/sp/
 /opt/shibboleth-idp/temp_metadata/
 /etc/gluu/conf/
-/etc/certs/
+
 
