@@ -134,6 +134,7 @@ def app_configuration():
             conf_form.cache_ip.validators= []
         else:
             external_lb_checked = True
+            conf_form.nginx_ip.validators= []
 
 
     if not config:

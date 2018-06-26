@@ -67,7 +67,7 @@ def run_command(tid, c, command, container=None, no_error='error',  server_id=''
         
         # For some reason slaptest decides to send success message as err, so
         if not_error:
-            wlogger.log(tid, cerr, "success", server_id=server_id)
+            wlogger.log(tid, cerr, "debug", server_id=server_id)
         else:
             wlogger.log(tid, cerr, no_error, server_id=server_id)
         output += "\n" + cerr

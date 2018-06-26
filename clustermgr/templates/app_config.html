@@ -60,10 +60,14 @@
                     </div>
                 </div>
 
-                <div class="form-group {{ 'has-error' if cform.nginx_ip.errors else '' }}">
+                <div class="form-group {{ 'has-error' if cform.nginx_ip.errors else '' }}" id="external_ip_group" {% if cform.external_load_balancer.data %}style="display: none"{% endif %} >
                     {{ cform.nginx_ip.label(class="control-label col-md-3") }}
                     <div class="col-md-9">
-                        {{ cform.nginx_ip(class="form-control") }}
+                        {% if cform.external_load_balancer.data %}
+                            {{ cform.nginx_ip(class="form-control", required=False) }}
+                        {%else%}
+                            {{ cform.nginx_ip(class="form-control") }}
+                        {%endif%}
                         {% for error in cform.nginx_ip.errors %}
                             <p class="help-block">{{ error }}</p>
                         {% endfor %}
@@ -204,10 +208,15 @@
     $('#external_load_balancer').change(function() {
         if(this.checked) {
             $('#external-load-balancer-box').removeAttr('style');
+            $('#external_ip_group').attr('style',  'display: none');
+            $('#nginx_ip').removeAttr('required');
             
     } else {
         
         $('#external-load-balancer-box').attr('style',  'display: none');
+        $('#external_ip_group').removeAttr('style');
+        $('#nginx_ip').prop('required',true);
+        
         
     }
         

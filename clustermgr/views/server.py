@@ -209,9 +209,7 @@ def remove_provider_from_consumer(consumer_id, provider_addr):
 @server_view.route('/remove/<int:server_id>')
 @login_required
 def remove_server(server_id):
-    
-    print "remove server"*50
-        
+
     appconfig = AppConfiguration.query.first()
     server = Server.query.filter_by(id=server_id).first()
     all_servers = Server.query.all()
