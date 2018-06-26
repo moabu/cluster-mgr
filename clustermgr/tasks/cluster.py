@@ -18,7 +18,7 @@ from clustermgr.config import Config
 import uuid
 import select
 
-def run_command(tid, c, command, container=None, no_error='error',  server_id=''):
+def run_command(tid, c, command, container=None, no_error='error',  server_id='', exclude_error=None):
     """Shorthand for RemoteClient.run(). This function automatically logs
     the commands output at appropriate levels to the WebLogger to be shared
     in the web frontend.
@@ -34,6 +34,15 @@ def run_command(tid, c, command, container=None, no_error='error',  server_id=''
     Returns:
         the output of the command or the err thrown by the command as a string
     """
+    
+    excluded_errors = [
+                        'config file testing succeeded',
+                        'There are no base DNs available to enable replication between the two servers',
+                    ]
+                    
+    if exclude_error:
+        excluded_errors.append(excluded_errors)
+    
     if container == '/':
         container = None
     if container:
@@ -49,8 +58,15 @@ def run_command(tid, c, command, container=None, no_error='error',  server_id=''
         wlogger.log(tid, cout, "debug", server_id=server_id)
         output += "\n" + cout
     if cerr:
+        
+        not_error = False
+        for ee in excluded_errors:
+            if ee in cerr:
+                not_error = True
+                break
+        
         # For some reason slaptest decides to send success message as err, so
-        if 'config file testing succeeded' in cerr:
+        if not_error:
             wlogger.log(tid, cerr, "success", server_id=server_id)
         else:
             wlogger.log(tid, cerr, no_error, server_id=server_id)
@@ -1680,6 +1696,7 @@ def opendjenablereplication(self, server_id):
                             )
 
                 cmd = cmd_run.format(cmd)
+                
                 run_command(tid, c, cmd, chroot)
 
                 wlogger.log(tid, "Inıtializing replication on server {}".format(
