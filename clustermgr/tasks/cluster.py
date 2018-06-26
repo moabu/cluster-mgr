@@ -135,6 +135,86 @@ def modifyOxLdapProperties(server, c, tid, pDict, chroot):
                 'warning')
 
 
+def get_csync2_config(exclude=None):
+
+    replication_user_file = os.path.join(Config.DATA_DIR,
+                            'fs_replication_paths.txt')
+
+    sync_directories = []
+
+    for l in open(replication_user_file).readlines():
+        sync_directories.append(l.strip())
+
+
+    exclude_files = [
+        '/etc/gluu/conf/ox-ldap.properties',
+        '/etc/gluu/conf/oxTrustLogRotationConfiguration.xml',
+        '/etc/gluu/conf/openldap/salt',
+
+        ]
+
+
+    csync2_config = ['group gluucluster','{']
+
+    all_servers = Server.query.all()
+
+    cysnc_hosts = []
+    for server in all_servers:
+        if not server.hostname == exclude:
+            cysnc_hosts.append(('csync{}.gluu'.format(server.id), server.ip))
+
+    for srv in cysnc_hosts:
+        csync2_config.append('  host {};'.format(srv[0]))
+
+    csync2_config.append('')
+    csync2_config.append('  key /etc/csync2.key;')
+    csync2_config.append('')
+
+    for d in sync_directories:
+        csync2_config.append('  include {};'.format(d))
+
+    csync2_config.append('')
+
+    csync2_config.append('  exclude *~ .*;')
+
+    csync2_config.append('')
+
+
+    for f in exclude_files:
+        csync2_config.append('  exclude {};'.format(f))
+
+
+    csync2_config.append('\n'
+          '  action\n'
+          '  {\n'
+          '    logfile "/var/log/csync2_action.log";\n'
+          '    do-local;\n'
+          '  }\n'
+          )
+
+    csync2_config.append('\n'
+          '  action\n'
+          '  {\n'
+          '    pattern /opt/gluu/jetty/identity/conf/shibboleth3/idp/*;\n'
+          '    exec "/sbin/service idp restart";\n'
+          '    exec "/sbin/service identity restart";\n'
+          '    logfile "/var/log/csync2_action.log";\n'
+          '    do-local;\n'
+          '  }\n')
+
+
+    csync2_config.append('  backup-directory /var/backups/csync2;')
+    csync2_config.append('  backup-generations 3;')
+
+    csync2_config.append('\n  auto younger;\n')
+
+    csync2_config.append('}')
+
+    csync2_config = '\n'.join(csync2_config)
+
+    return csync2_config
+
+
 @celery.task(bind=True)
 def setup_filesystem_replication(self):
     """Deploys File System replicaton
@@ -241,88 +321,8 @@ def setup_filesystem_replication(self):
                 run_command(tid, c, cmd, cmd_chroot, no_error=None,  server_id=server.id)
 
 
-            replication_user_file = os.path.join(Config.DATA_DIR,
-                                    'fs_replication_paths.txt')
+            csync2_config = get_csync2_config()
 
-            sync_directories = []
-
-            for l in open(replication_user_file).readlines():
-                sync_directories.append(l.strip())
-
-
-            exclude_files = [
-                '/etc/gluu/conf/ox-ldap.properties',
-                '/etc/gluu/conf/oxTrustLogRotationConfiguration.xml',
-                '/etc/gluu/conf/openldap/salt',
-
-                ]
-
-
-            csync2_config = ['group gluucluster','{']
-
-            all_servers = Server.query.all()
-
-            for srv in cysnc_hosts:
-                csync2_config.append('  host {};'.format(srv[0]))
-
-            csync2_config.append('')
-            csync2_config.append('  key /etc/csync2.key;')
-            csync2_config.append('')
-
-            for d in sync_directories:
-                csync2_config.append('  include {};'.format(d))
-
-            csync2_config.append('')
-
-            csync2_config.append('  exclude *~ .*;')
-
-            csync2_config.append('')
-
-
-            for f in exclude_files:
-                csync2_config.append('  exclude {};'.format(f))
-
-
-            csync2_config.append('\n'
-                  '  action\n'
-                  '  {\n'
-                  '    logfile "/var/log/csync2_action.log";\n'
-                  '    do-local;\n'
-                  '  }\n'
-                  )
-
-            csync2_config.append('\n'
-                  '  action\n'
-                  '  {\n'
-                  '    pattern /opt/gluu/jetty/identity/conf/shibboleth3/idp/*;\n'
-                  '    exec "/sbin/service idp restart";\n'
-                  '    exec "/sbin/service identity restart";\n'
-                  '    logfile "/var/log/csync2_action.log";\n'
-                  '    do-local;\n'
-                  '  }\n')
-
-
-
-            #csync2_config.append('\n'
-            #      '  action\n'
-            #      '  {\n'
-            #      '    pattern /opt/opendj/config/schema/*;\n'
-            #      '    exec "/etc/init.d/opendj restart";\n'
-            #      '    logfile "/var/log/csync2_action.log";\n'
-            #      '    do-local;\n'
-            #      '  }\n')
-
-            csync2_config.append('  backup-directory /var/backups/csync2;')
-            csync2_config.append('  backup-generations 3;')
-
-
-
-            csync2_config.append('\n  auto younger;\n')
-
-            csync2_config.append('}')
-
-
-            csync2_config = '\n'.join(csync2_config)
             remote_file = os.path.join(chroot, 'etc', 'csync2.cfg')
 
             wlogger.log(tid, "Uploading csync2.cfg", 'debug', server_id=server.id)
@@ -390,9 +390,7 @@ def setup_filesystem_replication(self):
                 'server_args     = -i -l -N %(HOSTNAME)s\n'
                 'port            = 30865\n'
                 'type            = UNLISTED\n'
-                '#log_on_failure += USERID\n'
                 'disable         = no\n'
-                '# only_from     = 192.168.199.3 192.168.199.4\n'
                 '}\n')
 
             inet_conf_file = os.path.join(chroot, 'etc', 'xinetd.d', 'csync2')
@@ -1361,6 +1359,8 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
     server = Server.query.get(server_id)
     tid = self.request.id
 
+    removed_server_hostname = server.hostname
+
     remove_filesystem_replication_do(server, app_config, tid)
 
     proxy_c = None
@@ -1403,7 +1403,6 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
     if not proxy_c:
         
         proxy_c = RemoteClient(app_config.cache_host, ip=app_config.cache_ip)
-        
         
         wlogger.log(tid,
                 "Making SSH connection to cache server {0}".format(
@@ -1467,6 +1466,9 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
     if remove_server:
         db.session.delete(server)
 
+
+    chroot = '/opt/gluu-server-' + app_config.gluu_version
+
     for server in Server.query.all():
         if server.gluu_server:
         
@@ -1490,6 +1492,16 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
                     tid, "Cannot establish SSH connection {0}".format(e),
                     "warning")
                 wlogger.log(tid, "Ending server setup process.", "error")
+
+
+            csync2_config = get_csync2_config(exclude=removed_server_hostname)
+
+            remote_file = os.path.join(chroot, 'etc', 'csync2.cfg')
+
+            wlogger.log(tid, "Uploading csync2.cfg", 'debug')
+
+            ct.put_file(remote_file,  csync2_config)
+
 
 
             wlogger.log(tid, "Restarting Gluu Server on {}".format(

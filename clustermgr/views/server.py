@@ -206,9 +206,12 @@ def remove_provider_from_consumer(consumer_id, provider_addr):
     return redirect(url_for('index.multi_master_replication'))
 
 
-@server_view.route('/remove/<int:server_id>/')
+@server_view.route('/remove/<int:server_id>')
 @login_required
-def remove(server_id):
+def remove_server(server_id):
+    
+    print "remove server"*50
+        
     appconfig = AppConfiguration.query.first()
     server = Server.query.filter_by(id=server_id).first()
     all_servers = Server.query.all()
@@ -223,6 +226,7 @@ def remove(server_id):
 
     disable_replication = True if request.args.get('disablereplication') == \
                                'true' else False
+
     
     if setup_prop['ldap_type'] == 'openldap':
         if server.mmr:
@@ -231,6 +235,12 @@ def remove(server_id):
             for consumer in consumers:
                 remove_provider_from_consumer_f(consumer.id, provider_addr)
     else:
+
+        print url_for('cluster.remove_server_from_cluster_view',
+                                    server_id=server_id, removeserver=True,
+                                    disablereplication=disable_replication,
+                                    next='dashboard',
+                                    )
 
         return redirect(url_for('cluster.remove_server_from_cluster_view',
                                     server_id=server_id, removeserver=True,
