@@ -21,7 +21,7 @@ class Installer:
             wlogger.log(
                         self.logger_tid, 
                         "Making SSH connection to {} ...".format(c.hostname),
-                        'info',
+                        'action',
                         server_id=self.server_id,
                         )
 
@@ -49,8 +49,8 @@ class Installer:
         
             if ('Ubuntu' in self.server_os) or ('Debian' in self.server_os):
                 self.run_command = 'chroot {} /bin/bash -c "{}"'.format(self.container,'{}')
-                self.install_command = 'chroot {} /bin/bash -c "apt-get install -y {}"'.format(self.container,'{}')
-            elif 'CentOS' in self.server_os:
+                self.install_command = 'chroot {} /bin/bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y {}"'.format(self.container,'{}')
+            elif ('CentOS' in self.server_os) or ( 'RHEL' in self.server_os):
                 self.run_command = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
                                 '-o Port=60022 -o LogLevel=QUIET -o '
                                 'StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null '
@@ -61,12 +61,17 @@ class Installer:
         else:
             self.run_command = '{}'
 
-    def log(self, result):
+    def log(self, result, error_exception):
         if self.logger_tid:
-            if result[1]:
-                wlogger.log(self.logger_tid, result[1], 'debug', server_id=self.server_id)
-            if result[2]:
-                wlogger.log(self.logger_tid, result[2], 'debug', server_id=self.server_id)
+            if result[1].strip():
+                wlogger.log(self.logger_tid, result[1].strip(), 'debug', server_id=self.server_id)
+            if result[2].strip():
+                if error_exception:
+                    if (error_exception == '__ALL__') or error_exception in result[2]:
+                        wlogger.log(self.logger_tid, result[2].strip(), 'debug', server_id=self.server_id)
+                        return
+
+                wlogger.log(self.logger_tid, result[2].strip(), 'error', server_id=self.server_id)
 
     def log_command(self, cmd):
         if self.logger_tid:
@@ -74,14 +79,26 @@ class Installer:
 
 
 
-    def run(self, cmd):
+    def run(self, cmd, error_exception=None):
         print "Installer> executing: {}".format(cmd)
         run_cmd = self.run_command.format(cmd)
         self.log_command(run_cmd)
         result = self.c.run(run_cmd)
-        self.log(result)
+        self.log(result, error_exception)
         
         return result
+
+    def is_gluu_installed(self):
+        
+        check_file = ('/opt/gluu-server-{}/install/community-edition-setup/'
+                  'setup.properties.last').format(
+                                                self.gluu_version
+                                            )
+        print "Installer> Checking existence of file {} for gluu installation".format(check_file)
+
+
+        return self.c.exists(check_file)
+
 
     def install(self, package):
         run_cmd = self.install_command.format(package)

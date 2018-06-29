@@ -4,8 +4,8 @@ import os
 import time
 # import uuid
 
-from flask import Blueprint, render_template, redirect, url_for, flash, \
-    request, jsonify, current_app
+from flask import Blueprint, render_template, redirect, url_for, \
+    flash, request, jsonify, current_app
 
 from flask_login import login_required
 
@@ -17,6 +17,9 @@ import ldap3
 from clustermgr.forms import ServerForm, InstallServerForm, \
     SetupPropertiesLastForm
 from clustermgr.tasks.cluster import collect_server_details
+
+from clustermgr.tasks.server import install_gluu_server_step_1
+
 from clustermgr.core.remote import RemoteClient, ClientNotSetupException
 from ..core.license import license_required
 from ..core.license import license_reminder
@@ -281,10 +284,8 @@ def install_gluu(server_id):
     # If current server is not primary server, and primary server was installed,
     # start installation by redirecting to cluster.install_gluu_server
     if not server.primary_server:
-        
-        
-        
-        return redirect(url_for('cluster.install_gluu_server',
+
+        return redirect(url_for('server.install_gluu_step_1',
                                 server_id=server_id))
 
     # If we come up here, it is primary server and we will ask admin which
@@ -508,59 +509,6 @@ def confirm_setup_properties(server_id):
 
 
 
-@server_view.route('/editslapdconf/<int:server_id>/', methods=['GET', 'POST'])
-@login_required
-def edit_slapd_conf(server_id):
-    """This view  provides editing of slapd.conf file before depoloyments."""
-
-    server = Server.query.get(server_id)
-    appconf = AppConfiguration.query.first()
-
-    # If there is no server with server_id return to home
-    if not server:
-        flash("No such server.", "warning")
-        return redirect(url_for('index.home'))
-
-    if not server.gluu_server:
-        chroot = '/'
-    else:
-        chroot = '/opt/gluu-server-' + appconf.gluu_version
-
-    # slapd.conf file will be downloaded from server. Make ssh connection
-    # and download it
-    c = RemoteClient(server.hostname, ip=server.ip)
-    try:
-        c.startup()
-    except ClientNotSetupException as e:
-        flash(str(e), "danger")
-        return redirect(url_for('index.home'))
-
-    slapd_conf_file = os.path.join(chroot, 'opt/symas/etc/openldap/slapd.conf')
-
-    if request.method == 'POST':
-
-        config = request.form.get('conf')
-        r = c.put_file(slapd_conf_file, config)
-        if not r[0]:
-            flash("Cant' saved to server: {0}".format(r[1]), "danger")
-        else:
-            flash('File {0} was saved on {1}'.format(slapd_conf_file,
-                                                     server.hostname))
-            return redirect(url_for('index.home'))
-
-    # After editing, slapd.conf file will be uploaded to server via ssh
-    r = c.get_file(slapd_conf_file)
-
-    if not r[0]:
-        flash("Cant't get file {0}: {1}".format(slapd_conf_file, r[1]),
-              "success")
-        return redirect(url_for('index.home'))
-
-    config = r[1].read()
-
-    return render_template('conf_editor.html', config=config,
-                           hostname=server.hostname)
-
 @server_view.route('/ldapstat/<int:server_id>/')
 def get_ldap_stat(server_id):
 
@@ -675,3 +623,42 @@ def make_primary(server_id):
     flash("Server {} was set as Primary Server".format(server.hostname), "info")
     
     return redirect(url_for('index.home'))
+
+
+@server_view.route('/installgluu-step-1/<int:server_id>/', methods=['GET'])
+@login_required
+def install_gluu_step_1(server_id):
+    
+    task = install_gluu_server_step_1.delay(server_id)
+    
+    steps = ['Perpare Server', 'Install Gluu Container', 'Run setup.py', 'Post Installation']
+
+    return render_template('logger_single.html',
+                           server_id=server_id,
+                           title="Gluu Server Installation",
+                           steps=steps,
+                           task=task,
+                           cur_step=1,
+                           auto_next=False,
+                           nextpage=url_for('server.install_gluu_step_2',server_id=server_id)
+                           )
+                           
+                           
+@server_view.route('/installgluu-step-2/<int:server_id>/', methods=['GET'])
+@login_required
+def install_gluu_step_2(server_id):
+    
+    task = task_do_install_gluu_server.delay()
+    
+    steps = ['Perpare Server', 'Install Gluu Container', 'Run setup.py', 'Post Installation']
+
+    return render_template('logger_single.html',
+                           server_id=server_id,
+                           title="Gluu Server Installation",
+                           steps=steps,
+                           task=task,
+                           cur_step=2,
+                           auto_next=False,
+                           nextpage=url_for('index.home'),
+                           whatNext = "Step 3",
+                           )

@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% from 'macros.html' import render_field, render_checkbox_field, render_form %}
+
+{% block header %}
+<h1>{{title}}</h1>
+    <h1> {{ header }}</h1>
+  <ol class="breadcrumb">
+    <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+    <li><i class="fa fa-blocks"></i> <a href="{{ url_for('index.home') }}">Dashboard</a></li>
+    <li class="active">Install Server</li>
+  </ol>
+{% endblock header %}
+
+{% block  content %}
+
+
+<style>
+    
+.progress-bar {
+    -webkit-transition: none;
+    -moz-transition: none;
+    -ms-transition: none;
+    -o-transition: none;
+    transition: none;
+}​
+    
+.bs-wizard {margin-top: 40px;}
+
+/*Form Wizard*/
+.bs-wizard {border-bottom: solid 1px #e0e0e0; padding: 0 0 10px 0;}
+.bs-wizard > .bs-wizard-step {padding: 0; position: relative;}
+.bs-wizard > .bs-wizard-step + .bs-wizard-step {}
+.bs-wizard > .bs-wizard-step .bs-wizard-stepnum {color: #595959; font-size: 16px; margin-bottom: 5px;}
+
+.bs-wizard > .bs-wizard-step .bs-wizard-info {color: #999; font-size: 14px;}
+.bs-wizard > .bs-wizard-step > .bs-wizard-dot {position: absolute; width: 30px; height: 30px; display: block; background: #1ab26b; top: 45px; left: 50%; margin-top: -15px; margin-left: -15px; border-radius: 50%;} 
+
+.bs-wizard > .bs-wizard-step > .bs-wizard-dot:after {content: ' '; width: 14px; height: 14px; background: #13844f; border-radius: 50px; position: absolute; top: 8px; left: 8px; } 
+
+
+
+
+.bs-wizard > .bs-wizard-step > .progress {position: relative; border-radius: 0px; height: 8px; box-shadow: none; margin: 20px 0;}
+.bs-wizard > .bs-wizard-step > .progress > .progress-bar {width:0px; box-shadow: none; background: #1ab26b;}
+.bs-wizard > .bs-wizard-step.complete > .progress > .progress-bar {width:100%;}
+.bs-wizard > .bs-wizard-step.active > .progress > .progress-bar {width:50%; }
+.bs-wizard > .bs-wizard-step:first-child.active > .progress > .progress-bar {width:0%;}
+
+
+.bs-wizard > .bs-wizard-step.active > .bs-wizard-dot:after {background: #222d32;}
+.bs-wizard > .bs-wizard-step.active > .bs-wizard-dot {font-size:30px; color: white;}
+.bs-wizard > .bs-wizard-step.active .bs-wizard-stepnum {font-weight: bold}
+.bs-wizard > .bs-wizard-step.active .bs-wizard-info {font-weight: bold}
+
+
+.bs-wizard > .bs-wizard-step.disabled > .bs-wizard-dot {background-color: #f5f5f5;}
+.bs-wizard > .bs-wizard-step.disabled > .bs-wizard-dot:after {background-color: #ecf0f5;}
+
+
+
+.bs-wizard > .bs-wizard-step:first-child  > .progress {left: 50%; width: 50%;}
+.bs-wizard > .bs-wizard-step:last-child  > .progress {width: 50%;}
+.bs-wizard > .bs-wizard-step.disabled a.bs-wizard-dot{ pointer-events: none; }
+/*END Form Wizard*/
+
+</style>
+
+
+<div id="bs-wizard" class="row bs-wizard" style="border-bottom:0; margin-right:10px">
+{%for step in steps%}
+    
+    <div id="progress-step-{{loop.index}}" class="col-xs-3 bs-wizard-step">
+      <div class="text-center bs-wizard-stepnum">Step {{loop.index}}</div>
+      <div class="progress"><div class="progress-bar" id="progress-bar-{{loop.index}}"></div></div>
+      <a id="progress-link-{{loop.index}}" href="#" class="bs-wizard-dot {%if loop.index==cur_step%}fa fa-gear fa-spin fa-fw bg-blue{%endif%}"></a>
+      <div class="bs-wizard-info text-center">{{step}}</div>
+    </div>
+ {%endfor%}
+ 
+</div>
+
+<br>
+
+
+<ul id="logger" class="list-group"></ul>
+
+
+
+
+
+<button id="retry" class="btn btn-block btn-danger" style="display: none;">Retry</button>
+<a id="home" class="btn btn-block btn-success" style="display: none;" href="{{nextpage}}">Go to {{whatNext}}</a>
+
+
+{% endblock %}
+
+
+
+
+{% block modals %}
+
+{% endblock %}
+
+
+{% block js %}
+
+
+
+<script>
+$(document).ready(function() {
+  adjustBar();
+  $(window).on('resize', function() {
+    adjustBar();
+  })
+  $('#height').on('input change', function() {
+    var height = $(this).val();
+    if (height >= 30) {
+      var leftOffset = (Math.tan(45 * (Math.PI / 180)) * (height / 2) + 3) * -1;
+      $('.steps').css('height', height).css('line-height', height + "px").css('left', leftOffset + "px");
+      adjustBar();
+    }
+  });
+  /*
+  $('.steps').on('click', function() {
+    $('.steps').removeClass('active');
+    $(this).addClass('active');
+  })
+  */
+});
+
+function adjustBar() {
+  var items = $('.steps').length;
+  var elHeight = $('.steps').height() / 2; //Division by 2 because each pseudo which is skewed is only 50% of its parent.
+  var skewOffset = Math.tan(45 * (Math.PI / 180)) * elHeight;
+  var reduction = skewOffset + ((items - 1) * 4);
+  var leftOffset = $('.steps').css('left').replace('px', '');
+  var factor = leftOffset * (-1) - 2;
+  $('.steps').css({
+    'width': '-webkit-calc((100% + 4px - ' + reduction + 'px)/' + items + ')',
+    'width': 'calc((100% + 4px - ' + reduction + 'px)/' + items + ')'
+  }); // 4px for borders on either side
+  $('.steps:first-child, .steps:last-child').css({
+    'width': '-webkit-calc((100% + 4px - ' + reduction + 'px)/' + items + ' + ' + factor + 'px)',
+    'width': 'calc((100% + 4px - ' + reduction + 'px)/' + items + ' + ' + factor + 'px)'
+  }); // 26px because to make up for the left offset. Size of last-child is also increased to avoid the skewed area on right being shown  
+  $('.steps span').css('padding-left', (skewOffset + 15) + "px");
+  $('.steps:first-child span, .steps:last-child span').css({
+    'width': '-webkit-calc(100% - ' + factor + 'px)',
+    'width': 'calc(100% - ' + factor + 'px)',
+  });
+}
+
+
+var task_id = "{{ task.id }}";
+var timer;
+var errors = 0;
+
+function logitem(message, state){
+    var item = document.createElement('li');
+    item.setAttribute('class', 'list-group-item');
+    var icon = document.createElement('i');
+    if ( state === 'success' ){
+        icon.setAttribute('class', 'glyphicon glyphicon-ok-sign pull-right');
+        item.setAttribute('class', 'list-group-item text-success');
+    } else if ( state === 'error' || state === 'fail' ) {
+        icon.setAttribute('class', 'glyphicon glyphicon-remove-sign pull-right')
+        item.setAttribute('class', 'list-group-item text-danger');
+    } else if ( state === 'info' ){
+        icon.setAttribute('style', 'padding-right: 5px')
+        icon.setAttribute('class', 'glyphicon glyphicon-tasks')
+        item.setAttribute('class', 'list-group-item list-group-item-info');
+    } else if ( state === 'head' ){
+        icon.setAttribute('style', 'padding-right: 5px')
+        icon.setAttribute('class', 'glyphicon glyphicon glyphicon-hand-right')
+        item.setAttribute('class', 'list-group-item active');
+ 
+    } else if ( state === 'action' ){
+        icon.setAttribute('style', 'padding-right: 5px')
+        item.setAttribute('class', 'list-group-item text-info');
+        
+    } else if ( state === 'warning' ){
+        icon.setAttribute('style', 'padding-right: 5px')
+        icon.setAttribute('class', 'glyphicon glyphicon-warning-sign')
+        item.setAttribute('class', 'list-group-item list-group-item-warning');
+    } else if ( state === 'debug' ){
+        item = document.createElement('pre')
+        item.setAttribute('class', 'list-group-item');
+        item.setAttribute("id", "preelement");
+    }
+    item.appendChild(icon);
+    var msgtext = document.createTextNode(message);
+    item.appendChild(msgtext);
+    return item;
+}
+
+
+function redirectToNextPage(){
+    window.location.reload(true);
+
+}
+
+
+function setStep(n){
+
+    var items=$('#bs-wizard').children();
+    for ( i = 0; i < items.length; i++){
+            item = items[i];
+            item.classList.remove('complete');
+            item.classList.remove('disabled');
+            item.classList.remove('active');
+            linki = $('#progress-link-'+(i+1));            
+            linki.removeClass('fa').removeClass('fa-gear').removeClass('fa-spin').removeClass('fa-fw').removeClass('bg-blue');
+
+            if (i < n-1) {
+                item.classList.add('complete');
+            }
+
+            if (i==n-1){
+                item.classList.add('active');
+                linki.addClass('fa').addClass('fa-gear').addClass('fa-spin').addClass('fa-fw').addClass('bg-blue');
+            }
+
+            if (i > n-1) {
+                
+                item.classList.add('disabled');
+            }
+    }
+    
+    if (n==items.length) {
+        pbar = $('#progress-bar-'+n); 
+        pbar.css("width", "100%");
+        console.log(pbar);
+        }
+}
+
+
+function updateLog(){
+    $.get('{{ url_for("index.get_log", task_id=task.id) }}', function(data){
+        var logs = data.messages;
+        //var logged_msgs = $('.list-group-item').length;
+        for(var i=lastLoggedItem; i<logs.length; i++){
+            
+
+            console.log(logs[i].level, logs[i].msg);
+            if (logs[i].level==='debugc') {
+                var entry = document.getElementById(logs[i].log_id);
+                entry.innerHTML = logs[i].msg;
+                lastLoggedItem++;
+            } else if (logs[i].level==='setstep') {
+
+                setStep(parseInt(logs[i].msg));
+                
+            } else {
+                var entry = logitem(logs[i].msg, logs[i].level);
+                if (logs[i].new_log_id) {
+                    prevEntry = document.getElementById(logs[i].log_id);
+                    if (!prevEntry) {
+                        entry.setAttribute("id", logs[i].log_id); 
+                        console.log("New log id created"+logs[i].log_id);
+                    }
+                }
+                $('#logger').append(entry);
+                console.log(entry);
+                lastLoggedItem++;
+                
+            }
+            entry.scrollIntoView({behavior: "smooth", block: "end"});
+            if(logs[i].level == 'error' || logs[i].level == 'fail'){
+                errors++;
+            }
+        }
+        
+        if (data.error_message) {
+            $('#exceptionModalText').text(data.error_message)
+            $('#removeAlertModal').modal('show');
+            }
+
+        if(data.state == "SUCCESS" || data.state == "FAILURE"){
+            clearInterval(timer);
+            
+            //active_step = $('#progress-step-{{cur_step}}');
+            //active_step.removeClass('active').addClass('complete');
+            active_link = $('#progress-link-{{cur_step}}');
+            active_link.removeClass('fa').removeClass('fa-gear').removeClass('fa-spin').removeClass('fa-fw').removeClass('fa-blue');
+
+            if (errors){
+                var err_msg = "Errors were found. Fix them in the server and refresh this page to try again.";
+                var entry = logitem(err_msg, 'warning');
+                $('#logger').append(entry);
+                entry.scrollIntoView(false);
+                $('#retry').show()[0].scrollIntoView({behavior: "smooth", block: "end"});
+            } else {
+                
+              {%if auto_next%}
+                window.location.href = "{{nextpage}}";
+    
+                setTimeout(function(){
+                    window.location.reload(true);
+                }, 10000);
+                
+              {%else%}
+                $('#home').show()[0].scrollIntoView({behavior: "smooth", block: "end"});
+              {%endif%}  
+            }
+        }
+    });
+}
+
+setStep({{cur_step}});
+
+var lastLoggedItem=0;
+$('#retry').click(function(){
+    window.location.reload(true);
+});
+
+timer = setInterval(updateLog, 1000);
+
+
+
+
+</script>
+{% endblock %}
+
