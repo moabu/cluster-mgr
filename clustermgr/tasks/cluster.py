@@ -1509,16 +1509,13 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
                     "warning")
                 wlogger.log(tid, "Ending server setup process.", "error")
 
-
-            csync2_config = get_csync2_config(exclude=removed_server_hostname)
-
             remote_file = os.path.join(chroot, 'etc', 'csync2.cfg')
-
-            wlogger.log(tid, "Uploading csync2.cfg", 'debug')
-
-            ct.put_file(remote_file,  csync2_config)
-
-
+            
+            if ct.exists(remote_file):
+                wlogger.log(tid, "Reconfiguring file system replication")
+                csync2_config = get_csync2_config(exclude=removed_server_hostname)
+                wlogger.log(tid, "Uploading csync2.cfg", 'debug')
+                ct.put_file(remote_file,  csync2_config)
 
             wlogger.log(tid, "Restarting Gluu Server on {}".format(
                                 server.hostname))
