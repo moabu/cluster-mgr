@@ -47,6 +47,7 @@ def execute_query(table, data, options=None):
         tables (string): table name
         data: compound data to be written to database
     """
+    print json.dumps({table: data})
     
     tmpdata = [ str(d) for d in data ]
     
@@ -57,7 +58,7 @@ def execute_query(table, data, options=None):
     
     options = ['`{0}`'.format(o) for o in options]
     
-    query = 'INSERT INTO {0} (time, {1}) VALUES ({2}, {3})'.format(
+    query = 'INSERT INTO `{0}` (`time`, {1}) VALUES ({2}, {3})'.format(
                                         table,
                                         ', '.join(options), 
                                         int(time.time()), datas)
