@@ -74,6 +74,12 @@ def index():
         server.mmr = False
         ask_passphrase = False
         
+        if server_exist:
+            flash("Server with hostname {} is already in cluster".format(
+                server_exist.hostname), "warning")
+            return redirect(url_for('index.home'))
+        
+        
         c = RemoteClient(server.hostname, server.ip)
         try:
             c.startup()
