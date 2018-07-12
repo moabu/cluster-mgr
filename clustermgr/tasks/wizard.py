@@ -134,7 +134,8 @@ def wizard_step2(self):
             ip_address = server.ip,
             ldap_password = setup_prop['ldapPass'],
             os_type = server.os,
-            gluu_version = app_conf.gluu_version
+            gluu_version = app_conf.gluu_version,
+            local=False,
         )
 
     name_changer.logger_tid = tid
@@ -158,10 +159,13 @@ def wizard_step2(self):
     name_changer.change_uma()
     wlogger.log(tid, "LDAP Applience Uma entries were changed", 'success')
     
+    wlogger.log(tid, "Modifying SAML IDP")
+    name_changer.modify_saml_idp()
+    wlogger.log(tid, "SAML IDP were changed", 'success')
+
     wlogger.log(tid, "Reconfiguring http")
     name_changer.change_httpd_conf()
     wlogger.log(tid, " LDAP Applience Uma entries were changed", 'success')
-    
 
     wlogger.log(tid, "Creating certificates")
     name_changer.create_new_certs()
