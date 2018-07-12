@@ -159,9 +159,9 @@ def wizard_step2(self):
     name_changer.change_uma()
     wlogger.log(tid, "LDAP Applience Uma entries were changed", 'success')
     
-    wlogger.log(tid, "Modifying SAML IDP")
-    name_changer.modify_saml_idp()
-    wlogger.log(tid, "SAML IDP were changed", 'success')
+    wlogger.log(tid, "Modifying SAML & Passport")
+    name_changer.modify_saml_passport()
+    wlogger.log(tid, "SAML & Passport were changed", 'success')
 
     wlogger.log(tid, "Reconfiguring http")
     name_changer.change_httpd_conf()
