@@ -52,7 +52,8 @@ class RemoteClient(object):
         if not passphrase:
             pw_file = os.path.join(current_app.config['DATA_DIR'], '.pw')
             if os.path.exists(pw_file):
-                encoded_passphrase = open(pw_file).read()
+                with open(pw_file) as f:
+                    encoded_passphrase = f.read()
             
                 passphrase = decode(
                                 os.getenv('NEW_UUID'), 
