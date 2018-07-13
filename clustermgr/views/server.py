@@ -18,7 +18,7 @@ from clustermgr.forms import ServerForm, InstallServerForm, \
     SetupPropertiesLastForm
 from clustermgr.tasks.cluster import collect_server_details
 
-from clustermgr.tasks.server import install_gluu_server_step_1
+from clustermgr.tasks.server import task_install_gluu_server
 
 from clustermgr.core.remote import RemoteClient, ClientNotSetupException
 from ..core.license import license_required
@@ -58,6 +58,8 @@ def index():
               " servers.", "info")
         return redirect(url_for('index.app_configuration', next="/server/"))
 
+
+
     form = ServerForm()
     header = "New Server"
     primary_server = Server.query.filter(
@@ -69,6 +71,10 @@ def index():
     else:
         header = "New Server - Primary Server"
 
+        
+    
+
+
     if form.validate_on_submit():
         
         server = Server()
@@ -76,6 +82,16 @@ def index():
         server.ip = form.ip.data.strip()
         server.mmr = False
         ask_passphrase = False
+
+        server_exist = Server.query.filter_by(
+                    hostname=server.hostname).first()
+                    
+        if server_exist:
+            flash("Server with hostname {} is already in cluster".format(
+                server_exist.hostname), "warning")
+            return redirect(url_for('index.home'))
+
+
         
         c = RemoteClient(server.hostname, server.ip)
         try:
@@ -285,7 +301,7 @@ def install_gluu(server_id):
     # start installation by redirecting to cluster.install_gluu_server
     if not server.primary_server:
 
-        return redirect(url_for('server.install_gluu_step_1',
+        return redirect(url_for('server.install_gluu',
                                 server_id=server_id))
 
     # If we come up here, it is primary server and we will ask admin which
@@ -625,11 +641,13 @@ def make_primary(server_id):
     return redirect(url_for('index.home'))
 
 
-@server_view.route('/installgluu-step-1/<int:server_id>/', methods=['GET'])
+@server_view.route('/installgluuserver/<int:server_id>/', methods=['GET'])
 @login_required
-def install_gluu_step_1(server_id):
+def install_gluu_server(server_id):
     
-    task = install_gluu_server_step_1.delay(server_id)
+    print "Installing Gluu Server"
+    
+    task = task_install_gluu_server.delay(server_id)
     
     steps = ['Perpare Server', 'Install Gluu Container', 'Run setup.py', 'Post Installation']
 
@@ -640,25 +658,6 @@ def install_gluu_step_1(server_id):
                            task=task,
                            cur_step=1,
                            auto_next=False,
-                           nextpage=url_for('server.install_gluu_step_2',server_id=server_id)
-                           )
-                           
-                           
-@server_view.route('/installgluu-step-2/<int:server_id>/', methods=['GET'])
-@login_required
-def install_gluu_step_2(server_id):
-    
-    task = task_do_install_gluu_server.delay()
-    
-    steps = ['Perpare Server', 'Install Gluu Container', 'Run setup.py', 'Post Installation']
-
-    return render_template('logger_single.html',
-                           server_id=server_id,
-                           title="Gluu Server Installation",
-                           steps=steps,
-                           task=task,
-                           cur_step=2,
-                           auto_next=False,
-                           nextpage=url_for('index.home'),
-                           whatNext = "Step 3",
+                           multistep=True,
+                           nextpage=url_for('index.home',server_id=server_id)
                            )

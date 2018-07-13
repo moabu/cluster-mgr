@@ -81,11 +81,33 @@
 
 <br>
 
+{% if multistep %}
 
-<ul id="logger" class="list-group"></ul>
+  {%for step in steps %}
+  
+  <div class="panel panel-success">
+    <div class="panel-heading">
+      <h4 class="panel-title">
+         <a href="#log_container_{{ loop.index }}" role="button" data-toggle="collapse" data-parent="#accordion">{{ step }}</a>
+      </h4>
+    </div>
+  
+    <div id="log_container_{{ loop.index }}" class="panel-collapse collapse in" role="tabpanel">
+      <ul id="logger_{{ loop.index }}" class="list-group"></ul>
+    </div>
+  </div>
+{% endfor %}
+
+  
+
+{% else %}
+
+  <div id="log_container" class="panel-collapse collapse in" role="tabpanel">
+    <ul id="logger" class="list-group"></ul>
+  </div>
 
 
-
+{% endif %}
 
 
 <button id="retry" class="btn btn-block btn-danger" style="display: none;">Retry</button>
@@ -99,6 +121,32 @@
 
 {% block modals %}
 
+<!-- Alert Modal for celery exception -->
+<div id="removeAlertModal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content panel-danger">
+            <div class="modal-header panel-heading">
+                <button type="button" class="close" data-dismiss="modal"
+                        aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">An Unhandled Exception Raised</h4>
+            </div>
+            <div class="modal-body">
+                <pre>
+                <p id="exceptionModalText"></p>
+                </pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default"
+                        data-dismiss="modal">Close
+                </button>
+
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+
 {% endblock %}
 
 
@@ -107,6 +155,11 @@
 
 
 <script>
+    
+var logger_step;
+var multistep = {% if multistep %} true {% else %} false {% endif %};
+var logger;
+
 $(document).ready(function() {
   adjustBar();
   $(window).on('resize', function() {
@@ -201,7 +254,11 @@ function redirectToNextPage(){
 
 
 function setStep(n){
-
+    logger_step = n;
+    logger = '#logger_'+n;
+    
+    console.log(logger);
+    
     var items=$('#bs-wizard').children();
     for ( i = 0; i < items.length; i++){
             item = items[i];
@@ -247,11 +304,21 @@ function updateLog(){
                 entry.innerHTML = logs[i].msg;
                 lastLoggedItem++;
             } else if (logs[i].level==='setstep') {
-
-                setStep(parseInt(logs[i].msg));
                 
+                step_int = parseInt(logs[i].msg)
+
+                if ( logger_step != step_int) {
+                    
+                    if (step_int>1){
+                    
+                        $('#log_container_'+(step_int-1)).collapse('hide')
+                    }
+                    console.log('setting step '+logs[i].msg)
+                    setStep(step_int);
+                }
             } else {
                 var entry = logitem(logs[i].msg, logs[i].level);
+                console.log(entry);
                 if (logs[i].new_log_id) {
                     prevEntry = document.getElementById(logs[i].log_id);
                     if (!prevEntry) {
@@ -259,12 +326,14 @@ function updateLog(){
                         console.log("New log id created"+logs[i].log_id);
                     }
                 }
-                $('#logger').append(entry);
+    
+                $(logger).append(entry);
                 console.log(entry);
                 lastLoggedItem++;
+
+                entry.scrollIntoView({behavior: "smooth", block: "end"});
                 
             }
-            entry.scrollIntoView({behavior: "smooth", block: "end"});
             if(logs[i].level == 'error' || logs[i].level == 'fail'){
                 errors++;
             }

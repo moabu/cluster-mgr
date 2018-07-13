@@ -8,7 +8,7 @@ from paramiko import SSHException
 from paramiko.client import SSHClient, AutoAddPolicy
 from paramiko.ssh_exception import PasswordRequiredException 
 from flask import current_app
-
+from clustermgr.extensions import wlogger
 
 
 def decode(key, enc):
@@ -211,11 +211,11 @@ class RemoteClient(object):
         Returns:
             tuple: True/False, file like object / error
         """
-        f = StringIO.StringIO()
+        file_obj = StringIO.StringIO()
         try:
-            r = self.sftpclient.getfo(filename, f)
-            f.seek(0)
-            return r, f
+            result = self.sftpclient.getfo(filename, file_obj)
+            file_obj.seek(0)
+            return result, file_obj
         except Exception as err:
             return False, err
     
@@ -229,13 +229,13 @@ class RemoteClient(object):
         Returns:
             tuple: True/False, file size / error
         """
-        f = StringIO.StringIO()
-        f.write(filecontent)
-        f.seek(0)
+        file_obj = StringIO.StringIO()
+        file_obj.write(filecontent)
+        file_obj.seek(0)
 
         try:
-            r = self.sftpclient.putfo(f, filename)
-            return True, r.st_size
+            result = self.sftpclient.putfo(file_obj, filename)
+            return True, result.st_size
         except Exception as err:
             return False, err
 
@@ -267,8 +267,8 @@ class RemoteClient(object):
             a list of the files and folders in the directory
         """
         try:
-            r = self.sftpclient.listdir(dirname)
-            return True, r
+            result = self.sftpclient.listdir(dirname)
+            return True, result
         except Exception as err:
             return False, err
 
@@ -280,6 +280,23 @@ class RemoteClient(object):
     def __repr__(self):
         return "RemoteClient({0}, ip={1}, user={2})".format(self.host, self.ip,
                                                             self.user)
+
+
+def get_connection(server, task_id):
+
+    wlogger.log(task_id, "Making SSH connection to {} ...".format(server.hostname),
+                        'action', server.id)
+    
+    conn = RemoteClient(server.hostname, ip=server.ip)
+
+    try:
+        conn.startup()
+    except:
+        wlogger.log(tid, "Can't establish SSH connection to  {}".format(server.hostname), 'error', server.id)
+        wlogger.log(tid, "Ending current process.", "error", server.id)
+        return
+
+    return conn
 
 
 #Fake RemoteClient
@@ -306,8 +323,8 @@ class FakeRemote:
 
 
     def put_file(self, filename, filecontent):
-        with open(filename, 'w') as f:
-            f.write(filecontent)
+        with open(filename, 'w') as file_obj:
+            file_obj.write(filecontent)
 
     def rename(self, oldname, newname):
         os.rename(oldname, newname)

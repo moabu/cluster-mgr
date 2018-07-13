@@ -305,7 +305,7 @@
         var button = $(event.relatedTarget);
         var server_id = button.data('serverid');
         var hostname = button.data('hostname');
-        var reinstall_server_url = '{{ url_for("server.install_gluu", server_id=9999) }}';
+        var reinstall_server_url = '{{ url_for("server.install_gluu_server", server_id=9999) }}';
         reinstall_server_url = reinstall_server_url.replace('9999', server_id);
         var modal = $(this);
         modal.find('.modal-title').text('Re-install ' + hostname);
