@@ -7,7 +7,6 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, wlogger, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.utils import run_and_log
-from clustermgr.tasks.server import get_os_type
 from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.config import Config
 from clustermgr.core.utils import get_setup_properties, \
@@ -47,7 +46,8 @@ def wizard_step1(self):
         wlogger.log(tid, "Ending analyzation of server.", 'error')
         return
 
-    os_type = get_os_type(c)
+    #Dummy, please get it from installer object
+    os_type = c.get_os_type()
     
     server.os = os_type
     

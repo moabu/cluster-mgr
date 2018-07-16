@@ -20,6 +20,17 @@ def decode(key, enc):
         dec.append(dec_c)
     return "".join(dec)
 
+
+def get_os_type(self):
+    cmd = 'python -c "import platform;print platform.linux_distribution()"'
+    cin, cout, cerr = self.run(cmd)
+    result = eval(cout)
+    os_type = result[0].split()[0]
+    os_version = result[1].split('.')[0]
+    self.server_os = os_type+' '+os_version
+    return self.server_os
+
+
 class ClientNotSetupException(Exception):
     """Exception raised when the client is not initialized because
     of connection failures."""
@@ -272,6 +283,10 @@ class RemoteClient(object):
         except Exception as err:
             return False, err
 
+    def get_os_type(self):
+        return get_os_type(self)
+
+
     def close(self):
         """Close the SSH Connection
         """
@@ -331,3 +346,6 @@ class FakeRemote:
 
     def get_file(self, filename):
         return True, open(filename)
+
+    def get_os_type(self):
+        return get_os_type(self)

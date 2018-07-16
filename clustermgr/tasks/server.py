@@ -21,51 +21,29 @@ from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.core.utils import get_setup_properties, modify_etc_hosts
 
 
-def get_os_type(c):
-    
-    # 2. Linux Distribution of the server
-    cin, cout, cerr = c.run("ls /etc/*release")
-    files = cout.split()
-    
-    if files[0] == '/etc/alpine-release':
-        return 'Alpine'
-    
-    cin, cout, cerr = c.run("cat "+files[0])
-
-    if "Ubuntu" in cout and "14.04" in cout:
-        return "Ubuntu 14"
-    if "Ubuntu" in cout and "16.04" in cout:
-        return "Ubuntu 16"
-    if "CentOS" in cout and "release 6." in cout:
-        return "CentOS 6"
-    if "CentOS" in cout and "release 7." in cout:
-        return "CentOS 7"
-    if 'Red Hat Enterprise Linux' in cout and '7.':
-        return 'RHEL 7'
-    if 'Debian' in cout and "(jessie)" in cout:
-        return 'Debian 8'
-    if 'Debian' in cout and "(stretch)" in cout:
-        return 'Debian 9'
-
-
 @celery.task
 def collect_server_details(server_id):
     print "Start collecting server details task"
-    server = Server.query.get(server_id)
     app_conf = AppConfiguration.query.first()
     
     if server_id == -1:
-        hostname = app_conf.nginx_host
-        ip = app_conf.nginx_ip
+        #mock server
+        server = Server( hostname=app_conf.nginx_host,
+                         ip = app_conf.nginx_ip
+                         )
     else:
+        server = Server.query.get(server_id)
         hostname = server.hostname
         ip = server.ip
     
-    c = RemoteClient(hostname, ip=ip)
-    c.startup()
+    installer = Installer(
+                server,
+                app_conf.gluu_version,
+                logger_task_id=-1,
+                server_os=None
+                )
 
-    os_type = get_os_type(c)
-    
+    os_type = installer.server_os
 
     if server_id == -1:
         app_conf.nginx_os = os_type
@@ -74,10 +52,7 @@ def collect_server_details(server_id):
 
 
     # 0. Make sure it is a Gluu Server
-    chdir = "/opt/gluu-server-" + appconf.gluu_version
-    if not c.exists(chdir):
-        server.gluu_server = False
-        chdir = '/'
+    server.gluu_server = installer.is_gluu_installed()
 
     # 1. The components installed in the server
     components = {
@@ -90,14 +65,16 @@ def collect_server_details(server_id):
         'Passport': 'opt/gluu/node/passport',
     }
     installed = []
-    for component, marker in components.iteritems():
-        marker = os.path.join(chdir, marker)
-        if c.exists(marker):
-            installed.append(component)
+    
+    if server.gluu_server:
+        for component, marker in components.iteritems():
+            marker = os.path.join(installer.container, marker)
+            if installer.conn.exists(marker):
+                installed.append(component)
+
     server.components = ",".join(installed)
 
     server.os = os_type
-    server.gluu_server = check_gluu_installation(c)
 
     db.session.commit()
 

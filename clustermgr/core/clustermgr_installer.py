@@ -52,7 +52,10 @@ class Installer:
                         'fail',
                         server_id=self.server_id,
                     )
-                
+        
+        if self.conn and not self.server_os:
+            self.get_os_type()
+        
         if self.conn and (not hasattr(self.conn, 'fake_remote')):
             
             self.container = '/opt/gluu-server-{}'.format(gluu_version)
@@ -73,6 +76,12 @@ class Installer:
             self.install_command = self.run_command.format('yum install -y {}')
         else:
             self.run_command = '{}'
+
+    def get_os_type(self):
+        # 2. Linux Distribution of the server
+        print "Installer> Determining os type"
+        self.server_os = self.conn.get_os_type()
+        return self.server_os
 
     def log(self, result, error_exception=None):
         if self.logger_task_id:

@@ -6,7 +6,6 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, wlogger, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import DBManager
-from clustermgr.tasks.server import get_os_type
 
 from flask import current_app as app
 
@@ -86,7 +85,7 @@ def install_local(self):
     fc = FakeRemote()
     
     #Getermine local OS type
-    localos= get_os_type(fc)
+    localos= fc.server_os
 
     
 
@@ -435,7 +434,7 @@ def remove_monitoring(self, local_id):
     fc = FakeRemote()
     
     #Getermine local OS type
-    localos= get_os_type(fc)
+    localos= fc.get_os_type()
 
     
 

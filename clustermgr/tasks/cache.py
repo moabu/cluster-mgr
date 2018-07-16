@@ -9,7 +9,6 @@ from clustermgr.extensions import db, wlogger, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import DBManager
 from clustermgr.tasks.cluster import run_command
-from clustermgr.tasks.server import get_os_type
 from clustermgr.core.utils import parse_setup_properties, \
         get_redis_config, make_proxy_stunnel_conf, make_twem_proxy_conf
 
@@ -263,7 +262,9 @@ def install_cache_components(self, method, server_id_list):
         wlogger.log(tid, "Could not connect to {0}".format(e), "error")
         return False
 
-    server_os = get_os_type(rc)
+    
+    #Dummy, please get it from installer object
+    server_os = rc.get_os_type()
 
     
     si = StunnelInstaller(mock_server, tid)

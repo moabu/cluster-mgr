@@ -35,7 +35,6 @@ from clustermgr.core.license import prompt_license
 from clustermgr.core.remote import RemoteClient, FakeRemote, ClientNotSetupException
 
 from clustermgr.core.clustermgr_installer import Installer
-from clustermgr.tasks.server import get_os_type
 
 from clustermgr.core.utils import get_setup_properties, \
     get_opendj_replication_status
@@ -273,7 +272,7 @@ def app_configuration():
     fc = FakeRemote()
     
     #Getermine local OS type
-    localos= get_os_type(fc)
+    localos= fc.get_os_type()
 
 
     return render_template('app_config.html', cform=conf_form, sform=sch_form,
