@@ -215,8 +215,6 @@ def task_install_gluu_server(self, server_id):
 
 def install_gluu_server(task_id, server_id):
 
-    
-
     server = Server.query.get(server_id)
     primary_server = Server.query.filter_by(primary_server=True).first()
 

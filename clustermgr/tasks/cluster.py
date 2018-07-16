@@ -1022,8 +1022,8 @@ def configure_OxIDPAuthentication(tid, exclude=None):
 def opendjenablereplication(self, server_id):
 
     primary_server = Server.query.filter_by(primary_server=True).first()
-    tid = self.request.id
-    app_config = AppConfiguration.query.first()
+    task_id = self.request.id
+    app_conf = AppConfiguration.query.first()
 
     gluu_installed_servers = Server.query.filter_by(gluu_server=True).all()
 
@@ -1032,70 +1032,44 @@ def opendjenablereplication(self, server_id):
     else:
         servers = [Server.query.get(server_id)]
 
-    if not primary_server.gluu_server:
-        chroot = '/'
-    else:
-        chroot = '/opt/gluu-server-' + app_config.gluu_version
+    installer = Installer(
+                    primary_server, 
+                    app_conf.gluu_version, 
+                    logger_task_id=task_id, 
+                    server_os=primary_server.os
+                    )
 
-    chroot_fs = '/opt/gluu-server-' + app_config.gluu_version
-
-    wlogger.log(tid, "Making SSH connection to the primary server %s" %
-                primary_server.hostname)
-
-    c = RemoteClient(primary_server.hostname, ip=primary_server.ip)
-
-    try:
-        c.startup()
-    except Exception as e:
-        wlogger.log(
-            tid, "Cannot establish SSH connection {0}".format(e), "warning")
-        wlogger.log(tid, "Ending server setup process.", "error")
+    if not installer.conn:
         return False
 
-    if primary_server.gluu_server:
-        # check if remote is gluu server
-        if c.exists(chroot):
-            wlogger.log(tid, 'Checking if remote is gluu server', 'success')
-        else:
-            wlogger.log(tid, "Remote is not a gluu server.", "error")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return False
-
+    # check if gluu server is installed
+    if not installer.is_gluu_installed():
+        wlogger.log(task_id, "Remote is not a gluu server.", "error")
+        wlogger.log(task_id, "Ending server setup process.", "error")
+        return False
 
     tmp_dir = os.path.join('/tmp', uuid.uuid1().hex[:12])
     os.mkdir(tmp_dir)
 
-    wlogger.log(tid, "Downloading opendj certificates")
+    wlogger.log(task_id, "Downloading opendj certificates")
 
     opendj_cert_files = ('keystore', 'keystore.pin', 'truststore')
 
-    for cf in opendj_cert_files:
-        remote = os.path.join(chroot_fs, 'opt/opendj/config', cf)
-        local = os.path.join(tmp_dir, cf)
-        result = c.download(remote, local)
-        if not result.startswith('Download successful'):
-            wlogger.log(tid, result, "warning")
-            wlogger.log(tid, "Ending server setup process.", "error")
+    for certificate in opendj_cert_files:
+        remote = os.path.join(installer.container, 'opt/opendj/config', certificate)
+        local = os.path.join(tmp_dir, certificate)
+        result = installer.download_file(remote, local)
+        if not result:
             return False
 
     primary_server_secured = False
 
     for server in servers:
         if not server.primary_server:
-            wlogger.log(tid, "Enabling replication on server {}".format(
+            wlogger.log(task_id, "Enabling replication on server {}".format(
                                                             server.hostname))
 
             for base in ['gluu', 'site']:
-                cmd_run = '{}'
-
-                if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):
-                    chroot = None
-                    cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
-                            '-o Port=60022 -o LogLevel=QUIET '
-                            '-o StrictHostKeyChecking=no '
-                            '-o UserKnownHostsFile=/dev/null '
-                            '-o PubkeyAuthentication=yes root@localhost "{}"')
-
 
                 cmd = ('/opt/opendj/bin/dsreplication enable --host1 {} --port1 4444 '
                         '--bindDN1 \'cn=directory manager\' --bindPassword1 $\'{}\' '
@@ -1107,15 +1081,13 @@ def opendjenablereplication(self, server_id):
                             primary_server.ldap_password.replace("'","\\'"),
                             server.hostname,
                             server.ldap_password.replace("'","\\'"),
-                            app_config.replication_pw.replace("'","\\'"),
+                            app_conf.replication_pw.replace("'","\\'"),
                             base,
                             )
-
-                cmd = cmd_run.format(cmd)
                 
-                run_command(tid, c, cmd, chroot)
+                installer.run(cmd, error_exception='no base DNs available to enable replication')
 
-                wlogger.log(tid, "Inıtializing replication on server {}".format(
+                wlogger.log(task_id, "Inıtializing replication on server {}".format(
                                                                 server.hostname))
 
                 cmd = ('/opt/opendj/bin/dsreplication initialize --baseDN \'o={}\' '
@@ -1123,18 +1095,15 @@ def opendjenablereplication(self, server_id):
                         '--portSource 4444  --hostDestination {} --portDestination 4444 '
                         '--trustAll -X -n').format(
                             base,
-                            app_config.replication_pw.replace("'","\\'"),
-                            #primary_server.hostname,
+                            app_conf.replication_pw.replace("'","\\'"),
                             server.hostname,
                             )
 
-
-                cmd = cmd_run.format(cmd)
-                run_command(tid, c, cmd, chroot)
+                installer.run(cmd, error_exception='no base DNs available to enable replication')
 
             if not primary_server_secured:
 
-                wlogger.log(tid, "Securing replication on primary server {}".format(
+                wlogger.log(task_id, "Securing replication on primary server {}".format(
                                                                 primary_server.hostname))
 
                 cmd = ('/opt/opendj/bin/dsconfig -h {} -p 4444 '
@@ -1142,97 +1111,66 @@ def opendjenablereplication(self, server_id):
                         '-n set-crypto-manager-prop --set ssl-encryption:true'
                         ).format(primary_server.hostname, primary_server.ldap_password.replace("'","\\'"))
 
-                cmd = cmd_run.format(cmd)
-                run_command(tid, c, cmd, chroot)
+                installer.run(cmd)
+                
                 primary_server_secured = True
                 primary_server.mmr = True
 
-            wlogger.log(tid, "Securing replication on server {}".format(
+            wlogger.log(task_id, "Securing replication on server {}".format(
                                                             server.hostname))
             cmd = ('/opt/opendj/bin/dsconfig -h {} -p 4444 '
                     ' -D  \'cn=Directory Manager\' -w $\'{}\' --trustAll '
                     '-n set-crypto-manager-prop --set ssl-encryption:true'
                     ).format(server.hostname, primary_server.ldap_password.replace("'","\\'"))
 
-            cmd = cmd_run.format(cmd)
-            run_command(tid, c, cmd, chroot)
+            installer.run(cmd)
 
             server.mmr = True
 
 
     db.session.commit()
 
-    configure_OxIDPAuthentication(tid)
+    configure_OxIDPAuthentication(task_id)
 
-    servers = Server.query.all()
+    servers = Server.query.filter(Server.primary_server.isnot(True)).all()
 
     for server in servers:
 
-        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-            restart_command = '/sbin/gluu-serverd-{0} restart'.format(
-                                app_config.gluu_version)
-        else:
-            restart_command = '/etc/init.d/gluu-server-{0} restart'.format(
-                                app_config.gluu_version)
-
-
-        wlogger.log(tid, "Making SSH connection to the server %s" %
-                server.hostname)
-
-        ct = RemoteClient(server.hostname, ip=server.ip)
-
-        try:
-            ct.startup()
-        except Exception as e:
-            wlogger.log(
-                tid, "Cannot establish SSH connection {0}".format(e),
-                "warning")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return False
-
-
         if not server.primary_server:
 
-            wlogger.log(tid, "Uploading OpenDj certificate files")
-            for cf in opendj_cert_files:
+            node_installer = Installer(
+                    server, 
+                    app_conf.gluu_version, 
+                    logger_task_id=task_id, 
+                    server_os=primary_server.os
+                    )
 
-
-                remote = os.path.join(chroot_fs, 'opt/opendj/config', cf)
-                local = os.path.join(tmp_dir, cf)
-
-                result = ct.upload(local, remote)
+            wlogger.log(task_id, "Uploading OpenDj certificate files")
+            for certificate in opendj_cert_files:
+                remote = os.path.join(node_installer.container, 'opt/opendj/config', certificate)
+                local = os.path.join(tmp_dir, certificate)
+                result = node_installer.upload_file(local, remote)
+                
                 if not result:
-                    wlogger.log(tid, "An error occurred while uploading OpenDj certificates.", "error")
                     return False
 
-                if not result.startswith('Upload successful'):
-                    wlogger.log(tid, result, "warning")
-                    wlogger.log(tid, "Ending server setup process.", "error")
-                    return False
+        node_installer.restart_gluu()
 
-        wlogger.log(tid, "Restarting Gluu Server on {}".format(
-                            server.hostname))
-
-        run_command(tid, ct, restart_command)
-
-        ct.close()
+    installer.restart_gluu()
 
     if 'CentOS' in primary_server.os:
         wlogger.log(tid, "Waiting for Gluu to finish starting")
         time.sleep(60)
     
 
-    wlogger.log(tid, "Checking replication status")
+    wlogger.log(task_id, "Checking replication status")
 
     cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 1444 -I admin -w $\'{}\'').format(
                     primary_server.hostname,
-                    app_config.replication_pw.replace("'","\\'"))
+                    app_conf.replication_pw.replace("'","\\'"))
 
-    cmd = cmd_run.format(cmd)
-    run_command(tid, c, cmd, chroot)
-
-    c.close()
+    installer.run(cmd)
 
     return True
 
