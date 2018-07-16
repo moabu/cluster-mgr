@@ -135,11 +135,11 @@ class RemoteClient(object):
 
         try:
             self.sftpclient.get(remote, local)
-            return "Download successful. File at: {0}".format(local)
+            return True, local
         except OSError:
-            return "Error: Local file %s doesn't exist." % local
+            return False, "Error: Local file %s doesn't exist." % local
         except IOError:
-            return "Error: Remote location %s doesn't exist." % remote
+            return False, "Error: Remote location %s doesn't exist." % remote
 
     def upload(self, local, remote):
         """Uploads the file from local location to remote server.
@@ -154,11 +154,11 @@ class RemoteClient(object):
 
         try:
             self.sftpclient.put(local, remote)
-            return "Upload successful. File at: {0}".format(remote)
+            return True, remote
         except OSError:
-            return "Error: Local file %s doesn't exist." % local
+            return False, "Error: Local file %s doesn't exist." % local
         except IOError:
-            return "Error: Remote location %s doesn't exist." % remote
+            return False, "Error: Remote location %s doesn't exist." % remote
 
     def exists(self, filepath):
         """Returns whether a file exists or not in the remote server.

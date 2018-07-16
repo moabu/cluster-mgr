@@ -161,12 +161,39 @@ class Installer:
             wlogger.log(self.logger_task_id, "Installing epel-release")
             self.install('epel-release', inside=inside)
 
+    def upload_file(self, local, remote):
+        wlogger.log(self.logger_task_id, "Uploading local file {0} to remote server as {1}".format(local, remote), "debug")
+        result = self.conn.upload(local, remote)
+
+        if not result[0]:
+            wlogger.log(self.logger_task_id, "Can't upload. {0}".format(result[1]), "error")
+            wlogger.log(self.logger_task_id, "Ending up current process.", "error")
+            return False
+
+        wlogger.log(self.logger_task_id, "File {0} was uploaded as {1}.".format(local, remote), "success")
+
+        return True
+
+    def download_file(self, remote, local):
+        wlogger.log(self.logger_task_id, "Downloading remote file {0} as {1}".format(remote, local), "debug")
+        result = self.conn.download(remote, local)
+
+        if not result[0]:
+            wlogger.log(self.logger_task_id, "Can't download. {0}".format(result[1]), "error")
+            wlogger.log(self.logger_task_id, "Ending up current process.", "error")
+            return False
+
+        wlogger.log(self.logger_task_id, "File {0} was downloade as {1}.".format(remote, local), "success")
+
+        return True
+
+
     def get_file(self, remote):
         wlogger.log(self.logger_task_id, "Getting file {0} from {1}".format(remote, self.hostname), "debug")
         result = self.conn.get_file(remote)
         if not result[0]:
             wlogger.log(self.logger_task_id, "Can't retreive file {0} from server {1}".format(remote,result[1]), "error")
-            wlogger.log(self.logger_task_id, "Ending server setup process.", "error")
+            wlogger.log(self.logger_task_id, "Ending up current process.", "error")
             return False, ''
         wlogger.log(self.logger_task_id, "File {} was retreived.".format(remote), "success")
         

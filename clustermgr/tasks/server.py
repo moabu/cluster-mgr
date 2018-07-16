@@ -487,8 +487,7 @@ def install_gluu_server(task_id, server_id):
 
             #put setup.properties to server
             remote_file_new = '/opt/{}/install/community-edition-setup/setup.properties'.format(gluu_server)
-            wlogger.log(task_id, 'Uploading setup.properties', 'debug')
-            installer.conn.put_file(remote_file_new,  new_setup_properties)
+            installer.put_file(remote_file_new,  new_setup_properties)
 
             if ldap_passwd:
                 server.ldap_password = ldap_passwd
@@ -574,20 +573,10 @@ def install_gluu_server(task_id, server_id):
             
             primary_server_installer.run(cmd,inside=False, error_exception='Removing leading')
 
-            result = primary_server_installer.conn.download(certs_remote_tmp, certs_local_tmp)
-            if 'Download successful' in result :
-                wlogger.log(task_id, result,'success')
-            else:
-                wlogger.log(task_id, result,'error')
-
-            result = installer.conn.upload(certs_local_tmp, 
+            primary_server_installer.download_file(certs_remote_tmp, certs_local_tmp)
+           
+            installer.upload_file(certs_local_tmp, 
                                 "/opt/{0}/tmp/certs.tgz".format(gluu_server))
-
-            if 'Upload successful' in result:
-                wlogger.log(task_id, result,'success')
-            else:
-                wlogger.log(task_id, result,'error')
-
 
             cmd = 'tar -zxf /tmp/certs.tgz -C /'
             installer.run(cmd)
@@ -626,14 +615,7 @@ def install_gluu_server(task_id, server_id):
                 local = os.path.join(custom_schema_dir, schema_file)
                 remote = '/opt/{0}/opt/gluu/schema/{2}/{1}'.format(
                     gluu_server, schema_file, ldap_type)
-                result = installer.conn.upload(local, remote)
-                if r[0]:
-                    wlogger.log(task_id, 'Custom schame file {0} uploaded'.format(
-                            schema_file), 'success')
-                else:
-                    wlogger.log(task_id,
-                        "Can't upload custom schame file {0}: ".format(schema_file,
-                                                                result[1]), 'error')
+                result = installer.upload_file(local, remote)
 
 
 
@@ -647,7 +629,7 @@ def install_gluu_server(task_id, server_id):
         installer.install('ntpdate')
 
     #run time sync an every minute
-    installer.conn.put_file('/etc/cron.d/setdate',
+    installer.put_file('/etc/cron.d/setdate',
                 '* * * * *    root    /usr/sbin/ntpdate -s time.nist.gov\n')
     wlogger.log(task_id, 'Crontab entry was created to update time in every minute',
                      'debug')
@@ -665,15 +647,13 @@ def install_gluu_server(task_id, server_id):
                            "opendj", "opendj")
     remote_opendj_init_script = '/opt/{0}/etc/init.d/opendj'.format(gluu_server)
     
-    result = installer.conn.upload(opendj_init_script, remote_opendj_init_script)
-    if not result[0]:
-        wlogger.log(task_id, 'Uploading opendj init.d script failed: '+result[1], 'error')
+    result = installer.upload_file(opendj_init_script, remote_opendj_init_script)
+
+    if not result:
         return False
-    
     
     cmd = 'chmod +x {}'.format(remote_opendj_init_script)
     installer.run(cmd, inside=False)
-    #########
 
     server.gluu_server = True
     db.session.commit()
