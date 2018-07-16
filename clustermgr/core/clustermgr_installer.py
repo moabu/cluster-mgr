@@ -283,7 +283,7 @@ class Installer:
         return self.do_init('start')
 
     def restart_gluu(self):
-        wlogger.log(self.logger_task_id,'Restarting Gluu Server at server ' + self.hostname)
+        wlogger.log(self.logger_task_id,'Restarting Gluu Server on server ' + self.hostname)
         return self.do_init('restart')
 
     def delete_key(self, suffix, hostname):

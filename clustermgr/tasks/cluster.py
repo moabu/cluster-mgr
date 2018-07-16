@@ -707,69 +707,45 @@ def removeMultiMasterDeployement(self, server_id):
     pass
 
 
-def do_disable_replication(tid, server, primary_server, app_config):
+def do_disable_replication(task_id, server, primary_server, app_conf):
 
+    installer = Installer(
+                    server, 
+                    app_conf.gluu_version, 
+                    logger_task_id=task_id, 
+                    server_os=server.os
+                    )
 
-    c = RemoteClient(primary_server.hostname, ip=primary_server.ip)
-    chroot = '/opt/gluu-server-' + app_config.gluu_version
-
-
-    cmd_run = '{}'
-
-    if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):
-        chroot = None
-        cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
-                '-o Port=60022 -o LogLevel=QUIET '
-                '-o StrictHostKeyChecking=no '
-                '-o UserKnownHostsFile=/dev/null '
-                '-o PubkeyAuthentication=yes root@localhost "{}"')
-
-
+    if not installer.conn:
+        return False
     
-    wlogger.log(tid, 
+    wlogger.log(task_id, 
         "Disabling replication for {0}".format(
         server.hostname)
         )
-
-
-    wlogger.log(tid, 
-            "Making SSH connection to primary server {0}".format(
-            primary_server.hostname), 'debug'
-            )
-
-    try:
-        c.startup()
-    except Exception as e:
-        wlogger.log(
-            tid, "Cannot establish SSH connection {0}".format(e), "warning")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return False
-
-    wlogger.log(tid, "SSH connection successful", 'success')
 
     cmd = ('/opt/opendj/bin/dsreplication disable --disableAll --port 4444 '
             '--hostname {} --adminUID admin --adminPassword $\'{}\' '
             '--trustAll --no-prompt').format(
                             server.hostname,
-                            app_config.replication_pw)
+                            app_conf.replication_pw)
 
-    cmd = cmd_run.format(cmd)
-    run_command(tid, c, cmd, chroot)
+
+    installer.run(cmd, error_exception='no base DNs replicated')
 
     server.mmr = False
     db.session.commit()
 
-    configure_OxIDPAuthentication(tid, exclude=server.id)
+    configure_OxIDPAuthentication(task_id, exclude=server.id)
 
-    wlogger.log(tid, "Checking replication status", 'debug')
+    wlogger.log(task_id, "Checking replication status", 'debug')
 
     cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 1444 -I admin -w $\'{}\'').format(
                     primary_server.hostname,
-                    app_config.replication_pw)
+                    app_conf.replication_pw)
 
-    cmd = cmd_run.format(cmd)
-    run_command(tid, c, cmd, chroot)
+    installer.run(cmd)
 
     return True
 
@@ -777,10 +753,10 @@ def do_disable_replication(tid, server, primary_server, app_config):
 def opendj_disable_replication_task(self, server_id):
     server = Server.query.get(server_id)
     primary_server = Server.query.filter_by(primary_server=True).first()
-    app_config = AppConfiguration.query.first()
-    tid = self.request.id
-    r = do_disable_replication(tid, server, primary_server, app_config)
-    return r
+    app_conf = AppConfiguration.query.first()
+    task_id = self.request.id
+    result = do_disable_replication(task_id, server, primary_server, app_conf)
+    return result
 
 @celery.task(bind=True)
 def remove_server_from_cluster(self, server_id, remove_server=False, 
@@ -891,7 +867,7 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
 
 
     if disable_replication:
-        r = do_disable_replication(tid, server, primary_server, app_config)
+        result = do_disable_replication(tid, server, primary_server, app_config)
         if not r:
             return False
 
@@ -949,28 +925,26 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
     return True
 
 
-def configure_OxIDPAuthentication(tid, exclude=None):
+def configure_OxIDPAuthentication(task_id, exclude=None):
     
-    #app_config = AppConfiguration.query.first()
-
     primary_server = Server.query.filter_by(primary_server=True).first()
     
-    app_config = AppConfiguration.query.first()
+    app_conf = AppConfiguration.query.first()
 
     gluu_installed_servers = Server.query.filter_by(gluu_server=True).all()
 
-    chroot_fs = '/opt/gluu-server-' + app_config.gluu_version
+    chroot_fs = '/opt/gluu-server-' + app_conf.gluu_version
 
     pDict = {}
 
     for server in gluu_installed_servers:
         if server.mmr:
-            laddr = server.ip if app_config.use_ip else server.hostname
+            laddr = server.ip if app_conf.use_ip else server.hostname
             ox_auth = [ laddr+':1636' ]
             for prsrv in gluu_installed_servers:
                 if prsrv.mmr:
                     if not prsrv == server:
-                        laddr = prsrv.ip if app_config.use_ip else prsrv.hostname
+                        laddr = prsrv.ip if app_conf.use_ip else prsrv.hostname
                         ox_auth.append(laddr+':1636')
             pDict[server.hostname]= ','.join(ox_auth)
 
@@ -983,15 +957,15 @@ def configure_OxIDPAuthentication(tid, exclude=None):
             except Exception as e:
                 wlogger.log(
                     tid, "Cannot establish SSH connection {0}".format(e), "warning")
-                wlogger.log(tid, "Ending server setup process.", "error")
+                wlogger.log(task_id, "Ending server setup process.", "error")
             
-            modifyOxLdapProperties(server, ct, tid, pDict, chroot_fs)
+            modifyOxLdapProperties(server, ct, task_id, pDict, chroot_fs)
 
     oxIDP=['localhost:1636']
 
     for server in gluu_installed_servers:
         if not server.id == exclude:
-            laddr = server.ip if app_config.use_ip else server.hostname
+            laddr = server.ip if app_conf.use_ip else server.hostname
             oxIDP.append(laddr+':1636')
 
     adminOlc = LdapOLC('ldaps://{}:1636'.format(primary_server.hostname),
@@ -1003,17 +977,17 @@ def configure_OxIDPAuthentication(tid, exclude=None):
         wlogger.log(
             tid, "Connection to LDAPserver as directory manager at port 1636"
             " has failed: {0}".format(e), "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
+        wlogger.log(task_id, "Ending server setup process.", "error")
         return
 
 
     if adminOlc.configureOxIDPAuthentication(oxIDP):
-        wlogger.log(tid,
+        wlogger.log(task_id,
                 'oxIDPAuthentication entry is modified to include all '
                 'replicating servers',
                 'success')
     else:
-        wlogger.log(tid, 'Modifying oxIDPAuthentication entry is failed: {}'.format(
+        wlogger.log(task_id, 'Modifying oxIDPAuthentication entry is failed: {}'.format(
                 adminOlc.conn.result['description']), 'success')
 
 
