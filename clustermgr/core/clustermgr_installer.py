@@ -205,7 +205,7 @@ class Installer:
             wlogger.log(self.logger_task_id, "File {} sent".format(remote), "success")
         else:
             wlogger.log(self.logger_task_id, "Can't send file {0} to server: {1}".format(remote, result[1]), "error")
-            wlogger.log(self.logger_task_id, "Ending server setup process.", "error")
+            wlogger.log(self.logger_task_id, "Ending up current process.", "error")
             return False
         
         wlogger.log(self.logger_task_id, "File {} sent".format(remote), "success")

@@ -105,7 +105,7 @@ def download_file(tid, c, remote, local, server_id=''):
     wlogger.log(tid, out, 'error' if 'Error' in out else 'success', server_id=server_id)
 
 
-def modifyOxLdapProperties(server, c, tid, pDict, chroot):
+def modifyOxLdapProperties(server, installer, task_id, pDict):
     """Modifes /etc/gluu/conf/ox-ldap.properties file for gluu server to look
     all ldap server.
 
@@ -119,33 +119,33 @@ def modifyOxLdapProperties(server, c, tid, pDict, chroot):
     """
 
     # get ox-ldap.properties file from server
-    remote_file = os.path.join(chroot, 'etc/gluu/conf/ox-ldap.properties')
-    ox_ldap = c.get_file(remote_file)
+    remote_file = os.path.join(installer.container, 'etc/gluu/conf/ox-ldap.properties')
+    result = installer.get_file(remote_file)
 
-    temp = None
+    state = True
 
     # iterate ox-ldap.properties file and modify "servers" entry
-    if ox_ldap[0]:
-        fc = ''
-        for l in ox_ldap[1]:
-            if l.startswith('servers:'):
-                l = 'servers: {0}\n'.format( pDict[server.hostname] )
-            fc += l
+    if result[0]:
+        file_content = ''
+        for line in result[1]:
+            if line.startswith('servers:'):
+                line = 'servers: {0}\n'.format( pDict[server.hostname] )
+            file_content += line
 
-        r = c.put_file(remote_file,fc)
+        result = installer.put_file(remote_file,file_content)
 
-        if r[0]:
-            wlogger.log(tid,
+        if result:
+            wlogger.log(task_id,
                 'ox-ldap.properties file on {0} modified to include '
                 'all replicating servers'.format(server.hostname),
                 'success')
         else:
-            temp = r[1]
+            state = False
     else:
-        temp = ox_ldap[1]
+        state = False
 
-    if temp:
-        wlogger.log(tid,
+    if not state:
+        wlogger.log(task_id,
                 'ox-ldap.properties file on {0} was not modified to '
                 'include all replicating servers: {1}'.format(server.hostname, temp),
                 'warning')
@@ -736,7 +736,7 @@ def do_disable_replication(task_id, server, primary_server, app_conf):
     server.mmr = False
     db.session.commit()
 
-    configure_OxIDPAuthentication(task_id, exclude=server.id)
+    configure_OxIDPAuthentication(task_id, exclude=server.id, installers={installer.hostname:installer})
 
     wlogger.log(task_id, "Checking replication status", 'debug')
 
@@ -925,7 +925,7 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
     return True
 
 
-def configure_OxIDPAuthentication(task_id, exclude=None):
+def configure_OxIDPAuthentication(task_id, exclude=None, installers={}):
     
     primary_server = Server.query.filter_by(primary_server=True).first()
     
@@ -948,18 +948,18 @@ def configure_OxIDPAuthentication(task_id, exclude=None):
                         ox_auth.append(laddr+':1636')
             pDict[server.hostname]= ','.join(ox_auth)
 
-
     for server in gluu_installed_servers:
         if server.mmr:
-            ct = RemoteClient(server.hostname, ip=server.ip)
-            try:
-                ct.startup()
-            except Exception as e:
-                wlogger.log(
-                    tid, "Cannot establish SSH connection {0}".format(e), "warning")
-                wlogger.log(task_id, "Ending server setup process.", "error")
-            
-            modifyOxLdapProperties(server, ct, task_id, pDict, chroot_fs)
+            installer = installers.get(server.hostname)
+            if not installer:
+                installer = Installer(
+                    server, 
+                    app_conf.gluu_version, 
+                    logger_task_id=task_id, 
+                    server_os=server.os
+                    )
+
+            modifyOxLdapProperties(server, installer, task_id, pDict)
 
     oxIDP=['localhost:1636']
 
@@ -975,7 +975,7 @@ def configure_OxIDPAuthentication(task_id, exclude=None):
         adminOlc.connect()
     except Exception as e:
         wlogger.log(
-            tid, "Connection to LDAPserver as directory manager at port 1636"
+            task_id, "Connection to LDAPserver as directory manager at port 1636"
             " has failed: {0}".format(e), "error")
         wlogger.log(task_id, "Ending server setup process.", "error")
         return
@@ -1104,7 +1104,7 @@ def opendjenablereplication(self, server_id):
 
     db.session.commit()
 
-    configure_OxIDPAuthentication(task_id)
+    configure_OxIDPAuthentication(task_id, installers={installer.hostname:installer})
 
     servers = Server.query.filter(Server.primary_server.isnot(True)).all()
 
