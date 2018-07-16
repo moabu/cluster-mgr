@@ -22,7 +22,7 @@ from clustermgr.core.utils import get_setup_properties, modify_etc_hosts
 
 
 def modify_hosts(task_id, conn, hosts, chroot='/', server_host=None, server_id=''):
-    wlogger.log(task_id, "Modifying /etc/hosts", server_id=server_id)
+    wlogger.log(task_id, "Modifying /etc/hosts of server {0}".format(server_host), server_id=server_id)
     
     hosts_file = os.path.join(chroot,'etc/hosts')
     
@@ -45,7 +45,7 @@ def modify_hosts(task_id, conn, hosts, chroot='/', server_host=None, server_id='
         if result:
             new_hosts = modify_etc_hosts(hosts, old_hosts)
             conn.put_file(hosts_file, new_hosts)
-            wlogger.log(task_id, "{} was modified".format(hosts_file), 'success', server_id=server_id)
+            wlogger.log(task_id, "{0} of server {1} was modified".format(hosts_file, server_host), 'success', server_id=server_id)
         else:
             wlogger.log(task_id, "Can't receive {}".format(hosts_file), 'fail', server_id=server_id)
 
@@ -100,7 +100,33 @@ def download_and_upload_custom_schema(task_id, primary_conn, conn, ldap_type, gl
 
 @celery.task(bind=True)
 def task_install_gluu_server(self, server_id):
+    
     task_id = self.request.id
+
+    """
+    for i in range(5):
+        wlogger.log(task_id, str(i))
+        time.sleep(1)
+        
+    
+    wlogger.log(task_id, "2", "setstep")
+    wlogger.log(task_id, "New Step")
+    
+    for i in range(5):
+        wlogger.log(task_id, str(i))
+        time.sleep(1)
+
+    wlogger.log(task_id, "3", "setstep")
+    wlogger.log(task_id, "New Step")
+    
+    
+    for i in range(5):
+        wlogger.log(task_id, str(i))
+        time.sleep(1)
+    
+    return
+    """
+
     try:
         install_gluu_server(task_id, server_id)
     except:
@@ -310,9 +336,10 @@ def install_gluu_server(task_id, server_id):
                     )
 
     wlogger.log(task_id, "2", "setstep")
+    #JavaScript on logger duplicates next log if we don't add this
+    time.sleep(1)
 
     wlogger.log(task_id, "Installing Gluu Server: " + gluu_server)
-
     
     cmd = installer.get_install_cmd(gluu_server, inside=False)
 
@@ -394,6 +421,8 @@ def install_gluu_server(task_id, server_id):
             return
     
     wlogger.log(task_id, "3", "setstep")
+    #JavaScript on logger duplicates next log if we don't add this
+    time.sleep(1)
     
     if app_conf.gluu_version < '3.1.3':
         wlogger.log(tid, "Downloading setup.py")
@@ -431,6 +460,8 @@ def install_gluu_server(task_id, server_id):
 
 
     wlogger.log(task_id, "4", "setstep")
+    #JavaScript on logger duplicates next log if we don't add this
+    time.sleep(1)
 
     if app_conf.modify_hosts:
         all_server = Server.query.all()
@@ -440,6 +471,7 @@ def install_gluu_server(task_id, server_id):
         for ship in all_server:
             host_ip.append((ship.hostname, ship.ip))
 
+        print ">>>>> Modify hosts"
         modify_hosts(task_id, installer.conn, host_ip, '/opt/'+gluu_server+'/', server.hostname)
 
 
@@ -566,4 +598,4 @@ def install_gluu_server(task_id, server_id):
     server.gluu_server = True
     db.session.commit()
     wlogger.log(task_id, "Gluu Server successfully installed")
- 
+    wlogger.log(task_id, "5", "setstep")
