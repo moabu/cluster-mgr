@@ -7,7 +7,7 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, wlogger, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.utils import run_and_log
-from clustermgr.tasks.cluster import get_os_type
+from clustermgr.tasks.server import get_os_type
 from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.config import Config
 from clustermgr.core.utils import get_setup_properties, \

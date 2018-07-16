@@ -15,7 +15,7 @@ from flask import current_app as app
 from clustermgr.core.ldap_functions import LdapOLC, getLdapConn
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cluster import setup_ldap_replication, \
-    installGluuServer, removeMultiMasterDeployement, installNGINX, \
+    removeMultiMasterDeployement, installNGINX, \
     setup_filesystem_replication, opendjenablereplication, \
     remove_server_from_cluster, remove_filesystem_replication, \
     opendj_disable_replication_task
@@ -230,22 +230,25 @@ def checkNginxStatus(nginxhost):
 @login_required
 def install_nginx():
     """Initiates installation of nginx load balancer"""
-    appconf = AppConfiguration.query.first()
+    app_conf = AppConfiguration.query.first()
 
     if not request.args.get('next') == 'install':
-        status = checkNginxStatus(appconf.nginx_host)
+        status = checkNginxStatus(app_conf.nginx_host)
         if status[0]:
             return render_template("nginx_home.html", servers=status[1])
         
+    if not app_conf.nginx_os:
+        flash("Nginx server's OS type has not been determined yet")
+        return
 
     # Start nginx  installation celery task
-    task = installNGINX.delay(appconf.nginx_host)
+    task = installNGINX.delay(app_conf.nginx_host)
 
     print "Install NGINX TASK STARTED", task.id
-    head = "Installing NGINX Server on {0}".format(appconf.nginx_host)
+    head = "Installing NGINX Server on {0}".format(app_conf.nginx_host)
     nextpage = "index.multi_master_replication"
     whatNext = "LDAP Replication"
-    return render_template("logger.html", heading=head, server=appconf.nginx_host,
+    return render_template("logger.html", heading=head, server=app_conf.nginx_host,
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
 

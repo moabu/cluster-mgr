@@ -156,6 +156,45 @@ class Installer:
         return '\n'.join(all_cout), log_id
 
 
+    def epel_release(self, inside=False):
+        if ('CentOS' in self.server_os) or ('RHEL' in self.server_os):
+            wlogger.log(self.logger_task_id, "Installing epel-release")
+            self.install('epel-release', inside=inside)
+
+    def get_file(self, remote):
+        wlogger.log(self.logger_task_id, "Getting file {0} from {1}".format(remote, self.hostname), "debug")
+        result = self.conn.get_file(remote)
+        if not result[0]:
+            wlogger.log(self.logger_task_id, "Can't retreive file {0} from server {1}".format(remote,result[1]), "error")
+            wlogger.log(self.logger_task_id, "Ending server setup process.", "error")
+            return False, ''
+        wlogger.log(self.logger_task_id, "File {} was retreived.".format(remote), "success")
+        
+        return True, result[1].read()
+    
+    def put_file(self, remote, content):
+        result = self.conn.put_file(remote, content)
+        if result[0]:
+            wlogger.log(self.logger_task_id, "File {} sent".format(remote), "success")
+        else:
+            wlogger.log(self.logger_task_id, "Can't send file {0} to server: {1}".format(remote, result[1]), "error")
+            wlogger.log(self.logger_task_id, "Ending server setup process.", "error")
+            return False
+        
+        wlogger.log(self.logger_task_id, "File {} sent".format(remote), "success")
+        
+        return True
+
+    def enable_service(self, service, inside=True):
+        self.run('systemctl enable {}.service'.format(service), inside=inside)
+
+    def stop_service(self, service, inside=True):
+        self.run('systemctl stop '+service, inside=inside)
+
+    def start_service(self, service, inside=True):
+        self.run('systemctl start '+service, inside=inside)
+
+
     def is_gluu_installed(self):
         
         check_file = ('/opt/gluu-server-{}/install/community-edition-setup/'

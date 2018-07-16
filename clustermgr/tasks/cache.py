@@ -8,7 +8,8 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, wlogger, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import DBManager
-from clustermgr.tasks.cluster import get_os_type, run_command
+from clustermgr.tasks.cluster import run_command
+from clustermgr.tasks.server import get_os_type
 from clustermgr.core.utils import parse_setup_properties, \
         get_redis_config, make_proxy_stunnel_conf, make_twem_proxy_conf
 

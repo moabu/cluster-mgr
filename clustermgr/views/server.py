@@ -16,7 +16,7 @@ import ldap3
 
 from clustermgr.forms import ServerForm, InstallServerForm, \
     SetupPropertiesLastForm
-from clustermgr.tasks.cluster import collect_server_details
+from clustermgr.tasks.server import collect_server_details
 
 from clustermgr.tasks.server import task_install_gluu_server
 
@@ -651,9 +651,13 @@ def install_gluu_server(server_id):
     
     steps = ['Perpare Server', 'Install Gluu Container', 'Run setup.py', 'Post Installation']
 
+    server = Server.query.get(server_id)
+
+    title = "Installing Gluu Server on " + server.hostname
+
     return render_template('logger_single.html',
                            server_id=server_id,
-                           title="Gluu Server Installation",
+                           title=title,
                            steps=steps,
                            task=task,
                            cur_step=1,

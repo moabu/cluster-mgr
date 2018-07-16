@@ -27,7 +27,7 @@ from clustermgr.extensions import celery
 
 
 from clustermgr.core.clustermgr_installer import Installer
-from clustermgr.tasks.cluster import get_os_type
+from clustermgr.tasks.server import get_os_type
 
 attributes = Blueprint('attributes', __name__)
 attributes.before_request(prompt_license)

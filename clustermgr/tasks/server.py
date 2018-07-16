@@ -21,6 +21,87 @@ from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.core.utils import get_setup_properties, modify_etc_hosts
 
 
+def get_os_type(c):
+    
+    # 2. Linux Distribution of the server
+    cin, cout, cerr = c.run("ls /etc/*release")
+    files = cout.split()
+    
+    if files[0] == '/etc/alpine-release':
+        return 'Alpine'
+    
+    cin, cout, cerr = c.run("cat "+files[0])
+
+    if "Ubuntu" in cout and "14.04" in cout:
+        return "Ubuntu 14"
+    if "Ubuntu" in cout and "16.04" in cout:
+        return "Ubuntu 16"
+    if "CentOS" in cout and "release 6." in cout:
+        return "CentOS 6"
+    if "CentOS" in cout and "release 7." in cout:
+        return "CentOS 7"
+    if 'Red Hat Enterprise Linux' in cout and '7.':
+        return 'RHEL 7'
+    if 'Debian' in cout and "(jessie)" in cout:
+        return 'Debian 8'
+    if 'Debian' in cout and "(stretch)" in cout:
+        return 'Debian 9'
+
+
+@celery.task
+def collect_server_details(server_id):
+    print "Start collecting server details task"
+    server = Server.query.get(server_id)
+    app_conf = AppConfiguration.query.first()
+    
+    if server_id == -1:
+        hostname = app_conf.nginx_host
+        ip = app_conf.nginx_ip
+    else:
+        hostname = server.hostname
+        ip = server.ip
+    
+    c = RemoteClient(hostname, ip=ip)
+    c.startup()
+
+    os_type = get_os_type(c)
+    
+
+    if server_id == -1:
+        app_conf.nginx_os = os_type
+        db.session.commit()
+        return
+
+
+    # 0. Make sure it is a Gluu Server
+    chdir = "/opt/gluu-server-" + appconf.gluu_version
+    if not c.exists(chdir):
+        server.gluu_server = False
+        chdir = '/'
+
+    # 1. The components installed in the server
+    components = {
+        'oxAuth': 'opt/gluu/jetty/oxauth',
+        'oxTrust': 'opt/gluu/jetty/identity',
+        'OpenLDAP': 'opt/symas/etc/openldap',
+        'Shibboleth': 'opt/shibboleth-idp',
+        'oxAuthRP': 'opt/gluu/jetty/oxauth-rp',
+        'Asimba': 'opt/gluu/jetty/asimba',
+        'Passport': 'opt/gluu/node/passport',
+    }
+    installed = []
+    for component, marker in components.iteritems():
+        marker = os.path.join(chdir, marker)
+        if c.exists(marker):
+            installed.append(component)
+    server.components = ",".join(installed)
+
+    server.os = os_type
+    server.gluu_server = check_gluu_installation(c)
+
+    db.session.commit()
+
+
 def modify_hosts(task_id, conn, hosts, chroot='/', server_host=None, server_id=''):
     wlogger.log(task_id, "Modifying /etc/hosts of server {0}".format(server_host), server_id=server_id)
     
@@ -471,7 +552,6 @@ def install_gluu_server(task_id, server_id):
         for ship in all_server:
             host_ip.append((ship.hostname, ship.ip))
 
-        print ">>>>> Modify hosts"
         modify_hosts(task_id, installer.conn, host_ip, '/opt/'+gluu_server+'/', server.hostname)
 
 

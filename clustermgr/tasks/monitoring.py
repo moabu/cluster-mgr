@@ -6,7 +6,7 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, wlogger, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import DBManager
-from clustermgr.tasks.cluster import get_os_type
+from clustermgr.tasks.server import get_os_type
 
 from flask import current_app as app
 

@@ -496,33 +496,6 @@ def setup_ldap_replication(self, server_id):
 
 
 
-def get_os_type(c):
-    
-    # 2. Linux Distribution of the server
-    cin, cout, cerr = c.run("ls /etc/*release")
-    files = cout.split()
-    
-    if files[0] == '/etc/alpine-release':
-        return 'Alpine'
-    
-    cin, cout, cerr = c.run("cat "+files[0])
-
-    if "Ubuntu" in cout and "14.04" in cout:
-        return "Ubuntu 14"
-    if "Ubuntu" in cout and "16.04" in cout:
-        return "Ubuntu 16"
-    if "CentOS" in cout and "release 6." in cout:
-        return "CentOS 6"
-    if "CentOS" in cout and "release 7." in cout:
-        return "CentOS 7"
-    if 'Red Hat Enterprise Linux' in cout and '7.':
-        return 'RHEL 7'
-    if 'Debian' in cout and "(jessie)" in cout:
-        return 'Debian 8'
-    if 'Debian' in cout and "(stretch)" in cout:
-        return 'Debian 9'
-
-
 def check_gluu_installation(c):
     """Checks if gluu server is installed
 
@@ -536,46 +509,6 @@ def check_gluu_installation(c):
                                                 appconf.gluu_version
                                             )
     return c.exists(check_file)
-
-
-@celery.task
-def collect_server_details(server_id):
-    print "Start collecting server details task"
-    server = Server.query.get(server_id)
-    appconf = AppConfiguration.query.first()
-    c = RemoteClient(server.hostname, ip=server.ip)
-    #try:
-    c.startup()
-    #except:
-    #    return
-
-    # 0. Make sure it is a Gluu Server
-    chdir = "/opt/gluu-server-" + appconf.gluu_version
-    if not c.exists(chdir):
-        server.gluu_server = False
-        chdir = '/'
-
-    # 1. The components installed in the server
-    components = {
-        'oxAuth': 'opt/gluu/jetty/oxauth',
-        'oxTrust': 'opt/gluu/jetty/identity',
-        'OpenLDAP': 'opt/symas/etc/openldap',
-        'Shibboleth': 'opt/shibboleth-idp',
-        'oxAuthRP': 'opt/gluu/jetty/oxauth-rp',
-        'Asimba': 'opt/gluu/jetty/asimba',
-        'Passport': 'opt/gluu/node/passport',
-    }
-    installed = []
-    for component, marker in components.iteritems():
-        marker = os.path.join(chdir, marker)
-        if c.exists(marker):
-            installed.append(component)
-    server.components = ",".join(installed)
-
-    server.os = get_os_type(c)
-    server.gluu_server = check_gluu_installation(c)
-
-    db.session.commit()
 
 
 def import_key(suffix, hostname, gluu_version, tid, c, sos):
@@ -761,523 +694,6 @@ def upload_custom_schema(tid, c, ldap_type, gluu_server):
                 wlogger.log(tid,
                     "Can't upload custom schame file {0}: ".format(sf,
                                                             r[1]), 'error')
-
-
-@celery.task(bind=True)
-def installGluuServer(self, server_id):
-    """Install Gluu server
-
-    Args:
-        server_id: id of server to be installed
-    """
-
-    tid = self.request.id
-
-    server = Server.query.get(server_id)
-    pserver = Server.query.filter_by(primary_server=True).first()
-
-    appconf = AppConfiguration.query.first()
-
-    c = RemoteClient(server.hostname, ip=server.ip)
-
-    #setup properties file path
-    setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
-
-    setup_prop = get_setup_properties()
-
-    gluu_server = 'gluu-server-' + appconf.gluu_version
-
-
-    #If os type of this server was not idientified, return to home
-    if not server.os:
-        wlogger.log(tid, "OS type has not been identified.", 'fail')
-        wlogger.log(tid, "Ending server installation process.", "error")
-        return
-
-
-    #If this is not primary server, we will download setup.properties file from
-    #primary server
-    if not server.primary_server:
-        wlogger.log(tid, "Check if Primary Server is Installed")
-
-        pc = RemoteClient(pserver.hostname, ip=pserver.ip)
-
-        try:
-            pc.startup()
-        except:
-            wlogger.log(tid, "Can't make SSH connection to "
-                             "primary server: ".format(
-                             pserver.hostname), 'error')
-            wlogger.log(tid, "Ending server installation process.", "error")
-            return
-
-        if check_gluu_installation(pc):
-            wlogger.log(tid, "Primary Server is Installed",'success')
-        else:
-            wlogger.log(tid, "Primary Server is not Installed. "
-                             "Please first install Primary Server",'fail')
-            wlogger.log(tid, "Ending server installation process.", "error")
-            return
-
-    try:
-        c.startup()
-    except:
-        wlogger.log(tid, "Can't establish SSH connection",'fail')
-        wlogger.log(tid, "Ending server installation process.", "error")
-        return
-
-    
-
-    #channel = c.client.get_transport().open_session()
-    #channel.get_pty()
-    #channel.exec_command("python /tmp/pb.py")
-
-    wlogger.log(tid, "Preparing for Installation")
-
-    start_command  = 'service gluu-server-{0} start'
-    stop_command   = 'service gluu-server-{0} stop'
-    enable_command = None
-
-
-    #add gluu server repo and imports signatures
-    if ('Ubuntu' in server.os) or ('Debian' in server.os):
-
-        if server.os == 'Ubuntu 14':
-            dist = 'trusty'
-        elif server.os == 'Ubuntu 16':
-            dist = 'xenial'
-
-
-        if 'Ubuntu' in server.os:
-            cmd = 'curl https://repo.gluu.org/ubuntu/gluu-apt.key | apt-key add -'
-        elif 'Debian' in server.os:
-            cmd = 'curl https://repo.gluu.org/debian/gluu-apt.key | apt-key add -'
-
-        run_command(tid, c, cmd, no_error='debug')
-
-        if 'Ubuntu' in server.os:
-            cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" '
-               '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
-        elif 'Debian' in server.os:
-            cmd = ('echo "deb https://repo.gluu.org/debian/ stable main" '
-               '> /etc/apt/sources.list.d/gluu-repo.list')
-
-        run_command(tid, c, cmd)
-
-        install_command = 'DEBIAN_FRONTEND=noninteractive apt-get '
-
-        cmd = 'DEBIAN_FRONTEND=noninteractive apt-get update'
-        wlogger.log(tid, cmd, 'debug')
-        cin, cout, cerr = c.run(cmd)
-        wlogger.log(tid, cout+'\n'+cerr, 'debug')
-
-        if 'dpkg --configure -a' in cerr:
-            cmd = 'dpkg --configure -a'
-            wlogger.log(tid, cmd, 'debug')
-            cin, cout, cerr = c.run(cmd)
-            wlogger.log(tid, cout+'\n'+cerr, 'debug')
-
-
-    elif 'CentOS' in server.os or 'RHEL' in server.os:
-        install_command = 'yum '
-        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-            enable_command  = '/sbin/gluu-serverd-{0} enable'
-            stop_command    = '/sbin/gluu-serverd-{0} stop'
-            start_command   = '/sbin/gluu-serverd-{0} start'
-
-        qury_package    = 'yum list installed | grep gluu-server-'
-
-        if not c.exists('/usr/bin/wget'):
-            cmd = install_command +'install -y wget'
-            run_command(tid, c, cmd, no_error='debug')
-
-        if server.os == 'CentOS 6':
-            cmd = 'wget https://repo.gluu.org/centos/Gluu-centos6.repo -O /etc/yum.repos.d/Gluu.repo'
-        elif server.os == 'CentOS 7':
-            
-            cmd = 'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O /etc/yum.repos.d/Gluu.repo'
-            
-            #testing
-            #cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-testing.repo -O /etc/yum.repos.d/Gluu.repo'
-            
-            
-        elif server.os == 'RHEL 7':
-            cmd = 'wget https://repo.gluu.org/rhel/Gluu-rhel7.repo -O /etc/yum.repos.d/Gluu.repo'
-
-        run_command(tid, c, cmd, no_error='debug')
-
-        cmd = 'wget https://repo.gluu.org/centos/RPM-GPG-KEY-GLUU -O /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'
-        run_command(tid, c, cmd, no_error='debug')
-
-        cmd = 'rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'
-        run_command(tid, c, cmd, no_error='debug')
-
-        cmd = 'yum clean all'
-        run_command(tid, c, cmd, no_error='debug')
-
-    wlogger.log(tid, "Check if Gluu Server was installed")
-
-    gluu_installed = False
-
-    #Determine if a version of gluu server was installed.
-    r = c.listdir("/opt")
-    if r[0]:
-        for s in r[1]:
-            m=re.search("gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+))$",s)
-            if m:
-                gluu_version = m.group("gluu_version")
-                gluu_installed = True
-                cmd = stop_command.format(gluu_version)
-                rs = run_command(tid, c, cmd, no_error='debug')
-
-                #If gluu server is installed, first stop it then remove
-                if "Can't stop gluu server" in rs:
-                    cmd = 'rm -f /var/run/{0}.pid'.format(gluu_server)
-                    run_command(tid, c, cmd, no_error='debug')
-
-                    cmd = "df -aP | grep %s | awk '{print $6}' | xargs -I {} umount -l {}" % (gluu_server)
-                    run_command(tid, c, cmd, no_error='debug')
-
-                    cmd = stop_command.format(gluu_version)
-                    rs = run_command(tid, c, cmd, no_error='debug')
-
-                run_command(tid, c, install_command + "remove -y "+s)
-
-
-    if not gluu_installed:
-        wlogger.log(tid, "Gluu Server was not previously installed", "debug")
-
-
-    #start installing gluu server
-    wlogger.log(tid, "Installing Gluu Server: " + gluu_server)
-
-    cmd = install_command + 'install -y ' + gluu_server
-    wlogger.log(tid, cmd, "debug")
-    
-    
-    channel = c.client.get_transport().open_session()
-    channel.get_pty()
-    channel.exec_command(cmd)
-    
-    ubuntu_re = re.compile('\[(\s|\w|%|/|-|\.)*\]')
-    ubuntu_re_2 = re.compile('\(Reading database ... \d*')
-    centos_re = re.compile(' \[(=|-|#|\s)*\] ')
-    
-    last_debug = False
-    log_id = 0
-    while True:
-        if channel.exit_status_ready():
-            break
-        rl = ''
-        try:
-            rl, wl, xl = select.select([channel], [], [], 0.0)
-        except:
-            pass
-        if len(rl) > 0:
-            coutt = channel.recv(1024)
-            if coutt:
-                for cout in coutt.split('\n'):
-                    if cout.strip():
-                        if centos_re.search(cout) or ubuntu_re.search(cout) or ubuntu_re_2.search(cout):
-                            if not last_debug:
-                                cout = cout.strip()
-                                wlogger.log(tid, "...", "debug", log_id="logc-{}".format(log_id), new_log_id=True)
-                                last_debug = True
-
-                            wlogger.log(tid, cout, "debugc", log_id="logc-{}".format(log_id))
-
-                        else:
-                            log_id += 1
-                            last_debug = False
-                            wlogger.log(tid, cout, "debug")
-
-    
-    #If previous installation was broken, make a re-installation. This sometimes
-    #occur on ubuntu installations
-    if 'half-installed' in cout:
-        if ('Ubuntu' in server.os) or  ('Debian' in server.os):
-            cmd = 'DEBIAN_FRONTEND=noninteractive  apt-get install --reinstall -y '+ gluu_server
-            run_command(tid, c, cmd, no_error='debug')
-
-
-    if enable_command:
-        run_command(tid, c, enable_command.format(appconf.gluu_version), no_error='debug')
-
-    run_command(tid, c, start_command.format(appconf.gluu_version))
-
-    #Since we will make ssh inot centos container, we need to wait ssh server to
-    #be started properly
-    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-        wlogger.log(tid, "Sleeping 10 secs to wait for gluu server start properly.")
-        time.sleep(10)
-
-    # If this server is primary, upload local setup.properties to server
-    if server.primary_server:
-        wlogger.log(tid, "Uploading setup.properties")
-        r = c.upload(setup_properties_file, '/opt/{}/install/community-edition-setup/setup.properties'.format(gluu_server))
-    # If this server is not primary, get setup.properties.last from primary
-    # server and upload to this server
-    else:
-        #this is not primary server, so download setup.properties.last
-        #from primary server and upload to this server
-        pc = RemoteClient(pserver.hostname, ip=pserver.ip)
-        try:
-            pc.startup()
-        except:
-            wlogger.log(tid, "Can't establish SSH connection to primary server: ".format(pserver.hostname), 'error')
-            wlogger.log(tid, "Ending server installation process.", "error")
-            return
-
-        # ldap_paswwrod of this server should be the same with primary server
-        ldap_passwd = None
-
-
-        remote_file = '/opt/{}/install/community-edition-setup/setup.properties.last'.format(gluu_server)
-        wlogger.log(tid, 'Downloading setup.properties.last from primary server', 'debug')
-
-       #get setup.properties.last from primary server.
-        r=pc.get_file(remote_file)
-        if r[0]:
-            new_setup_properties=''
-            setup_properties = r[1].readlines()
-            #replace ip with address of this server
-            for l in setup_properties:
-                if l.startswith('ip='):
-                    l = 'ip={0}\n'.format(server.ip)
-                elif l.startswith('ldapPass='):
-                    ldap_passwd = l.split('=')[1].strip()
-                elif l.startswith('hostname='):
-                    l = 'hostname={0}\n'.format(appconf.nginx_host)
-                new_setup_properties += l
-
-            #put setup.properties to server
-            remote_file_new = '/opt/{}/install/community-edition-setup/setup.properties'.format(gluu_server)
-            wlogger.log(tid, 'Uploading setup.properties', 'debug')
-            c.put_file(remote_file_new,  new_setup_properties)
-
-            if ldap_passwd:
-                server.ldap_password = ldap_passwd
-        else:
-            wlogger.log(tid, "Can't download setup.properties.last from primary server", 'fail')
-            wlogger.log(tid, "Ending server installation process.", "error")
-            return
-
-
-
-    #run setup.py on the server
-
-    if appconf.gluu_version < '3.1.3':
-        wlogger.log(tid, "Downloading setup.py")
-        cmd = ( 
-                'curl  https://raw.githubusercontent.com/GluuFederation/'
-                'community-edition-setup/master/setup.py  -o /opt/{}/install/'
-                'community-edition-setup/setup.py'
-                ).format(gluu_server)
-                
-        cmd = ( 
-                'curl https://raw.githubusercontent.com/mbaser/gluu/master/setup.py -o /opt/{}/install/'
-                'community-edition-setup/setup.py'
-                ).format(gluu_server)
-
-        
-                
-        run_command(tid, c, cmd, no_error='debug')
-        
-        cmd = 'chmod +x /opt/{}/install/community-edition-setup/setup.py'.format(
-            gluu_server)
-        run_command(tid, c, cmd)
-    
-    #run setup.py on the server
-    wlogger.log(tid, "Running setup.py - Be patient this process will take a while ...")
-
-    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-        cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'cd /install/community-edition-setup/ && ./setup.py -n -v'"
-    else:
-        
-        cmd = 'chroot /opt/{}  /bin/bash -c "cd /install/community-edition-setup/ && ./setup.py -n -v"'.format(gluu_server)
-
-    wlogger.log(tid ,cmd, "debug")
-
-    channel = c.client.get_transport().open_session()
-    channel.get_pty()
-    channel.exec_command(cmd)
-    
-    last_debug = False
-
-    while True:
-        if channel.exit_status_ready():
-            break
-        rl = ''
-        try:
-            rl, wl, xl = select.select([channel], [], [], 0.0)
-        except:
-            pass
-
-        if len(rl) > 0:
-            cout = channel.recv(1024)
-            
-            if re.search(' \[(#|\s)*\] ', cout):
-                if not last_debug:
-                    cout = cout.strip()
-                    wlogger.log(tid, "...", "debug", log_id="logc-{}".format(log_id), new_log_id=True)
-                    last_debug = True
-
-                wlogger.log(tid, cout, "debugc", log_id="logc-{}".format(log_id))
-            else:
-                log_id += 1
-                last_debug = False
-                cout = cout.strip()
-                if cout:
-                    wlogger.log(tid, cout, "debug")
-
-    
-    if appconf.modify_hosts:
-        all_server = Server.query.all()
-        
-        host_ip = []
-        
-        for ship in all_server:
-            host_ip.append((ship.hostname, ship.ip))
-
-        modify_hosts(tid, c, host_ip, '/opt/'+gluu_server+'/', server.hostname)
-
-
-    # Get slapd.conf from primary server and upload this server
-    if not server.primary_server:
-
-        if setup_prop['ldap_type'] == 'openldap':
-            #FIXME: Check this later
-            cmd = 'rm /opt/gluu/data/main_db/*.mdb'
-            run_command(tid, c, cmd, '/opt/'+gluu_server)
-
-
-            slapd_conf_file = '/opt/{0}/opt/symas/etc/openldap/slapd.conf'.format(gluu_server)
-            r = pc.get_file(slapd_conf_file)
-            if r[0]:
-                fc = r[1].read()
-                r2 = c.put_file(slapd_conf_file, fc)
-                if not r2[0]:
-                    wlogger.log(tid, "Can't put slapd.conf to this server: ".format(r[1]), 'error')
-                else:
-                    wlogger.log(tid, "slapd.conf was downloaded from primary server and uploaded to this server", 'success')
-            else:
-                wlogger.log(tid, "Can't get slapd.conf from primary server: ".format(r[1]), 'error')
-
-            # If primary conatins any custom schema, get them
-            # and put to this server
-            download_and_upload_custom_schema(  
-                                                tid, pc, c, 
-                                                'openldap', gluu_server
-                                            )
-
-            #stop and start solserver
-            if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-                run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver stop'")
-            else:
-                run_command(tid, c, 'service solserver stop', '/opt/'+gluu_server)
-
-            if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-                run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start'")
-            else:
-                run_command(tid, c, 'service solserver start', '/opt/'+gluu_server)
-
-        #If gluu version is greater than 3.0.2 we need to download certificates
-        #from primary server and upload to this server, then will delete and
-        #import keys
-        if appconf.gluu_version > '3.0.2':
-            wlogger.log(tid, "Downloading certificates from primary "
-                             "server and uploading to this server")
-            certs_remote_tmp = "/tmp/certs_"+str(uuid.uuid4())[:4].upper()+".tgz"
-            certs_local_tmp = "/tmp/certs_"+str(uuid.uuid4())[:4].upper()+".tgz"
-
-            cmd = ('tar -zcf {0} /opt/gluu-server-{1}/etc/certs/ '
-                    '/opt/gluu-server-{1}/install/community-edition-setup'
-                    '/output/scim-rp.jks'
-                    ).format(certs_remote_tmp, appconf.gluu_version)
-            wlogger.log(tid,cmd,'debug')
-            cin, cout, cerr = pc.run(cmd)
-            wlogger.log(tid, cout+cerr, 'debug')
-            wlogger.log(tid,cmd,'debug')
-
-            r = pc.download(certs_remote_tmp, certs_local_tmp)
-            if 'Download successful' in r :
-                wlogger.log(tid, r,'success')
-            else:
-                wlogger.log(tid, r,'error')
-
-            r = c.upload(certs_local_tmp, "/tmp/certs.tgz")
-
-            if 'Upload successful' in r:
-                wlogger.log(tid, r,'success')
-            else:
-                wlogger.log(tid, r,'error')
-
-            cmd = 'tar -zxf /tmp/certs.tgz -C /'
-            run_command(tid, c, cmd)
-
-
-            #delete old keys and import new ones
-            wlogger.log(tid, 'Manuplating keys')
-            for suffix in (
-                    'httpd',
-                    'shibIDP',
-                    'idp-encryption',
-                    'asimba',
-                    setup_prop['ldap_type'],
-                    ):
-                delete_key(suffix, appconf.nginx_host, appconf.gluu_version,
-                            tid, c, server.os)
-                import_key(suffix, appconf.nginx_host, appconf.gluu_version,
-                            tid, c, server.os)
-        else:
-            download_and_upload_custom_schema(  
-                                                tid, pc, c, 
-                                                'opendj', gluu_server
-                                            )
-    else:
-        #this is primary server so we need to upload local custom schemas if any
-        upload_custom_schema(tid, c, 
-                            setup_prop['ldap_type'], gluu_server)
-
-    #ntp is required for time sync, since ldap replication will be
-    #done by time stamp. If not isntalled, install and configure crontab
-    wlogger.log(tid, "Checking if ntp is installed and configured.")
-
-    if c.exists('/usr/sbin/ntpdate'):
-        wlogger.log(tid, "ntp was installed", 'success')
-    else:
-
-        cmd = install_command + 'install -y ntpdate'
-        run_command(tid, c, cmd)
-
-    #run time sync an every minute
-    c.put_file('/etc/cron.d/setdate',
-                '* * * * *    root    /usr/sbin/ntpdate -s time.nist.gov\n')
-    wlogger.log(tid, 'Crontab entry was created to update time in every minute',
-                     'debug')
-
-    if 'CentOS' in server.os or 'RHEL' in server.os:
-        cmd = 'service crond reload'
-    else:
-        cmd = 'service cron reload'
-
-    run_command(tid, c, cmd, no_error='debug')
-
-    #We need to fix opendj initscript
-    wlogger.log(tid, 'Uploading fixed opendj init.d script')
-    opendj_init_script = os.path.join(app.root_path, "templates",
-                           "opendj", "opendj")
-    remote_opendj_init_script = '/opt/{0}/etc/init.d/opendj'.format(gluu_server)
-    c.upload(opendj_init_script, remote_opendj_init_script)
-    cmd = 'chmod +x {}'.format(remote_opendj_init_script)
-    run_command(tid, c, cmd)
-    #########
-
-    server.gluu_server = True
-    db.session.commit()
-    wlogger.log(tid, "Gluu Server successfully installed")
-    
-
     
 @celery.task(bind=True)
 def removeMultiMasterDeployement(self, server_id):
@@ -1828,132 +1244,110 @@ def installNGINX(self, nginx_host):
     Args:
         nginx_host: hostname of server on which we will install nginx
     """
-    tid = self.request.id
-    app_config = AppConfiguration.query.first()
-    pserver = Server.query.filter_by(primary_server=True).first()
-    wlogger.log(tid, "Making SSH connection to the server {}".format(
-                                                                nginx_host))
-    c = RemoteClient(nginx_host)
+    task_id = self.request.id
+    app_conf = AppConfiguration.query.first()
+    primary_server = Server.query.filter_by(primary_server=True).first()
 
-    try:
-        c.startup()
-    except Exception as e:
-        wlogger.log(
-            tid, "Cannot establish SSH connection {0}".format(e), "warning")
-        wlogger.log(tid, "Ending server setup process.", "error")
+    #mock server
+    nginx_server = Server(
+                        hostname=app_conf.nginx_host, 
+                        ip=app_conf.nginx_ip,
+                        os=app_conf.nginx_os
+                        )
+
+    nginx_installer = Installer(
+                    nginx_server, 
+                    app_conf.gluu_version, 
+                    logger_task_id=task_id, 
+                    server_os=nginx_server.os
+                    )
+
+    if not nginx_installer.conn:
         return False
 
-    # We should determine os type to install nginx
-    wlogger.log(tid, "Determining OS type")
-    os_type = get_os_type(c)
-    wlogger.log(tid, "OS is determined as {0}".format(os_type),'debug')
 
     #check if nginx was installed on this server
-    wlogger.log(tid, "Check if NGINX installed")
+    wlogger.log(task_id, "Check if NGINX installed")
 
-    r = c.exists("/usr/sbin/nginx")
+    result = nginx_installer.conn.exists("/usr/sbin/nginx")
 
-    if r:
-        wlogger.log(tid, "nginx allready exists")
+    if result:
+        wlogger.log(task_id, "nginx allready exists")
     else:
-        #If this is centos we need to install epel-release
-        if 'CentOS' in os_type:
-            run_command(tid, c, 'yum install -y epel-release')
-            cmd = 'yum install -y nginx'
-        else:
-            run_command(tid, c, 'DEBIAN_FRONTEND=noninteractive apt-get update')
-            cmd = 'DEBIAN_FRONTEND=noninteractive apt-get install -y nginx'
-
-        wlogger.log(tid, cmd, 'debug')
-
-        #FIXME: check cerr??
-        cin, cout, cerr = c.run(cmd)
-        wlogger.log(tid, cout, 'debug')
+        nginx_installer.epel_release()
+        nginx_installer.install('nginx', inside='False')
 
     #Check if ssl certificates directory exist on this server
-    r = c.exists("/etc/nginx/ssl/")
-    if not r:
-        wlogger.log(tid, "/etc/nginx/ssl/ does not exists. Creating ...",
+    result = nginx_installer.conn.exists("/etc/nginx/ssl/")
+    if not result:
+        wlogger.log(task_id, "/etc/nginx/ssl/ does not exists. Creating ...",
                             "debug")
-        r2 = c.mkdir("/etc/nginx/ssl/")
-        if r2[0]:
-            wlogger.log(tid, "/etc/nginx/ssl/ was created", "success")
+        result = result.conn.mkdir("/etc/nginx/ssl/")
+        if result[0]:
+            wlogger.log(task_id, "/etc/nginx/ssl/ was created", "success")
         else:
-            wlogger.log(tid, "Error creating /etc/nginx/ssl/ {0}".format(r2[1]),
-                            "error")
-            wlogger.log(tid, "Ending server setup process.", "error")
+            wlogger.log(task_id, 
+                        "Error creating /etc/nginx/ssl/ {0}".format(result[1]),
+                        "error")
+            wlogger.log(task_id, "Ending server setup process.", "error")
             return False
     else:
-        wlogger.log(tid, "Directory /etc/nginx/ssl/ exists.", "debug")
+        wlogger.log(task_id, "Directory /etc/nginx/ssl/ exists.", "debug")
 
     # we need to download ssl certifiactes from primary server.
-    wlogger.log(tid, "Making SSH connection to primary server {} for "
-                     "downloading certificates".format(pserver.hostname))
-    pc = RemoteClient(pserver.hostname, pserver.ip)
-    try:
-        pc.startup()
-    except Exception as e:
-        wlogger.log(
-            tid, "Cannot establish SSH connection to primary server {0}".format(e), "warning")
-        wlogger.log(tid, "Ending server setup process.", "error")
-        return False
+    wlogger.log(task_id, "Making SSH connection to primary server {} for "
+                     "downloading certificates".format(primary_server.hostname))
+
+    primary_installer = Installer(
+                    primary_server,
+                    app_conf.gluu_version,
+                    logger_task_id=task_id,
+                    server_os=primary_server.os
+                    )
+
     # get httpd.crt and httpd.key from primary server and put to this server
-    for crt in ('httpd.crt', 'httpd.key'):
-        wlogger.log(tid, "Downloading {0} from primary server".format(crt), "debug")
-        remote_file = '/opt/gluu-server-{0}/etc/certs/{1}'.format(app_config.gluu_version, crt)
-        r = pc.get_file(remote_file)
-        if not r[0]:
-            wlogger.log(tid, "Can't download {0} from primary server: {1}".format(crt,r[1]), "error")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return False
-        else:
-            wlogger.log(tid, "File {} was downloaded.".format(remote_file), "success")
-        fc = r[1].read()
-        remote = os.path.join("/etc/nginx/ssl/", crt)
-        r = c.put_file(remote, fc)
-
-        if r[0]:
-            wlogger.log(tid, "File {} uploaded".format(remote), "success")
-        else:
-            wlogger.log(tid, "Can't upload {0}: {1}".format(remote,r[1]), "error")
-            wlogger.log(tid, "Ending server setup process.", "error")
+    for crt_file in ('httpd.crt', 'httpd.key'):
+        wlogger.log(task_id, "Downloading {0} from primary server".format(crt_file), "debug")
+        remote_file = '/opt/gluu-server-{0}/etc/certs/{1}'.format(app_conf.gluu_version, crt_file)
+        result = primary_installer.get_file(remote_file)
+                
+        if not result[0]:
             return False
 
+        file_content = result[1]
+
+        remote_file = os.path.join("/etc/nginx/ssl/", crt_file)
+
+        result = nginx_installer.put_file(remote_file, file_content)
+        if not result:
+            return False
+
+    primary_installer.conn.close()
+    
     nginx_config = make_nginx_proxy_conf()
 
     #put nginx.conf to server
-    remote = "/etc/nginx/nginx.conf"
-    r = c.put_file(remote, nginx_config)
+    remote_file = "/etc/nginx/nginx.conf"
+    result = nginx_installer.put_file(remote_file, nginx_config)
 
-    if r[0]:
-         wlogger.log(tid, "File {} uploaded".format(remote), "success")
-    else:
-        wlogger.log(tid, "Can't upload {0}: {1}".format(remote,r[1]), "error")
-        wlogger.log(tid, "Ending server setup process.", "error")
+    if not result:
         return False
-    #it is time to start nginx server
-    cmd = 'service nginx restart'
 
-    run_command(tid, c, cmd, no_error='debug')
-
-    #enable nginx on boot
-    cmd = 'systemctl enable nginx.service'
-    run_command(tid, c, cmd, no_error='debug')
-
-    if app_config.modify_hosts:
+    nginx_installer.enable_service('nginx', inside=False)
+    nginx_installer.start_service('nginx', inside=False)
+    
+    if app_conf.modify_hosts:
         
         host_ip = []
-
         servers = Server.query.all()
 
         for ship in servers:
             host_ip.append((ship.hostname, ship.ip))
 
-        host_ip.append((app_config.nginx_host, app_config.nginx_ip))
+        host_ip.append((app_conf.nginx_host, app_conf.nginx_ip))
+        modify_hosts(task_id, nginx_installer.conn, host_ip)
 
-        modify_hosts(tid, c, host_ip)
-
-    wlogger.log(tid, "NGINX successfully installed")
+    wlogger.log(task_id, "NGINX successfully installed")
 
 def exec_cmd(command):    
     popen = subprocess.Popen(command, stdout=subprocess.PIPE)

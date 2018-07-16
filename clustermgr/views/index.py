@@ -35,12 +35,14 @@ from clustermgr.core.license import prompt_license
 from clustermgr.core.remote import RemoteClient, FakeRemote, ClientNotSetupException
 
 from clustermgr.core.clustermgr_installer import Installer
-from clustermgr.tasks.cluster import get_os_type
+from clustermgr.tasks.server import get_os_type
 
 from clustermgr.core.utils import get_setup_properties, \
     get_opendj_replication_status
 
 from clustermgr.core.ldifschema_utils import OpenDjSchema
+
+from clustermgr.tasks.server import collect_server_details
 
 index = Blueprint('index', __name__)
 index.before_request(prompt_license)
@@ -211,6 +213,10 @@ def app_configuration():
         config.gluu_version = conf_form.gluu_version.data.strip()
 
         db.session.commit()
+
+        # -1 is for nginx server
+        collect_server_details.delay(-1)
+
 
         flash("Gluu Replication Manager application configuration has been "
               "updated.", "success")

@@ -95,6 +95,10 @@ class AppConfiguration(db.Model):
     cache_host = db.Column(db.String(50))
     cache_ip = db.Column(db.String(50))
     
+    nginx_os = db.Column(db.String(20))
+
+    
+    
 
 class KeyRotation(db.Model):
     __tablename__ = "keyrotation"
