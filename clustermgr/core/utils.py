@@ -20,7 +20,7 @@ from clustermgr.core.remote import RemoteClient
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import wlogger
 from flask import current_app as app
-
+from clustermgr.core.clustermgr_installer import Installer
 
 import logging
 import traceback
@@ -312,42 +312,24 @@ def get_opendj_replication_status():
     """
     
     primary_server = Server.query.filter_by(primary_server=True).first()
-    app_config = AppConfiguration.query.first()
+    app_conf = AppConfiguration.query.first()
 
-    #Make ssh connection to primary server
-    c = RemoteClient(primary_server.hostname, ip=primary_server.ip)
-    chroot = '/opt/gluu-server-' + app_config.gluu_version
-
-    cmd_run = '{}'
-
-    #determine execution environment for differetn OS types
-    if (primary_server.os == 'CentOS 7') or (primary_server.os == 'RHEL 7'):
-        chroot = None
-        cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
-                '-o Port=60022 -o LogLevel=QUIET '
-                '-o StrictHostKeyChecking=no '
-                '-o UserKnownHostsFile=/dev/null '
-                '-o PubkeyAuthentication=yes root@localhost "{}"')
-    else:
-        cmd_run ='chroot %s /bin/bash -c "{}"' % (chroot)
-
-    try:
-        c.startup()
-    except Exception as e:
-        return False, "Cannot establish SSH connection {0}".format(e)
+    installer = Installer(
+                primary_server,
+                app_conf.gluu_version,
+                logger_task_id=-1,
+                server_os=None
+                )
 
     #This command queries server for replication status
     cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 4444 -I admin -w $\'{}\'').format(
                     primary_server.hostname,
-                    app_config.replication_pw.replace("'","\\'"))
+                    app_conf.replication_pw.replace("'","\\'"))
 
-    print "executing", cmd
-    cmd = cmd_run.format(cmd)
+    stdin, stdout, stderr = installer.run(cmd)
 
-    si,so,se = c.run(cmd)
-
-    return True, so
+    return True, stdout
 
 
 def as_boolean(val, default=False):
