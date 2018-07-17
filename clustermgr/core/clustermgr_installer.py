@@ -72,8 +72,8 @@ class Installer:
                                 'StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null '
                                 '-o PubkeyAuthentication=yes root@localhost \'{}\''
                                 )
-            
-            self.install_command = self.run_command.format('yum install -y {}')
+
+                self.install_command = self.run_command.format('yum install -y {}')
         else:
             self.run_command = '{}'
 
@@ -167,59 +167,60 @@ class Installer:
 
     def epel_release(self, inside=False):
         if ('CentOS' in self.server_os) or ('RHEL' in self.server_os):
-            wlogger.log(self.logger_task_id, "Installing epel-release")
+            wlogger.log(self.logger_task_id, "Installing epel-release", server_id=self.server_id)
             self.install('epel-release', inside=inside)
 
     def upload_file(self, local, remote):
-        wlogger.log(self.logger_task_id, "Uploading local file {0} to remote server as {1}".format(local, remote), "debug")
+        print "Installer> Uploading local {} to remote {}".format(local, remote)
+        wlogger.log(self.logger_task_id, "Uploading local file {0} to remote server as {1}".format(local, remote), "debug", server_id=self.server_id)
         result = self.conn.upload(local, remote)
 
         if not result[0]:
-            wlogger.log(self.logger_task_id, "Can't upload. {0}".format(result[1]), "error")
-            wlogger.log(self.logger_task_id, "Ending up current process.", "error")
+            wlogger.log(self.logger_task_id, "Can't upload. {0}".format(result[1]), "error", server_id=self.server_id)
+            wlogger.log(self.logger_task_id, "Ending up current process.", "error", server_id=self.server_id)
             return False
 
-        wlogger.log(self.logger_task_id, "File {0} was uploaded as {1}.".format(local, remote), "success")
+        wlogger.log(self.logger_task_id, "File {0} was uploaded as {1}.".format(local, remote), "success", server_id=self.server_id)
 
         return True
 
     def download_file(self, remote, local):
-        wlogger.log(self.logger_task_id, "Downloading remote file {0} as {1}".format(remote, local), "debug")
+        print "Installer> Downloading from {} remote {} to local {}".format(self.hostname, remote,local)
+        wlogger.log(self.logger_task_id, "Downloading remote file {0} to local {1}".format(remote, local), "debug", server_id=self.server_id)
         result = self.conn.download(remote, local)
 
         if not result[0]:
-            wlogger.log(self.logger_task_id, "Can't download. {0}".format(result[1]), "error")
-            wlogger.log(self.logger_task_id, "Ending up current process.", "error")
+            wlogger.log(self.logger_task_id, "Can't download. {0}".format(result[1]), "error", server_id=self.server_id)
+            wlogger.log(self.logger_task_id, "Ending up current process.", "error", server_id=self.server_id)
             return False
 
-        wlogger.log(self.logger_task_id, "File {0} was downloade as {1}.".format(remote, local), "success")
+        wlogger.log(self.logger_task_id, "File {0} was downloaded as {1}.".format(remote, local), "success", server_id=self.server_id)
 
         return True
 
 
     def get_file(self, remote):
-        wlogger.log(self.logger_task_id, "Getting file {0} from {1}".format(remote, self.hostname), "debug")
+        print "Installer> Retreiving remote file {}".format(remote)
+        wlogger.log(self.logger_task_id, "Getting file {0} from {1}".format(remote, self.hostname), "debug", server_id=self.server_id)
         result = self.conn.get_file(remote)
         if not result[0]:
-            wlogger.log(self.logger_task_id, "Can't retreive file {0} from server {1}".format(remote,result[1]), "error")
-            wlogger.log(self.logger_task_id, "Ending up current process.", "error")
-            return False, ''
-        wlogger.log(self.logger_task_id, "File {} was retreived.".format(remote), "success")
+            wlogger.log(self.logger_task_id, "Can't retreive file {0} from server {1}".format(remote,result[1]), "error", server_id=self.server_id)
+            wlogger.log(self.logger_task_id, "Ending up current process.", "error", server_id=self.server_id)
+            return False
+        wlogger.log(self.logger_task_id, "File {} was retreived.".format(remote), "success", server_id=self.server_id)
         
-        return True, result[1].read()
+        return result[1].read()
     
     def put_file(self, remote, content):
+        print "Installer> Writing remote file {}".format(remote)
         result = self.conn.put_file(remote, content)
         if result[0]:
-            wlogger.log(self.logger_task_id, "File {} sent".format(remote), "success")
+            wlogger.log(self.logger_task_id, "File {} was sent".format(remote), "success", server_id=self.server_id)
+            return True
         else:
-            wlogger.log(self.logger_task_id, "Can't send file {0} to server: {1}".format(remote, result[1]), "error")
-            wlogger.log(self.logger_task_id, "Ending up current process.", "error")
+            wlogger.log(self.logger_task_id, "Can't send file {0} to server: {1}".format(remote, result[1]), "error", server_id=self.server_id)
+            wlogger.log(self.logger_task_id, "Ending up current process.", "error", server_id=self.server_id)
             return False
-        
-        wlogger.log(self.logger_task_id, "File {} sent".format(remote), "success")
-        
-        return True
 
     def enable_service(self, service, inside=True):
         self.run('systemctl enable {}.service'.format(service), inside=inside)
@@ -255,9 +256,9 @@ class Installer:
 
         cmd = self.get_install_cmd(package, inside)
 
-        print "Installer> executing: {}".format(run_cmd)
+        print "Installer> executing: {}".format(cmd)
 
-        result = self.conn.run(run_cmd)
+        result = self.conn.run(cmd)
         self.log(result)
         
         return result
@@ -292,7 +293,7 @@ class Installer:
         return self.do_init('start')
 
     def restart_gluu(self):
-        wlogger.log(self.logger_task_id,'Restarting Gluu Server on server ' + self.hostname)
+        wlogger.log(self.logger_task_id,'Restarting Gluu Server on server ' + self.hostname, server_id=self.server_id)
         return self.do_init('restart')
 
     def delete_key(self, suffix, hostname):

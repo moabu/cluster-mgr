@@ -125,9 +125,9 @@ def modifyOxLdapProperties(server, installer, task_id, pDict):
     state = True
 
     # iterate ox-ldap.properties file and modify "servers" entry
-    if result[0]:
+    if result:
         file_content = ''
-        for line in result[1]:
+        for line in result:
             if line.startswith('servers:'):
                 line = 'servers: {0}\n'.format( pDict[server.hostname] )
             file_content += line
@@ -236,92 +236,59 @@ def setup_filesystem_replication(self):
     """Deploys File System replicaton
     """
 
-    tid = self.request.id
-
+    task_id = self.request.id
     servers = Server.query.all()
-    
-    app_config = AppConfiguration.query.first()
+    app_conf = AppConfiguration.query.first()
 
-    chroot = '/opt/gluu-server-' + app_config.gluu_version
-    
     cysnc_hosts = []
     for server in servers:
         cysnc_hosts.append(('csync{}.gluu'.format(server.id), server.ip))
 
     server_counter = 0
 
+    installers = {}
+
+    primary_installer = None
+
     for server in servers:
         
-        c = RemoteClient(server.hostname, ip=server.ip)
-        c.startup()
+        installer =  Installer(
+                                server,
+                                app_conf.gluu_version,
+                                logger_task_id=task_id,
+                                server_os=server.os
+                            )
         
-        modify_hosts(tid, c, cysnc_hosts, chroot=chroot, server_id=server.id)
-
-        run_cmd = "{}"
-        cmd_chroot = chroot
-
-        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-            cmd_chroot = None
-            run_cmd = ("ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o "
-                "Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no "
-                "-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes "
-                "root@localhost '{}'")
+        modify_hosts(installer, cysnc_hosts)
 
         if 'Ubuntu' in server.os:
-            cmd = 'localedef -i en_US -f UTF-8 en_US.UTF-8'
-            run_command(tid, c, cmd, chroot, server_id=server.id)
-
-            cmd = 'locale-gen en_US.UTF-8'
-            run_command(tid, c, cmd, chroot, server_id=server.id)
-
-            install_command = 'DEBIAN_FRONTEND=noninteractive apt-get'
-
-            cmd = '{} update'.format(install_command)
-            run_command(tid, c, cmd, chroot, server_id=server.id)
-
-            cmd = '{} install -y apt-utils'.format(install_command)
-            run_command(tid, c, cmd, chroot, no_error=None, server_id=server.id)
-
-
-            cmd = '{} install -y csync2'.format(install_command)
-            run_command(tid, c, cmd, chroot, server_id=server.id)
-
-
-            cmd = 'apt-get install -y csync2'
-            run_command(tid, c, cmd, chroot, server_id=server.id)
-
+            for cmd in (
+                        'localedef -i en_US -f UTF-8 en_US.UTF-8',
+                        'locale-gen en_US.UTF-8',
+                        'DEBIAN_FRONTEND=noninteractive apt-get update',
+                        ):
+                installer.run(cmd)
+            installer.install('apt-utils')
+            installer.install('csync2')
+            
         elif 'CentOS' in server.os:
+            installer.epel_release(True)
+            installer.run('yum repolist')
 
-
-            cmd = run_cmd.format('yum install -y epel-release')
-            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
-
-            cmd = run_cmd.format('yum repolist')
-            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
-
-            if server.os == 'CentOS 7':
-                csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos7.x86_64.rpm'
-            if server.os == 'CentOS 6':
-                csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos6.x86_64.rpm'
-
-            cmd = run_cmd.format('yum install -y ' + csync_rpm)
-            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
-
-            cmd = run_cmd.format('service xinetd stop')
-            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
+            csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos{}.x86_64.rpm'.format(server.os[-1])
+            installer.install(csync_rpm)
+            
+            installer.stop_service('xinetd stop')
 
         if server.os == 'CentOS 6':
-            cmd = run_cmd.format('yum install -y crontabs')
-            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
+            installer.install('crontabs')
 
-        cmd = run_cmd.format('rm -f /var/lib/csync2/*.db3')
-        run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
-
-        cmd = run_cmd.format('rm -f /etc/csync2*')
-        run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
-
+        installer.run('rm -f /var/lib/csync2/*.db3')
+        installer.run('rm -f /etc/csync2*')
 
         if server.primary_server:
+
+            primary_installer = installer
 
             key_command= [
                 'csync2 -k /etc/csync2.key',
@@ -332,23 +299,16 @@ def setup_filesystem_replication(self):
                 '-signkey /etc/csync2_ssl_key.pem -out /etc/csync2_ssl_cert.pem',
                 ]
 
-            for cmdi in key_command:
-                cmd = run_cmd.format(cmdi)
-                wlogger.log(tid, cmd, 'debug', server_id=server.id)
-                run_command(tid, c, cmd, cmd_chroot, no_error=None,  server_id=server.id)
-
+            for cmd in key_command:
+                installer.run(cmd, error_exception='__ALL__')
 
             csync2_config = get_csync2_config()
-
-            remote_file = os.path.join(chroot, 'etc', 'csync2.cfg')
-
-            wlogger.log(tid, "Uploading csync2.cfg", 'debug', server_id=server.id)
-
-            c.put_file(remote_file,  csync2_config)
+            remote_file = os.path.join(installer.container, 'etc', 'csync2.cfg')
+            installer.put_file(remote_file,  csync2_config)
 
 
         else:
-            wlogger.log(tid, "Downloading csync2.cfg, csync2.key, "
+            wlogger.log(task_id, "Downloading csync2.cfg, csync2.key, "
                         "csync2_ssl_cert.csr, csync2_ssl_cert.pem, and"
                         "csync2_ssl_key.pem from primary server and uploading",
                         'debug', server_id=server.id)
@@ -356,41 +316,44 @@ def setup_filesystem_replication(self):
             down_list = ['csync2.cfg', 'csync2.key', 'csync2_ssl_cert.csr',
                     'csync2_ssl_cert.pem', 'csync2_ssl_key.pem']
 
-            primary_server = Server.query.filter_by(primary_server=True).first()
-            pc = RemoteClient(primary_server.hostname, ip=primary_server.ip)
-            pc.startup()
-            for f in down_list:
-                remote = os.path.join(chroot, 'etc', f)
-                local = os.path.join('/tmp',f)
-                pc.download(remote, local)
-                c.upload(local, remote)
+            #primary_server = Server.query.filter_by(primary_server=True).first()
+            #primary_installer = Installer( primary_server,
+            #                    app_conf.gluu_version,
+            #                    logger_task_id=task_id,
+            #                    server_os=primary_server.os
+            #                    )
+            for file_name in down_list:
+                remote = os.path.join(primary_installer.container, 'etc', file_name)
+                local = os.path.join('/tmp',file_name)
+                primary_installer.server_id = server.id
+                primary_installer.download_file(remote, local)
+                installer.upload_file(local, remote)
 
-            pc.close()
+            
 
         csync2_path = '/usr/sbin/csync2'
 
 
         if 'Ubuntu' in server.os:
 
-            wlogger.log(tid, "Enabling csync2 via inetd", server_id=server.id)
+            wlogger.log(task_id, "Enabling csync2 via inetd", server_id=server.id)
 
-            fc = []
-            inet_conf_file = os.path.join(chroot, 'etc','inetd.conf')
-            r,f=c.get_file(inet_conf_file)
+            new_inet_conf_file_content = []
+            inet_conf_file = os.path.join(installer.container, 'etc','inetd.conf')
+            inet_conf_file_content = installer.get_file(inet_conf_file)
             csync_line = 'csync2\tstream\ttcp\tnowait\troot\t/usr/sbin/csync2\tcsync2 -i -l -N csync{}.gluu\n'.format(server.id) 
             csync_line_exists = False
-            for l in f:
-                if l.startswith('csync2'):
-                    l = csync_line
+            for line in inet_conf_file:
+                if line.startswith('csync2'):
+                    line = csync_line
                     csync_line_exists = True
-                fc.append(l)
+                new_inet_conf_file_content.append(line)
             if not csync_line_exists:
-                fc.append(csync_line)
-            fc=''.join(fc)
-            c.put_file(inet_conf_file, fc)
+                new_inet_conf_file_content.append(csync_line)
+            new_inet_conf_file_content = ''.join(new_inet_conf_file_content)
+            installer.put_file(inet_conf_file, new_inet_conf_file_content)
 
-            cmd = '/etc/init.d/openbsd-inetd restart'
-            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
+            installer.run('/etc/init.d/openbsd-inetd restart')
 
         elif 'CentOS' in server.os:
             inetd_conf = (
@@ -410,47 +373,35 @@ def setup_filesystem_replication(self):
                 'disable         = no\n'
                 '}\n')
 
-            inet_conf_file = os.path.join(chroot, 'etc', 'xinetd.d', 'csync2')
+            inet_conf_file = os.path.join(installer.container, 'etc', 'xinetd.d', 'csync2')
             inetd_conf = inetd_conf % ({'HOSTNAME': 'csync{}.gluu'.format(server.id)})
-            c.put_file(inet_conf_file, inetd_conf)
-
-
-        #cmd = '{} -xv -N {}'.format(csync2_path, server.hostname)
-        #run_command(tid, c, cmd, chroot, no_error=None)
-
-
+            installer.put_file(inet_conf_file, inetd_conf)
 
         #run time sync in every minute
-        cron_file = os.path.join(chroot, 'etc', 'cron.d', 'csync2')
-        c.put_file(cron_file,
+        cron_file = os.path.join(installer.container, 'etc', 'cron.d', 'csync2')
+        installer.put_file(cron_file,
             '{}-59/2 * * * *    root    {} -N csync{}.gluu -xv 2>/var/log/csync2.log\n'.format(
             server_counter, csync2_path, server.id))
 
         server_counter += 1
         
-        wlogger.log(tid, 'Crontab entry was created to sync files in every minute',
+        wlogger.log(task_id, 'Crontab entry was created to sync files in every minute',
                          'debug', server_id=server.id)
 
         if ('CentOS' in server.os) or ('RHEL' in server.os):
             cmd = 'service crond reload'
-            cmd = run_cmd.format('service xinetd start')
-            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
-            cmd = run_cmd.format('service crond restart')
-            run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
-
+            installer.start_service('xinetd')
+            installer.run('service crond restart')
         else:
-            cmd = run_cmd.format('service cron reload')
-            run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
-            cmd = run_cmd.format('service openbsd-inetd restart')
-            run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
+            installer.run('service cron reload')
+            installer.run('service openbsd-inetd restart')
 
-        c.close()
 
     return True
 
 def remove_filesystem_replication_do(server, app_config, tid):
 
-        installer = Installer(server, app_config.gluu_version, logger_tid=tid)
+        installer = Installer(server, app_config.gluu_version, logger_task_id=tid)
         if not installer.c:
             return False
         installer.run('rm /etc/cron.d/csync2')
@@ -585,38 +536,17 @@ def delete_key(suffix, hostname, gluu_version, tid, c, sos):
         wlogger.log(tid, cout+cerr, 'debug')
 
 
-def modify_hosts(tid, c, hosts, chroot='/', server_host=None, server_id=''):
-    wlogger.log(tid, "Modifying /etc/hosts", server_id=server_id)
+def modify_hosts(installer, hosts, inside=True, server_host=None):
+    wlogger.log(installer.logger_task_id, "Modifying /etc/hosts", server_id=installer.server_id)
+    chroot = installer.container if inside else '/'
+    hosts_file = os.path.join(chroot,'etc/hosts')
     
-    h_file = os.path.join(chroot,'etc/hosts')
+    old_hosts = installer.get_file(hosts_file)
     
-    r, old_hosts = c.get_file(h_file)
-    
-    if r:
+    if old_hosts:
         new_hosts = modify_etc_hosts(hosts, old_hosts)
-        c.put_file(h_file, new_hosts)
-        wlogger.log(tid, "{} was modified".format(h_file), 'success', server_id=server_id)
-    else:
-        wlogger.log(tid, "Can't receive {}".format(h_file), 'fail', server_id=server_id)
-
-
-    if chroot:
-
-        h_file = os.path.join(chroot, 'etc/hosts')
-        
-        r, old_hosts = c.get_file(h_file)
-        
-        #for host in hosts:
-        #    if host[0] == server_host:
-        #        hosts.remove(host)
-        #        break
-        
-        if r:
-            new_hosts = modify_etc_hosts(hosts, old_hosts)
-            c.put_file(h_file, new_hosts)
-            wlogger.log(tid, "{} was modified".format(h_file), 'success', server_id=server_id)
-        else:
-            wlogger.log(tid, "Can't receive {}".format(h_file), 'fail', server_id=server_id)
+        installer.put_file(hosts_file, new_hosts)
+        wlogger.log(installer.logger_task_id, "{} was modified".format(hosts_file), 'success', server_id=installer.server_id)
 
 
 def download_and_upload_custom_schema(tid, pc, c, ldap_type, gluu_server):
@@ -1222,12 +1152,10 @@ def installNGINX(self, nginx_host):
     for crt_file in ('httpd.crt', 'httpd.key'):
         wlogger.log(task_id, "Downloading {0} from primary server".format(crt_file), "debug")
         remote_file = '/opt/gluu-server-{0}/etc/certs/{1}'.format(app_conf.gluu_version, crt_file)
-        result = primary_installer.get_file(remote_file)
-                
-        if not result[0]:
-            return False
+        file_content = primary_installer.get_file(remote_file)
 
-        file_content = result[1]
+        if not file_content:
+            return False
 
         remote_file = os.path.join("/etc/nginx/ssl/", crt_file)
 
@@ -1258,7 +1186,7 @@ def installNGINX(self, nginx_host):
             host_ip.append((ship.hostname, ship.ip))
 
         host_ip.append((app_conf.nginx_host, app_conf.nginx_ip))
-        modify_hosts(task_id, nginx_installer.conn, host_ip)
+        modify_hosts(nginx_installer, host_ip, inside=False)
 
     wlogger.log(task_id, "NGINX successfully installed")
 
