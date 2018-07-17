@@ -207,8 +207,10 @@ function adjustBar() {
 var task_id = "{{ task.id }}";
 var timer;
 var errors = 0;
+var warnings = 0;
 
 function logitem(message, state){
+        
     var item = document.createElement('li');
     item.setAttribute('class', 'list-group-item');
     var icon = document.createElement('i');
@@ -218,6 +220,7 @@ function logitem(message, state){
     } else if ( state === 'error' || state === 'fail' ) {
         icon.setAttribute('class', 'glyphicon glyphicon-remove-sign pull-right')
         item.setAttribute('class', 'list-group-item text-danger');
+        errors++;
     } else if ( state === 'info' ){
         icon.setAttribute('style', 'padding-right: 5px')
         icon.setAttribute('class', 'glyphicon glyphicon-tasks')
@@ -235,6 +238,7 @@ function logitem(message, state){
         icon.setAttribute('style', 'padding-right: 5px')
         icon.setAttribute('class', 'glyphicon glyphicon-warning-sign')
         item.setAttribute('class', 'list-group-item list-group-item-warning');
+        warnings++;
     } else if ( state === 'debug' ){
         item = document.createElement('pre')
         item.setAttribute('class', 'list-group-item');
@@ -292,11 +296,11 @@ function setStep(n){
 
 
 function updateLog(){
+    {% if not multistep %}logger = "#log_container"{% endif %};
     $.get('{{ url_for("index.get_log", task_id=task.id) }}', function(data){
         var logs = data.messages;
         //var logged_msgs = $('.list-group-item').length;
         for(var i=lastLoggedItem; i<logs.length; i++){
-            
 
             console.log(logs[i].level, logs[i].msg);
             if (logs[i].level==='debugc') {
@@ -353,9 +357,22 @@ function updateLog(){
             active_link.removeClass('fa').removeClass('fa-gear').removeClass('fa-spin').removeClass('fa-fw').removeClass('fa-blue');
 
             if (errors){
-                var err_msg = "Errors were found. Fix them in the server and refresh this page to try again.";
-                var entry = logitem(err_msg, 'warning');
-                $('#logger').append(entry);
+                //var err_msg = "Errors were found. Fix them in the server and refresh this page to try again.";
+                //var entry = logitem(err_msg, 'warning');
+            
+                if(errors || warnings) {
+                    $.notify({
+                        title: '<h5><i class="glyphicon glyphicon-warning-sign"></i> Problems Found! Review Logs</h5>',
+                        message: errors.toString()+' Errors and '+warnings+' Warnings were encountered during the process. Kindly review the log of each server before restarting the process.',
+                    },{
+                        type: "warning",
+                        placement: {from: "bottom", align: "center"},
+                        delay: 0,
+                        animate: {enter: 'animated fadeInUp', exit: 'animated fadeOutDown'}
+                    });
+            
+                }
+                $(logger).append(entry);
                 entry.scrollIntoView(false);
                 $('#retry').show()[0].scrollIntoView({behavior: "smooth", block: "end"});
             } else {
@@ -371,6 +388,11 @@ function updateLog(){
                 $('#home').show()[0].scrollIntoView({behavior: "smooth", block: "end"});
               {%endif%}  
             }
+            
+            
+            
+            
+            
         }
     });
 }

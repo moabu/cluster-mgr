@@ -248,7 +248,7 @@ def install_nginx():
     head = "Installing NGINX Server on {0}".format(app_conf.nginx_host)
     nextpage = "index.multi_master_replication"
     whatNext = "LDAP Replication"
-    return render_template("logger.html", heading=head, server=app_conf.nginx_host,
+    return render_template('logger_single.html', title=head, server=app_conf.nginx_host,
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
 
@@ -259,15 +259,15 @@ def opendj_enable_replication(server_id):
     whatNext = "LDAP Replication"
     if not server_id == 'all':
         server = Server.query.get(server_id)
-        head = "Enabling Replication on Server: " + server.hostname
+        head = "Enabling Multimaster Replication on Server: " + server.hostname
     else:
-        head = "Enabling Replication on all servers"
+        head = "Enabling Multimaster Replication on all servers"
         server = ''
 
     #Start openDJ replication celery task
     task = opendjenablereplication.delay(server_id)
 
-    return render_template("logger.html", heading=head, server=server,
+    return render_template('logger_single.html', title=head, server=server,
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
 
