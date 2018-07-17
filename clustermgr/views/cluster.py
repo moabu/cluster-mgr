@@ -368,8 +368,14 @@ def file_system_replication():
 
     task = setup_filesystem_replication.delay()
 
-    return render_template('fsr_install_logger.html', step=1,
-                           task_id=task.id, servers=servers)
+    title = "Installing File System Replication"
+    nextpage='cache_mgr.index'
+    whatNext="Cache Management"
+    
+    return render_template('logger_single.html',
+                           task_id=task.id, title=title,
+                           nextpage=nextpage, whatNext=whatNext,
+                           task=task, multiserver=servers)
                            
 
 @cluster.route('/removefsrep')

@@ -98,6 +98,23 @@
   </div>
 {% endfor %}
 
+{% elif multiserver %}
+
+  {%for server in multiserver %}
+  
+  <div class="panel panel-success">
+    <div class="panel-heading">
+      <h4 class="panel-title">
+         <a href="#log_container_{{ server.id }}" role="button" data-toggle="collapse" data-parent="#accordion">{{ server.hostname }}</a>
+      </h4>
+    </div>
+  
+    <div id="log_container_{{ server.id }}" class="panel-collapse collapse in" role="tabpanel">
+      <ul id="logger_{{ server.id }}" class="list-group"></ul>
+    </div>
+  </div>
+{% endfor %}
+
   
 
 {% else %}
@@ -294,17 +311,31 @@ function setStep(n){
         }
 }
 
+var server_id;
+
 
 function updateLog(){
-    {% if not multistep %}logger = "#log_container"{% endif %};
+    
     $.get('{{ url_for("index.get_log", task_id=task.id) }}', function(data){
         var logs = data.messages;
         //var logged_msgs = $('.list-group-item').length;
         for(var i=lastLoggedItem; i<logs.length; i++){
+            {% if multiserver %}
+            new_server_id =  parseInt(logs[i].server_id)
+            if ( server_id != new_server_id) {
+                    if (new_server_id>1){
+                        $('#log_container_'+(new_server_id-1)).collapse('hide')
+                    }
+                }
+            
+            server_id = new_server_id;
+            {% endif %}
 
-            console.log(logs[i].level, logs[i].msg);
+            console.log(logs[i].level, logs[i].msg, server_id);
+             
             if (logs[i].level==='debugc') {
                 var entry = document.getElementById(logs[i].log_id);
+               
                 entry.innerHTML = logs[i].msg;
                 lastLoggedItem++;
             } else if (logs[i].level==='setstep') {
@@ -330,7 +361,13 @@ function updateLog(){
                         console.log("New log id created"+logs[i].log_id);
                     }
                 }
-    
+                {% if not multistep %}
+                {% if multiserver %}
+                logger = "#log_container_"+server_id;
+                {%else%}
+                logger = "#log_container";
+                {% endif %}
+                {% endif %}
                 $(logger).append(entry);
                 console.log(entry);
                 lastLoggedItem++;
@@ -355,6 +392,11 @@ function updateLog(){
             //active_step.removeClass('active').addClass('complete');
             active_link = $('#progress-link-{{cur_step}}');
             active_link.removeClass('fa').removeClass('fa-gear').removeClass('fa-spin').removeClass('fa-fw').removeClass('fa-blue');
+
+            {% if multiserver %}
+            $('#log_container_'+server_id).collapse('hide');
+            {% endif %}
+
 
             if (errors){
                 //var err_msg = "Errors were found. Fix them in the server and refresh this page to try again.";

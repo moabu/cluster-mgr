@@ -239,6 +239,7 @@ def setup_filesystem_replication(self):
     tid = self.request.id
 
     servers = Server.query.all()
+    
     app_config = AppConfiguration.query.first()
 
     chroot = '/opt/gluu-server-' + app_config.gluu_version
