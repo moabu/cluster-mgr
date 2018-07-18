@@ -284,7 +284,6 @@ def setup_filesystem_replication_do(task_id):
             
         elif 'CentOS' in server.os:
             installer.epel_release(True)
-            installer.run('yum repolist')
 
             csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos{}.x86_64.rpm'.format(server.os[-1])
             installer.install(csync_rpm)

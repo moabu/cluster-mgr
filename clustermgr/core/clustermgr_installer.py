@@ -14,14 +14,7 @@ class Installer:
         self.server_os = server_os
         self.server_id=server_id
 
-        if self.server_os == 'CentOS 7' or self.server_os == 'RHEL 7':
-            self.init_command = '/sbin/gluu-serverd-{0} {1}'.format(
-                                self.gluu_version,'{}')
-        else:
-            self.init_command = '/etc/init.d/gluu-server-{0} {1}'.format(
-                                self.gluu_version,'{}')
-
-        if not "RemoteClient" in str(type(conn)):
+        if conn.__class__.__name__ != "RemoteClient" and conn.__class__.__name__ != 'FakeRemote':
             self.server_os = conn.os
             self.server_id = conn.id
             self.conn = RemoteClient(conn.hostname, conn.ip)
@@ -55,8 +48,16 @@ class Installer:
         
         if self.conn and not self.server_os:
             self.get_os_type()
-        
-        if self.conn and (not hasattr(self.conn, 'fake_remote')):
+
+
+        if self.server_os == 'CentOS 7' or self.server_os == 'RHEL 7':
+            self.init_command = '/sbin/gluu-serverd-{0} {1}'.format(
+                                self.gluu_version,'{}')
+        else:
+            self.init_command = '/etc/init.d/gluu-server-{0} {1}'.format(
+                                self.gluu_version,'{}')
+
+        if self.conn and conn.__class__.__name__ != 'FakeRemote':
             
             self.container = '/opt/gluu-server-{}'.format(gluu_version)
         
@@ -129,10 +130,10 @@ class Installer:
         channel.get_pty()
         channel.exec_command(cmd)
 
-        print "Starting channel loop"
+        print "Installer> Starting channel loop"
         while True:
             if channel.exit_status_ready():
-                print "Stopping channel loop"
+                print "Installer> Stopping channel loop"
                 break
             rl = ''
             try:
@@ -169,6 +170,7 @@ class Installer:
         if ('CentOS' in self.server_os) or ('RHEL' in self.server_os):
             wlogger.log(self.logger_task_id, "Installing epel-release", server_id=self.server_id)
             self.install('epel-release', inside=inside)
+            self.run('yum repolist')
 
     def upload_file(self, local, remote):
         print "Installer> Uploading local {} to remote {}".format(local, remote)
@@ -254,10 +256,16 @@ class Installer:
 
     def install(self, package, inside=True):
 
+        if package.endswith('-dev'):
+            if ('CentOS' in self.server_os) or ('RHEL' in self.server_os):
+                package += 'el'
+
         cmd = self.get_install_cmd(package, inside)
 
         print "Installer> executing: {}".format(cmd)
 
+        wlogger.log(self.logger_task_id, "Installing package {0} with command: {1}".format(package, cmd), "debug", server_id=self.server_id)
+        
         result = self.conn.run(cmd)
         self.log(result)
         

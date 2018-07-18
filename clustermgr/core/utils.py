@@ -536,3 +536,7 @@ def make_nginx_proxy_conf(exception=None):
     nginx_tmp = nginx_tmp.replace('{#PINGSTRING#}', ' '.join(server_list))
 
     return nginx_tmp
+
+def is_debian_clone(os_type):
+    if ('Ubuntu' in os_type) or ('Debian' in os_type):
+        return True

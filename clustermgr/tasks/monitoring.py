@@ -4,68 +4,18 @@ import getpass
 
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, wlogger, celery
-from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import DBManager
+from clustermgr.core.clustermgr_installer import Installer
+from clustermgr.core.utils import is_debian_clone
+from clustermgr.core.remote import FakeRemote
+
+
 
 from flask import current_app as app
 
 from influxdb import InfluxDBClient
 
-class FakeRemote():
-    
-    """Provides fake remote class with the same run() function.
-    """
-    
-    def run(self, cmd):
-        
-        """This method executes cmd as a sub-process.
 
-        Args:
-            cmd (string): commands to run locally
-        
-        Returns:
-            Standard input, output and error of command
-        
-        """
-
-        cin, cout, cerr = os.popen3(cmd)
-
-        return '', cout.read(), cerr.read()
-
-
-def run_and_log(c, cmd, tid, sid):
-    
-    """Shorthand for FakeRemote.run(). This function automatically logs
-    the commands output to be shared in the web frontend.
-
-    Args:
-        c (:object:`FakeRemote`): class to be used to run cammand
-        cmd (string): the command to be run on local server
-        tid (string): task id of the task to store the log
-        sid (integer): id of the server
-
-    Returns:
-        the output of the command or the err thrown by the command as a string
-    """
-    
-    wlogger.log(tid, "Running {}".format(cmd))
-
-    result = c.run(cmd)
-    
-    if result[2].strip():
-        if "Redirecting to /bin/systemctl" in result[2]:
-            wlogger.log(tid,result[2].strip(), "debug", server_id=sid)
-        else:
-            wlogger.log(tid, "An error occurrued while executing "
-                    "{}: {}".format(cmd, result[2]),
-                    "error", server_id=sid)
-    
-    else:
-        wlogger.log(tid, "Command was run successfully: {}".format(cmd),
-                        "success", server_id=sid)
-                                
-
-    return result
 
 @celery.task(bind=True)
 def install_local(self):
@@ -78,22 +28,29 @@ def install_local(self):
         successfully
     """
     
-    tid = self.request.id
+    task_id = self.request.id
     servers = Server.query.all()
     
     #create fake remote class that provides the same interface with RemoteClient
     fc = FakeRemote()
     
+    installer = Installer(
+                conn=fc,
+                gluu_version=None,
+                server_id=0,
+                logger_task_id=task_id,
+                )
+    
     #Getermine local OS type
-    localos= fc.server_os
+    localos= installer.server_os
 
     
 
-    wlogger.log(tid, "Local OS was determined as {}".format(localos), "success", server_id=0)
+    wlogger.log(task_id, "Local OS was determined as {}".format(localos), "success", server_id=0)
 
     if not localos == 'Alpine':
     
-        wlogger.log(tid, "Installing InfluxDB and Python client", "info", server_id=0)
+        wlogger.log(task_id, "Installing InfluxDB and Python client", "info", server_id=0)
         
         #commands to install influxdb on local machine for each OS type
         if 'Ubuntu' in localos:
@@ -172,26 +129,8 @@ def install_local(self):
         #run commands to install influxdb on local machine
         for cmd in influx_cmd:
         
-            result = fc.run(cmd)
+            result = installer.run(cmd, error_exception='__ALL__', inside=False)
             
-            rtext = "\n".join(result)
-            if rtext.strip():
-                wlogger.log(tid, rtext, "debug", server_id=0)
-        
-            err = False
-        
-            if result[2].strip():
-                if not "pip install --upgrade pip" in result[2]:
-                    wlogger.log(tid, "An error occurrued while executing "
-                                "{}: {}".format(cmd, result[2]),
-                                "error", server_id=0)
-                    err = True
-            
-            if not err:
-                wlogger.log(tid, "Command was run successfully: {}".format(cmd),
-                                "success", server_id=0)
-    
-
     #Statistics will be written to 'gluu_monitoring' on local influxdb server,
     #so we should crerate it.
     try:
@@ -201,7 +140,7 @@ def install_local(self):
                     )
         client.create_database('gluu_monitoring')
 
-        wlogger.log(tid, "InfluxDB database 'gluu_monitoring was created",
+        wlogger.log(task_id, "InfluxDB database 'gluu_monitoring was created",
                             "success", server_id=0)
     except Exception as e:
         wlogger.log(tid, "An error occurred while creating InfluxDB database "
@@ -209,8 +148,8 @@ def install_local(self):
                             "fail", server_id=0)
 
     #Flag database that configuration is done for local machine
-    app_config = AppConfiguration.query.first()
-    app_config.monitoring = True
+    app_conf = AppConfiguration.query.first()
+    app_conf.monitoring = True
     db.session.commit()
 
     return True
@@ -226,38 +165,23 @@ def install_monitoring(self):
     :return: wether monitoring were installed successfully
     """
     
-    tid = self.request.id
+    task_id = self.request.id
     installed = 0
     servers = Server.query.all()
-    app_config = AppConfiguration.query.first()
+    app_conf = AppConfiguration.query.first()
     
     for server in servers:
-        # 1. Make SSH Connection to the remote server
-        wlogger.log(tid, "Making SSH connection to the server {0}".format(
-            server.hostname), "info", server_id=server.id)
+        # 1. Installer
+        installer = Installer(
+                server, 
+                app_conf.gluu_version, 
+                logger_task_id=task_id, 
+                server_os=server.os
+                )
 
-        c = RemoteClient(server.hostname, ip=server.ip)
-        try:
-            c.startup()
-        except Exception as e:
-            wlogger.log(
-                tid, "Cannot establish SSH connection {0}".format(e), 
-                "warning",  server_id=server.id)
-            wlogger.log(tid, "Ending server setup process.", 
-                                "error", server_id=server.id)
-            return False
-        
         # 2. create monitoring directory
-        result = c.run('mkdir -p /var/monitoring/scripts')
+        installer.run('mkdir -p /var/monitoring/scripts', inside=False)
 
-        ctext = "\n".join(result)
-        if ctext.strip():
-            wlogger.log(tid, ctext,
-                         "debug", server_id=server.id)
-
-        wlogger.log(tid, "Directory /var/monitoring/scripts directory "
-                        "was created", "success", server_id=server.id)
-        
         # 3. Upload scripts
         
         scripts = (
@@ -266,27 +190,18 @@ def install_monitoring(self):
                     'sqlite_monitoring_tables.py'
                     )
         
-        for scr in scripts:
+        for script in scripts:
         
-            local_file = os.path.join(app.root_path, 'monitoring_scripts', scr)
+            local_file = os.path.join(app.root_path, 'monitoring_scripts', script)
                                         
-            remote_file = '/var/monitoring/scripts/'+scr
+            remote_file = '/var/monitoring/scripts/'+script
 
-            result = c.upload(local_file, remote_file)
-            
-            if result.startswith("Upload successful"):
-                wlogger.log(tid, "File {} was uploaded".format(scr),
-                                "success", server_id=server.id)
-            else:
-                wlogger.log(tid, "File {} could not "
-                                "be uploaded: {}".format(scr, result),
-                                "error", server_id=server.id)
+            if not installer.upload_file(local_file, remote_file):
                 return False
         
         # 4. Upload gluu version, no need to determine gluu version each time
         
-        result = c.put_file('/var/monitoring/scripts/gluu_version.txt', app_config.gluu_version)
-        
+        installer.put_file('/var/monitoring/scripts/gluu_version.txt', app_conf.gluu_version)
         
         # 5. Upload crontab entry to collect data in every 5 minutes
         crontab_entry = (
@@ -294,67 +209,41 @@ def install_monitoring(self):
                         '/var/monitoring/scripts/cron_data_sqtile.py\n'
                         )
                         
-        result = c.put_file('/etc/cron.d/monitoring', crontab_entry)
-        
-        
-        if not result[0]:
-            wlogger.log(tid, "An errorr occurred while uploading crontab entry"
-                                ": {}".format(result[1]),
-                                "error", server_id=server.id)
-        else:
-            wlogger.log(tid, "Crontab entry was uploaded",
-                                "success", server_id=server.id)
-        
+        if not installer.put_file('/etc/cron.d/monitoring', crontab_entry):
+            return False
+
+
+        installer.epel_release()
+
         # 6. Installing packages. 
         # 6a. First determine commands for each OS type
-        if ('CentOS' in server.os) or ('RHEL' in server.os):
-            package_cmd = [ 'yum install -y epel-release',
-                            'yum repolist',
-                            'yum install -y gcc', 
-                            'yum install -y python-devel',
-                            'yum install -y python-pip',
-                            'service crond restart'
-                            ]
-                            
-        else:
-            package_cmd = [ 
-                            'DEBIAN_FRONTEND=noninteractive apt-get install -y gcc', 
-                            'DEBIAN_FRONTEND=noninteractive apt-get install -y python-dev',
-                            'DEBIAN_FRONTEND=noninteractive apt-get install -y python-pip',
-                            'service cron restart',
-                            ]
+        packages = ['gcc', 'python-dev', 'python-pip']
+
+        for package in packages:
+            installer.install(package, inside=False)
+
         # 6b. These commands are common for all OS types 
-        package_cmd += [
+        commands = [
                         'pip install ldap3', 
                         'pip install psutil',
                         'pip install pyDes',
                         'python /var/monitoring/scripts/'
                         'sqlite_monitoring_tables.py'
-                        
                         ]
+
+        if is_debian_clone(server.os):
+            commands.append('service cron restart')
+        else:
+            commands.append('service crond restart')
+
         # 6c. Executing commands
-        wlogger.log(tid, "Installing Packages and Running Commands", 
+        wlogger.log(task_id, "Installing Packages and Running Commands", 
                             "info", server_id=server.id)
         
-        for cmd in package_cmd:
+        for cmd in commands:
             
-            result = c.run(cmd)
+            result = installer.run(cmd, inside=False, error_exception='__ALL__')
         
-            wlogger.log(tid, "\n".join(result), "debug", server_id=server.id)
-        
-            err = False
-        
-            if result[2].strip():
-                print "Writing error", cmd
-                if not ("pip install --upgrade pip" in result[2] or 'Redirecting to /bin/systemctl' in result[2]):
-                    wlogger.log(tid, "An error occurrued while executing "
-                                "{}: {}".format(cmd, result[2]),
-                                "error", server_id=server.id)
-                    err = True
-            
-            if not err:
-                wlogger.log(tid, "Command was run successfully: {}".format(cmd),
-                                "success", server_id=server.id)
         server.monitoring = True
 
     db.session.commit()

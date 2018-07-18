@@ -379,10 +379,24 @@ def setup_local():
     """This view provides setting up monitoring components on local machine"""
     server = Server( hostname='localhost', id=0)
 
-    task = install_local.delay()
-    return render_template('monitoring_setup_logger.html', step=2,
-                           task_id=task.id, servers=[server])
+    steps = ['Install Components on Servers', 'Setup Local Server']
 
+    title = "Install Monitoring Componenets"
+    whatNext = "Go to Monitoring Page"
+    nextpage = url_for('monitoring.home')
+
+    task = install_local.delay()
+    
+    return render_template('logger_single.html',
+                           title=title,
+                           steps=steps,
+                           task=task,
+                           cur_step=2,
+                           auto_next=False,
+                           multiserver=[server],
+                           nextpage=nextpage,
+                           whatNext=whatNext
+                           )
 
 
 @monitoring.route('/setupservers')
@@ -402,13 +416,24 @@ def setup():
               "warning")
         return redirect(url_for('index.home'))
 
+    steps = ['Install Components on Servers', 'Setup Local Server']
 
+    title = "Install Monitoring Componenets"
+    whatNext = steps[1]
+    nextpage = url_for('monitoring.setup_local')
     servers = Server.query.all()
     task = install_monitoring.delay()
-    return render_template('monitoring_setup_logger.html', step=1,
-                           task_id=task.id, servers=servers)
-
-
+    
+    return render_template('logger_single.html',
+                           title=title,
+                           steps=steps,
+                           task=task,
+                           cur_step=1,
+                           auto_next=False,
+                           multiserver=servers,
+                           nextpage=nextpage,
+                           whatNext=whatNext
+                           )
 
 @monitoring.route('/system/<item>')
 def system(item):
