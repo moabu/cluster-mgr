@@ -18,7 +18,7 @@ from clustermgr.forms import ServerForm, InstallServerForm, \
     SetupPropertiesLastForm
 from clustermgr.tasks.server import collect_server_details
 
-from clustermgr.tasks.server import task_install_gluu_server
+from clustermgr.tasks.server import task_install_gluu_server, task_test
 
 from clustermgr.core.remote import RemoteClient, ClientNotSetupException
 from ..core.license import license_required
@@ -666,6 +666,33 @@ def install_gluu_server(server_id):
                            cur_step=1,
                            auto_next=False,
                            multistep=True,
+                           nextpage=nextpage,
+                           whatNext=whatNext
+                           )
+
+
+@server_view.route('/test', methods=['GET'])
+def test_view():
+    print "Test View"
+    
+    task = task_test.delay()
+    
+    steps = ['Perpare Server', 'Install Gluu Container', 'Run setup.py', 'Post Installation']
+
+    server = Server.query.first()
+    servers = Server.query.all()
+    title = "You should not come this page!!!"
+
+    nextpage = 'index.home'
+    whatNext = "Dashboard"
+
+    return render_template('logger_single.html',
+                           title=title,
+                           steps=steps,
+                           task=task,
+                           cur_step=2,
+                           auto_next=False,
+                           multiserver=servers,
                            nextpage=nextpage,
                            whatNext=whatNext
                            )

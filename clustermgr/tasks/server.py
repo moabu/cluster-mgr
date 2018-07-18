@@ -626,7 +626,7 @@ def install_gluu_server(task_id, server_id):
 
     if not result:
         return False
-    
+
     cmd = 'chmod +x {}'.format(remote_opendj_init_script)
     installer.run(cmd, inside=False)
 
@@ -634,3 +634,21 @@ def install_gluu_server(task_id, server_id):
     db.session.commit()
     wlogger.log(task_id, "Gluu Server successfully installed")
     wlogger.log(task_id, "5", "setstep")
+
+
+@celery.task(bind=True)
+def task_test(self):
+    
+    task_id = self.request.id
+
+    for si in range(1,4):
+        for i in range(3):
+            wlogger.log(task_id, str(i), server_id=si)
+            time.sleep(1)
+
+    wlogger.log(task_id, "2", "setstep")
+    
+    for si in range(1,4):
+        for i in range(3):
+            wlogger.log(task_id, str(i), server_id=si)
+            time.sleep(1)

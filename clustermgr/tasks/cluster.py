@@ -4,7 +4,7 @@ import os
 import re
 import time
 import subprocess
-
+import traceback
 from flask import current_app as app
 
 from clustermgr.models import Server, AppConfiguration
@@ -235,8 +235,19 @@ def get_csync2_config(exclude=None):
 def setup_filesystem_replication(self):
     """Deploys File System replicaton
     """
-
     task_id = self.request.id
+
+    try:
+        setup_filesystem_replication_do(task_id)
+    except:
+        raise Exception(traceback.format_exc())
+        
+
+
+def setup_filesystem_replication_do(task_id):
+    """Deploys File System replicaton
+    """
+
     servers = Server.query.all()
     app_conf = AppConfiguration.query.first()
 

@@ -81,7 +81,7 @@
 
 <br>
 
-{% if multistep %}
+{% if steps and not multiserver%}
 
   {%for step in steps %}
   
@@ -98,31 +98,31 @@
   </div>
 {% endfor %}
 
-{% elif multiserver %}
+{% endif %}
 
+{% if multiserver %}
   {%for server in multiserver %}
   
   <div class="panel panel-success">
     <div class="panel-heading">
       <h4 class="panel-title">
-         <a href="#log_container_{{ server.id }}" role="button" data-toggle="collapse" data-parent="#accordion">{{ server.hostname }}</a>
+         <a href="#log_container_server_{{ server.id }}" role="button" data-toggle="collapse" data-parent="#accordion">{{ server.hostname }}</a>
       </h4>
     </div>
   
-    <div id="log_container_{{ server.id }}" class="panel-collapse collapse in" role="tabpanel">
-      <ul id="logger_{{ server.id }}" class="list-group"></ul>
+    <div id="log_container_server_{{ server.id }}" class="panel-collapse collapse in" role="tabpanel">
+      <ul id="logger_server_{{ server.id }}" class="list-group"></ul>
     </div>
   </div>
 {% endfor %}
 
-  
+{% endif %}
 
-{% else %}
+{% if not ( multiserver and steps) %}
 
   <div id="log_container" class="panel-collapse collapse in" role="tabpanel">
     <ul id="logger" class="list-group"></ul>
   </div>
-
 
 {% endif %}
 
@@ -174,7 +174,7 @@
 <script>
     
 var logger_step;
-var multistep = {% if multistep %} true {% else %} false {% endif %};
+//var multistep = {% if steps %} true {% else %} false {% endif %};
 var logger;
 
 $(document).ready(function() {
@@ -324,7 +324,7 @@ function updateLog(){
             new_server_id =  parseInt(logs[i].server_id)
             if ( server_id != new_server_id) {
                     if (new_server_id>1){
-                        $('#log_container_'+(new_server_id-1)).collapse('hide')
+                        $('#log_container_server_'+(new_server_id-1)).collapse('hide')
                     }
                 }
             
@@ -348,6 +348,7 @@ function updateLog(){
                     
                         $('#log_container_'+(step_int-1)).collapse('hide')
                     }
+                    
                     console.log('setting step '+logs[i].msg)
                     setStep(step_int);
                 }
@@ -361,13 +362,17 @@ function updateLog(){
                         console.log("New log id created"+logs[i].log_id);
                     }
                 }
-                {% if not multistep %}
-                {% if multiserver %}
-                logger = "#log_container_"+server_id;
+                {% if steps and not multiserver%}
+                console.log("noo");
+                logger = "#log_container_"+logger_step;
+                {% elif multiserver%}
+                logger = "#log_container_server_"+server_id;
                 {%else%}
                 logger = "#log_container";
                 {% endif %}
-                {% endif %}
+                
+                console.log("log container", logger)
+                
                 $(logger).append(entry);
                 console.log(entry);
                 lastLoggedItem++;
@@ -394,7 +399,7 @@ function updateLog(){
             active_link.removeClass('fa').removeClass('fa-gear').removeClass('fa-spin').removeClass('fa-fw').removeClass('fa-blue');
 
             {% if multiserver %}
-            $('#log_container_'+server_id).collapse('hide');
+            $('#log_container_server_'+server_id).collapse('hide');
             {% endif %}
 
 
