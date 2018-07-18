@@ -10,13 +10,13 @@ CUSTOM_CONFIG=/root/.clustermgr/instance/config.py
 redis-server /etc/redis.conf &
 
 # upgrade database schema
-clustermgr-cli db upgrade &
+clusterapp.py db upgrade
 
 # run celery worker
-clustermgr-celery &
+celery multi start worker -A clusterapp.celery &
 
 # run celery beat
-clustermgr-beat &
+celery beat -A clusterapp.celery -s "/root/.clustermgr/celerybeat-schedule" &
 
 if [ ! -f $CUSTOM_CONFIG ]; then
     mkdir -p $(dirname $CUSTOM_CONFIG)
@@ -26,4 +26,4 @@ if [ ! -f $CUSTOM_CONFIG ]; then
 fi
 
 # a workaround to catch SIG properly
-exec clustermgr-cli run -h 0.0.0.0 -p 5000
+exec gunicorn -b 0.0.0.0:5000 -w 2 clusterapp:app

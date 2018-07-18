@@ -9,6 +9,8 @@ RUN apk add --no-cache --update \
     py-pip \
     ca-certificates \
     redis \
+    openssl \
+    wget \
     py-flask \
     py-redis \
     py2-sqlalchemy \
@@ -29,6 +31,19 @@ RUN wget -q https://dl.influxdata.com/influxdb/releases/influxdb-1.4.3-static_li
     && rm -f /tmp/influxdb-1.4.3-static_linux_amd64.tar.gz \
     && sed  's/dir = "\/var\/lib\/influxdb\/meta"/dir = "\/root\/influxdb\/meta"/g' < /opt/influxdb-1.4.3-1/influxdb.conf > /etc/influxdb/influxdb.conf
 
+# ====
+# Gluu
+# ====
+ENV OX_VERSION 3.1.3.Final
+
+# License validator and Keygen
+RUN mkdir -p /root/.clustermgr/javalibs \
+    && wget -q https://ox.gluu.org/maven/org/xdi/oxlicense-validator/${OX_VERSION}/oxlicense-validator-${OX_VERSION}-jar-with-dependencies.jar -O /root/.clustermgr/javalibs/oxlicense-validator.jar \
+    && wget -q https://ox.gluu.org/maven/org/xdi/oxauth-client/${OX_VERSION}/oxauth-client-${OX_VERSION}-jar-with-dependencies.jar -O /root/.clustermgr/javalibs/keygen.jar
+
+# ===============
+# Cluster Manager
+# ===============
 WORKDIR /app
 
 # to force download master.zip, run `docker build` with `--build-arg`
@@ -48,6 +63,8 @@ EXPOSE 5000
 
 # switch to production mode
 ENV APP_MODE prod
+
+ENV PYTHONPATH /usr/local/bin:/usr/bin
 
 # entrypoint
 COPY appstarter.sh /app/appstarter.sh
