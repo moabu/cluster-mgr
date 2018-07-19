@@ -23,15 +23,18 @@ cache_mgr.before_request(license_required)
 cache_mgr.before_request(license_reminder)
 
 
+cache_steps = ["Install Components", "Configure Components", "Restart Services"]
+
+
 @cache_mgr.route('/')
 @login_required
 def index():
     servers = Server.query.all()
-    appconf = AppConfiguration.query.first()
+    app_conf = AppConfiguration.query.first()
     
 
     
-    if not appconf:
+    if not app_conf:
         flash("The application needs to be configured first. Kindly set the "
               "values before attempting clustering.", "warning")
         return redirect(url_for("index.app_configuration"))
@@ -42,12 +45,12 @@ def index():
         return redirect(url_for('index.home'))
 
 
-    if appconf.external_load_balancer:
-        c_host = appconf.cache_host
-        c_ip = appconf.cache_ip
+    if app_conf.external_load_balancer:
+        c_host = app_conf.cache_host
+        c_ip = app_conf.cache_ip
     else:
-        c_host = appconf.nginx_host
-        c_ip = appconf.nginx_ip
+        c_host = app_conf.nginx_host
+        c_ip = app_conf.nginx_ip
         
 
 
@@ -71,7 +74,7 @@ def index():
         else:
             server.redis = False
 
-    version = int(appconf.gluu_version.replace(".", ""))
+    version = int(app_conf.gluu_version.replace(".", ""))
     if version < 311:
         flash("Cache Management is available only for clusters configured with"
               " Gluu Server version 3.1.1 and above", "danger")
@@ -89,8 +92,6 @@ def refresh_methods():
     return jsonify({'task_id': task.id})
 
 
-
-
 def get_servers_and_list():
     server_id = request.args.get('id')
     
@@ -106,6 +107,8 @@ def get_servers_and_list():
 @cache_mgr.route('/change/', methods=['GET', 'POST'])
 @login_required
 def change():
+
+    app_conf = AppConfiguration.query.first()
     servers, server_id_list, server_id = get_servers_and_list()
     
     method = 'STANDALONE'
@@ -114,13 +117,28 @@ def change():
         return redirect(url_for('cache_mgr.index'))
     
     task = install_cache_components.delay(method, server_id_list)
+
+    nextpage = url_for('cache_mgr.configure', method=method)
+    whatNext = cache_steps[1]
+    title = "Cache Clustering"
+
+    if not app_conf.external_load_balancer:
+        #mock server for cache
+        mock_nginx = Server(
+                    hostname="Nginx Proxy [{0}]".format(app_conf.nginx_host),
+                    id=9999)
     
-    return render_template( 'cache_logger.html', 
-                            method=method,
-                            step=1,
-                            task_id=task.id,
-                            servers=servers, 
-                            server_id=server_id
+        servers.append(mock_nginx)
+
+    return render_template('logger_single.html',
+                           title=title,
+                           steps=cache_steps,
+                           task=task,
+                           cur_step=1,
+                           auto_next=False,
+                           multiserver=servers,
+                           nextpage=nextpage,
+                           whatNext=whatNext
                            )
 
 
@@ -128,18 +146,33 @@ def change():
 @login_required
 def configure(method):
 
+    app_conf = AppConfiguration.query.first()
     servers, server_id_list, server_id = get_servers_and_list()
 
     task = configure_cache_cluster.delay(method, server_id_list)
 
+    nextpage = url_for('cache_mgr.configure', method=method)
+    whatNext = cache_steps[2]
+    title = "Cache Clustering"
 
+    if not app_conf.external_load_balancer:
+        #mock server for cache
+        mock_nginx = Server(
+                    hostname="Nginx Proxy [{0}]".format(app_conf.nginx_host),
+                    id=9999)
+    
+        servers.append(mock_nginx)
 
-    return render_template( 'cache_logger.html', 
-                            method=method, 
-                            servers=servers,
-                            server_id=server_id,
-                            step=2, 
-                            task_id=task.id)
+    return render_template('logger_single.html',
+                           title=title,
+                           steps=cache_steps,
+                           task=task,
+                           cur_step=2,
+                           auto_next=False,
+                           multiserver=servers,
+                           nextpage=nextpage,
+                           whatNext=whatNext
+                           )
 
 
 @cache_mgr.route('/finish_clustering/<method>/')

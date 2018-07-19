@@ -324,7 +324,7 @@ function updateLog(){
             new_server_id =  parseInt(logs[i].server_id)
             if ( server_id != new_server_id) {
                     if (new_server_id>1){
-                        $('#log_container_server_'+(new_server_id-1)).collapse('hide')
+                        $('#log_container_server_'+server_id).collapse('hide')
                     }
                 }
             

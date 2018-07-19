@@ -861,59 +861,6 @@ class LdapOLC(object):
                 return False, self.conn.result['description']
         
         return True, ''
-            
-
-def getLdapConn(addr, dn, passwd):
-    """this function gets address, dn and password for ldap server, makes
-    connection and return LdapOLC object."""
-
-    ldp = LdapOLC('ldaps://{}:1636'.format(addr), dn, passwd)
-    r = None
-    try:
-        r = ldp.connect()
-    except Exception as e:
-        flash("Connection to LDAPserver {0} at port 1636 failed: {1}".format(
-            addr, e), "danger")
-        return
-    if not r:
-        flash("Connection to LDAPserver {0} at port 1636 failed: {1}".format(
-            addr, ldp.conn.result['description']), "danger")
-        return
-    return ldp
-
-
-class DBManager(object):
-    """A wrapper class to operate on the o=gluu DIT of the LDAP.
-
-    Args:
-        hostname (string): hostname of the server running the LDAP server
-        port (int): port in which the LDAP server is listening
-        password (string): the password of admin `cn=directoy manager,o=gluu`
-        ssl (boolean): if connection should be made over ssl or not
-        ip (string, optional): ip address of the server for connection fallback
-    """
-    def __init__(self, hostname, port, password, ssl=True, ip=None):
-        self.server = Server(hostname, port=port, use_ssl=ssl)
-        
-        setup_prop = get_setup_properties()
-        
-        ldap_user = "cn=directory manager"
-        if setup_prop['ldap_type'] == "openldap":
-            ldap_user += ",o=gluu"
-
-        self.conn = Connection(self.server, 
-                                ldap_user,
-                                password=password)
-        result = self.conn.bind()
-
-        if not result:
-            self.server = Server(ip, port=port, use_ssl=ssl)
-            self.conn = Connection(
-                self.server, ldap_user,
-                password=password)
-
-        self.conn.bind()
-
 
     def get_appliance_attributes(self, *args):
         """Returns the value of the attribute under the gluuAppliance entry
@@ -942,5 +889,27 @@ class DBManager(object):
 
         return self.conn.modify(dn, mod)
 
+
+
+def getLdapConn(addr, dn, passwd):
+    """this function gets address, dn and password for ldap server, makes
+    connection and return LdapOLC object."""
+
+    ldp = LdapOLC('ldaps://{}:1636'.format(addr), dn, passwd)
+    r = None
+    try:
+        r = ldp.connect()
+    except Exception as e:
+        flash("Connection to LDAPserver {0} at port 1636 failed: {1}".format(
+            addr, e), "danger")
+        return
+    if not r:
+        flash("Connection to LDAPserver {0} at port 1636 failed: {1}".format(
+            addr, ldp.conn.result['description']), "danger")
+        return
+    return ldp
+
+class DBManager:
+    "dummy class, remove after refactoring"
 
 

@@ -11,9 +11,9 @@ from celery.result import AsyncResult
 
 
 from clustermgr.extensions import db, wlogger
-from clustermgr.models import AppConfiguration, Server  # , KeyRotation
+from clustermgr.models import AppConfiguration, Server
 from clustermgr.forms import AppConfigForm, SchemaForm, \
-    TestUser, InstallServerForm, LdapSchema  # , KeyRotationForm
+    TestUser, InstallServerForm, LdapSchema
 
 from ldap.schema import AttributeType, ObjectClass, LDAPSyntax
 from clustermgr.core.utils import get_setup_properties
@@ -83,14 +83,7 @@ def object_class():
 @attributes.route('/createobjecclass')
 def create_objecclass():
     server = Server.query.filter_by(primary_server=True).first()
-    #object_class_choice = request.args.get('gluuObjectClass', '1')
-    #if object_class_choice == '1':
-    #    object_class = 'gluuCustomPerson'
-    #else:
-    #    object_class = request.args.get('objectClassname')
-    #    if not object_class:
-    #        object_class = 'clustermgrAttributes'
-            
+
     object_class = request.args.get('objectClassname')
     if not object_class.strip():
         object_class='clustermgrAttributes'
@@ -250,7 +243,7 @@ def upload_schema_to_primary():
     if changed:
         oc.may = tuple(may_list)
         custom_schema.write()
-        installer.c.upload('/tmp/77-customAttributes.ldif', custom_attrib)
+        installer.upload_file('/tmp/77-customAttributes.ldif', custom_attrib)
 
     installer.run('/etc/init.d/opendj restart')
 

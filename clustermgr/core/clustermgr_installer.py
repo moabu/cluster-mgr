@@ -12,7 +12,9 @@ class Installer:
         self.logger_task_id = logger_task_id
         self.gluu_version = gluu_version
         self.server_os = server_os
-        self.server_id=server_id
+        self.server_id = server_id
+        self.repo_updated = False
+        self.clone_type = None
 
         if conn.__class__.__name__ != "RemoteClient" and conn.__class__.__name__ != 'FakeRemote':
             self.server_os = conn.os
@@ -62,10 +64,12 @@ class Installer:
             self.container = '/opt/gluu-server-{}'.format(gluu_version)
         
             if ('Ubuntu' in self.server_os) or ('Debian' in self.server_os):
+                self.clone_type = 'deb'
                 self.packager = 'DEBIAN_FRONTEND=noninteractive apt-get install -y {}'
                 self.run_command = 'chroot {} /bin/bash -c "{}"'.format(self.container,'{}')
                 self.install_command = 'chroot {} /bin/bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y {}"'.format(self.container,'{}')
             elif ('CentOS' in self.server_os) or ( 'RHEL' in self.server_os):
+                self.clone_type = 'rpm'
                 self.packager = 'yum install -y {}'
                 
                 self.run_command = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
@@ -167,7 +171,7 @@ class Installer:
 
 
     def epel_release(self, inside=False):
-        if ('CentOS' in self.server_os) or ('RHEL' in self.server_os):
+        if self.clone_type == 'rpm':
             wlogger.log(self.logger_task_id, "Installing epel-release", server_id=self.server_id)
             self.install('epel-release', inside=inside)
             self.run('yum repolist')
@@ -242,7 +246,6 @@ class Installer:
                                             )
         print "Installer> Checking existence of file {} for gluu installation".format(check_file)
 
-
         return self.conn.exists(check_file)
 
 
@@ -256,8 +259,15 @@ class Installer:
 
     def install(self, package, inside=True):
 
+        if not self.repo_updated:
+            if self.clone_type == 'rpm':
+                self.run('yum repolist', inside)
+            else:
+                self.run('apt-get update', inside)
+            self.repo_updated = True
+
         if package.endswith('-dev'):
-            if ('CentOS' in self.server_os) or ('RHEL' in self.server_os):
+            if self.clone_type == 'rpm':
                 package += 'el'
 
         cmd = self.get_install_cmd(package, inside)
