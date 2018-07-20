@@ -166,9 +166,7 @@ def get_csync2_config(exclude=None):
         '/etc/gluu/conf/ox-ldap.properties',
         '/etc/gluu/conf/oxTrustLogRotationConfiguration.xml',
         '/etc/gluu/conf/openldap/salt',
-
         ]
-
 
     csync2_config = ['group gluucluster','{']
 
@@ -272,7 +270,7 @@ def setup_filesystem_replication_do(task_id):
         
         modify_hosts(installer, cysnc_hosts)
 
-        if 'Ubuntu' in server.os:
+        if installer.clone_type == 'deb':
             for cmd in (
                         'localedef -i en_US -f UTF-8 en_US.UTF-8',
                         'locale-gen en_US.UTF-8',
@@ -282,7 +280,7 @@ def setup_filesystem_replication_do(task_id):
             installer.install('apt-utils')
             installer.install('csync2')
             
-        elif 'CentOS' in server.os:
+        elif installer.clone_type == 'rpm':
             installer.epel_release(True)
 
             csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos{}.x86_64.rpm'.format(server.os[-1])
@@ -326,12 +324,6 @@ def setup_filesystem_replication_do(task_id):
             down_list = ['csync2.cfg', 'csync2.key', 'csync2_ssl_cert.csr',
                     'csync2_ssl_cert.pem', 'csync2_ssl_key.pem']
 
-            #primary_server = Server.query.filter_by(primary_server=True).first()
-            #primary_installer = Installer( primary_server,
-            #                    app_conf.gluu_version,
-            #                    logger_task_id=task_id,
-            #                    server_os=primary_server.os
-            #                    )
             for file_name in down_list:
                 remote = os.path.join(primary_installer.container, 'etc', file_name)
                 local = os.path.join('/tmp',file_name)
@@ -339,12 +331,11 @@ def setup_filesystem_replication_do(task_id):
                 primary_installer.download_file(remote, local)
                 installer.upload_file(local, remote)
 
-            
 
         csync2_path = '/usr/sbin/csync2'
 
 
-        if 'Ubuntu' in server.os:
+        if installer.clone_type == 'deb':
 
             wlogger.log(task_id, "Enabling csync2 via inetd", server_id=server.id)
 
@@ -365,7 +356,7 @@ def setup_filesystem_replication_do(task_id):
 
             installer.run('/etc/init.d/openbsd-inetd restart')
 
-        elif 'CentOS' in server.os:
+        elif installer.clone_type == 'rpm':
             inetd_conf = (
                 '# default: off\n'
                 '# description: csync2\n'
@@ -398,13 +389,13 @@ def setup_filesystem_replication_do(task_id):
         wlogger.log(task_id, 'Crontab entry was created to sync files in every minute',
                          'debug', server_id=server.id)
 
-        if ('CentOS' in server.os) or ('RHEL' in server.os):
+        if installer.clone_type == 'rpm':
             cmd = 'service crond reload'
             installer.start_service('xinetd')
-            installer.run('service crond restart')
+            installer.restart_service('crond')
         else:
-            installer.run('service cron reload')
-            installer.run('service openbsd-inetd restart')
+            installer.restart_service('cron')
+            installer.restart_service('openbsd-inetd')
 
 
     return True
