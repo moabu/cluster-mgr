@@ -570,22 +570,27 @@ def remove():
     """This view will remove monitoring components"""
     
     servers = Server.query.all()
-    appconf = AppConfiguration.query.first()
-    if not appconf:
+    app_conf = AppConfiguration.query.first()
+    if not app_conf:
         flash("The application needs to be configured first. Kindly set the "
               "values before attempting clustering.", "warning")
         return redirect(url_for("index.app_configuration"))
 
-    if not servers:
-        flash("Add servers to the cluster before attempting to manage cache",
-              "warning")
-        return redirect(url_for('index.home'))
-
+    title = "Uninstall Monitoring"
+    whatNext = "Monitoring Home"
+    nextpage = url_for('monitoring.home')
     servers = Server.query.all()
-    local_id = 100000000
-    local_server = Server( hostname='localhost', id=local_id)
+    task = remove_monitoring.delay()
+
+    local_server = Server( hostname='localhost', id=9999)
     servers.append(local_server)
     
-    task = remove_monitoring.delay(local_id=local_id)
-    return render_template('monitoring_remove_logger.html', step=1,
-                           task_id=task.id, servers=servers)
+    return render_template('logger_single.html',
+                           title=title,
+                           task=task,
+                           cur_step=1,
+                           auto_next=False,
+                           multiserver=servers,
+                           nextpage=nextpage,
+                           whatNext=whatNext
+                           )

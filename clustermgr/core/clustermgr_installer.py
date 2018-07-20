@@ -50,7 +50,7 @@ class Installer:
         
         if self.conn and not self.server_os:
             self.get_os_type()
-
+    
 
         if self.server_os == 'CentOS 7' or self.server_os == 'RHEL 7':
             self.init_command = '/sbin/gluu-serverd-{0} {1}'.format(
@@ -61,19 +61,21 @@ class Installer:
                                 self.gluu_version,'{}')
             self.service_script = 'service {0} {1}'
 
+
+        if ('Ubuntu' in self.server_os) or ('Debian' in self.server_os):
+            self.clone_type = 'deb'
+            self.packager = 'DEBIAN_FRONTEND=noninteractive apt-get install -y {}'
+        elif ('CentOS' in self.server_os) or ( 'RHEL' in self.server_os):
+            self.clone_type = 'rpm'
+            self.packager = 'yum install -y {}'
+
+
         if self.conn and conn.__class__.__name__ != 'FakeRemote':
-            
             self.container = '/opt/gluu-server-{}'.format(gluu_version)
-        
-            if ('Ubuntu' in self.server_os) or ('Debian' in self.server_os):
-                self.clone_type = 'deb'
-                self.packager = 'DEBIAN_FRONTEND=noninteractive apt-get install -y {}'
+            if self.clone_type == 'deb':
                 self.run_command = 'chroot {} /bin/bash -c "{}"'.format(self.container,'{}')
                 self.install_command = 'chroot {} /bin/bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y {}"'.format(self.container,'{}')
-            elif ('CentOS' in self.server_os) or ( 'RHEL' in self.server_os):
-                self.clone_type = 'rpm'
-                self.packager = 'yum install -y {}'
-                
+            elif self.clone_type == 'rpm':                
                 self.run_command = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
                                 '-o Port=60022 -o LogLevel=QUIET -o '
                                 'StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null '
@@ -83,6 +85,7 @@ class Installer:
                 self.install_command = self.run_command.format('yum install -y {}')
         else:
             self.run_command = '{}'
+
 
     def get_os_type(self):
         # 2. Linux Distribution of the server
@@ -113,6 +116,9 @@ class Installer:
             run_cmd = self.run_command.format(cmd)
         else:
             run_cmd = cmd
+
+        if self.conn.__class__.__name__ == 'FakeRemote':
+            run_cmd = 'sudo '+ cmd
 
         print "Installer> executing: {}".format(cmd)
         self.log_command(run_cmd)
@@ -280,6 +286,9 @@ class Installer:
 
         cmd = self.get_install_cmd(package, inside)
 
+        if self.conn.__class__.__name__ == 'FakeRemote':
+            cmd = 'sudo '+ cmd
+
         print "Installer> executing: {}".format(cmd)
 
         wlogger.log(self.logger_task_id, "Installing package {0} with command: {1}".format(package, cmd), "debug", server_id=self.server_id)
@@ -294,6 +303,9 @@ class Installer:
             run_cmd = self.install_command.replace('install', 'remove').format(package)
         else:
             run_cmd = self.packager.replace('install', 'remove').format(package)
+
+        if self.conn.__class__.__name__ == 'FakeRemote':
+            run_cmd = 'sudo '+ run_cmd
 
         print "Installer> executing: {}".format(run_cmd)
         self.log_command(run_cmd)

@@ -537,6 +537,3 @@ def make_nginx_proxy_conf(exception=None):
 
     return nginx_tmp
 
-def is_debian_clone(os_type):
-    if ('Ubuntu' in os_type) or ('Debian' in os_type):
-        return True

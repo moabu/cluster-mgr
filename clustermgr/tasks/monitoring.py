@@ -6,7 +6,6 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, wlogger, celery
 from clustermgr.core.ldap_functions import DBManager
 from clustermgr.core.clustermgr_installer import Installer
-from clustermgr.core.utils import is_debian_clone
 from clustermgr.core.remote import FakeRemote
 
 
@@ -41,7 +40,7 @@ def install_local(self):
                 logger_task_id=task_id,
                 )
     
-    #Getermine local OS type
+    #Determine local OS type
     localos= installer.server_os
 
     
@@ -231,7 +230,7 @@ def install_monitoring(self):
                         'sqlite_monitoring_tables.py'
                         ]
 
-        if is_debian_clone(server.os):
+        if installer.clone_type == 'deb':
             commands.append('service cron restart')
         else:
             commands.append('service crond restart')
@@ -250,7 +249,7 @@ def install_monitoring(self):
     return True
 
 @celery.task(bind=True)
-def remove_monitoring(self, local_id):
+def remove_monitoring(self):
     
     """Celery task that removes monitoring components to remote server.
 
@@ -258,95 +257,49 @@ def remove_monitoring(self, local_id):
 
     :return: wether monitoring were removed successfully
     """
-    tid = self.request.id
+    task_id = self.request.id
     installed = 0
     servers = Server.query.all()
-    app_config = AppConfiguration.query.first()
+    app_conf = AppConfiguration.query.first()
     for server in servers:
-        # 1. Make SSH Connection to the remote server
-        wlogger.log(tid, "Making SSH connection to the server {0}".format(
-            server.hostname), "info", server_id=server.id)
-
-        c = RemoteClient(server.hostname, ip=server.ip)
-        try:
-            c.startup()
-        except Exception as e:
-            wlogger.log(
-                tid, "Cannot establish SSH connection {0}".format(e), 
-                "warning",  server_id=server.id)
-            wlogger.log(tid, "Ending server setup process.", 
-                                "error", server_id=server.id)
-            return False
+        # 1. Installer
+        installer = Installer(
+                server, 
+                app_conf.gluu_version, 
+                logger_task_id=task_id, 
+                server_os=server.os
+                )
         
         # 2. remove monitoring directory
-        result = c.run('rm -r /var/monitoring/')
+        installer.run('rm -r /var/monitoring/', inside=False)
 
-        ctext = "\n".join(result)
-        if ctext.strip():
-            wlogger.log(tid, ctext,
-                         "debug", server_id=server.id)
-
-        wlogger.log(tid, "Directory /var/monitoring/ directory "
-                        "were removed", "success", server_id=server.id)
-        
         # 3. remove crontab entry to collect data in every 5 minutes
+        installer.run('rm /etc/cron.d/monitoring', inside=False)
 
-        c.run('rm /etc/cron.d/monitoring')
-        wlogger.log(tid, "Crontab entry was removed", 
-                            "info", server_id=server.id)
-   
-        
-        if ('CentOS' in server.os) or ('RHEL' in server.os):
-            package_cmd = [ 
-                            'service crond restart'
-                            ]
-                            
+        # 4. Restarting crontab
+        if installer.clone_type == 'rpm':
+            installer.restart_service('crond', inside=False)
         else:
-            package_cmd = [ 
-                            'service cron restart',
-                            ]
-        # 4. Executing commands
-        wlogger.log(tid, "Restarting crontab", 
-                            "info", server_id=server.id)
-        
-        
-        for cmd in package_cmd:
-            result = c.run(cmd)
-            rtext = "\n".join(result)
-            if rtext.strip():
-                wlogger.log(tid, rtext, "debug", server_id=server.id)
-        
+            installer.restart_service('cron', inside=False)
+
         server.monitoring = False
+
     # 5. Remove local settings
     
     #create fake remote class that provides the same interface with RemoteClient
     fc = FakeRemote()
-    
-    #Getermine local OS type
-    localos= fc.get_os_type()
 
-    
+    installer = Installer(
+            conn=fc,
+            gluu_version=None,
+            server_id=9999,
+            logger_task_id=task_id,
+            )
 
-    if 'Ubuntu' or 'Debian' in localos:
-        influx_cmd = ['sudo apt-get -y remove influxdb',]
-
-    elif localos == 'CentOS 7':
-        influx_cmd = ['sudo yum remove -y influxdb',]
-        
-        
-    #run commands to install influxdb on local machine
-    for cmd in influx_cmd:
-        
-        result = fc.run(cmd)
-        
-        rtext = "\n".join(result)
-        if rtext.strip():
-            wlogger.log(tid, rtext, "debug", server_id=local_id)
-
+    installer.remove('influxdb', inside=False)
 
     #Flag database that configuration is done for local machine
-    app_config = AppConfiguration.query.first()
-    app_config.monitoring = False
+    app_conf.monitoring = False
     db.session.commit()
 
     return True
