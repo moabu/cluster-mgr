@@ -3,12 +3,9 @@ import os
 import re
 import socket
 
-
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, wlogger, celery
-from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import LdapOLC
-from clustermgr.tasks.cluster import run_command
 from clustermgr.core.utils import parse_setup_properties, \
         get_redis_config, make_proxy_stunnel_conf, make_twem_proxy_conf
 
@@ -118,8 +115,6 @@ def install_cache_components(self, method, server_id_list):
     
     servers = []
 
-    """
-
     for server_id in server_id_list:
         
         server = Server.query.get(server_id)
@@ -138,12 +133,6 @@ def install_cache_components(self, method, server_id_list):
             installed += 1
         db.session.commit()
 
-
-    if method != 'STANDALONE':
-        # No need to install twemproxy for "SHARDED" configuration
-        return True
-
-    """
 
     #If we are using external load balancer no need to proceed.
     if app_conf.external_load_balancer:
@@ -200,48 +189,7 @@ def install_cache_components(self, method, server_id_list):
 
 @celery.task(bind=True)
 def configure_cache_cluster(self, method, server_id_list):
-    if method == 'SHARDED':
-        return setup_sharded(self.request.id)
-    elif method == 'STANDALONE':
-        return setup_proxied(self.request.id, server_id_list)
-    elif method == 'CLUSTER':
-        return setup_redis_cluster(self.request.id)
-
-
-def setup_sharded(tid):
-    """Function that adds the stunnel configuration to all the servers and
-    maps the ports in the LDAP configuration.
-    """
-    servers = Server.query.filter(Server.redis.is_(True)).filter(
-        Server.stunnel.is_(True)).all()
-    appconf = AppConfiguration.query.first()
-    chdir = "/opt/gluu-server-" + appconf.gluu_version
-    # Store the redis server info in the LDA
-    for server in servers:
-        redis_instances = []
-        stunnel_conf = [
-            "cert = /etc/stunnel/cert.pem",
-            "pid = /var/run/stunnel.pid",
-            "output = /var/log/stunnel4/stunnel.log",
-            "[redis-server]",
-            "client = no",
-            "accept = {0}:7777".format(server.ip),
-            "connect = 127.0.0.1:6379"
-        ]
-
-        for s in servers:
-            port = 7000 + s.id
-            redis_instances.append('localhost:{0}'.format(port))
-            stunnel_conf.append("[client{0}]".format(s.id))
-            stunnel_conf.append("client = yes")
-            stunnel_conf.append("accept = 127.0.0.1:{0}".format(port))
-            stunnel_conf.append("connect = {0}:7777".format(s.ip))
-
-        connect_to = ",".join(redis_instances)
-        __update_LDAP_cache_method(tid, server, connect_to, 'SHARDED')
-        stat = __configure_stunnel(tid, server, stunnel_conf, chdir)
-        if not stat:
-            continue
+    setup_proxied(self.request.id, server_id_list)
 
 
 def __configure_stunnel(task_id, server, stunnel_conf, setup_props=None):
@@ -306,8 +254,6 @@ def __configure_stunnel(task_id, server, stunnel_conf, setup_props=None):
             propsfile = os.path.join(Config.DATA_DIR, 'setup.properties')
 
         props = parse_setup_properties(open(propsfile))
-
-        print props
 
         subject = "'/C={countryCode}/ST={state}/L={city}/O={orgName}/CN={hostname}" \
                   "/emailAddress={admin_email}'".format(**props)
@@ -437,9 +383,9 @@ def setup_proxied(task_id, server_id_list):
     # Configure Stunnel and Redis in each server
     for server in servers:
         #Since replication is active, we only need to update on primary server
-        #if server.primary_server:
-        #    print "UPDATING CACHE METHOD"
-        #    __update_LDAP_cache_method(task_id, server, 'localhost:7000', 'STANDALONE')
+        if server.primary_server:
+            print "UPDATING CACHE METHOD"
+            __update_LDAP_cache_method(task_id, server, 'localhost:7000', 'STANDALONE')
        
         stunnel_conf = [
             "cert = /etc/stunnel/cert.pem",
@@ -460,217 +406,86 @@ def setup_proxied(task_id, server_id_list):
         if not status:
             continue
     
-    if not app_conf.external_load_balancer:
-        # Setup Stunnel in the proxy server
-        mock_nginx = Server(
-                    hostname=app_conf.nginx_host,
-                    ip=app_conf.nginx_ip,
-                    os = app_conf.nginx_os,
-                    id=9999
-                    )
-
-        proxy_stunnel_conf = make_proxy_stunnel_conf()
-        
-        status = __configure_stunnel(task_id, mock_nginx, proxy_stunnel_conf)
-
-        if not status:
-            return False
-
+    if app_conf.external_load_balancer:
         return True
+        
+    # Setup Stunnel in the proxy server
+    mock_nginx = Server(
+                hostname=app_conf.nginx_host,
+                ip=app_conf.nginx_ip,
+                os = app_conf.nginx_os,
+                id=9999
+                )
 
-def setup_redis_cluster(tid):
-    servers = Server.query.filter(Server.redis.is_(True)).filter(
-        Server.stunnel.is_(True)).all()
+    proxy_stunnel_conf = make_proxy_stunnel_conf()
+    
+    status = __configure_stunnel(task_id, mock_nginx, proxy_stunnel_conf)
 
-    master_conf = ["port 7000", "cluster-enabled yes",
-                   "daemonize yes",
-                   "dir /var/lib/redis",
-                   "dbfilename dump_7000.rdb",
-                   "cluster-config-file nodes_7000.conf",
-                   "cluster-node-timeout 5000",
-                   "appendonly yes", "appendfilename node_7000.aof",
-                   "logfile /var/log/redis/redis-7000.log",
-                   "save 900 1", "save 300 10", "save 60 10000",
-                   ]
-    slave_conf = ["port 7001", "cluster-enabled yes",
-                  "daemonize yes",
-                  "dir /var/lib/redis",
-                  "dbfilename dump_7001.rdb",
-                  "cluster-config-file nodes_7001.conf",
-                  "cluster-node-timeout 5000",
-                  "appendonly yes", "appendfilename node_7001.aof",
-                  "logfile /var/log/redis/redis-7001.log",
-                  "save 900 1", "save 300 10", "save 60 10000",
-                  ]
-    for server in servers:
-        rc = __get_remote_client(server, tid)
-        if not rc:
-            continue
-
-        # upload the conf files
-        wlogger.log(tid, "Uploading redis conf files...", "debug",
-                    server_id=server.id)
-        rc.put_file("/etc/redis/redis_7000.conf", "\n".join(master_conf))
-        rc.put_file("/etc/redis/redis_7001.conf", "\n".join(slave_conf))
-        # upload the modified init.d file
-        rc.upload(os.path.join(
-            app.root_path, "templates", "redis", "redis-server"),
-            "/etc/init.d/redis-server")
-        wlogger.log(tid, "Configuration upload complete.", "success",
-                    server_id=server.id)
-
-        wlogger.log(tid, "Updating the oxCacheConfiguration in LDAP", "debug",
-                    server_id=server.id)
-        try:
-            dbm = DBManager(server.hostname, 1636, server.ldap_password,
-                            ssl=True, ip=server.ip)
-        except Exception as e:
-            wlogger.log(tid, "Failed to connect to LDAP server. Error: \n"
-                             "{0}".format(e), "error")
-            continue
-        entry = dbm.get_appliance_attributes('oxCacheConfiguration')
-        cache_conf = json.loads(entry.oxCacheConfiguration.value)
-        cache_conf['cacheProviderType'] = 'REDIS'
-        cache_conf['redisConfiguration']['redisProviderType'] = 'CLUSTER'
-        result = dbm.set_applicance_attribute('oxCacheConfiguration',
-                                              [json.dumps(cache_conf)])
-        if not result:
-            wlogger.log(tid, "oxCacheConfiguration update failed", "error",
-                        server_id=server.id)
-        else:
-            wlogger.log(tid, "Cache configuration update successful in LDAP",
-                        "success", server_id=server.id)
+    if not status:
+        return False
 
     return True
 
-
-def __get_remote_client(server, tid):
-    rc = RemoteClient(server.hostname, ip=server.ip)
-    try:
-        rc.startup()
-        wlogger.log(tid, "Connecting to server: {0}".format(server.hostname),
-                    "success", server_id=server.id)
-    except Exception as e:
-        wlogger.log(tid, "Could not connect to the server over SSH. Error:"
-                         "\n{0}".format(e), "error", server_id=server.id)
-        return None
-    return rc
-
-
-def run_and_log(rc, cmd, tid, server_id=None):
-    """Runs a command using the provided RemoteClient instance and logs the
-    cout and cerr to the wlogger using the task id and server id
-
-    :param rc: the remote client to run the command
-    :param cmd: command that has to be executed
-    :param tid: the task id of the celery task for logging
-    :param server_id: OPTIONAL id of the server in which the cmd is executed
-    :return: nothing
-    """
-    wlogger.log(tid, cmd, "debug", server_id=server_id)
-    _, cout, cerr = rc.run(cmd)
-    if cout:
-        wlogger.log(tid, cout, "debug", server_id=server_id)
-    if cerr:
-        wlogger.log(tid, cerr, "cerror", server_id=server_id)
-
-
 @celery.task(bind=True)
 def restart_services(self, method, server_id_list):
-    tid = self.request.id
+    task_id = self.request.id
 
-    appconf = AppConfiguration.query.first()
-    chdir = "/opt/gluu-server-" + appconf.gluu_version
+    app_conf = AppConfiguration.query.first()
     ips = []
 
     for server_id in server_id_list:
         server = Server.query.get(server_id)
         ips.append(server.ip)
-        wlogger.log(tid, "(Re)Starting services ... ", "info",
+        wlogger.log(task_id, "(Re)Starting services ... ", "info",
                     server_id=server.id)
-        rc = __get_remote_client(server, tid)
-        if not rc:
-            continue
 
-        def get_cmd(cmd):
-            if server.gluu_server and not server.os == "CentOS 7":
-                return 'chroot {0} /bin/bash -c "{1}"'.format(chdir, cmd)
-            elif "CentOS 7" == server.os:
-                parts = ["ssh", "-o IdentityFile=/etc/gluu/keys/gluu-console",
-                         "-o Port=60022", "-o LogLevel=QUIET",
-                         "-o StrictHostKeyChecking=no",
-                         "-o UserKnownHostsFile=/dev/null",
-                         "-o PubkeyAuthentication=yes",
-                         "root@localhost", "'{0}'".format(cmd)]
-                return " ".join(parts)
-            return cmd
+        installer = Installer(
+                server,
+                app_conf.gluu_version,
+                logger_task_id=task_id,
+                )
 
         # Common restarts for all
         if server.os == 'CentOS 6':
-            run_and_log(rc, 'service redis restart', tid, server.id)
-            run_and_log(rc, 'service stunnel4 restart', tid, server.id)
-        elif server.os == 'CentOS 7' or server.os == 'RHEL 7':
-            run_and_log(rc, 'systemctl restart redis', tid, server.id)
-            run_and_log(rc, 'systemctl restart stunnel', tid, server.id)
+            installer.restart_service('redis', inside=False)
+            installer.restart_service('stunnel4', inside=False)
+        elif server.os in ('CentOS 7', 'RHEL 7'):
+            installer.restart_service('redis', inside=False)
+            installer.restart_service('stunnel', inside=False)
         else:
-            run_and_log(rc, 'service redis-server restart', tid, server.id)
-            run_and_log(rc, 'service stunnel4 restart', tid, server.id)
+            installer.restart_service('redis-server', inside=False)
+            installer.restart_service('stunnel4', inside=False)
             # sometime apache service is stopped (happened in Ubuntu 16)
             # when install_cache_components task is executed; hence we also need to
             # restart the service
-            run_and_log(rc, get_cmd('service apache2 restart'), tid, server.id)
-
-
-
-        restart_command  = 'service gluu-server-{0} restart'.format(
-                                                        appconf.gluu_version)
-
-        if 'CentOS' in server.os or 'RHEL' in server.os:
-            restart_command   = '/sbin/gluu-serverd-{0} restart'.format(
-                                                        appconf.gluu_version)
+            installer.restart_service('apache2')
          
-        wlogger.log(tid, "(Re)Starting Gluu Server", "info", server_id=server.id)
+        wlogger.log(task_id, "(Re)Starting Gluu Server", "info", server_id=server.id)
+        installer.restart_gluu()
 
-        run_and_log(rc, restart_command, tid, server.id)
-
-
-        #wlogger.log(tid, "(Re)Starting oxauth", "info", server_id=server.id)
-
-        #run_and_log(rc, get_cmd('service oxauth restart'), tid, server.id)
+    if app_conf.external_load_balancer:
+        return True
         
-        #wlogger.log(tid, "(Re)Starting identity", "info", server_id=server.id)
-        
-        #run_and_log(rc, get_cmd('service identity restart'), tid, server.id)
-        
-        rc.close()
+    mock_nginx = Server(
+                hostname=app_conf.nginx_host,
+                ip=app_conf.nginx_ip,
+                os = app_conf.nginx_os,
+                id=9999
+                )
 
-    if method != 'STANDALONE':
-        wlogger.log(tid, "All services restarted.", "success")
-        return
+    nginx_installer = Installer(
+            mock_nginx,
+            app_conf.gluu_version,
+            logger_task_id=task_id,
+            )
 
-    
-    mock_server = Server()
-    
-    if appconf.external_load_balancer:
-        host = appconf.cache_host
-    else:
-        host = appconf.nginx_host
-        
-    
-    mock_server.hostname = host
-    rc = __get_remote_client(mock_server, tid)
-    if not rc:
-        wlogger.log(tid, "Couldn't connect to proxy server to restart services"
-                    "fail")
-        return
-    mock_server.os = get_os_type(rc)
-    if mock_server.os in ['Ubuntu 14', 'Ubuntu 16', 'CentOS 6']:
-        run_and_log(rc, "service stunnel4 restart", tid, None)
-        run_and_log(rc, "service nutcracker restart", tid, None)
-    if mock_server.os in ["CentOS 7", "RHEL 7"]:
-        run_and_log(rc, "systemctl restart stunnel", tid, None)
-        run_and_log(rc, "systemctl restart nutcracker", tid, None)
-    rc.close()
+
+    if mock_nginx.os in ['Ubuntu 14', 'Ubuntu 16', 'CentOS 6']:
+        nginx_installer.restart_service('stunnel4', inside=False)
+    if mock_nginx.os in ["CentOS 7", "RHEL 7"]:
+        nginx_installer.restart_service('stunnel', inside=False)
+
+    nginx_installer.restart_service('nutcracker', inside=False)
 
 
 @celery.task(bind=True)

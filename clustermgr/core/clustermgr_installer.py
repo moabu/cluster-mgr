@@ -55,9 +55,11 @@ class Installer:
         if self.server_os == 'CentOS 7' or self.server_os == 'RHEL 7':
             self.init_command = '/sbin/gluu-serverd-{0} {1}'.format(
                                 self.gluu_version,'{}')
+            self.service_script = 'systemctl {1} {0}'
         else:
             self.init_command = '/etc/init.d/gluu-server-{0} {1}'.format(
                                 self.gluu_version,'{}')
+            self.service_script = 'service {0} {1}'
 
         if self.conn and conn.__class__.__name__ != 'FakeRemote':
             
@@ -232,10 +234,16 @@ class Installer:
         self.run('systemctl enable {}.service'.format(service), inside=inside)
 
     def stop_service(self, service, inside=True):
-        self.run('systemctl stop '+service, inside=inside)
+        cmd = self.service_script.format(service, 'stop')
+        self.run(cmd, inside=inside)
 
     def start_service(self, service, inside=True):
-        self.run('systemctl start '+service, inside=inside)
+        cmd = self.service_script.format(service, 'start')
+        self.run(cmd, inside=inside)
+
+    def restart_service(self, service, inside=True):
+        cmd = self.service_script.format(service, 'restart')
+        self.run(cmd, inside=inside)
 
 
     def is_gluu_installed(self):

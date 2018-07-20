@@ -1,5 +1,6 @@
 """A Flask blueprint with the views and logic dealing with the Cache Management
 of Gluu Servers"""
+
 import os
 
 from flask import Blueprint, render_template, url_for, flash, redirect, \
@@ -31,9 +32,7 @@ cache_steps = ["Install Components", "Configure Components", "Restart Services"]
 def index():
     servers = Server.query.all()
     app_conf = AppConfiguration.query.first()
-    
 
-    
     if not app_conf:
         flash("The application needs to be configured first. Kindly set the "
               "values before attempting clustering.", "warning")
@@ -51,8 +50,6 @@ def index():
     else:
         c_host = app_conf.nginx_host
         c_ip = app_conf.nginx_ip
-        
-
 
     c = RemoteClient(host=c_host, ip=c_ip)
     
@@ -151,7 +148,7 @@ def configure(method):
 
     task = configure_cache_cluster.delay(method, server_id_list)
 
-    nextpage = url_for('cache_mgr.configure', method=method)
+    nextpage = url_for('cache_mgr.finish_clustering', method=method)
     whatNext = cache_steps[2]
     title = "Cache Clustering"
 
@@ -178,8 +175,9 @@ def configure(method):
 @cache_mgr.route('/finish_clustering/<method>/')
 @login_required
 def finish_clustering(method):
-    
+
     server_id = request.args.get('id')
+    app_conf = AppConfiguration.query.first()
 
     if server_id:
         servers = []
@@ -190,7 +188,7 @@ def finish_clustering(method):
                                 ).filter(
                                     Server.id.is_(int(server_id))
                                 ).first()
-        
+
         if qserver:
             servers.append(qserver)
     else:
@@ -203,16 +201,33 @@ def finish_clustering(method):
 
 
     server_id_list = [ s.id for s in servers ]
-    
-    
+
     task = restart_services.delay(method, server_id_list)
     
-    return render_template( 'cache_logger.html', 
-                            servers=servers, 
-                            step=3,
-                            server_id=server_id,
-                            task_id=task.id
+
+    nextpage = url_for('monitoring.home', method=method)
+    whatNext = "Monitoring Setup"
+    title = "Cache Clustering"
+
+    if not app_conf.external_load_balancer:
+        #mock server for cache
+        mock_nginx = Server(
+                    hostname="Nginx Proxy [{0}]".format(app_conf.nginx_host),
+                    id=9999)
+
+        servers.append(mock_nginx)
+
+    return render_template('logger_single.html',
+                           title=title,
+                           steps=cache_steps,
+                           task=task,
+                           cur_step=3,
+                           auto_next=False,
+                           multiserver=servers,
+                           nextpage=nextpage,
+                           whatNext=whatNext
                            )
+ 
 
 @cache_mgr.route('/status/')
 @login_required
