@@ -60,7 +60,7 @@ http {
         proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
     }
     location /cas {
-        proxy_pass https://backend/cas;
+        proxy_pass https://backend_id/cas;
         proxy_redirect          off;
         proxy_next_upstream     error timeout invalid_header http_500 http_502 http_503 http_504;
         proxy_connect_timeout   2;
@@ -69,7 +69,7 @@ http {
         proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
     }
     location /asimba {
-        proxy_pass https://backend/asimba;
+        proxy_pass https://backend_id/asimba;
         proxy_redirect          off;
         proxy_next_upstream     error timeout invalid_header http_500 http_502 http_503 http_504;
         proxy_connect_timeout   2;
@@ -78,7 +78,7 @@ http {
         proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
     }
     location /passport {
-        proxy_pass https://backend/passport;
+        proxy_pass https://backend_id/passport;
         proxy_redirect          off;
         proxy_next_upstream     error timeout invalid_header http_500 http_502 http_503 http_504;
         proxy_connect_timeout   2;
@@ -88,7 +88,7 @@ http {
     }
 
     location /idp {
-        proxy_pass https://backend/idp;
+        proxy_pass https://backend_id/idp;
         proxy_redirect          off;
         proxy_next_upstream     error timeout invalid_header http_500 http_502 http_503 http_504;
         proxy_connect_timeout   2;
