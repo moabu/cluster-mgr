@@ -944,14 +944,14 @@ def exec_cmd(command):
 
 @celery.task(bind=True)
 def upgrade_clustermgr_task(self):
-    tid = self.request.id
+    task_id = self.request.id
     
     cmd = '/usr/bin/sudo pip install --upgrade https://github.com/GluuFederation/cluster-mgr/archive/master.zip'
 
-    wlogger.log(tid, cmd)
+    wlogger.log(task_id, cmd)
 
     for line in exec_cmd(cmd.split()):
-        wlogger.log(tid, line, 'debug')
+        wlogger.log(task_id, line, 'debug')
     
     return
 

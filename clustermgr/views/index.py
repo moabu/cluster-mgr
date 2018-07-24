@@ -508,11 +508,22 @@ def upgrade_clustermgr():
 
     task = upgrade_clustermgr_task.delay()
     print "TASK STARTED", task.id
-    head = "Upgrading clustermgr"
+    title = "Upgrading clustermgr"
     nextpage = "index.home"
     whatNext = "Go to Dashboard"
-    return render_template("logger.html", heading=head, server="",
-                           task=task, nextpage=nextpage, whatNext=whatNext)
+    
+    return render_template('logger_single.html',
+                           server_id=0,
+                           title=title,
+                           steps=[],
+                           task=task,
+                           cur_step=1,
+                           auto_next=False,
+                           multistep=False,
+                           nextpage=nextpage,
+                           whatNext=whatNext
+                           )
+
 
 
 @index.route('/setpassphrase/', methods=['POST','GET'])
