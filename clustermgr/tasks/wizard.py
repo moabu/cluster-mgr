@@ -28,76 +28,59 @@ def wizard_step1(self):
         successfully
     """
     
-    tid = self.request.id
+    task_id = self.request.id
 
-    wlogger.log(tid, "Analayzing Current Server")
+    wlogger.log(task_id, "Analayzing Current Server")
 
     server = Server.query.filter_by(primary_server=True).first()
 
     app_conf = AppConfiguration.query.first()
-    
-    c = RemoteClient(server.hostname, ip=server.ip)
 
-    try:
-        c.startup()
-        wlogger.log(tid, "SSH connection established", 'success')
-    except:
-        wlogger.log(tid, "Can't establish SSH connection",'fail')
-        wlogger.log(tid, "Ending analyzation of server.", 'error')
-        return
+    installer = Installer(
+                server, 
+                '', 
+                logger_task_id=task_id, 
+                server_os=server.os
+                )
 
-    #Dummy, please get it from installer object
-    os_type = c.get_os_type()
     
+    os_type = installer.server_os
     server.os = os_type
+    wlogger.log(task_id, "OS type was determined as {}".format(os_type), 'success')
     
-    wlogger.log(tid, "OS type was determined as {}".format(os_type), 'debug')
-    
-    gluu_version = None
-    
-    #Determine if a version of gluu server was installed.
-    r = c.listdir("/opt")
-    if r[0]:
-        for s in r[1]:
-            m=re.search("gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+))$",s)
-            if m:
-                gluu_version = m.group("gluu_version")
-                
-                app_conf.gluu_version = gluu_version
-                wlogger.log(tid, "Gluu version was determined as {}".format(
-                                                        gluu_version), 'debug')
-    
+    gluu_version = installer.get_gluu_version()
+
     if not gluu_version:
-        wlogger.log(tid, "Gluu server was not installed on this server",'fail')
+        wlogger.log(task_id, "Gluu Server is not installed on this server", 'fail')
         wlogger.log(tid, "Ending analyzation of server.", 'error')
-        return
+        return False
+        
+    app_conf.gluu_version = gluu_version
+
+ 
+    wlogger.log(task_id, "Gluu version was determined as {}".format(gluu_version), 'success')
     
-    gluu_path = '/opt/gluu-server-{}'.format(gluu_version)
-    
-    server.gluu_server = True
-    
-    setup_properties_last = os.path.join(gluu_path, 
+    installer.gluu_version = gluu_version
+    installer.settings()
+
+    setup_properties_last = os.path.join(installer.container, 
                         'install/community-edition-setup/setup.properties.last')
     
     setup_properties_local = os.path.join(Config.DATA_DIR, 'setup.properties')
     
-    result = c.download(setup_properties_last, setup_properties_local)
+    result = installer.download_file(setup_properties_last, setup_properties_local)
     
+    if not result:
+        wlogger.log(task_id, "setup.properties.last could not be dowloade. Ending analization of server.", 'error')
+        return False
+
     prop = get_setup_properties()
     prop['hostname'] = app_conf.nginx_host
     write_setup_properties_file(prop)
-    
-    
-    if not result.startswith('Download successful'):
-        wlogger.log(tid, result,'fail')
-        wlogger.log(tid, "Ending analyzation of server.", 'error')
-        return
-    
-    wlogger.log(tid, "setup.properties file was downloaded", 'debug')
-    
+
     server.ldap_password = prop['ldapPass']
     
-    wlogger.log(tid, "LDAP Bind password was identifed", 'success')
+    wlogger.log(task_id, "LDAP Bind password was identifed", 'success')
     
     db.session.commit()
 

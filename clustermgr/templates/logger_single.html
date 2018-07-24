@@ -84,7 +84,8 @@
 {% if steps and not multiserver%}
 
   {%for step in steps %}
-  
+
+  {% if (not auto_next) and loop.index != cur_step %}<!-- {% endif %}
   <div class="panel panel-success">
     <div class="panel-heading">
       <h4 class="panel-title">
@@ -96,6 +97,7 @@
       <ul id="logger_{{ loop.index }}" class="list-group"></ul>
     </div>
   </div>
+  {% if (not auto_next) and loop.index != cur_step %}-->{% endif %}
 {% endfor %}
 
 {% endif %}

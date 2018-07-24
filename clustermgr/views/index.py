@@ -525,7 +525,6 @@ def upgrade_clustermgr():
                            )
 
 
-
 @index.route('/setpassphrase/', methods=['POST','GET'])
 @login_required
 @csrf.exempt

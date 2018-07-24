@@ -34,6 +34,9 @@ wizard.before_request(prompt_license)
 wizard.before_request(license_reminder)
 
 
+wizard_steps = ['Analyzing Server', 'Changing Hostname']
+
+
 @wizard.route('/step1',methods=['GET', 'POST'])
 def step1():
     
@@ -66,10 +69,22 @@ def step1():
             task = wizard_step1.delay()
             print "TASK STARTED", task.id
 
-            servers = Server.query.all()
-            return render_template('wizard/wizard_logger.html', step=1,
-                           task_id=task.id, servers=servers)
-                           
+            title = "Incorporating Existing Server"
+
+            whatNext = wizard_steps[1]
+            nextpage = url_for('wizard.step2')
+
+            return render_template('logger_single.html',
+                       title=title,
+                       steps=wizard_steps,
+                       task=task,
+                       cur_step=1,
+                       auto_next=False,
+                       multiserver=False,
+                       nextpage=nextpage,
+                       whatNext=whatNext
+                       )
+
 
     return render_template( 'wizard/step1.html', wform=wform)
 
@@ -79,6 +94,19 @@ def step2():
     task = wizard_step2.delay()
     print "TASK STARTED", task.id
 
-    servers = Server.query.all()
-    return render_template('wizard/wizard_logger.html', step=2,
-                           task_id=task.id, servers=servers)
+    
+    title = "Incorporating Existing Server"
+
+    whatNext = "Install Nginx Proxy Server"
+    nextpage = url_for('cluster.install_nginx')
+
+    return render_template('logger_single.html',
+               title=title,
+               steps=wizard_steps,
+               task=task,
+               cur_step=2,
+               auto_next=False,
+               multiserver=False,
+               nextpage=nextpage,
+               whatNext=whatNext
+               )

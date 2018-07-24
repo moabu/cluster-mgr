@@ -102,6 +102,8 @@ class ChangeGluuHostname:
         self.installer = Installer( self.c, self.gluu_version, 
                                     self.os_type, self.logger_tid)
 
+        self.installer.hostname = self.server
+
         self.appliance_inum = self.get_appliance_inum()
         self.base_inum = self.get_base_inum()
         
@@ -244,32 +246,13 @@ class ChangeGluuHostname:
 
             for cmd in cmd_list:
                 cmd = cmd.format(crt)
-                print self.installer.run(cmd)
+                print self.installer.run(cmd, error_exception='__ALL__')
 
 
             if not crt == 'saml.pem':
 
-                del_key = ( '/opt/jre/bin/keytool -delete -alias {}_{} -keystore '
-                        '/opt/jre/jre/lib/security/cacerts -storepass changeit').format(self.old_host, crt)
-
-            
-                r = self.installer.run(del_key)
-                #if r[1]:
-                #    print "Info:", r[1]
-                #if r[2]:
-                #    print "** ERROR:", r[2]
-                
-                add_key = ('/opt/jre/bin/keytool -import -trustcacerts -alias '
-                      '{0}_{1} -file /etc/certs/{2}.crt -keystore '
-                      '/opt/jre/jre/lib/security/cacerts -storepass changeit -noprompt').format(self.new_host, crt, crt)
-
-                r = self.installer.run(add_key)
-
-                #if r[1]:
-                #    print "Info:", r[1]
-                #if r[2]:
-                #    print "** ERROR:", r[2]
-
+                self.installer.delete_key(self.old_host, crt)
+                self.installer.import_key(self.new_host, crt)
             
         saml_crt_old_path = os.path.join(self.container, 'etc/certs/saml.pem.crt')
         saml_crt_new_path = os.path.join(self.container, 'etc/certs/saml.pem')

@@ -15,7 +15,8 @@ class Installer:
         self.server_id = server_id
         self.repo_updated = False
         self.clone_type = None
-
+        self.hostname = ''
+        
         if conn.__class__.__name__ != "RemoteClient" and conn.__class__.__name__ != 'FakeRemote':
             self.server_os = conn.os
             self.server_id = conn.id
@@ -51,6 +52,9 @@ class Installer:
         if self.conn and not self.server_os:
             self.get_os_type()
     
+        self.settings()
+    
+    def settings(self):
 
         if self.server_os == 'CentOS 7' or self.server_os == 'RHEL 7':
             self.init_command = '/sbin/gluu-serverd-{0} {1}'.format(
@@ -70,8 +74,8 @@ class Installer:
             self.packager = 'yum install -y {}'
 
 
-        if self.conn and conn.__class__.__name__ != 'FakeRemote':
-            self.container = '/opt/gluu-server-{}'.format(gluu_version)
+        if self.conn and self.conn.__class__.__name__ != 'FakeRemote':
+            self.container = '/opt/gluu-server-{}'.format(self.gluu_version)
             if self.clone_type == 'deb':
                 self.run_command = 'chroot {} /bin/bash -c "{}"'.format(self.container,'{}')
                 self.install_command = 'chroot {} /bin/bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y {}"'.format(self.container,'{}')
@@ -262,6 +266,21 @@ class Installer:
 
         return self.conn.exists(check_file)
 
+    def get_gluu_version(self):
+        gluu_version = None
+        
+        print "Installer> Determining gluu version"
+        result = self.conn.listdir("/opt")
+        if result[0]:
+            for path in result[1]:
+                print path
+                regular_expr=re.search("gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+))$",path)
+                if regular_expr:
+                    gluu_version = regular_expr.group("gluu_version")
+                    print "Installer> Gluu version was determined as {0}".format(gluu_version)
+
+        return gluu_version
+
 
     def get_install_cmd(self, package, inside=True):
         if inside:
@@ -335,7 +354,7 @@ class Installer:
         return self.do_init('restart')
 
     def delete_key(self, suffix, hostname):
-        """Delted key of identity server
+        """Delete key of identity server
 
         Args:
             suffix (string): suffix of the key to be imported
