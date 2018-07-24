@@ -73,6 +73,9 @@ def index():
         server.ip = form.ip.data.strip()
         server.mmr = False
         ask_passphrase = False
+
+        server_exist = Server.query.filter_by(hostname=form.hostname.data.strip()).first()
+        
         
         if server_exist:
             flash("Server with hostname {} is already in cluster".format(
