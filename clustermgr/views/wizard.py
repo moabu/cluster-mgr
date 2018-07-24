@@ -13,12 +13,8 @@ from flask import redirect
 
 
 from clustermgr.extensions import db, wlogger
-from clustermgr.models import AppConfiguration, Server  # , KeyRotation
+from clustermgr.models import AppConfiguration, Server
 from clustermgr.forms import WizardStep1
-
-
-from celery.result import AsyncResult
-
 
 from clustermgr.core.license import license_reminder
 from clustermgr.extensions import celery

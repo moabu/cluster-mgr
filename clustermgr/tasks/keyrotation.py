@@ -9,7 +9,7 @@ from ldap3 import MODIFY_REPLACE
 from ldap3 import Server as Ldap3Server
 from ldap3.core.exceptions import LDAPSocketOpenError
 
-from ..core.remote import RemoteClient
+from ..core.clustermgr_installer import Installer
 from ..core.utils import random_chars
 from ..core.utils import exec_cmd
 from ..core.utils import parse_setup_properties
@@ -42,29 +42,22 @@ def generate_jks(passwd, javalibs_dir, jks_path, exp=365,
     return exec_cmd(cmd)
 
 
-def get_props(server, gluu_version):
+def get_props(server, gluu_version, task_id):
     props = {}
-    props_fn = "/opt/gluu-server-{}/install/community-edition-setup/setup.properties.last".format(gluu_version)
 
-    rc = RemoteClient(server.hostname, ip=server.ip)
-    try:
-        rc.startup()
-    except Exception as exc:
-        task_logger.warn(exc)
-        task_logger.warn("Couldn't connect to server %s." % server.hostname)
-    else:
-        _, stdout, stderr = rc.run("cat {}".format(props_fn))
-        if not stderr:
-            props = parse_setup_properties(stdout.splitlines())
-    rc.close()
+    installer = Installer(server, 
+                          gluu_version, 
+                          logger_task_id=task_id)
+
+    props_fn = os.path.join(installer.container, 
+                    'install/community-edition-setup/setup.properties.last')
+
+    props_content = installer.get_file(props_fn)
+    
+    props = parse_setup_properties(props_content.split('\n'))
     return props
 
-
-def get_remote_jks_path(server, gluu_version):
-    return "/opt/gluu-server-{}/etc/certs/oxauth-keys.jks".format(gluu_version)
-
-
-def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass=""):
+def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass="", task_id=None):
     pub_keys = pub_keys or []
     if not pub_keys:
         task_logger.warn("Public keys are not available.")
@@ -73,7 +66,7 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass=""):
     appconf = AppConfiguration.query.first()
 
     for server in Server.query:
-        props = get_props(server, appconf.gluu_version)
+        props = get_props(server, appconf.gluu_version, task_id)
         binddn = "cn=Directory Manager"
 
         s = Ldap3Server(host=server.ip, port=1636, use_ssl=True)
@@ -140,7 +133,8 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass=""):
 
 
 @celery.task(bind=True)
-def rotate_keys(t):
+def rotate_keys(self):
+    task_id = self.request.id
     javalibs_dir = celery.conf["JAVALIBS_DIR"]
     jks_path = celery.conf["JKS_PATH"]
     kr = KeyRotation.query.first()
@@ -150,10 +144,10 @@ def rotate_keys(t):
         return
 
     # do the key rotation background task
-    _rotate_keys(kr, javalibs_dir, jks_path)
+    _rotate_keys(kr, javalibs_dir, jks_path, task_id)
 
 
-def _rotate_keys(kr, javalibs_dir, jks_path):
+def _rotate_keys(kr, javalibs_dir, jks_path, task_id):
     pub_keys = []
     openid_jks_pass = random_chars()
 
@@ -168,30 +162,27 @@ def _rotate_keys(kr, javalibs_dir, jks_path):
         task_logger.warn("Unable to generate keys; reason={}".format(err))
 
     # update LDAP entry
-    if pub_keys and modify_oxauth_config(kr, pub_keys, openid_jks_pass):
+    if pub_keys and modify_oxauth_config(kr, pub_keys, openid_jks_pass, ):
         task_logger.info("Keys have been updated.")
         kr.rotated_at = datetime.utcnow()
         db.session.add(kr)
         db.session.commit()
 
-        appconf = AppConfiguration.query.first()
+        app_conf = AppConfiguration.query.first()
 
         for server in Server.query:
-            c = RemoteClient(server.hostname, ip=server.ip)
-            try:
-                c.startup()
-            except Exception:
-                task_logger.warn("Couldn't connect to server %s. Can't copy JKS." % server.hostname)
-                continue
+            installer = Installer(server, 
+                                  app_conf.gluu_version, 
+                                  logger_task_id=task_id)
 
-            remote_jks_path = get_remote_jks_path(server, appconf.gluu_version)
-            task_logger.info("Copying JKS to server {}".format(server.hostname))
-            task_logger.info(c.upload(jks_path, remote_jks_path))
-            c.close()
+            remote_jks_path = os.path.join(installer.container, 
+                                                'etc/certs/oxauth-keys.jks')
+            installer.upload_file(jks_path, remote_jks_path)
 
 
 @celery.task
 def schedule_key_rotation():
+    task_id = self.request.id
     kr = KeyRotation.query.first()
 
     if not kr:

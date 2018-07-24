@@ -1,8 +1,11 @@
+import os
+
 from flask import Blueprint
 from flask import render_template
 from flask import redirect
 from flask import request
 from flask import url_for
+from flask import flash
 from flask_login import login_required
 
 from ..core.license import license_reminder
@@ -12,6 +15,8 @@ from ..extensions import db
 from ..forms import KeyRotationForm
 from ..models import KeyRotation
 from ..tasks.keyrotation import rotate_keys
+from clustermgr.extensions import celery
+
 
 keyrotation_bp = Blueprint("keyrotation", __name__)
 keyrotation_bp.before_request(prompt_license)
@@ -21,6 +26,13 @@ keyrotation_bp.before_request(license_reminder)
 @keyrotation_bp.route("/")
 @login_required
 def index():
+    keygen_file = os.path.join(celery.conf["JAVALIBS_DIR"], 'keygen.jar')
+    
+    if not os.path.exists(keygen_file):
+        flash("Key generator {} was not found. Key rotation will not work unless the instructions are followed {}".format(
+               keygen_file, 'https://gluu.org/docs/cm/installation/#add-key-generator'), 'danger')
+        
+        return redirect(url_for('index.home'))
     kr = KeyRotation.query.first()
     return render_template("keyrotation_index.html", kr=kr)
 
