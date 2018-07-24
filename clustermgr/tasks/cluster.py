@@ -18,92 +18,6 @@ from clustermgr.config import Config
 import uuid
 import select
 
-def run_command(tid, c, command, container=None, no_error='error',  server_id='', exclude_error=None):
-    """Shorthand for RemoteClient.run(). This function automatically logs
-    the commands output at appropriate levels to the WebLogger to be shared
-    in the web frontend.
-
-    Args:
-        tid (string): task id of the task to store the log
-        c (:object:`clustermgr.core.remote.RemoteClient`): client to be used
-            for the SSH communication
-        command (string): the command to be run on the remote server
-        container (string, optional): location where the Gluu Server container
-            is installed. For standalone LDAP servers this is not necessary.
-
-    Returns:
-        the output of the command or the err thrown by the command as a string
-    """
-    
-    excluded_errors = [
-                        'config file testing succeeded',
-                        'There are no base DNs available to enable replication between the two servers',
-                    ]
-                    
-    if exclude_error:
-        excluded_errors.append(excluded_errors)
-    
-    if container == '/':
-        container = None
-    if container:
-        command = 'chroot {0} /bin/bash -c "{1}"'.format(container,
-                                                         command)
-
-    wlogger.log(tid, command, "debug", server_id=server_id)
-
-
-    cin, cout, cerr = c.run(command)
-    output = ''
-    if cout:
-        wlogger.log(tid, cout, "debug", server_id=server_id)
-        output += "\n" + cout
-    if cerr:
-        
-        not_error = False
-        for ee in excluded_errors:
-            if ee in cerr:
-                not_error = True
-                break
-        
-        # For some reason slaptest decides to send success message as err, so
-        if not_error:
-            wlogger.log(tid, cerr, "debug", server_id=server_id)
-        else:
-            wlogger.log(tid, cerr, no_error, server_id=server_id)
-        output += "\n" + cerr
-
-    return output
-
-
-def upload_file(tid, c, local, remote, server_id=''):
-    """Shorthand for RemoteClient.upload(). This function automatically handles
-    the logging of events to the WebLogger
-
-    Args:
-        tid (string): id of the task running the command
-        c (:object:`clustermgr.core.remote.RemoteClient`): client to be used
-            for the SSH communication
-        local (string): local location of the file to upload
-        remote (string): location of the file in remote server
-    """
-    out = c.upload(local, remote)
-    wlogger.log(tid, out, 'error' if 'Error' in out else 'success', server_id=server_id)
-
-
-def download_file(tid, c, remote, local, server_id=''):
-    """Shorthand for RemoteClient.download(). This function automatically
-     handles the logging of events to the WebLogger
-
-    Args:
-        tid (string): id of the task running the command
-        c (:object:`clustermgr.core.remote.RemoteClient`): client to be used
-            for the SSH communication
-        remote (string): location of the file in remote server
-        local (string): local location of the file to upload
-    """
-    out = c.download(remote, local)
-    wlogger.log(tid, out, 'error' if 'Error' in out else 'success', server_id=server_id)
-
 
 def modifyOxLdapProperties(server, installer, task_id, pDict):
     """Modifes /etc/gluu/conf/ox-ldap.properties file for gluu server to look
@@ -400,10 +314,10 @@ def setup_filesystem_replication_do(task_id):
 
     return True
 
-def remove_filesystem_replication_do(server, app_config, tid):
+def remove_filesystem_replication_do(server, app_config, task_id):
 
-        installer = Installer(server, app_config.gluu_version, logger_task_id=tid)
-        if not installer.c:
+        installer = Installer(server, app_config.gluu_version, logger_task_id=task_id)
+        if not installer.conn:
             return False
         installer.run('rm /etc/cron.d/csync2')
         
@@ -416,7 +330,7 @@ def remove_filesystem_replication_do(server, app_config, tid):
             services = ['openbsd-inetd', 'cron']
             
         for s in services:
-            installer.run('service {} restart '.format(s))
+            installer.restart_service(s)
             
         installer.run('rm /var/lib/csync2/*.*')
 
@@ -446,95 +360,6 @@ def setup_ldap_replication(self, server_id):
     #MB: removed until openldap replication is validated
 
     pass
-
-
-
-def check_gluu_installation(c):
-    """Checks if gluu server is installed
-
-    Args:
-        c (:object:`clustermgr.core.remote.RemoteClient`): client to be used
-            for the SSH communication
-    """
-    appconf = AppConfiguration.query.first()
-    check_file = ('/opt/gluu-server-{}/install/community-edition-setup/'
-                  'setup.properties.last').format(
-                                                appconf.gluu_version
-                                            )
-    return c.exists(check_file)
-
-
-def import_key(suffix, hostname, gluu_version, tid, c, sos):
-    """Imports key for identity server
-
-    Args:
-        suffix (string): suffix of the key to be imported
-        hostname (string): hostname of server
-        gluu_version (string): version of installed gluu server
-        tid (string): id of the task running the command
-
-        c (:object:`clustermgr.core.remote.RemoteClient`): client to be used
-            for the SSH communication
-        sos: how to specify logger type
-    """
-    defaultTrustStorePW = 'changeit'
-    defaultTrustStoreFN = '/opt/jre/jre/lib/security/cacerts'
-    certFolder = '/etc/certs'
-    public_certificate = '%s/%s.crt' % (certFolder, suffix)
-    cmd =' '.join([
-                    '/opt/jre/bin/keytool', "-import", "-trustcacerts",
-                    "-alias", "%s_%s" % (hostname, suffix),
-                    "-file", public_certificate, "-keystore",
-                    defaultTrustStoreFN,
-                    "-storepass", defaultTrustStorePW, "-noprompt"
-                    ])
-
-    chroot = '/opt/gluu-server-{0}'.format(gluu_version)
-
-    if sos == 'CentOS 7' or sos == 'RHEL 7':
-        command = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost '{0}'".format(cmd)
-    else:
-        command = 'chroot {0} /bin/bash -c "{1}"'.format(chroot,
-                                                         cmd)
-
-    cin, cout, cerr = c.run(command)
-    wlogger.log(tid, cmd, 'debug')
-    wlogger.log(tid, cout+cerr, 'debug')
-
-
-def delete_key(suffix, hostname, gluu_version, tid, c, sos):
-    """Delted key of identity server
-
-    Args:
-        suffix (string): suffix of the key to be imported
-        hostname (string): hostname of server
-        gluu_version (string): version of installed gluu server
-        tid (string): id of the task running the command
-
-        c (:object:`clustermgr.core.remote.RemoteClient`): client to be used
-            for the SSH communication
-        sos: how to specify logger type
-    """
-    defaultTrustStorePW = 'changeit'
-    defaultTrustStoreFN = '/opt/jre/jre/lib/security/cacerts'
-    chroot = '/opt/gluu-server-{0}'.format(gluu_version)
-    cert = "etc/certs/%s.crt" % (suffix)
-    if c.exists(os.path.join(chroot, cert)):
-        cmd=' '.join([
-                        '/opt/jre/bin/keytool', "-delete", "-alias",
-                        "%s_%s" % (hostname, suffix),
-                        "-keystore", defaultTrustStoreFN,
-                        "-storepass", defaultTrustStorePW
-                        ])
-
-        if sos == 'CentOS 7' or sos == 'RHEL 7':
-            command = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost '{0}'".format(cmd)
-        else:
-            command = 'chroot {0} /bin/bash -c "{1}"'.format(chroot,
-                                                         cmd)
-        cin, cout, cerr = c.run(command)
-        wlogger.log(tid, cmd, 'debug')
-        wlogger.log(tid, cout+cerr, 'debug')
 
 
 def modify_hosts(installer, hosts, inside=True, server_host=None):
@@ -694,164 +519,85 @@ def opendj_disable_replication_task(self, server_id):
 def remove_server_from_cluster(self, server_id, remove_server=False, 
                                                 disable_replication=True):
 
-    app_config = AppConfiguration.query.first()
+    app_conf = AppConfiguration.query.first()
     primary_server = Server.query.filter_by(primary_server=True).first()
     server = Server.query.get(server_id)
-    tid = self.request.id
+    task_id = self.request.id
 
     removed_server_hostname = server.hostname
 
-    remove_filesystem_replication_do(server, app_config, tid)
+    remove_filesystem_replication_do(server, app_conf, task_id)
 
-    proxy_c = None
+    nginx_installer = None
 
-    if not app_config.external_load_balancer:
-        proxy_c = RemoteClient(app_config.nginx_host, ip=app_config.nginx_ip)
+        
+    #mock server
+    nginx_server = Server(
+                        hostname=app_conf.nginx_host, 
+                        ip=app_conf.nginx_ip,
+                        os=app_conf.nginx_os
+                        )
 
-        wlogger.log(tid, "Reconfiguring proxy server {}".format(
-                                                            app_config.nginx_host))
-
-        wlogger.log(tid,
-                "Making SSH connection to load balancer {0}".format(
-                app_config.nginx_host), 'debug'
-                )
-
-        try:
-            proxy_c.startup()
-        except Exception as e:
-            wlogger.log(
-                tid, "Cannot establish SSH connection {0}".format(e), "warning")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return False
-
-        wlogger.log(tid, "SSH connection successful", 'success')
-
+    nginx_installer = Installer(
+                    nginx_server, 
+                    app_conf.gluu_version, 
+                    logger_task_id=task_id, 
+                    server_os=nginx_server.os
+                    )
+                        
+    if not app_conf.external_load_balancer:
         # Update nginx
         nginx_config = make_nginx_proxy_conf(exception=server_id)
         remote = "/etc/nginx/nginx.conf"
-        r = proxy_c.put_file(remote, nginx_config)
+        nginx_installer.put_file(remote, nginx_config)
         
-        if not r[0]:
-            wlogger.log(tid, "An error occurred while uploadng nginx.conf.", "error")
-            return False
-
-        wlogger.log(tid, "nginx configuration updated", 'success')
-        wlogger.log(tid, "Restarting nginx", 'debug')
-        run_command(tid, proxy_c, 'service nginx restart')
+        nginx_installer.restart_service('nginx')
     
-    
-    if not proxy_c:
-        
-        proxy_c = RemoteClient(app_config.cache_host, ip=app_config.cache_ip)
-        
-        wlogger.log(tid,
-                "Making SSH connection to cache server {0}".format(
-                app_config.cache_host), 'debug'
-                )
 
-        try:
-            proxy_c.startup()
-        except Exception as e:
-            wlogger.log(
-                tid, "Cannot establish SSH connection {0}".format(e), "warning")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return False
-
-        wlogger.log(tid, "SSH connection successful", 'success')
-
-        
-    
     # Update Twemproxy
-    wlogger.log(tid, "Updating Twemproxy configuration",'debug')
+    wlogger.log(task_id, "Updating Twemproxy configuration",'debug')
     twemproxy_conf = make_twem_proxy_conf(exception=server_id)
     remote = "/etc/nutcracker/nutcracker.yml"
-    r = proxy_c.put_file(remote, twemproxy_conf)
+    nginx_installer.put_file(remote, twemproxy_conf)
 
-    if not r[0]:
-        wlogger.log(tid, "An error occurred while uploadng nutcracker.yml.", "error")
-        return False
-
-    wlogger.log(tid, "Twemproxy configuration updated", 'success')
-
-    run_command(tid, proxy_c, 'service nutcracker restart')
+    nginx_installer.restart_service('nutcracker')
 
     # Update stunnel
     proxy_stunnel_conf = make_proxy_stunnel_conf(exception=server_id)
     proxy_stunnel_conf = '\n'.join(proxy_stunnel_conf)
     remote = '/etc/stunnel/stunnel.conf'
-    r = proxy_c.put_file(remote, proxy_stunnel_conf)
+    nginx_installer.put_file(remote, proxy_stunnel_conf)
 
-    if not r[0]:
-        wlogger.log(tid, "An error occurred while uploadng stunnel.conf.", "error")
-        return False
-
-    wlogger.log(tid, "Stunnel configuration updated", 'success')
-
-
-    os_type = get_os_type(proxy_c)
-
-    if 'CentOS' or 'RHEL' in os_type:
-        run_command(tid, proxy_c, 'systemctl restart stunnel')
+    if nginx_installer.clone_type == 'rpm':
+        nginx_installer.restart_service('stunnel')
     else:
-        run_command(tid, proxy_c, 'service stunnel4 restart')
-
-    proxy_c.close()
+        nginx_installer.restart_service('stunnel4')
 
 
     if disable_replication:
-        result = do_disable_replication(tid, server, primary_server, app_config)
-        if not r:
+        result = do_disable_replication(task_id, server, primary_server, app_conf)
+        if not result:
             return False
 
     if remove_server:
         db.session.delete(server)
 
 
-    chroot = '/opt/gluu-server-' + app_config.gluu_version
-
     for server in Server.query.all():
         if server.gluu_server:
         
-            if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-                restart_command = '/sbin/gluu-serverd-{0} restart'.format(
-                                    app_config.gluu_version)
-            else:
-                restart_command = '/etc/init.d/gluu-server-{0} restart'.format(
-                                    app_config.gluu_version)
-
-
-            wlogger.log(tid, "Making SSH connection to the server %s" %
-                    server.hostname)
-
-            ct = RemoteClient(server.hostname, ip=server.ip)
-
-            try:
-                ct.startup()
-            except Exception as e:
-                wlogger.log(
-                    tid, "Cannot establish SSH connection {0}".format(e),
-                    "warning")
-                wlogger.log(tid, "Ending server setup process.", "error")
-
+            installer = Installer(
+                        server,
+                        app_conf.gluu_version,
+                        logger_task_id=task_id,
+                        server_os=server.os
+                    )
 
             csync2_config = get_csync2_config(exclude=removed_server_hostname)
+            remote_file = os.path.join(installer.container, 'etc', 'csync2.cfg')
+            installer.put_file(remote_file,  csync2_config)
 
-            remote_file = os.path.join(chroot, 'etc', 'csync2.cfg')
-
-            wlogger.log(tid, "Uploading csync2.cfg", 'debug')
-
-            ct.put_file(remote_file,  csync2_config)
-
-
-
-            wlogger.log(tid, "Restarting Gluu Server on {}".format(
-                                server.hostname))
-
-            run_command(tid, ct, restart_command)
-
-            ct.close()
-
-                
+            installer.restart_gluu()
 
     db.session.commit()
     return True

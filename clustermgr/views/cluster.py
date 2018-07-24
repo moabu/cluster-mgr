@@ -116,7 +116,7 @@ def remove_server_from_cluster_view(server_id):
                                             disable_replication
                                         )
 
-    head = "Removing server {} from cluster".format(server.hostname)
+    title = "Removing server {} from cluster".format(server.hostname)
 
     if request.args.get('next') == 'dashboard':
         nextpage = "index.home"
@@ -124,8 +124,19 @@ def remove_server_from_cluster_view(server_id):
     else:
         nextpage = "index.multi_master_replication"
         whatNext = "Multi Master Replication"
-    return render_template("logger.html", heading=head, server=server,
-                           task=task, nextpage=nextpage, whatNext=whatNext)
+    
+    return render_template('logger_single.html',
+                           server_id=server_id,
+                           title=title,
+                           steps=[],
+                           task=task,
+                           cur_step=1,
+                           auto_next=False,
+                           multistep=False,
+                           nextpage=nextpage,
+                           whatNext=whatNext
+                           )
+
 
 @cluster.route('/remove_deployment/<int:server_id>/')
 @login_required
