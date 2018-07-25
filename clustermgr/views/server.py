@@ -301,7 +301,7 @@ def install_gluu(server_id):
     # start installation by redirecting to cluster.install_gluu_server
     if not server.primary_server:
 
-        return redirect(url_for('server.install_gluu',
+        return redirect(url_for('server.install_gluu_server',
                                 server_id=server_id))
 
     # If we come up here, it is primary server and we will ask admin which
@@ -683,7 +683,7 @@ def test_view():
     servers = Server.query.all()
     title = "You should not come this page!!!"
 
-    nextpage = 'index.home'
+    nextpage = url_for('index.home')
     whatNext = "Dashboard"
 
     return render_template('logger_single.html',

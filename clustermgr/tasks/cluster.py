@@ -41,10 +41,14 @@ def modifyOxLdapProperties(server, installer, task_id, pDict):
     # iterate ox-ldap.properties file and modify "servers" entry
     if result:
         file_content = ''
-        for line in result:
+        for line in result.split('\n'):
             if line.startswith('servers:'):
-                line = 'servers: {0}\n'.format( pDict[server.hostname] )
-            file_content += line
+                line = 'servers: {0}'.format( pDict[server.hostname] )
+                print line
+            file_content += line+'\n'
+
+        print pDict
+        #print file_content
 
         result = installer.put_file(remote_file,file_content)
 
@@ -599,8 +603,6 @@ def configure_OxIDPAuthentication(task_id, exclude=None, installers={}):
 
     gluu_installed_servers = Server.query.filter_by(gluu_server=True).all()
 
-    chroot_fs = '/opt/gluu-server-' + app_conf.gluu_version
-
     pDict = {}
 
     for server in gluu_installed_servers:
@@ -706,9 +708,7 @@ def opendjenablereplication(self, server_id):
 
     for server in servers:
         if not server.primary_server:
-            wlogger.log(task_id, "Enabling replication on server {}".format(
-                                                            server.hostname))
-
+            
             for base in ['gluu', 'site']:
 
                 cmd = ('/opt/opendj/bin/dsreplication enable --host1 {} --port1 4444 '
@@ -724,11 +724,14 @@ def opendjenablereplication(self, server_id):
                             app_conf.replication_pw.replace("'","\\'"),
                             base,
                             )
-                
+            
+                wlogger.log(task_id, "Enabling replication on server {} for {}".format(
+                                                            server.hostname, base))
+
                 installer.run(cmd, error_exception='no base DNs available to enable replication')
 
-                wlogger.log(task_id, "Inıtializing replication on server {}".format(
-                                                                server.hostname))
+                wlogger.log(task_id, "Initializing replication on server {} for {}".format(
+                                                                server.hostname, base))
 
                 cmd = ('/opt/opendj/bin/dsreplication initialize --baseDN \'o={}\' '
                         '--adminUID admin --adminPassword $\'{}\' '
@@ -910,7 +913,7 @@ def installNGINX(self, nginx_host):
         return False
 
     nginx_installer.enable_service('nginx', inside=False)
-    nginx_installer.start_service('nginx', inside=False)
+    nginx_installer.restart_service('nginx', inside=False)
     
     if app_conf.modify_hosts:
         

@@ -69,12 +69,12 @@ class Installer:
         if ('Ubuntu' in self.server_os) or ('Debian' in self.server_os):
             self.clone_type = 'deb'
             self.packager = 'DEBIAN_FRONTEND=noninteractive apt-get install -y {}'
-        elif ('CentOS' in self.server_os) or ( 'RHEL' in self.server_os):
+        elif ('CentOS' in self.server_os) or ('RHEL' in self.server_os):
             self.clone_type = 'rpm'
             self.packager = 'yum install -y {}'
 
 
-        if self.conn and self.conn.__class__.__name__ != 'FakeRemote':
+        if self.conn.__class__.__name__ != 'FakeRemote':
             self.container = '/opt/gluu-server-{}'.format(self.gluu_version)
             if self.clone_type == 'deb':
                 self.run_command = 'chroot {} /bin/bash -c "{}"'.format(self.container,'{}')
@@ -249,11 +249,11 @@ class Installer:
 
     def start_service(self, service, inside=True):
         cmd = self.service_script.format(service, 'start')
-        self.run(cmd, inside=inside)
+        self.run(cmd, inside=inside, error_exception='Redirecting to /bin/systemctl')
 
     def restart_service(self, service, inside=True):
         cmd = self.service_script.format(service, 'restart')
-        self.run(cmd, inside=inside)
+        self.run(cmd, inside=inside, error_exception='Redirecting to /bin/systemctl')
 
 
     def is_gluu_installed(self):

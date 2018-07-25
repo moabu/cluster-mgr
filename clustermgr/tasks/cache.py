@@ -212,6 +212,7 @@ def __configure_stunnel(task_id, server, stunnel_conf, setup_props=None):
             server,
             app_conf.gluu_version,
             logger_task_id=task_id,
+            server_os=server.os
             )
     if not installer.conn:
         return False
@@ -295,7 +296,7 @@ def __configure_stunnel(task_id, server, stunnel_conf, setup_props=None):
         twemproxy_conf = make_twem_proxy_conf()
         remote = "/etc/nutcracker/nutcracker.yml"
         installer.put_file(remote, twemproxy_conf)
-        installer.run('service nutcracker restart')
+        installer.restart_service('nutcracker', inside=False)
 
     return True
 

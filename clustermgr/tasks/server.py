@@ -633,7 +633,7 @@ def install_gluu_server(task_id, server_id):
     server.gluu_server = True
     db.session.commit()
     wlogger.log(task_id, "Gluu Server successfully installed")
-    wlogger.log(task_id, "5", "setstep")
+
 
 
 @celery.task(bind=True)

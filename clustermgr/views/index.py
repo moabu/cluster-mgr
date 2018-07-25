@@ -217,7 +217,7 @@ def app_configuration():
         collect_server_details.delay(-1)
 
 
-        flash("Gluu Replication Manager application configuration has been "
+        flash("Gluu Cluster Manager application configuration has been "
               "updated.", "success")
 
         if request.args.get('next'):
@@ -255,18 +255,6 @@ def app_configuration():
         #conf_form.use_ip.data = config.use_ip
         if config.gluu_version:
             conf_form.gluu_version.data = config.gluu_version
-        """
-        if config.log_purge:
-            a, i = config.log_purge.split()
-            pa = a.split(':')
-            pi = i.split(':')
-            conf_form.purge_age_day.data = pa[0]
-            conf_form.purge_age_hour.data = pa[1]
-            conf_form.purge_age_min.data = pa[2]
-            conf_form.purge_interval_day.data = pi[0]
-            conf_form.purge_interval_hour.data = pi[1]
-            conf_form.purge_interval_min.data = pi[2]
-        """
 
     #create fake remote class that provides the same interface with RemoteClient
     fc = FakeRemote()
@@ -509,7 +497,7 @@ def upgrade_clustermgr():
     task = upgrade_clustermgr_task.delay()
     print "TASK STARTED", task.id
     title = "Upgrading clustermgr"
-    nextpage = "index.home"
+    nextpage = url_for("index.home")
     whatNext = "Go to Dashboard"
     
     return render_template('logger_single.html',

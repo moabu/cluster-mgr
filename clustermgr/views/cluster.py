@@ -15,7 +15,7 @@ from flask import current_app as app
 from clustermgr.core.ldap_functions import LdapOLC, getLdapConn
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cluster import setup_ldap_replication, \
-    removeMultiMasterDeployement, installNGINX, \
+    installNGINX, \
     setup_filesystem_replication, opendjenablereplication, \
     remove_server_from_cluster, remove_filesystem_replication, \
     opendj_disable_replication_task
@@ -81,7 +81,7 @@ def remove_server_from_cluster_view(server_id):
     title = "Removing server {} from cluster".format(server.hostname)
 
     if request.args.get('next') == 'dashboard':
-        nextpage = "index.home"
+        nextpage = url_for("index.home")
         whatNext = "Dashboard"
     else:
         nextpage = "index.multi_master_replication"
@@ -181,7 +181,7 @@ def install_nginx():
 
     print "Install NGINX TASK STARTED", task.id
     head = "Installing NGINX Server on {0}".format(app_conf.nginx_host)
-    nextpage = "index.multi_master_replication"
+    nextpage = url_for('index.multi_master_replication')
     whatNext = "LDAP Replication"
     return render_template('logger_single.html', title=head, server=app_conf.nginx_host,
                            task=task, nextpage=nextpage, whatNext=whatNext)
@@ -190,7 +190,7 @@ def install_nginx():
 @cluster.route('/opendjenablereplication/<server_id>')
 def opendj_enable_replication(server_id):
 
-    nextpage = 'index.multi_master_replication'
+    nextpage = url_for('index.multi_master_replication')
     whatNext = "LDAP Replication"
     if not server_id == 'all':
         server = Server.query.get(server_id)
