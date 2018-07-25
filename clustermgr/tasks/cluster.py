@@ -451,18 +451,6 @@ def upload_custom_schema(tid, c, ldap_type, gluu_server):
                 wlogger.log(tid,
                     "Can't upload custom schame file {0}: ".format(sf,
                                                             r[1]), 'error')
-    
-@celery.task(bind=True)
-def removeMultiMasterDeployement(self, server_id):
-    """Removes multi master replication deployment
-
-    Args:
-        server_id: id of server to be un-depoloyed
-    """
-    #MB: removed until openldap replication is validated
-    
-    pass
-
 
 def do_disable_replication(task_id, server, primary_server, app_conf):
 
