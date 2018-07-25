@@ -802,7 +802,7 @@ def opendjenablereplication(self, server_id):
     installer.restart_gluu()
 
     if 'CentOS' in primary_server.os:
-        wlogger.log(tid, "Waiting for Gluu to finish starting")
+        wlogger.log(task_id, "Waiting for Gluu to finish starting")
         time.sleep(60)
     
 
@@ -856,15 +856,15 @@ def installNGINX(self, nginx_host):
         wlogger.log(task_id, "nginx allready exists")
     else:
         nginx_installer.epel_release()
-        nginx_installer.install('nginx', inside='False')
+        nginx_installer.install('nginx', inside=False)
 
     #Check if ssl certificates directory exist on this server
     result = nginx_installer.conn.exists("/etc/nginx/ssl/")
     if not result:
         wlogger.log(task_id, "/etc/nginx/ssl/ does not exists. Creating ...",
                             "debug")
-        result = result.conn.mkdir("/etc/nginx/ssl/")
-        if result[0]:
+        result = nginx_installer.conn.mkdir("/etc/nginx/ssl/")
+        if result:
             wlogger.log(task_id, "/etc/nginx/ssl/ was created", "success")
         else:
             wlogger.log(task_id, 

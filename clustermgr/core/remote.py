@@ -26,6 +26,8 @@ def get_os_type(self):
     cin, cout, cerr = self.run(cmd)
     result = eval(cout)
     os_type = result[0].split()[0].title()
+    if os_type == 'Centos':
+        os_type = 'CentOS'
     os_version = result[1].split('.')[0]
     self.server_os = os_type+' '+os_version
     return self.server_os

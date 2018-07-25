@@ -83,7 +83,7 @@ class Installer:
                 self.run_command = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
                                 '-o Port=60022 -o LogLevel=QUIET -o '
                                 'StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null '
-                                '-o PubkeyAuthentication=yes root@localhost \'{}\''
+                                '-o PubkeyAuthentication=yes root@localhost "{}"'
                                 )
 
                 self.install_command = self.run_command.format('yum install -y {}')
@@ -186,7 +186,7 @@ class Installer:
         if self.clone_type == 'rpm':
             wlogger.log(self.logger_task_id, "Installing epel-release", server_id=self.server_id)
             self.install('epel-release', inside=inside)
-            self.run('yum repolist')
+            self.run('yum repolist', inside=inside)
 
     def upload_file(self, local, remote):
         print "Installer> Uploading local {} to remote {}".format(local, remote)

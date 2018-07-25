@@ -43,7 +43,7 @@ def collect_server_details(server_id):
                 server_os=None
                 )
 
-    os_type = installer.server_os
+    os_type = installer.get_os_type()
 
     if server_id == -1:
         app_conf.nginx_os = os_type
@@ -310,7 +310,7 @@ def install_gluu_server(task_id, server_id):
 
     elif 'CentOS' in server.os or 'RHEL' in server.os:
         if not installer.conn.exists('/usr/bin/wget'):
-            installer.install('wget', inside=False)
+            installer.install('wget', inside=False, error_exception='warning: /var/cache/')
 
         if server.os == 'CentOS 6':
             cmd = (
@@ -416,7 +416,7 @@ def install_gluu_server(task_id, server_id):
 
 
     if enable_command:
-        installer.run(enable_command.format(appconf.gluu_version), error_exception='__ALL__')
+        installer.run(enable_command.format(app_conf.gluu_version), error_exception='__ALL__')
 
     installer.start_gluu()
 
@@ -551,9 +551,9 @@ def install_gluu_server(task_id, server_id):
             primary_server_installer.download_file(certs_remote_tmp, certs_local_tmp)
            
             installer.upload_file(certs_local_tmp, 
-                                "/opt/{0}/tmp/certs.tgz".format(gluu_server))
+                                "/opt/{0}/root/certs.tgz".format(gluu_server))
 
-            cmd = 'tar -zxf /tmp/certs.tgz -C /'
+            cmd = 'tar -zxf /root/certs.tgz -C /'
             installer.run(cmd)
 
 
@@ -610,9 +610,9 @@ def install_gluu_server(task_id, server_id):
                      'debug')
 
     if 'CentOS' in server.os or 'RHEL' in server.os:
-        cmd = 'service crond reload'
+        installer.restart_service('crond')
     else:
-        cmd = 'service cron reload'
+        installer.restart_service('cron')
 
     installer.run(cmd)
 
@@ -633,6 +633,8 @@ def install_gluu_server(task_id, server_id):
     server.gluu_server = True
     db.session.commit()
     wlogger.log(task_id, "Gluu Server successfully installed")
+    
+    return True
 
 
 
