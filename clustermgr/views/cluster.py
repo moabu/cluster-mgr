@@ -380,7 +380,7 @@ def file_system_replication():
     task = setup_filesystem_replication.delay()
 
     title = "Installing File System Replication"
-    nextpage='cache_mgr.index'
+    nextpage=url_for('cache_mgr.index')
     whatNext="Cache Management"
     
     return render_template('logger_single.html',

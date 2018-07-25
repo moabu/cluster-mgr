@@ -6,6 +6,7 @@ from flask import render_template
 from influxdb import InfluxDBClient
 
 from ..core.remote import RemoteClient
+from ..core.clustermgr_installer import Installer
 from ..extensions import celery
 from ..extensions import db
 from ..extensions import wlogger
@@ -115,16 +116,13 @@ def collect_logs(host, ip, path, influx_fmt=True):
     return influx.write_points(logs)
 
 
-def _install_filebeat(task_id, server, rc):
+def _install_filebeat(installer):
     """Installs filebeat.
 
     Docs at https://www.elastic.co/guide/en/beats/filebeat/current/setup-repositories.html.
     """
-    stdout = ""
-    stderr = ""
-    opsys = (server.os or "").lower()
 
-    if opsys.startswith("ubuntu"):
+    if installer.clone_type == 'deb':
         cmd_list = [
             "apt-get install -y apt-transport-https",
             "wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add -",
@@ -133,140 +131,83 @@ def _install_filebeat(task_id, server, rc):
             "{} apt-get install -y filebeat".format(DEBCONF),
             "update-rc.d filebeat defaults 95 10",
         ]
-    elif opsys.startswith("centos"):
+    else:
         cmd_list = [
             "rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch",
             "echo '{}' > /etc/yum.repos.d/elastic.repo".format(_ELASTIC_YUM_REPO),
             "yum install -y filebeat",
             "chkconfig --add filebeat",
         ]
-    else:
-        cmd_list = []
-        task_logger.warn("Unable to determine underlying OS")
 
     for cmd in cmd_list:
-        wlogger.log(task_id, cmd, "info", server_id=server.id)
-        _, stdout, stderr = rc.run(cmd)
+        installer.run(cmd, inside=False)
 
-        if stderr:
-            return stdout, stderr
-    return stdout, stderr
-
-
-def _render_filebeat_config(task_id, server, rc):
+def _render_filebeat_config(installer):
     """Renders filebeat config and upload to a server.
     """
     # render filebeat.yml and upload to server
-    appconf = AppConfiguration.query.first()
 
     with current_app.app_context():
         ctx = {
-            "ip": server.ip,
-            "os": server.os,
-            "chroot": "true" if server.gluu_server is True else "",
-            "chroot_path": "/opt/gluu-server-{}".format(appconf.gluu_version) if server.gluu_server else "",
-            "gluu_version": appconf.gluu_version,
+            "ip": installer.ip,
+            "os": installer.server_os,
+            "chroot": "true" if installer.is_gluu_installed() else "",
+            "chroot_path": installer.container,
+            "gluu_version": installer.gluu_version,
         }
 
         src = "filebeat.yml"
-        opsys = (server.os or "").lower()
-        if opsys.startswith("centos"):
+        
+        if installer.clone_type == 'rpm':
             src += ".centos"
 
         txt = render_template("filebeat/{}".format(src), **ctx)
-        wlogger.log(task_id, "uploading filebeat.yml to remote server", "info", server_id=server.id)
-        status, maybe_err = rc.put_file("/etc/filebeat/filebeat.yml", txt)
-        return status, maybe_err
-
-
-def _restart_filebeat(task_id, server, rc):
-    """Restarts filebeat service.
-    """
-    opsys = (server.os or "").lower()
-
-    if opsys in ("centos 6", "ubuntu 14"):
-        cmd = "service filebeat restart"
-    elif opsys in ("centos 7", "ubuntu 16"):
-        cmd = "systemctl enable filebeat && systemctl restart filebeat"
-    else:
-        task_logger.warn("Unable to determine underlying OS")
-        return "", ""
-
-    wlogger.log(task_id, cmd, "info", server_id=server.id)
-    _, stdout, stderr = rc.run(cmd)
-    return stdout, stderr
+        installer.put_file("/etc/filebeat/filebeat.yml", txt)
 
 
 @celery.task(bind=True)
 def setup_filebeat(self, force_install=False):
     """Setup filebeat to collect logs.
     """
-    tid = self.request.id
+    task_id = self.request.id
     servers = Server.query.all()
+    app_conf = AppConfiguration.query.first()
+
+    print "TASK", task_id
 
     for server in servers:
+        print server
         if server.filebeat and force_install is False:
             wlogger.log(
-                tid,
+                task_id,
                 "filebeat has been installed ... skipping task",
                 "info",
                 server_id=server.id,
             )
             continue
 
-        # establishes SSH connection
-        wlogger.log(
-            tid,
-            "Making SSH connection to the server {}.".format(server.hostname),
-            "info",
-            server_id=server.id,
-        )
-
-        rc = RemoteClient(server.hostname, server.ip)
-        try:
-            rc.startup()
-
-            # installs filebeat
-            _, stderr = _install_filebeat(tid, server, rc)
-            if stderr:
-                wlogger.log(tid, stderr, "warning", server_id=server.id)
-
-            # renders filebeat config
-            uploaded, maybe_err = _render_filebeat_config(tid, server, rc)
-            if not uploaded:
-                wlogger.log(
-                    tid,
-                    "Cannot render/upload filebeat.yml; reason={}".format(maybe_err),
-                    "warning",
-                    server_id=server.id,
-                )
-
-            # restarts filebeat service
-            # note, restarting filebeat service may gives unwanted output,
-            # hence we skip checking the result of running command
-            _restart_filebeat(tid, server, rc)
-
-            # update the model
-            server.filebeat = True
-            db.session.add(server)
-            db.session.commit()
-        except Exception as exc:
-            wlogger.log(
-                tid,
-                "Cannot establish SSH connection {}".format(exc),
-                "warning",
-                server_id=server.id,
+        installer = Installer(
+            server,
+            app_conf.gluu_version,
+            logger_task_id=task_id,
+            server_os=server.os
             )
-            wlogger.log(
-                tid,
-                "Ending server setup process.",
-                "error",
-                server_id=server.id,
-            )
-            return False
-        finally:
-            rc.close()
-    return True
+
+        # installs filebeat
+        _install_filebeat(installer)
+
+        # renders filebeat config
+        _render_filebeat_config(installer)
+
+        # restarts filebeat service
+        # note, restarting filebeat service may gives unwanted output,
+        # hence we skip checking the result of running command
+        installer.restart_service('filebeat', inside=False)
+
+        # update the model
+        server.filebeat = True
+        db.session.add(server)
+        db.session.commit()
 
 
 # @celery.task(bind=True)
@@ -289,77 +230,31 @@ def setup_influxdb(self):
     return True
 
 
-def _uninstall_filebeat(task_id, server, rc):
-    stdout = ""
-    stderr = ""
-    opsys = (server.os or "").lower()
-
-    if opsys.startswith("ubuntu"):
-        cmd_list = [
-            "apt-get remove -y --purge filebeat",
-        ]
-    elif opsys.startswith("centos"):
-        cmd_list = [
-            "yum remove -y filebeat",
-        ]
-    else:
-        cmd_list = []
-        task_logger.warn("Unable to determine underlying OS")
-
-    for cmd in cmd_list:
-        wlogger.log(task_id, cmd, "info", server_id=server.id)
-        _, stdout, stderr = rc.run(cmd)
-        if stderr:
-            return stdout, stderr
-    return stdout, stderr
-
-
 @celery.task(bind=True)
 def remove_filebeat(self):
     """Removes filebeat.
     """
-    tid = self.request.id
+    task_id = self.request.id
+    app_conf = AppConfiguration.query.first()
+
     servers = Server.query.all()
 
     for server in servers:
-        # establishes SSH connection
-        wlogger.log(
-            tid,
-            "Making SSH connection to the server {}.".format(server.hostname),
-            "info",
-            server_id=server.id,
-        )
-
-        rc = RemoteClient(server.hostname, server.ip)
-        try:
-            rc.startup()
-
-            # installs filebeat
-            _, stderr = _uninstall_filebeat(tid, server, rc)
-            if stderr:
-                wlogger.log(tid, stderr, "warning", server_id=server.id)
-
-            # remove log used to collect all components logs
-            rc.run("rm -f /tmp/gluu-filebeat*")
-
-            # update the model
-            server.filebeat = False
-            db.session.add(server)
-            db.session.commit()
-        except Exception as exc:
-            wlogger.log(
-                tid,
-                "Cannot establish SSH connection {}".format(exc),
-                "warning",
-                server_id=server.id,
+        installer = Installer(
+            server,
+            app_conf.gluu_version,
+            logger_task_id=task_id,
+            server_os=server.os
             )
-            wlogger.log(
-                tid,
-                "Ending server setup process.",
-                "error",
-                server_id=server.id,
-            )
-            return False
-        finally:
-            rc.close()
+
+        installer.remove('filebeat', inside=False)
+        
+        # remove log used to collect all components logs
+        installer.run("rm -f /tmp/gluu-filebeat*", inside=False)
+
+        # update the model
+        server.filebeat = False
+        db.session.add(server)
+        db.session.commit()
+
     return True

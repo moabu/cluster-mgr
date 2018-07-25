@@ -131,16 +131,15 @@ def install_filebeat():
     force_install = as_boolean(request.values.get("force_install", False))
 
     task = setup_filebeat.delay(force_install=force_install)
-    return render_template("log_setup_logger.html", step=1,
-                           task_id=task.id, servers=servers)
 
+    title = 'Install Filebeat'
+    nextpage=url_for('log_mgr.index')
+    whatNext="Logging Page"
 
-# @log_mgr.route("/configure_influxdb/")
-# @login_required
-# def configure_influxdb():
-#     servers = [Server(id=0, hostname="localhost")]
-#     task = setup_influxdb.delay()
-#     return render_template("log_setup_logger.html", task_id=task.id, step=2, servers=servers)
+    return render_template('logger_single.html',
+                           task_id=task.id, title=title,
+                           nextpage=nextpage, whatNext=whatNext,
+                           task=task, multiserver=servers)
 
 
 @log_mgr.route("/collect/")
@@ -177,5 +176,12 @@ def collect():
 def uninstall_filebeat():
     servers = Server.query.all()
     task = remove_filebeat.delay()
-    return render_template("log_setup_logger.html", step=1,
-                           task_id=task.id, servers=servers)
+
+    title = 'Uninstall Filebeat'
+    nextpage=url_for('log_mgr.index')
+    whatNext="Logging Page"
+
+    return render_template('logger_single.html',
+                           task_id=task.id, title=title,
+                           nextpage=nextpage, whatNext=whatNext,
+                           task=task, multiserver=servers)
