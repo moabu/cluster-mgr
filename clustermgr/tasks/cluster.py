@@ -193,7 +193,7 @@ def setup_filesystem_replication_do(task_id):
                 installer.run(cmd)
             installer.install('apt-utils')
             installer.install('csync2')
-            
+
         elif installer.clone_type == 'rpm':
             installer.epel_release(True)
 
@@ -339,13 +339,13 @@ def remove_filesystem_replication_do(server, app_config, task_id):
 
 @celery.task(bind=True)
 def remove_filesystem_replication(self):
-    tid = self.request.id
+    task_id = self.request.id
     
     app_config = AppConfiguration.query.first()
     servers = Server.query.all()
     
     for server in servers:
-        r = remove_filesystem_replication_do(server, app_config, tid)
+        r = remove_filesystem_replication_do(server, app_config, task_id)
         if not r:
             return r
 

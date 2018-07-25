@@ -655,7 +655,7 @@ def install_gluu_server(server_id):
 
     title = "Installing Gluu Server on " + server.hostname
 
-    nextpage = 'index.home'
+    nextpage = url_for('index.home')
     whatNext = "Dashboard"
 
     return render_template('logger_single.html',
@@ -664,7 +664,7 @@ def install_gluu_server(server_id):
                            steps=steps,
                            task=task,
                            cur_step=1,
-                           auto_next=False,
+                           auto_next=True,
                            multistep=True,
                            nextpage=nextpage,
                            whatNext=whatNext

@@ -394,6 +394,11 @@ def remove_file_system_replication():
     servers = Server.query.all()
     task = remove_filesystem_replication.delay()
 
-    return render_template('fsr_remove_logger.html', step=1,
-                           task_id=task.id, servers=servers)
-                           
+    title = "Uninstalling File System Replication"
+    nextpage=url_for('index.home')
+    whatNext="Dashboard"
+    
+    return render_template('logger_single.html',
+                           task_id=task.id, title=title,
+                           nextpage=nextpage, whatNext=whatNext,
+                           task=task, multiserver=servers)
