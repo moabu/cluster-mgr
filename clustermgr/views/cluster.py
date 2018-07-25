@@ -36,60 +36,22 @@ cluster.before_request(license_required)
 cluster.before_request(license_reminder)
 
 
-@cluster.route('/deploy_config/<server_id>', methods=['GET', 'POST'])
-@login_required
-def deploy_config(server_id):
-    """Initiates replication deployement task
-
-    Args:
-        server_id (integer): id of server to be deployed
-    """
-
-    nextpage = 'index.multi_master_replication'
-    whatNext = "LDAP Replication"
-
-    s = None
-
-    if not server_id == 'all':
-        if server_id.isalnum():
-            server_id = int(server_id)
-            s = Server.query.get(server_id)
-            if not s:
-                flash("Server id {0} is not on database".format(server_id), 'warning')
-                return redirect(url_for("index.multi_master_replication"))
-
-            #Start deployment celery task
-            task = setup_ldap_replication.delay(server_id)
-            head = "Setting up Replication on Server: " + s.hostname
-
-        else:
-            flash("Invalid Server id {0}".format(server_id), 'warning')
-            return redirect(url_for("index.multi_master_replication"))
-
-    else:
-        #Start deployment celery task
-        task = setup_ldap_replication.delay(server_id)
-        head = "Setting up Replication on All Servers"
-
-
-
-    return render_template("logger.html", heading=head, server=s,
-                           task=task, nextpage=nextpage, whatNext=whatNext)
-
-
 @cluster.route('/opendjdisablereplication/<int:server_id>/')
 def opendj_disable_replication(server_id):
     server = Server.query.get(server_id)
     task = opendj_disable_replication_task.delay(
                                             server.id, 
                                         )
-    head = "Disabling LDAP Replication for {}".format(server.hostname)
-    nextpage = "index.multi_master_replication"
+    title = "Disabling LDAP Replication for {}".format(server.hostname)
+    nextpage = url_for('index.multi_master_replication')
     whatNext = "Multi Master Replication"
 
 
-    return render_template("logger.html", heading=head, server=server,
-                           task=task, nextpage=nextpage, whatNext=whatNext)
+    return render_template('logger_single.html', server_id=server.id,
+                           title=title, steps=[], task=task,
+                           nextpage=nextpage, whatNext=whatNext
+                           )
+
 
 
 
@@ -177,53 +139,15 @@ def remove_deployment(server_id):
     # Start deployment removal celery task
     task = removeMultiMasterDeployement.delay(server_id)
     print "TASK STARTED", task.id
-    head = "Removing Deployment"
-    nextpage = "index.multi_master_replication"
+    title = "Removing Deployment"
+    nextpage = url_for('index.multi_master_replication')
     whatNext = "Multi Master Replication"
-    return render_template("logger.html", heading=head, server=thisServer,
-                           task=task, nextpage=nextpage, whatNext=whatNext)
-
-
-@cluster.route('/install_ldapserver')
-@login_required
-def install_ldap_server():
-    """Initiates installation of non-gluu ldap server"""
-
-    # Start non-gluu ldap server installation celery task
-    task = InstallLdapServer.delay(session['nongluuldapinfo'])
-    print "TASK STARTED", task.id
-    head = "Installing Symas Open-Ldap Server on " + \
-        session['nongluuldapinfo']['fqn_hostname']
-    nextpage = "index.multi_master_replication"
-    whatNext = "Multi Master Replication"
-    return render_template("logger.html", heading=head, server="",
-                           task=task, nextpage=nextpage, whatNext=whatNext)
-
-
-@cluster.route('/install_gluu_server/<int:server_id>/')
-@login_required
-def install_gluu_server(server_id):
-    """Initiates installation of gluu server
-
-    Args:
-        server_id (integer): id fo server to be installed
-    """
-
-    server = Server.query.get(server_id)
-    appconf = AppConfiguration.query.first()
-
-    # Start gluu server installation celery task
-    task = installGluuServer.delay(server_id)
-
-    print "Install Gluu Server TASK STARTED", task.id
-    head = "Installing Gluu Server ({0}) on {1}".format(
-                                                    appconf.gluu_version,
-                                                    server.hostname,
-                                                    )
-    nextpage = "index.home"
-    whatNext = "Dashboard"
-    return render_template("logger.html", heading=head, server=server.hostname,
-                           task=task, nextpage=nextpage, whatNext=whatNext)
+    
+    
+    return render_template('logger_single.html', server_id=server.id,
+                       title=title, steps=[], task=task,
+                       nextpage=nextpage, whatNext=whatNext
+                       )
 
 def checkNginxStatus(nginxhost):
     try:

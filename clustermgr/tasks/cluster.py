@@ -959,36 +959,36 @@ def upgrade_clustermgr_task(self):
 @celery.task(bind=True)
 def register_objectclass(self, objcls):
     
-    tid = self.request.id
+    task_id = self.request.id
     primary = Server.query.filter_by(primary_server=True).first()
 
     servers = Server.query.all()
-    appconf = AppConfiguration.query.first()
+    app_conf = AppConfiguration.query.first()
 
     
-    wlogger.log(tid, "Making LDAP connection to primary server {}".format(primary.hostname))
+    wlogger.log(task_id, "Making LDAP connection to primary server {}".format(primary.hostname))
     
     ldp = getLdapConn(  primary.hostname,
                         "cn=directory manager",
                         primary.ldap_password
                         )
     
-    r = ldp.registerObjectClass(objcls)
+    result = ldp.registerObjectClass(objcls)
  
-    if not r:
-        wlogger.log(tid, "Attribute cannot be registered".format(primary.hostname), 'error')
+    if not result:
+        wlogger.log(task_id, "Attribute cannot be registered".format(primary.hostname), 'error')
         return False
     else:
-        wlogger.log(tid, "Object class is registered",'success')
+        wlogger.log(task_id, "Object class is registered",'success')
 
 
     for server in servers:
-        installer = Installer(server, appconf.gluu_version, logger_tid=tid)
-        if installer.c:
-            wlogger.log(tid, "Restarting idendity at {}".format(server.hostname))
+        installer = Installer(server, app_conf.gluu_version, logger_task_id=task_id)
+        if installer.conn:
+            wlogger.log(task_id, "Restarting idendity at {}".format(server.hostname))
             installer.run('/etc/init.d/identity restart')
     
-    appconf.object_class_base = objcls
+    app_conf.object_class_base = objcls
     db.session.commit()
     
     return True

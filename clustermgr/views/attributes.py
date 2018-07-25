@@ -91,13 +91,15 @@ def create_objecclass():
     
     
     task = register_objectclass.delay(object_class)
-    head = "Registering Object Class {}".format(object_class)
+    title = "Registering Object Class {}".format(object_class)
 
-    nextpage = "attributes.home"
+    nextpage = url_for('attributes.home')
     whatNext = "Custom Attributes"
 
-    return render_template("logger.html", heading=head, server=server,
-                           task=task, nextpage=nextpage, whatNext=whatNext)
+    return render_template('logger_single.html', server_id=server.id,
+                           title=title, steps=[], task=task,
+                           nextpage=nextpage, whatNext=whatNext
+                           )
     
 
 
