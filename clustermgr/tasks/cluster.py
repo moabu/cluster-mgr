@@ -846,6 +846,8 @@ def installNGINX(self, nginx_host):
     if not nginx_installer.conn:
         return False
 
+    #nc is required for dyr run
+    nginx_installer.install('nc', inside=False)
 
     #check if nginx was installed on this server
     wlogger.log(task_id, "Check if NGINX installed")

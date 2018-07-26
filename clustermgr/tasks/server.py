@@ -220,11 +220,7 @@ def install_gluu_server(task_id, server_id):
     # If this is not primary server, we will download setup.properties
     # file from primary server
     if not server.primary_server:
-        wlogger.log(
-                    task_id, 
-                    "Check if Primary Server is Installed", 
-                    'head'
-                    )
+        wlogger.log(task_id, "Check if Primary Server is Installed", 'head')
 
         primary_server_installer = Installer(
                                 primary_server,
@@ -234,25 +230,19 @@ def install_gluu_server(task_id, server_id):
                             )
 
         if not primary_server_installer.conn:
-            wlogger.log(
-                        task_id, 
-                        "Primary server is not installed.",
-                        "fail"
+            wlogger.log(task_id, "Primary server is reachable via ssh.", "fail"
                         )
             return False
         else:
-            wlogger.log(
-                        task_id, 
-                        "Primary server is installed.", 
-                        "success"
-                        )
+            if not primary_server_installer.is_gluu_installed():
+                wlogger.log(task_id, "Primary server is not installed.","fail")
+                return False
+            
+            else:
+                wlogger.log(task_id, "Primary server is installed.", "success")
 
 
-    wlogger.log(
-                task_id, 
-                "Preparing Server for installation", 
-                'head'
-                )
+    wlogger.log(task_id, "Preparing Server for installation", 'head')
                 
     installer = Installer(
                     server, 
@@ -265,6 +255,9 @@ def install_gluu_server(task_id, server_id):
         return False
 
 
+    #nc is required for dyr run
+    installer.install('nc', inside=False)
+
     #add gluu server repo and imports signatures
     if ('Ubuntu' in server.os) or ('Debian' in server.os):
 
@@ -275,30 +268,23 @@ def install_gluu_server(task_id, server_id):
 
 
         if 'Ubuntu' in server.os:
-            cmd = (
+            cmd_list = (
                 'curl https://repo.gluu.org/ubuntu/gluu-apt.key | '
-                'apt-key add -'
+                'apt-key add -',
+                'echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" '
+                '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist)
                 )
         elif 'Debian' in server.os:
-            cmd = (
+            cmd_list = (
                 'curl https://repo.gluu.org/debian/gluu-apt.key | '
-                'apt-key add -'
+                'apt-key add -',
+                'echo "deb https://repo.gluu.org/debian/ stable main" '
+               '> /etc/apt/sources.list.d/gluu-repo.list'
                 )
 
-        installer.run(cmd, inside=False, error_exception='Xferd')
 
-        if 'Ubuntu' in server.os:
-            cmd = (
-              'echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" '
-              '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist)
-               )
-        elif 'Debian' in server.os:
-            cmd = (
-               'echo "deb https://repo.gluu.org/debian/ stable main" '
-               '> /etc/apt/sources.list.d/gluu-repo.list'
-               )
-
-        installer.run(cmd, inside=False)
+        for cmd in cmd_list:
+            installer.run(cmd, inside=False, error_exception='Xferd')
 
         cmd = 'DEBIAN_FRONTEND=noninteractive apt-get update'
         cin, cout, cerr = installer.run(cmd, inside=False)
@@ -551,11 +537,10 @@ def install_gluu_server(task_id, server_id):
             primary_server_installer.download_file(certs_remote_tmp, certs_local_tmp)
            
             installer.upload_file(certs_local_tmp, 
-                                "/opt/{0}/root/certs.tgz".format(gluu_server))
+                                "/tmp/certs.tgz".format(gluu_server))
 
-            cmd = 'tar -zxf /root/certs.tgz -C /'
-            installer.run(cmd)
-
+            cmd = 'tar -zxf /tmp/certs.tgz -C /'
+            installer.run(cmd, inside=False)
 
             #delete old keys and import new ones
             wlogger.log(task_id, 'Manuplating keys')
@@ -634,8 +619,8 @@ def install_gluu_server(task_id, server_id):
     db.session.commit()
     wlogger.log(task_id, "Gluu Server successfully installed")
     
+    wlogger.log(task_id, "5", "setstep")
     return True
-
 
 
 @celery.task(bind=True)

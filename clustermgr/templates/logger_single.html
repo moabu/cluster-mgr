@@ -425,23 +425,8 @@ function updateLog(){
                 entry.scrollIntoView(false);
                 $('#retry').show()[0].scrollIntoView({behavior: "smooth", block: "end"});
             } else {
-                
-              {%if auto_next%}
-                window.location.href = "{{nextpage}}";
-    
-                setTimeout(function(){
-                    window.location.reload(true);
-                }, 10000);
-                
-              {%else%}
-                $('#home').show()[0].scrollIntoView({behavior: "smooth", block: "end"});
-              {%endif%}  
+              $('#home').show()[0].scrollIntoView({behavior: "smooth", block: "end"});
             }
-            
-            
-            
-            
-            
         }
     });
 }
