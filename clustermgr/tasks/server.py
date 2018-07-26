@@ -599,8 +599,6 @@ def install_gluu_server(task_id, server_id):
     else:
         installer.restart_service('cron')
 
-    installer.run(cmd)
-
     #We need to fix opendj initscript
     wlogger.log(task_id, 'Uploading fixed opendj init.d script')
     opendj_init_script = os.path.join(app.root_path, "templates",
