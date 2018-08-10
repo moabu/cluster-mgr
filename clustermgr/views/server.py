@@ -666,10 +666,12 @@ def dry_run(server_id):
                         result['nginx']['port_status'][p] = True
     
     return jsonify(result)
-    
-@server_view.route('/makeprimary/<int:server_id>/', methods=['GET'])
+
+@server_view.route('/makeprimary/<int:server_id>', methods=['GET'])
 @login_required
 def make_primary(server_id):
+    
+
     cur_primary = Server.query.filter_by(primary_server=True).first()
     
     if cur_primary:
