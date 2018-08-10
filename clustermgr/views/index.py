@@ -100,7 +100,9 @@ def home():
                 "asdded to /root/.ssh/authorized_keys on this server. Reason: {}".format(
                                                 servers[0].hostname, e), 'error')
 
-        return render_template('index_passphrase.html', e=e, ask_passphrase=ask_passphrase, next='/')
+        return render_template('index_passphrase.html', e=e, 
+                ask_passphrase=ask_passphrase, next='/',
+                warning_text="Error accessing Nginx Load Balancer")
     
 
     return render_template('dashboard.html', servers=servers, app_conf=appconf)

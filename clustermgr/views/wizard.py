@@ -24,7 +24,8 @@ from clustermgr.core.license import license_reminder
 from clustermgr.extensions import celery
 from clustermgr.core.license import prompt_license
 
-from clustermgr.core.remote import RemoteClient, FakeRemote
+from clustermgr.core.remote import RemoteClient, FakeRemote, \
+        ClientNotSetupException
 
 from clustermgr.tasks.wizard import wizard_step1, wizard_step2
 
@@ -38,7 +39,7 @@ wizard.before_request(license_reminder)
 def step1():
     
     pserver = Server.query.filter_by(primary_server=True).first()
-    if pserver:
+    if pserver and request.args.get('pass_set') != 'true':
         flash("Oops this service is not for you.",'warning')
         return redirect(url_for('index.home'))
  
@@ -62,20 +63,53 @@ def step1():
             db.session.add(app_conf)
             db.session.add(server)
             db.session.commit()
-    
-            task = wizard_step1.delay()
-            print "TASK STARTED", task.id
 
-            servers = Server.query.all()
-            return render_template('wizard/wizard_logger.html', step=1,
-                           task_id=task.id, servers=servers)
+
+    if request.method == 'POST' or request.args.get('pass_set') == 'true':
+
+        servers = Server.query.all()
+
+        ask_passphrase = False
+        
+        c = RemoteClient(servers[0].ip, servers[0].hostname)
+        try:
+            c.startup()
+        
+        except ClientNotSetupException as e:
+
+            if str(e) == 'Pubkey is encrypted.':
+                ask_passphrase = True
+                flash("Pubkey seems to password protected. "
+                    "Please set passphrase.",
+                    'warning')
+            elif str(e) == 'Could not deserialize key data.':
+                ask_passphrase = True
+                flash("Password your provided for pubkey did not work. "
+                    "Please set valid passphrase.",
+                    'warning')
+            else:
+                flash("SSH connection to {} failed. Please check if your pub key is "
+                    "asdded to /root/.ssh/authorized_keys on this server. Reason: {}".format(
+                                                    servers[0].hostname, e), 'error')
+
+            return render_template('index_passphrase.html', e=e, 
+                    ask_passphrase=ask_passphrase, next=url_for('wizard.step1',pass_set='true'),
+                    warning_text="Error accessing Stand Allone Server")
+
+
+        task = wizard_step1.delay()
+        print "TASK STARTED", task.id
+
+        servers = Server.query.all()
+        return render_template('wizard/wizard_logger.html', step=1,
+                       task_id=task.id, servers=servers)
                            
 
     return render_template( 'wizard/step1.html', wform=wform)
 
 @wizard.route('/step2')
 def step2():
-    
+
     task = wizard_step2.delay()
     print "TASK STARTED", task.id
 
