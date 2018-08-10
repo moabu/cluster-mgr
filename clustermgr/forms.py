@@ -49,7 +49,7 @@ class AppConfigForm(FlaskForm):
     modify_hosts =  BooleanField('Add IP Addresses and hostnames to '
                                 '/etc/hosts file on each server')
 
-    external_load_balancer = BooleanField('This is external load balancer')
+    external_load_balancer = BooleanField('This is an external load balancer')
 
     cache_host = StringField('Cache Proxy Hostname', validators=[DataRequired()])
 
