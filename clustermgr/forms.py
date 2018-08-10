@@ -265,12 +265,11 @@ class SignUpForm(FlaskForm):
     login = SubmitField("Sign up")
 
 class WizardStep1(FlaskForm):
-    current_hostname = StringField('Current Hostname *', validators=[DataRequired()])
-    new_hostname = StringField('New Hostname *', validators=[DataRequired()])
+    current_hostname = StringField('Current Hostname of primary Gluu Server *', validators=[DataRequired()])
+    new_hostname = StringField('Load Balancer Hostname *', validators=[DataRequired()])
     ip = StringField(
-        'Current IP Address *', validators=[DataRequired(), IPAddress()])
-    nginx_ip = StringField(
-        'Load Balancer IP Address *', validators=[DataRequired(), IPAddress()])
+        'Current IP Address of primary Gluu Server *', validators=[DataRequired(), IPAddress()])
+    nginx_ip = StringField('Load Balancer IP Address')
         
     next = SubmitField("Next")
 

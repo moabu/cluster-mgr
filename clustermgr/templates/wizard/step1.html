@@ -36,7 +36,6 @@
         
         <div class="form-group  {{ 'has-error' if wform.current_hostname.errors else '' }}">
             <label for="current_hostname" class="control-label">{{ wform.current_hostname.label}}</label>
-            <p class="help-block">This hostname will be changed to new hostname.</p>
             {% for error in wform.current_hostname.errors %}
                 <p class="help-block">{{ error }}</p>
             {% endfor %}
@@ -45,7 +44,6 @@
         
         <div class="form-group  {{ 'has-error' if wform.ip.errors else '' }}">
             <label for="ip" class="control-label">{{ wform.ip.label}}</label>
-            <p class="help-block">IP address of the server.</p>
             {% for error in wform.ip.errors %}
                 <p class="help-block">{{ error }}</p>
             {% endfor %}
