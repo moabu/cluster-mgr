@@ -1,8 +1,11 @@
+import os
 from flask import Blueprint
 from flask import render_template
 from flask import redirect
 from flask import request
 from flask import url_for
+from flask import current_app
+
 from flask_login import login_required
 
 from ..core.license import license_reminder
@@ -22,7 +25,18 @@ keyrotation_bp.before_request(license_reminder)
 @login_required
 def index():
     kr = KeyRotation.query.first()
-    return render_template("keyrotation_index.html", kr=kr)
+    
+    
+    keygen_jar_path = os.path.join(current_app.config['DATA_DIR'], 
+                                    'javalibs/keygen.jar')
+    
+    
+    keygen_jar_exists = os.path.exists(keygen_jar_path)
+    
+    return render_template("keyrotation_index.html", 
+                            kr=kr, 
+                            keygen_jar_exists=keygen_jar_exists,
+                            )
 
 
 @keyrotation_bp.route("/settings/", methods=["GET", "POST"])
