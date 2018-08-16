@@ -834,6 +834,7 @@ def installGluuServer(self, server_id):
 
     wlogger.log(tid, "Preparing for Installation")
 
+
     start_command  = 'service gluu-server-{0} start'
     stop_command   = 'service gluu-server-{0} stop'
     enable_command = None
@@ -858,6 +859,11 @@ def installGluuServer(self, server_id):
         if 'Ubuntu' in server.os:
             cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" '
                '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
+            
+            #TODO: remove this line when 3.1.4 is released
+            if appconf.gluu_version == '3.1.4':
+                cmd = 'echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" > /etc/apt/sources.list.d/gluu-repo-devel.list'.format(dist)
+               
         elif 'Debian' in server.os:
             cmd = ('echo "deb https://repo.gluu.org/debian/ stable main" '
                '> /etc/apt/sources.list.d/gluu-repo.list')
@@ -893,12 +899,14 @@ def installGluuServer(self, server_id):
 
         if server.os == 'CentOS 6':
             cmd = 'wget https://repo.gluu.org/centos/Gluu-centos6.repo -O /etc/yum.repos.d/Gluu.repo'
+            #testing
+            cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-testing.repo -O /etc/yum.repos.d/Gluu.repo'
+            
         elif server.os == 'CentOS 7':
             
             cmd = 'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O /etc/yum.repos.d/Gluu.repo'
-            
             #testing
-            #cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-testing.repo -O /etc/yum.repos.d/Gluu.repo'
+            cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-testing.repo -O /etc/yum.repos.d/Gluu.repo'
             
             
         elif server.os == 'RHEL 7':
