@@ -27,8 +27,7 @@ def write_influx(host, measurement, data):
     Returns:
         tuple: True/False, file like object / error
     """
-    measurement_suffix = host.replace('.','_')
-
+    measurement_suffix = host
     #Data is written to influxdb table host_name_measurement_name
     json_body =[]
     for d in data['data']:
@@ -56,9 +55,9 @@ def get_last_update_time(host, measurement):
         string: last update time in unix time stamp
     """
 
-    measurement_suffix = host.replace('.','_')
+    measurement_suffix = host
     
-    result = client.query('SELECT * FROM {} order by time desc limit 1'.format(measurement_suffix+'_'+measurement), epoch='s')
+    result = client.query('SELECT * FROM "{}" order by time desc limit 1'.format(measurement_suffix+'_'+measurement), epoch='s')
 
     if result.raw.has_key('series'):
         return result.raw['series'][0]['values'][0][0]
@@ -143,4 +142,4 @@ def get_remote_stats():
                         get_remote_data(server.hostname, t, c)
                         get_age(server.hostname, c)
                 except Exception as e:
-                    print "Monitoring: An error occurred while retreiveing monitoring data from server {}. Error {e}".format(server.hostname, e)
+                    print "Monitoring: An error occurred while retreiveing monitoring data from server {}. Error {}".format(server.hostname, e)
