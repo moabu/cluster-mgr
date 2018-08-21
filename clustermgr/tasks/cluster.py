@@ -1447,7 +1447,7 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
 
             wlogger.log(tid, "Twemproxy configuration updated", 'success')
 
-            run_command(tid, proxy_c, 'service nutcracker restart')
+            run_command(tid, proxy_c, 'service nutcracker restart', no_error='warning')
 
             # Update stunnel
             proxy_stunnel_conf = make_proxy_stunnel_conf(exception=server_id)
@@ -1465,9 +1465,9 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
             os_type = get_os_type(proxy_c)
 
             if 'CentOS' or 'RHEL' in os_type:
-                run_command(tid, proxy_c, 'systemctl restart stunnel')
+                run_command(tid, proxy_c, 'systemctl restart stunnel', no_error='warning')
             else:
-                run_command(tid, proxy_c, 'service stunnel4 restart')
+                run_command(tid, proxy_c, 'service stunnel4 restart', no_error='warning')
 
             proxy_c.close()
 
@@ -1524,7 +1524,7 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
             wlogger.log(tid, "Restarting Gluu Server on {}".format(
                                 server.hostname))
 
-            run_command(tid, ct, restart_command)
+            run_command(tid, ct, restart_command, no_error='warning')
 
             ct.close()
 
