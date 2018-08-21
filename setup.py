@@ -28,7 +28,7 @@ setup(
     zip_safe=False,
     include_package_data=True,
     install_requires=[
-        "flask<=0.12",  # loose pin as a workaround for setuptools issue
+        "flask",  # loose pin as a workaround for setuptools issue
         "flask-wtf",
         "celery",
         "flask-sqlalchemy",
