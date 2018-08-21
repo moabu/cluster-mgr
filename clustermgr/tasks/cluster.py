@@ -906,7 +906,7 @@ def installGluuServer(self, server_id):
             
             cmd = 'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O /etc/yum.repos.d/Gluu.repo'
             #testing
-            cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-testing.repo -O /etc/yum.repos.d/Gluu.repo'
+            cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo -O /etc/yum.repos.d/Gluu-centos-7-testing.repo'
             
             
         elif server.os == 'RHEL 7':
