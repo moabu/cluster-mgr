@@ -857,7 +857,7 @@ def installGluuServer(self, server_id):
         run_command(tid, c, cmd, no_error='debug')
 
         if 'Ubuntu' in server.os:
-            cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" '
+            cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
                '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
             
             #TODO: remove this line when 3.1.4 is released
@@ -1402,28 +1402,29 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
 
         try:
             proxy_c.startup()
+
+            wlogger.log(tid, "SSH connection successful", 'success')
+
+            # Update nginx
+            nginx_config = make_nginx_proxy_conf(exception=server_id)
+            remote = "/etc/nginx/nginx.conf"
+            r = proxy_c.put_file(remote, nginx_config)
+            
+            if not r[0]:
+                wlogger.log(tid, "An error occurred while uploadng nginx.conf.", "warning")
+
+            wlogger.log(tid, "nginx configuration updated", 'success')
+            wlogger.log(tid, "Restarting nginx", 'debug')
+            run_command(tid, proxy_c, 'service nginx restart', no_error='warning')
+
+            wlogger.log(tid, "Proxy server configuration were not updated", 'success')
+
+
         except Exception as e:
             wlogger.log(
                 tid, "Cannot establish SSH connection {0}".format(e), "warning")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return False
+            wlogger.log(tid, "Proxy server configuration were not updated", "warning")
 
-        wlogger.log(tid, "SSH connection successful", 'success')
-
-        # Update nginx
-        nginx_config = make_nginx_proxy_conf(exception=server_id)
-        remote = "/etc/nginx/nginx.conf"
-        r = proxy_c.put_file(remote, nginx_config)
-        
-        if not r[0]:
-            wlogger.log(tid, "An error occurred while uploadng nginx.conf.", "error")
-            return False
-
-        wlogger.log(tid, "nginx configuration updated", 'success')
-        wlogger.log(tid, "Restarting nginx", 'debug')
-        run_command(tid, proxy_c, 'service nginx restart')
-    
-    
     if not proxy_c:
         
         proxy_c = RemoteClient(app_config.cache_host, ip=app_config.cache_ip)
@@ -1435,57 +1436,52 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
 
         try:
             proxy_c.startup()
+            # Update Twemproxy
+            wlogger.log(tid, "Updating Twemproxy configuration",'debug')
+            twemproxy_conf = make_twem_proxy_conf(exception=server_id)
+            remote = "/etc/nutcracker/nutcracker.yml"
+            r = proxy_c.put_file(remote, twemproxy_conf)
+
+            if not r[0]:
+                wlogger.log(tid, "An error occurred while uploading nutcracker.yml.", "warning")
+
+            wlogger.log(tid, "Twemproxy configuration updated", 'success')
+
+            run_command(tid, proxy_c, 'service nutcracker restart')
+
+            # Update stunnel
+            proxy_stunnel_conf = make_proxy_stunnel_conf(exception=server_id)
+            proxy_stunnel_conf = '\n'.join(proxy_stunnel_conf)
+            remote = '/etc/stunnel/stunnel.conf'
+            r = proxy_c.put_file(remote, proxy_stunnel_conf)
+
+            if not r[0]:
+                wlogger.log(tid, "An error occurred while uploadng stunnel.conf.", "warning")
+
+            wlogger.log(tid, "Stunnel configuration updated", 'success')
+
+
+
+            os_type = get_os_type(proxy_c)
+
+            if 'CentOS' or 'RHEL' in os_type:
+                run_command(tid, proxy_c, 'systemctl restart stunnel')
+            else:
+                run_command(tid, proxy_c, 'service stunnel4 restart')
+
+            proxy_c.close()
+
         except Exception as e:
             wlogger.log(
                 tid, "Cannot establish SSH connection {0}".format(e), "warning")
-            wlogger.log(tid, "Ending server setup process.", "error")
-            return False
-
-        wlogger.log(tid, "SSH connection successful", 'success')
-
-        
-    
-    # Update Twemproxy
-    wlogger.log(tid, "Updating Twemproxy configuration",'debug')
-    twemproxy_conf = make_twem_proxy_conf(exception=server_id)
-    remote = "/etc/nutcracker/nutcracker.yml"
-    r = proxy_c.put_file(remote, twemproxy_conf)
-
-    if not r[0]:
-        wlogger.log(tid, "An error occurred while uploadng nutcracker.yml.", "error")
-        return False
-
-    wlogger.log(tid, "Twemproxy configuration updated", 'success')
-
-    run_command(tid, proxy_c, 'service nutcracker restart')
-
-    # Update stunnel
-    proxy_stunnel_conf = make_proxy_stunnel_conf(exception=server_id)
-    proxy_stunnel_conf = '\n'.join(proxy_stunnel_conf)
-    remote = '/etc/stunnel/stunnel.conf'
-    r = proxy_c.put_file(remote, proxy_stunnel_conf)
-
-    if not r[0]:
-        wlogger.log(tid, "An error occurred while uploadng stunnel.conf.", "error")
-        return False
-
-    wlogger.log(tid, "Stunnel configuration updated", 'success')
-
-
-    os_type = get_os_type(proxy_c)
-
-    if 'CentOS' or 'RHEL' in os_type:
-        run_command(tid, proxy_c, 'systemctl restart stunnel')
-    else:
-        run_command(tid, proxy_c, 'service stunnel4 restart')
-
-    proxy_c.close()
+            wlogger.log(tid, "Proxy server configuration were not updated", "warning")
 
 
     if disable_replication:
         r = do_disable_replication(tid, server, primary_server, app_config)
         if not r:
-            return False
+            wlogger.log(tid, "An error occurred while disabling replication", "warning")
+
 
     if remove_server:
         db.session.delete(server)
@@ -1515,7 +1511,7 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
                 wlogger.log(
                     tid, "Cannot establish SSH connection {0}".format(e),
                     "warning")
-                wlogger.log(tid, "Ending server setup process.", "error")
+                wlogger.log(tid, "Ending server setup process.", "warning")
 
             remote_file = os.path.join(chroot, 'etc', 'csync2.cfg')
             
@@ -1531,8 +1527,6 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
             run_command(tid, ct, restart_command)
 
             ct.close()
-
-                
 
     db.session.commit()
     return True
