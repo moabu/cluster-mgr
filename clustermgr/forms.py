@@ -170,8 +170,6 @@ class InstallServerForm(FlaskForm):
     installHTTPD = BooleanField('Install Apache 2 web server', default=True)
     installJce = BooleanField('Install JCE 1.8')
     installSaml = BooleanField('Install Shibboleth SAML IDP')
-    installAsimba = BooleanField('Install Asimba SAML Proxy')
-    # installCas = BooleanField('Install CAS')
     installOxAuthRP = BooleanField('Install oxAuth RP')
     installPassport = BooleanField('Install Passport')
 

@@ -505,10 +505,10 @@ def get_os_type(c):
     if 'alpine' in tmp_list[0].lower():
         return 'Alpine'
 
-    os_type = p[0].split()[0].title()
-    os_version = p[1].split('.')[0]
+    os_type = tmp_list[0].split()[0].title()
+    os_version = tmp_list[1].split('.')[0]
 
-    return os_type + ' ' os_version
+    return os_type + ' ' + os_version
 
 def check_gluu_installation(c):
     """Checks if gluu server is installed
