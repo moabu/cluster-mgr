@@ -775,7 +775,6 @@ def restart_services(self, method, server_id_list):
         wlogger.log(tid, "All services restarted.", "success")
         return
 
-    
     mock_server = Server()
     
     if appconf.external_load_balancer:
