@@ -89,21 +89,28 @@ class RedisInstaller(BaseInstaller):
 
     def install_in_ubuntu(self):
         self.run_command("apt-get update")
-        #self.run_command("apt-get upgrade -y")
-        self.run_command("DEBIAN_FRONTEND=noninteractive apt-get install software-properties-common -y")
-        self.run_command("add-apt-repository ppa:chris-lea/redis-server -y")
-        self.run_command("apt-get update")
-        cin, cout, cerr = self.run_command("DEBIAN_FRONTEND=noninteractive apt-get install redis-server -y")
-        wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
-        if cerr:
-            wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
-        # verifying that redis-server is succesfully installed
-        cin, cout, cerr = self.rc.run("DEBIAN_FRONTEND=noninteractive apt-get install redis-server -y")
 
-        if "redis-server is already the newest version" in cout:
-            return True
+        if self.server.os in ('Ubuntu 14','Debian 8'):
+            version_number = 14
         else:
-            return False
+            version_number = 16
+
+
+        cmd_list = [
+            'wget https://github.com/mbaser/gluu/raw/master/redis/ubuntu{}/redis-tools_4.0.11-1_amd64.deb -O /tmp/redis-tools_4.0.11-1_amd64.deb'.format(version_number),
+            'wget https://github.com/mbaser/gluu/raw/master/redis/ubuntu{}/redis-server_4.0.11-1_amd64.deb -O /tmp/redis-server_4.0.11-1_amd64.deb'.format(version_number),
+            'DEBIAN_FRONTEND=noninteractive dpkg -i /tmp/redis*.deb',
+            ]
+
+        for cmd in cmd_list:
+            cin, cout, cerr = self.run_command(cmd)
+            if cerr and not 'Saving to:' in cerr:
+                wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
+                return False
+            else:
+                wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
+        
+        return True
 
     def install_in_centos(self):
         # To automatically start redis on boot
@@ -113,15 +120,18 @@ class RedisInstaller(BaseInstaller):
         self.run_command("yum install epel-release -y")
         #self.run_command("yum update -y")
 
-        cin, cout, cerr = self.run_command("yum install redis -y")
+        if self.server.os in ('CentOS 6','RHEL 6'):
+            install_cmd = 'yum install -y https://github.com/mbaser/gluu/raw/master/redis/centos6/redis-4.0.11-1.centos6.x86_64.rpm'
+        else:
+            install_cmd = 'yum install -y https://github.com/mbaser/gluu/raw/master/redis/centos7/redis-4.0.11-1.centos7.x86_64.rpm'
+
+        cin, cout, cerr = self.run_command(install_cmd)
         wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
+
         if cerr:
             wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
-        # verifying installation
-        cin, cout, cerr = self.rc.run("yum install redis -y")
-        
-        result = cout
-        
+            return False
+
         if self.server.os in ('CentOS 6','RHEL 6'):
             cin, cout, cerr = self.run_command("chkconfig --add redis")
             wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
@@ -131,13 +141,8 @@ class RedisInstaller(BaseInstaller):
         else:
             cin, cout, cerr = self.run_command("systemctl enable redis")
             wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
-
-
-        if "already installed" in result:
-            return True
-        else:
-            return False
-
+        
+        return True
 
 class StunnelInstaller(BaseInstaller):
     def install_in_ubuntu(self):
@@ -415,7 +420,7 @@ def __configure_stunnel(tid, server, stunnel_conf, chdir, setup_props=None):
 
         prop_buffer = rc.get_file(propsfile)[1]
 
-        props = parse_setup_properties(prop_buffer)
+        props = parse_setup_properties(prop_buffer.readlines())
 
         subject = "'/C={countryCode}/ST={state}/L={city}/O={orgName}/CN={hostname}" \
                   "/emailAddress={admin_email}'".format(**props)
@@ -764,15 +769,6 @@ def restart_services(self, method, server_id_list):
 
         run_and_log(rc, restart_command, tid, server.id)
 
-
-        #wlogger.log(tid, "(Re)Starting oxauth", "info", server_id=server.id)
-
-        #run_and_log(rc, get_cmd('service oxauth restart'), tid, server.id)
-        
-        #wlogger.log(tid, "(Re)Starting identity", "info", server_id=server.id)
-        
-        #run_and_log(rc, get_cmd('service identity restart'), tid, server.id)
-        
         rc.close()
 
     if method != 'STANDALONE':
@@ -795,6 +791,9 @@ def restart_services(self, method, server_id_list):
                     "fail")
         return
     mock_server.os = get_os_type(rc)
+    
+    print mock_server.os
+    
     if mock_server.os in ['Ubuntu 14', 'Ubuntu 16', 'CentOS 6']:
         run_and_log(rc, "service stunnel4 restart", tid, None)
         run_and_log(rc, "service nutcracker restart", tid, None)

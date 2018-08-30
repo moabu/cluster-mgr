@@ -505,7 +505,7 @@ def get_os_type(c):
     if 'alpine' in tmp_list[0].lower():
         return 'Alpine'
 
-    os_type = tmp_list[0].split()[0].title()
+    os_type = tmp_list[0].split()[0]
     os_version = tmp_list[1].split('.')[0]
 
     return os_type + ' ' + os_version
