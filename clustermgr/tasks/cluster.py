@@ -839,7 +839,6 @@ def installGluuServer(self, server_id):
         elif server.os == 'Ubuntu 16':
             dist = 'xenial'
 
-
         if 'Ubuntu' in server.os:
             cmd = 'curl https://repo.gluu.org/ubuntu/gluu-apt.key | apt-key add -'
         elif 'Debian' in server.os:
