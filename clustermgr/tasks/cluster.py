@@ -499,20 +499,30 @@ def setup_ldap_replication(self, server_id):
 def get_os_type(c):
     
     # 2. Linux Distribution of the server
-    cin, cout, cerr = c.run('python -c "import platform;print \'|\'.join(platform.linux_distribution())"')
+    cin, cout, cerr = c.run("ls /etc/*release")
+    files = cout.split()
     
-    tmp_list = cout.split('|')
-    if 'alpine' in tmp_list[0].lower():
+    if files[0] == '/etc/alpine-release':
         return 'Alpine'
 
-    if 'red hat' in tmp_list[0].lower():
-        os_type = 'RHEL'
-    else:
-        os_type = tmp_list[0].split()[0]
-    
-    os_version = tmp_list[1].split('.')[0]
+    cin, cout, cerr = c.run("cat "+files[0])
 
-    return os_type + ' ' + os_version
+    if "Ubuntu" in cout and "14.04" in cout:
+        return "Ubuntu 14"
+    if "Ubuntu" in cout and "16.04" in cout:
+        return "Ubuntu 16"
+    if "Ubuntu" in cout and "18.04" in cout:
+        return "Ubuntu 18"
+    if "CentOS" in cout and "release 6." in cout:
+        return "CentOS 6"
+    if "CentOS" in cout and "release 7." in cout:
+        return "CentOS 7"
+    if 'Red Hat Enterprise Linux' in cout and '7.':
+        return 'RHEL 7'
+    if 'Debian' in cout and "(jessie)" in cout:
+        return 'Debian 8'
+    if 'Debian' in cout and "(stretch)" in cout:
+        return 'Debian 9'
 
 def check_gluu_installation(c):
     """Checks if gluu server is installed
