@@ -923,6 +923,17 @@ def installGluuServer(self, server_id):
         cmd = 'yum clean all'
         run_command(tid, c, cmd, no_error='debug')
 
+    wlogger.log(tid, "Checking if Python was installed",'debug')
+
+    if not c.exists('/usr/bin/python'):
+        if 'Ubuntu' in server.os or 'Debian' in server.os:
+            cmd = 'DEBIAN_FRONTEND=noninteractive apt-get install -y python'
+        else:
+            cmd = 'yum install -y python'
+        run_command(tid, c, cmd, no_error='debug')
+    else:
+        wlogger.log(tid, "Python was installed", 'success')
+
     wlogger.log(tid, "Check if Gluu Server was installed")
 
     gluu_installed = False
@@ -1004,7 +1015,7 @@ def installGluuServer(self, server_id):
     #occur on ubuntu installations
     if 'half-installed' in cout:
         if ('Ubuntu' in server.os) or  ('Debian' in server.os):
-            cmd = 'DEBIAN_FRONTEND=noninteractive  apt-get install --reinstall -y '+ gluu_server
+            cmd = 'DEBIAN_FRONTEND=noninteractive apt-get install --reinstall -y '+ gluu_server
             run_command(tid, c, cmd, no_error='debug')
 
 
@@ -1846,6 +1857,19 @@ def installNGINX(self, nginx_host):
     wlogger.log(tid, "Determining OS type")
     os_type = get_os_type(c)
     wlogger.log(tid, "OS is determined as {0}".format(os_type),'debug')
+
+
+    wlogger.log(tid, "Checking if Python was installed",'debug')
+
+    if not c.exists('/usr/bin/python'):
+        if 'Ubuntu' in os_type or 'Debian' in os_type:
+            cmd = 'DEBIAN_FRONTEND=noninteractive apt-get install -y python'
+        else:
+            cmd = 'yum install -y python'
+        run_command(tid, c, cmd, no_error='debug')
+    else:
+        wlogger.log(tid, "Python was installed", 'success')
+
 
     #check if nginx was installed on this server
     wlogger.log(tid, "Check if NGINX installed")

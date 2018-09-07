@@ -174,6 +174,9 @@ class RemoteClient(object):
             raise ClientNotSetupException(
                 'Cannot run procedure. Client not initialized')
         cin, cout, cerr = self.client.exec_command('stat {0}'.format(filepath))
+        
+        print cout.read(), cerr.read()
+        
         if len(cout.read()) > 5:
             return True
         elif len(cerr.read()) > 5:
