@@ -536,7 +536,9 @@ def check_gluu_installation(c):
                   'setup.properties.last').format(
                                                 appconf.gluu_version
                                             )
-    return c.exists(check_file)
+    result = c.exists(check_file)
+    print result
+    return result
 
 
 @celery.task
@@ -1067,6 +1069,8 @@ def installGluuServer(self, server_id):
                     ldap_passwd = l.split('=')[1].strip()
                 elif l.startswith('hostname='):
                     l = 'hostname={0}\n'.format(appconf.nginx_host)
+                elif l.startswith('os_type=') or l.startswith('os_initdaemon=') or l.startswith('rsyslogUbuntuInitFile'):
+                    l = ''
                 new_setup_properties += l
 
             #put setup.properties to server

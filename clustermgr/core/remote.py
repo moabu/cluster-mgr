@@ -173,13 +173,10 @@ class RemoteClient(object):
         if not self.client:
             raise ClientNotSetupException(
                 'Cannot run procedure. Client not initialized')
-        cin, cout, cerr = self.client.exec_command('stat {0}'.format(filepath))
-        
-        print cout.read(), cerr.read()
-        
-        if len(cout.read()) > 5:
+        try:
+            self.sftpclient.stat(filepath)
             return True
-        elif len(cerr.read()) > 5:
+        except:
             return False
 
     def run(self, command):

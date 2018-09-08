@@ -761,7 +761,7 @@ def restart_services(self, method, server_id_list):
         restart_command  = 'service gluu-server-{0} restart'.format(
                                                         appconf.gluu_version)
 
-        if 'CentOS' in server.os or 'RHEL' in server.os:
+        if 'CentOS 7' == server.os or 'RHEL 7' == server.os:
             restart_command   = '/sbin/gluu-serverd-{0} restart'.format(
                                                         appconf.gluu_version)
          
