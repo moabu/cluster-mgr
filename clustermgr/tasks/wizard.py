@@ -59,7 +59,7 @@ def wizard_step1(self):
     r = c.listdir("/opt")
     if r[0]:
         for s in r[1]:
-            m=re.search("gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+))$",s)
+            m=re.search('gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+)(.\d+)?)$',s)
             if m:
                 gluu_version = m.group("gluu_version")
                 
