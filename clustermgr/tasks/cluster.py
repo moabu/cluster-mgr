@@ -944,7 +944,7 @@ def installGluuServer(self, server_id):
     r = c.listdir("/opt")
     if r[0]:
         for s in r[1]:
-            m=re.search("gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+))$",s)
+            m=re.search('gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+)(.\d+)?)$',s)
             if m:
                 gluu_version = m.group("gluu_version")
                 gluu_installed = True
