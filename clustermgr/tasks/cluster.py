@@ -1216,8 +1216,9 @@ def installGluuServer(self, server_id):
             certs_local_tmp = "/tmp/certs_"+str(uuid.uuid4())[:4].upper()+".tgz"
 
             cmd = ('tar -zcf {0} /opt/gluu-server-{1}/etc/certs/ '
-                    '/opt/gluu-server-{1}/install/community-edition-setup '
+                    '/opt/gluu-server-{1}/install/community-edition-setup'
                     '/output/scim-rp.jks '
+                    '/opt/gluu-server-{1}'
                     '/etc/gluu/conf/passport-config.json'
                     ).format(certs_remote_tmp, appconf.gluu_version)
             wlogger.log(tid,cmd,'debug')
