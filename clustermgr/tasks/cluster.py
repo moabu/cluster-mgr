@@ -452,8 +452,10 @@ def remove_filesystem_replication_do(server, app_config, tid):
         installer = Installer(server, app_config.gluu_version, logger_tid=tid)
         if not installer.c:
             return False
-        installer.run('rm /etc/cron.d/csync2')
-        
+
+        installer.run('rm -f /etc/cron.d/csync2')
+        installer.run('rm -f /etc/csync2.cfg')
+
         if 'CentOS' in server.os or 'RHEL' in server.os :
             installer.run('rm /etc/xinetd.d/csync2')
             services = ['xinetd', 'crond']
@@ -1214,8 +1216,9 @@ def installGluuServer(self, server_id):
             certs_local_tmp = "/tmp/certs_"+str(uuid.uuid4())[:4].upper()+".tgz"
 
             cmd = ('tar -zcf {0} /opt/gluu-server-{1}/etc/certs/ '
-                    '/opt/gluu-server-{1}/install/community-edition-setup'
-                    '/output/scim-rp.jks'
+                    '/opt/gluu-server-{1}/install/community-edition-setup '
+                    '/output/scim-rp.jks '
+                    '/etc/gluu/conf/passport-config.json'
                     ).format(certs_remote_tmp, appconf.gluu_version)
             wlogger.log(tid,cmd,'debug')
             cin, cout, cerr = pc.run(cmd)
