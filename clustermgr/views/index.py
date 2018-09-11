@@ -131,7 +131,7 @@ def app_configuration():
             conf_form.replication_pw.validators = []
             conf_form.replication_pw_confirm.validators = []
             
-        if not conf_form.external_load_balancer.data:
+        if conf_form.external_load_balancer.data:
             conf_form.cache_host.validators = []
             conf_form.cache_ip.validators= []
         else:
