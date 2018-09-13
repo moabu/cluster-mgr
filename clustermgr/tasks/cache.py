@@ -291,6 +291,8 @@ def install_cache_components(self, method, server_id_list):
         else:
             wlogger.log(tid, "Stunnel install failed", "fail")
 
+    print rc.exists('/usr/sbin/nutcracker')
+
     if not rc.exists('/usr/sbin/nutcracker'):
 
         wlogger.log(tid, "Installing Twemproxy")
