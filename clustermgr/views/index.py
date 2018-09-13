@@ -124,18 +124,19 @@ def app_configuration():
     # not supplied, make password "**dummy**", so don't change
     # what we have before
 
-    external_lb_checked = False
+    #external_lb_checked = False
+    external_lb_checked = conf_form.external_load_balancer.data
     
     if request.method == 'POST':
         if config and not conf_form.replication_pw.data.strip():
             conf_form.replication_pw.validators = []
             conf_form.replication_pw_confirm.validators = []
             
-        if conf_form.external_load_balancer.data:
+        if not conf_form.external_load_balancer.data:
             conf_form.cache_host.validators = []
             conf_form.cache_ip.validators= []
         else:
-            external_lb_checked = True
+            #external_lb_checked = True
             conf_form.nginx_ip.validators= []
 
 
@@ -145,7 +146,7 @@ def app_configuration():
         config = AppConfiguration()
         db.session.add(config)
 
-
+    print "HERE"
     # If form is submitted and validated process it
     if conf_form.update.data and conf_form.validate_on_submit():
         

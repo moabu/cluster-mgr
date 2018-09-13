@@ -51,7 +51,7 @@ class BaseInstaller(object):
         status = False
         if "Ubuntu" in cout:
             status = self.install_in_ubuntu()
-        elif "CentOS" in cout:
+        elif "CentOS" in cout or 'Red Hat' in cout:
             status = self.install_in_centos()
         else:
             wlogger.log(self.tid, "Server OS is not supported. {0}".format(
@@ -95,7 +95,6 @@ class RedisInstaller(BaseInstaller):
         else:
             version_number = 16
 
-
         cmd_list = [
             'wget https://github.com/mbaser/gluu/raw/master/redis/ubuntu{}/redis-tools_4.0.11-1_amd64.deb -O /tmp/redis-tools_4.0.11-1_amd64.deb'.format(version_number),
             'wget https://github.com/mbaser/gluu/raw/master/redis/ubuntu{}/redis-server_4.0.11-1_amd64.deb -O /tmp/redis-server_4.0.11-1_amd64.deb'.format(version_number),
@@ -121,16 +120,24 @@ class RedisInstaller(BaseInstaller):
         #self.run_command("yum update -y")
 
         if self.server.os in ('CentOS 6','RHEL 6'):
-            install_cmd = 'yum install -y https://github.com/mbaser/gluu/raw/master/redis/centos6/redis-4.0.11-1.centos6.x86_64.rpm'
+            cmd_list = ('yum install -y https://github.com/mbaser/gluu/raw/master/redis/centos6/redis-4.0.11-1.centos6.x86_64.rpm',
+                        'yum install -y http://dl.fedoraproject.org/pub/epel/6/x86_64/Packages/j/jemalloc-3.6.0-1.el6.x86_64.rpm',
+                        )
+
         else:
-            install_cmd = 'yum install -y https://github.com/mbaser/gluu/raw/master/redis/centos7/redis-4.0.11-1.centos7.x86_64.rpm'
+            cmd_list = ('yum install -y https://github.com/mbaser/gluu/raw/master/redis/centos7/redis-4.0.11-1.centos7.x86_64.rpm',
+                        'yum install -y http://dl.fedoraproject.org/pub/epel/7/x86_64/Packages/j/jemalloc-3.6.0-1.el7.x86_64.rpm',
+                        )
 
-        cin, cout, cerr = self.run_command(install_cmd)
-        wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
+        for install_cmd in cmd_list:
 
-        if cerr:
-            wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
-            return False
+            cin, cout, cerr = self.run_command(install_cmd)
+            wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
+
+            if cerr:
+                wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
+                return False
+
 
         if self.server.os in ('CentOS 6','RHEL 6'):
             cin, cout, cerr = self.run_command("chkconfig --add redis")

@@ -793,6 +793,7 @@ def installGluuServer(self, server_id):
     gluu_server = 'gluu-server-' + appconf.gluu_version
 
     opendj_version = '3.0.0.dd9dedab5172885f14f0929682570c573d0c2b7b'
+    
     #If os type of this server was not idientified, return to home
     if not server.os:
         wlogger.log(tid, "OS type has not been identified.", 'fail')
@@ -817,10 +818,8 @@ def installGluuServer(self, server_id):
             return
 
         opendj_version_file = pc.get_file('/opt/{0}/opt/opendj/config/buildinfo'.format(gluu_server))
-        print opendj_version_file
         if opendj_version_file[0]:
             opendj_version = opendj_version_file[1].read().strip()
-            print opendj_version
 
         if check_gluu_installation(pc):
             wlogger.log(tid, "Primary Server is Installed",'success')
@@ -850,88 +849,97 @@ def installGluuServer(self, server_id):
     stop_command   = 'service gluu-server-{0} stop'
     enable_command = None
 
+    
 
-    #add gluu server repo and imports signatures
-    if ('Ubuntu' in server.os) or ('Debian' in server.os):
+    local_install_cmd = os.environ.get('local_install_cmd')
+    
+    if local_install_cmd:
+        install_command = os.environ.get('install_command')
+        start_command = os.environ.get('start_command')
+        
+    else:
 
-        if server.os == 'Ubuntu 14':
-            dist = 'trusty'
-        elif server.os == 'Ubuntu 16':
-            dist = 'xenial'
+        #add gluu server repo and imports signatures
+        if ('Ubuntu' in server.os) or ('Debian' in server.os):
 
-        if 'Ubuntu' in server.os:
-            cmd = 'curl https://repo.gluu.org/ubuntu/gluu-apt.key | apt-key add -'
-        elif 'Debian' in server.os:
-            cmd = 'curl https://repo.gluu.org/debian/gluu-apt.key | apt-key add -'
+            if server.os == 'Ubuntu 14':
+                dist = 'trusty'
+            elif server.os == 'Ubuntu 16':
+                dist = 'xenial'
 
-        run_command(tid, c, cmd, no_error='debug')
+            if 'Ubuntu' in server.os:
+                cmd = 'curl https://repo.gluu.org/ubuntu/gluu-apt.key | apt-key add -'
+            elif 'Debian' in server.os:
+                cmd = 'curl https://repo.gluu.org/debian/gluu-apt.key | apt-key add -'
 
-        if 'Ubuntu' in server.os:
-            cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
-               '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
-            
-            #TODO: remove this line when 3.1.4 is released
-            if appconf.gluu_version == '3.1.4':
-                cmd = 'echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" > /etc/apt/sources.list.d/gluu-repo-devel.list'.format(dist)
-               
-        elif 'Debian' in server.os:
-            cmd = ('echo "deb https://repo.gluu.org/debian/ stable main" '
-               '> /etc/apt/sources.list.d/gluu-repo.list')
+            run_command(tid, c, cmd, no_error='debug')
 
-        run_command(tid, c, cmd)
+            if 'Ubuntu' in server.os:
+                cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
+                   '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
+                
+                #TODO: remove this line when 3.1.4 is released
+                if appconf.gluu_version == '3.1.4':
+                    cmd = 'echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" > /etc/apt/sources.list.d/gluu-repo-devel.list'.format(dist)
+                   
+            elif 'Debian' in server.os:
+                cmd = ('echo "deb https://repo.gluu.org/debian/ stable main" '
+                   '> /etc/apt/sources.list.d/gluu-repo.list')
 
-        install_command = 'DEBIAN_FRONTEND=noninteractive apt-get '
+            run_command(tid, c, cmd)
 
-        cmd = 'DEBIAN_FRONTEND=noninteractive apt-get update'
-        wlogger.log(tid, cmd, 'debug')
-        cin, cout, cerr = c.run(cmd)
-        wlogger.log(tid, cout+'\n'+cerr, 'debug')
+            install_command = 'DEBIAN_FRONTEND=noninteractive apt-get '
 
-        if 'dpkg --configure -a' in cerr:
-            cmd = 'dpkg --configure -a'
+            cmd = 'DEBIAN_FRONTEND=noninteractive apt-get update'
             wlogger.log(tid, cmd, 'debug')
             cin, cout, cerr = c.run(cmd)
             wlogger.log(tid, cout+'\n'+cerr, 'debug')
 
+            if 'dpkg --configure -a' in cerr:
+                cmd = 'dpkg --configure -a'
+                wlogger.log(tid, cmd, 'debug')
+                cin, cout, cerr = c.run(cmd)
+                wlogger.log(tid, cout+'\n'+cerr, 'debug')
 
-    elif 'CentOS' in server.os or 'RHEL' in server.os:
-        install_command = 'yum '
-        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-            enable_command  = '/sbin/gluu-serverd-{0} enable'
-            stop_command    = '/sbin/gluu-serverd-{0} stop'
-            start_command   = '/sbin/gluu-serverd-{0} start'
 
-        qury_package    = 'yum list installed | grep gluu-server-'
+        elif 'CentOS' in server.os or 'RHEL' in server.os:
+            install_command = 'yum '
+            if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+                enable_command  = '/sbin/gluu-serverd-{0} enable'
+                stop_command    = '/sbin/gluu-serverd-{0} stop'
+                start_command   = '/sbin/gluu-serverd-{0} start'
 
-        if not c.exists('/usr/bin/wget'):
-            cmd = install_command +'install -y wget'
+            qury_package = 'yum list installed | grep gluu-server-'
+
+            if not c.exists('/usr/bin/wget'):
+                cmd = install_command +'install -y wget'
+                run_command(tid, c, cmd, no_error='debug')
+
+            if server.os == 'CentOS 6':
+                cmd = 'wget https://repo.gluu.org/centos/Gluu-centos6.repo -O /etc/yum.repos.d/Gluu.repo'
+                #testing
+                cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-testing.repo -O /etc/yum.repos.d/Gluu.repo'
+                
+            elif server.os == 'CentOS 7':
+                
+                cmd = 'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O /etc/yum.repos.d/Gluu.repo'
+                #testing
+                cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo -O /etc/yum.repos.d/Gluu-centos-7-testing.repo'
+                
+                
+            elif server.os == 'RHEL 7':
+                cmd = 'wget https://repo.gluu.org/rhel/Gluu-rhel7.repo -O /etc/yum.repos.d/Gluu.repo'
+
             run_command(tid, c, cmd, no_error='debug')
 
-        if server.os == 'CentOS 6':
-            cmd = 'wget https://repo.gluu.org/centos/Gluu-centos6.repo -O /etc/yum.repos.d/Gluu.repo'
-            #testing
-            cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-testing.repo -O /etc/yum.repos.d/Gluu.repo'
-            
-        elif server.os == 'CentOS 7':
-            
-            cmd = 'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O /etc/yum.repos.d/Gluu.repo'
-            #testing
-            cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo -O /etc/yum.repos.d/Gluu-centos-7-testing.repo'
-            
-            
-        elif server.os == 'RHEL 7':
-            cmd = 'wget https://repo.gluu.org/rhel/Gluu-rhel7.repo -O /etc/yum.repos.d/Gluu.repo'
+            cmd = 'wget https://repo.gluu.org/centos/RPM-GPG-KEY-GLUU -O /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'
+            run_command(tid, c, cmd, no_error='debug')
 
-        run_command(tid, c, cmd, no_error='debug')
+            cmd = 'rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'
+            run_command(tid, c, cmd, no_error='debug')
 
-        cmd = 'wget https://repo.gluu.org/centos/RPM-GPG-KEY-GLUU -O /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'
-        run_command(tid, c, cmd, no_error='debug')
-
-        cmd = 'rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'
-        run_command(tid, c, cmd, no_error='debug')
-
-        cmd = 'yum clean all'
-        run_command(tid, c, cmd, no_error='debug')
+            cmd = 'yum clean all'
+            run_command(tid, c, cmd, no_error='debug')
 
     wlogger.log(tid, "Checking if Python was installed",'debug')
 
@@ -980,7 +988,12 @@ def installGluuServer(self, server_id):
     #start installing gluu server
     wlogger.log(tid, "Installing Gluu Server: " + gluu_server)
 
-    cmd = install_command + 'install -y ' + gluu_server
+    print "LOCAL", local_install_cmd
+
+    if local_install_cmd:
+        cmd = local_install_cmd
+    else:
+        cmd = install_command + 'install -y ' + gluu_server
     wlogger.log(tid, cmd, "debug")
     
     
@@ -1066,9 +1079,7 @@ def installGluuServer(self, server_id):
                    'opendj-server-legacy/3.0.1.gluu/opendj-server-legacy-3.0.1.gluu.zip '
                    '-O /opt/{0}/opt/dist/app/opendj-server-3.0.0.1.zip').format(gluu_server)
             wlogger.log(tid, cmd, 'debug')
-            
-            print cmd
-            
+
             c.run(cmd)
 
 
