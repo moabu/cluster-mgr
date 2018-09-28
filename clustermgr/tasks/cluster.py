@@ -1651,6 +1651,12 @@ def configure_OxIDPAuthentication(tid, exclude=None):
                 adminOlc.conn.result['description']), 'success')
 
 
+    if app_config.use_ldap_cache:
+        adminOlc.configureOxIDPAuthentication("NATIVE_PERSISTENCE")
+        wlogger.log(tid,
+                'oxIDPAuthentication entry is modified as NATIVE_PERSISTENCE'
+                'success')
+
 
 @celery.task(bind=True)
 def opendjenablereplication(self, server_id):
