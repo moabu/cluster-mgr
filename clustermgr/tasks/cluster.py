@@ -917,15 +917,9 @@ def installGluuServer(self, server_id):
 
             if server.os == 'CentOS 6':
                 cmd = 'wget https://repo.gluu.org/centos/Gluu-centos6.repo -O /etc/yum.repos.d/Gluu.repo'
-                #testing
-                cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-testing.repo -O /etc/yum.repos.d/Gluu.repo'
                 
             elif server.os == 'CentOS 7':
-                
                 cmd = 'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O /etc/yum.repos.d/Gluu.repo'
-                #testing
-                cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo -O /etc/yum.repos.d/Gluu-centos-7-testing.repo'
-                
                 
             elif server.os == 'RHEL 7':
                 cmd = 'wget https://repo.gluu.org/rhel/Gluu-rhel7.repo -O /etc/yum.repos.d/Gluu.repo'
