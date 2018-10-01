@@ -50,7 +50,7 @@ class Installer:
             if ('Ubuntu' in self.server_os) or ('Debian' in self.server_os):
                 self.run_command = 'chroot {} /bin/bash -c "{}"'.format(self.container,'{}')
                 self.install_command = 'chroot {} /bin/bash -c "apt-get install -y {}"'.format(self.container,'{}')
-            elif 'CentOS' in self.server_os:
+            elif 'CentOS' in self.server_os  or 'RHEL' in server.os::
                 self.run_command = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
                                 '-o Port=60022 -o LogLevel=QUIET -o '
                                 'StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null '
