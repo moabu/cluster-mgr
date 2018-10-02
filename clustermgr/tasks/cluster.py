@@ -38,10 +38,13 @@ def run_command(tid, c, command, container=None, no_error='error',  server_id=''
     excluded_errors = [
                         'config file testing succeeded',
                         'There are no base DNs available to enable replication between the two servers',
+                        'Redirecting to',
+                        'warning: /var/cache/',
+                        'Created symlink from',
                     ]
                     
     if exclude_error:
-        excluded_errors.append(excluded_errors)
+        excluded_errors.append(exclude_error)
     
     if container == '/':
         container = None
@@ -51,17 +54,17 @@ def run_command(tid, c, command, container=None, no_error='error',  server_id=''
 
     wlogger.log(tid, command, "debug", server_id=server_id)
 
-
     cin, cout, cerr = c.run(command)
     output = ''
+
     if cout:
         wlogger.log(tid, cout, "debug", server_id=server_id)
         output += "\n" + cout
-    if cerr:
-        
+
+    if cerr:        
         not_error = False
         for ee in excluded_errors:
-            if ee in cerr:
+            if cerr.startswith(ee):
                 not_error = True
                 break
         
@@ -539,7 +542,7 @@ def check_gluu_installation(c):
                                                 appconf.gluu_version
                                             )
     result = c.exists(check_file)
-    print result
+
     return result
 
 
@@ -977,7 +980,6 @@ def installGluuServer(self, server_id):
     #start installing gluu server
     wlogger.log(tid, "Installing Gluu Server: " + gluu_server)
 
-    print "LOCAL", local_install_cmd
 
     if local_install_cmd:
         cmd = local_install_cmd
@@ -1062,14 +1064,14 @@ def installGluuServer(self, server_id):
 
         #if opendj version is not default, download latest version
         
-        if opendj_version != '3.0.0.dd9dedab5172885f14f0929682570c573d0c2b7b':
-            wlogger.log(tid, "Downloading lastest openDj from http://ox.gluu.org/")
-            cmd = ('wget http://ox.gluu.org/maven/org/forgerock/opendj/'
-                   'opendj-server-legacy/3.0.1.gluu/opendj-server-legacy-3.0.1.gluu.zip '
-                   '-O /opt/{0}/opt/dist/app/opendj-server-3.0.0.1.zip').format(gluu_server)
-            wlogger.log(tid, cmd, 'debug')
+        #if opendj_version != '3.0.0.dd9dedab5172885f14f0929682570c573d0c2b7b':
+        #    wlogger.log(tid, "Downloading lastest openDj from http://ox.gluu.org/")
+        #    cmd = ('wget http://ox.gluu.org/maven/org/forgerock/opendj/'
+        #           'opendj-server-legacy/3.0.1.gluu/opendj-server-legacy-3.0.1.gluu.zip '
+        #           '-O /opt/{0}/opt/dist/app/opendj-server-3.0.0.1.zip').format(gluu_server)
+        #    wlogger.log(tid, cmd, 'debug')
 
-            c.run(cmd)
+        #    c.run(cmd)
 
 
         # ldap_paswwrod of this server should be the same with primary server
@@ -1187,6 +1189,32 @@ def installGluuServer(self, server_id):
 
         modify_hosts(tid, c, host_ip, '/opt/'+gluu_server+'/', server.hostname)
 
+
+    run_cmd = "{}"
+    cmd_chroot = '/opt/'+gluu_server
+
+    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+        cmd_chroot = None
+        run_cmd = ("ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o "
+            "Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no "
+            "-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes "
+            "root@localhost \"{}\"")
+
+
+    if gluu_version >= '3.1.4':
+        #make opendj listen all interfaces
+        wlogger.log(tid, "Making openDJ listens all interfaces for port 4444 and 1636")
+        for command in (
+                "sed -i 's/dsreplication.java-args=-Xms8m -client/dsreplication.java-args=-Xms8m -client -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true/g' /opt/opendj/config/java.properties",
+                "/opt/opendj/bin/dsjavaproperties",
+                "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-administration-connector-prop  --set listen-address:0.0.0.0 -X".format(server.ldap_password),
+                "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-connection-handler-prop --handler-name 'LDAPS Connection Handler' --set enabled:true --set listen-address:0.0.0.0 -X".format(server.ldap_password),
+                '/etc/init.d/opendj stop',
+                '/etc/init.d/opendj start',
+                ):
+
+            cmd = run_cmd.format(command)
+            run_command(tid, c, cmd, cmd_chroot)
 
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
@@ -1309,15 +1337,15 @@ def installGluuServer(self, server_id):
     else:
         cmd = 'service cron reload'
 
-    run_command(tid, c, cmd, no_error='debug')
+    run_command(tid, c, cmd, exclude_error="Redirecting to /bin/systemctl reload crond.service")
 
     #We need to fix opendj initscript
     wlogger.log(tid, 'Uploading fixed opendj init.d script')
     opendj_init_script = os.path.join(app.root_path, "templates",
                            "opendj", "opendj")
-    remote_opendj_init_script = '/opt/{0}/etc/init.d/opendj'.format(gluu_server)
-    c.upload(opendj_init_script, remote_opendj_init_script)
-    cmd = 'chmod +x {}'.format(remote_opendj_init_script)
+    #remote_opendj_init_script = '/opt/{0}/etc/init.d/opendj'.format(gluu_server)
+    #c.upload(opendj_init_script, remote_opendj_init_script)
+    #cmd = 'chmod +x {}'.format(remote_opendj_init_script)
     run_command(tid, c, cmd)
     #########
 
@@ -1640,11 +1668,11 @@ def configure_OxIDPAuthentication(tid, exclude=None):
                 adminOlc.conn.result['description']), 'success')
 
 
-    if app_config.use_ldap_cache:
-        adminOlc.configureOxIDPAuthentication("NATIVE_PERSISTENCE")
-        wlogger.log(tid,
-                'oxIDPAuthentication entry is modified as NATIVE_PERSISTENCE'
-                'success')
+    #if app_config.use_ldap_cache:
+    #    adminOlc.configureOxIDPAuthentication(oxIDP)
+    #    wlogger.log(tid,
+    #            'oxIDPAuthentication entry is modified as NATIVE_PERSISTENCE',
+    #            'success')
 
 
 @celery.task(bind=True)
