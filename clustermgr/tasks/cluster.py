@@ -792,7 +792,7 @@ def installGluuServer(self, server_id):
 
     gluu_server = 'gluu-server-' + appconf.gluu_version
 
-    opendj_version = '3.0.0.dd9dedab5172885f14f0929682570c573d0c2b7b'
+    #opendj_version = '3.0.0.dd9dedab5172885f14f0929682570c573d0c2b7b'
     
     #If os type of this server was not idientified, return to home
     if not server.os:
@@ -817,9 +817,9 @@ def installGluuServer(self, server_id):
             wlogger.log(tid, "Ending server installation process.", "error")
             return
 
-        opendj_version_file = pc.get_file('/opt/{0}/opt/opendj/config/buildinfo'.format(gluu_server))
-        if opendj_version_file[0]:
-            opendj_version = opendj_version_file[1].read().strip()
+        #opendj_version_file = pc.get_file('/opt/{0}/opt/opendj/config/buildinfo'.format(gluu_server))
+        #if opendj_version_file[0]:
+        #    opendj_version = opendj_version_file[1].read().strip()
 
         if check_gluu_installation(pc):
             wlogger.log(tid, "Primary Server is Installed",'success')
@@ -836,11 +836,7 @@ def installGluuServer(self, server_id):
         wlogger.log(tid, "Ending server installation process.", "error")
         return
 
-    
 
-    #channel = c.client.get_transport().open_session()
-    #channel.get_pty()
-    #channel.exec_command("python /tmp/pb.py")
 
     wlogger.log(tid, "Preparing for Installation")
 
@@ -1073,14 +1069,14 @@ def installGluuServer(self, server_id):
 
         #if opendj version is not default, download latest version
         
-        if opendj_version != '3.0.0.dd9dedab5172885f14f0929682570c573d0c2b7b':
-            wlogger.log(tid, "Downloading lastest openDj from http://ox.gluu.org/")
-            cmd = ('wget http://ox.gluu.org/maven/org/forgerock/opendj/'
-                   'opendj-server-legacy/3.0.1.gluu/opendj-server-legacy-3.0.1.gluu.zip '
-                   '-O /opt/{0}/opt/dist/app/opendj-server-3.0.0.1.zip').format(gluu_server)
-            wlogger.log(tid, cmd, 'debug')
+        #if opendj_version != '3.0.0.dd9dedab5172885f14f0929682570c573d0c2b7b':
+        #    wlogger.log(tid, "Downloading lastest openDj from http://ox.gluu.org/")
+        #    cmd = ('wget http://ox.gluu.org/maven/org/forgerock/opendj/'
+        #           'opendj-server-legacy/3.0.1.gluu/opendj-server-legacy-3.0.1.gluu.zip '
+        #           '-O /opt/{0}/opt/dist/app/opendj-server-3.0.0.1.zip').format(gluu_server)
+        #    wlogger.log(tid, cmd, 'debug')
 
-            c.run(cmd)
+        #    c.run(cmd)
 
 
         # ldap_paswwrod of this server should be the same with primary server
