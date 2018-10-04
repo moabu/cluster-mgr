@@ -105,6 +105,10 @@ def logout():
         config = current_app.config["OXD_CLIENT_CONFIG_FILE"]
         oxc = Client(config)
     
+        # If site is not registered, first register it
+        if not oxc.config.get('oxd','id'):
+            oxc.register_site()
+    
         logout_url = oxc.get_logout_uri()
         return redirect(logout_url)
         
