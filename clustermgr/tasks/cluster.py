@@ -1602,8 +1602,6 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
 
 def configure_OxIDPAuthentication(tid, exclude=None):
     
-    #app_config = AppConfiguration.query.first()
-
     primary_server = Server.query.filter_by(primary_server=True).first()
     
     app_config = AppConfiguration.query.first()
@@ -1668,11 +1666,11 @@ def configure_OxIDPAuthentication(tid, exclude=None):
                 adminOlc.conn.result['description']), 'success')
 
 
-    #if app_config.use_ldap_cache:
-    #    adminOlc.configureOxIDPAuthentication(oxIDP)
-    #    wlogger.log(tid,
-    #            'oxIDPAuthentication entry is modified as NATIVE_PERSISTENCE',
-    #            'success')
+    if app_config.use_ldap_cache:
+        adminOlc.changeOxCacheConfiguration('NATIVE_PERSISTENCE')
+        wlogger.log(tid,
+                'cacheProviderType entry is was set to NATIVE_PERSISTENCE',
+                'success')
 
 
 @celery.task(bind=True)
