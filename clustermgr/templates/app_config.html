@@ -111,7 +111,7 @@
 
             </div>
 
-            <div class="form-group">
+            <div id="ldap-cache-div" class="form-group">
                 <div class="col-md-offset-3 col-md-9">
                     {{ render_checkbox_field(cform.use_ldap_cache) }}
                 </div>
@@ -212,22 +212,29 @@
 function ldapCacheOption() {
     
   if ($("#gluu_version :selected").text() < '3.1.4') { 
-    $("#use_ldap_cache").attr("disabled", true);
+    $("#ldap-cache-div").attr('style', 'display: none');
   } else {
-    $("#use_ldap_cache").removeAttr("disabled");
+    $("#ldap-cache-div").removeAttr('style');
   }
-    
+
+  if ( $('#use_ldap_cache').prop('checked')) {
+      
+      $('#external-load-balancer-box').attr('style',  'display: none');
+    }
+
 }
     
     $('#external_load_balancer').change(function() {
         if(this.checked) {
-            $('#external-load-balancer-box').removeAttr('style');
+            if ( ! $('#use_ldap_cache').prop('checked')) {
+               $('#external-load-balancer-box').removeAttr('style');
+            }
             $('#external_ip_group').attr('style',  'display: none');
             $('#nginx_ip').removeAttr('required');
             
     } else {
-        
         $('#external-load-balancer-box').attr('style',  'display: none');
+
         $('#external_ip_group').removeAttr('style');
         $('#nginx_ip').prop('required',true);
         
@@ -237,9 +244,18 @@ function ldapCacheOption() {
     });
 
     $('#gluu_version').on('change', function (e) {
-      
         ldapCacheOption();
     });
+
+    $('#use_ldap_cache').change(function() {
+        if(this.checked) {
+            $('#external-load-balancer-box').attr('style',  'display: none');
+        } else { 
+            $('#external-load-balancer-box').removeAttr('style');
+        }
+        
+    });
+
 
 ldapCacheOption();
 

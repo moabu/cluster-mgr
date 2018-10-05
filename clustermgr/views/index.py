@@ -138,6 +138,10 @@ def app_configuration():
         else:
             #external_lb_checked = True
             conf_form.nginx_ip.validators= []
+        if  conf_form.use_ldap_cache.data:
+            conf_form.cache_host.validators = []
+            conf_form.cache_ip.validators= []
+
 
 
     if not config:
@@ -145,6 +149,11 @@ def app_configuration():
         #del conf_form.replication_pw_confirm
         config = AppConfiguration()
         db.session.add(config)
+
+
+
+    
+
 
     # If form is submitted and validated process it
     if conf_form.update.data and conf_form.validate_on_submit():
@@ -267,7 +276,9 @@ def app_configuration():
             conf_form.purge_interval_hour.data = pi[1]
             conf_form.purge_interval_min.data = pi[2]
         """
-
+    if not config.id:
+        conf_form.use_ldap_cache.data = True
+        
     #create fake remote class that provides the same interface with RemoteClient
     fc = FakeRemote()
     
