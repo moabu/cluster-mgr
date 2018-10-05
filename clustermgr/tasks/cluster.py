@@ -1201,7 +1201,7 @@ def installGluuServer(self, server_id):
             "root@localhost \"{}\"")
 
 
-    if gluu_version >= '3.1.4':
+    if appconf.gluu_version >= '3.1.4':
         #make opendj listen all interfaces
         wlogger.log(tid, "Making openDJ listens all interfaces for port 4444 and 1636")
         for command in (
