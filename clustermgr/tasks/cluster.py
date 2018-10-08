@@ -38,10 +38,13 @@ def run_command(tid, c, command, container=None, no_error='error',  server_id=''
     excluded_errors = [
                         'config file testing succeeded',
                         'There are no base DNs available to enable replication between the two servers',
+                        'Redirecting to',
+                        'warning: /var/cache/',
+                        'Created symlink from',
                     ]
                     
     if exclude_error:
-        excluded_errors.append(excluded_errors)
+        excluded_errors.append(exclude_error)
     
     if container == '/':
         container = None
@@ -51,17 +54,17 @@ def run_command(tid, c, command, container=None, no_error='error',  server_id=''
 
     wlogger.log(tid, command, "debug", server_id=server_id)
 
-
     cin, cout, cerr = c.run(command)
     output = ''
+
     if cout:
         wlogger.log(tid, cout, "debug", server_id=server_id)
         output += "\n" + cout
-    if cerr:
-        
+
+    if cerr:        
         not_error = False
         for ee in excluded_errors:
-            if ee in cerr:
+            if cerr.startswith(ee):
                 not_error = True
                 break
         
@@ -539,7 +542,7 @@ def check_gluu_installation(c):
                                                 appconf.gluu_version
                                             )
     result = c.exists(check_file)
-    print result
+
     return result
 
 
@@ -873,11 +876,6 @@ def installGluuServer(self, server_id):
             if 'Ubuntu' in server.os:
                 cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
                    '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
-                
-                #TODO: remove this line when 3.1.4 is released
-                if appconf.gluu_version == '3.1.4':
-                    cmd = 'echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" > /etc/apt/sources.list.d/gluu-repo-devel.list'.format(dist)
-                   
             elif 'Debian' in server.os:
                 cmd = ('echo "deb https://repo.gluu.org/debian/ stable main" '
                    '> /etc/apt/sources.list.d/gluu-repo.list')
@@ -913,15 +911,9 @@ def installGluuServer(self, server_id):
 
             if server.os == 'CentOS 6':
                 cmd = 'wget https://repo.gluu.org/centos/Gluu-centos6.repo -O /etc/yum.repos.d/Gluu.repo'
-                #testing
-                cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-testing.repo -O /etc/yum.repos.d/Gluu.repo'
                 
             elif server.os == 'CentOS 7':
-                
                 cmd = 'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O /etc/yum.repos.d/Gluu.repo'
-                #testing
-                cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo -O /etc/yum.repos.d/Gluu-centos-7-testing.repo'
-                
                 
             elif server.os == 'RHEL 7':
                 cmd = 'wget https://repo.gluu.org/rhel/Gluu-rhel7.repo -O /etc/yum.repos.d/Gluu.repo'
@@ -984,7 +976,6 @@ def installGluuServer(self, server_id):
     #start installing gluu server
     wlogger.log(tid, "Installing Gluu Server: " + gluu_server)
 
-    print "LOCAL", local_install_cmd
 
     if local_install_cmd:
         cmd = local_install_cmd
@@ -1195,6 +1186,32 @@ def installGluuServer(self, server_id):
         modify_hosts(tid, c, host_ip, '/opt/'+gluu_server+'/', server.hostname)
 
 
+    run_cmd = "{}"
+    cmd_chroot = '/opt/'+gluu_server
+
+    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+        cmd_chroot = None
+        run_cmd = ("ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o "
+            "Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no "
+            "-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes "
+            "root@localhost \"{}\"")
+
+
+    if appconf.gluu_version >= '3.1.4':
+        #make opendj listen all interfaces
+        wlogger.log(tid, "Making openDJ listens all interfaces for port 4444 and 1636")
+        for command in (
+                "sed -i 's/dsreplication.java-args=-Xms8m -client/dsreplication.java-args=-Xms8m -client -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true/g' /opt/opendj/config/java.properties",
+                "/opt/opendj/bin/dsjavaproperties",
+                "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-administration-connector-prop  --set listen-address:0.0.0.0 -X".format(server.ldap_password),
+                "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-connection-handler-prop --handler-name 'LDAPS Connection Handler' --set enabled:true --set listen-address:0.0.0.0 -X".format(server.ldap_password),
+                '/etc/init.d/opendj stop',
+                '/etc/init.d/opendj start',
+                ):
+
+            cmd = run_cmd.format(command)
+            run_command(tid, c, cmd, cmd_chroot)
+
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
 
@@ -1316,15 +1333,15 @@ def installGluuServer(self, server_id):
     else:
         cmd = 'service cron reload'
 
-    run_command(tid, c, cmd, no_error='debug')
+    run_command(tid, c, cmd, exclude_error="Redirecting to /bin/systemctl reload crond.service")
 
     #We need to fix opendj initscript
     wlogger.log(tid, 'Uploading fixed opendj init.d script')
     opendj_init_script = os.path.join(app.root_path, "templates",
                            "opendj", "opendj")
-    remote_opendj_init_script = '/opt/{0}/etc/init.d/opendj'.format(gluu_server)
-    c.upload(opendj_init_script, remote_opendj_init_script)
-    cmd = 'chmod +x {}'.format(remote_opendj_init_script)
+    #remote_opendj_init_script = '/opt/{0}/etc/init.d/opendj'.format(gluu_server)
+    #c.upload(opendj_init_script, remote_opendj_init_script)
+    #cmd = 'chmod +x {}'.format(remote_opendj_init_script)
     run_command(tid, c, cmd)
     #########
 
@@ -1581,8 +1598,6 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
 
 def configure_OxIDPAuthentication(tid, exclude=None):
     
-    #app_config = AppConfiguration.query.first()
-
     primary_server = Server.query.filter_by(primary_server=True).first()
     
     app_config = AppConfiguration.query.first()
@@ -1646,6 +1661,12 @@ def configure_OxIDPAuthentication(tid, exclude=None):
         wlogger.log(tid, 'Modifying oxIDPAuthentication entry is failed: {}'.format(
                 adminOlc.conn.result['description']), 'success')
 
+
+    if app_config.use_ldap_cache:
+        adminOlc.changeOxCacheConfiguration('NATIVE_PERSISTENCE')
+        wlogger.log(tid,
+                'cacheProviderType entry is was set to NATIVE_PERSISTENCE',
+                'success')
 
 
 @celery.task(bind=True)

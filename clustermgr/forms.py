@@ -12,7 +12,7 @@ from flask_wtf.file import FileField, FileRequired, FileAllowed
 
 class AppConfigForm(FlaskForm):
     versions = [
-                #'3.1.4', 
+                '3.1.4', 
                 '3.1.3.1',
                 '3.1.3', 
                 '3.1.2',
@@ -60,6 +60,7 @@ class AppConfigForm(FlaskForm):
 
     cache_ip = StringField('Cache Proxy IP Address', validators=[DataRequired()])
 
+    use_ldap_cache = BooleanField('Use LDAP Cache')
 
     update = SubmitField("Update Configuration")
 

@@ -138,6 +138,10 @@ def app_configuration():
         else:
             #external_lb_checked = True
             conf_form.nginx_ip.validators= []
+        if  conf_form.use_ldap_cache.data:
+            conf_form.cache_host.validators = []
+            conf_form.cache_ip.validators= []
+
 
 
     if not config:
@@ -146,7 +150,11 @@ def app_configuration():
         config = AppConfiguration()
         db.session.add(config)
 
-    print "HERE"
+
+
+    
+
+
     # If form is submitted and validated process it
     if conf_form.update.data and conf_form.validate_on_submit():
         
@@ -196,6 +204,7 @@ def app_configuration():
         config.modify_hosts = conf_form.modify_hosts.data
         config.ldap_update_period = conf_form.ldap_update_period.data
         config.external_load_balancer = conf_form.external_load_balancer.data
+        config.use_ldap_cache = conf_form.use_ldap_cache.data
 
         if conf_form.external_load_balancer.data:
             config.cache_host = conf_form.cache_host.data.strip()
@@ -244,6 +253,8 @@ def app_configuration():
         conf_form.modify_hosts.data = config.modify_hosts
         conf_form.nginx_ip.data = config.nginx_ip
         conf_form.external_load_balancer.data = config.external_load_balancer
+        conf_form.use_ldap_cache.data = config.use_ldap_cache
+        
         if config.external_load_balancer:
             conf_form.cache_host.data = config.cache_host
             conf_form.cache_ip.data = config.cache_ip
@@ -265,7 +276,9 @@ def app_configuration():
             conf_form.purge_interval_hour.data = pi[1]
             conf_form.purge_interval_min.data = pi[2]
         """
-
+    if not config.id:
+        conf_form.use_ldap_cache.data = True
+        
     #create fake remote class that provides the same interface with RemoteClient
     fc = FakeRemote()
     

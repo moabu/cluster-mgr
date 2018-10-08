@@ -94,7 +94,7 @@ class AppConfiguration(db.Model):
     external_load_balancer = db.Column(db.Boolean())
     cache_host = db.Column(db.String(50))
     cache_ip = db.Column(db.String(50))
-    
+    use_ldap_cache = db.Column(db.Boolean())
 
 class KeyRotation(db.Model):
     __tablename__ = "keyrotation"

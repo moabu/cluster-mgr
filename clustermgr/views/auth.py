@@ -53,6 +53,9 @@ def user_from_config(cfg_file, username):
     return user
 
 
+
+
+
 @login_manager.user_loader
 def load_user(username):
     user = User(username, "")

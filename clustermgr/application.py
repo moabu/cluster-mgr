@@ -9,7 +9,7 @@ from flask import request
 from clustermgr.extensions import db, csrf, migrate, wlogger, \
     login_manager, mailer
 from .core.license import license_manager
-
+from clustermgr.models import AppConfiguration
 from . import __version__
 
 
@@ -137,5 +137,16 @@ def create_app():
     app.jinja_env.globals['url_for_next_page'] = url_for_next_page
     app.jinja_env.globals['url_for_prev_page'] = url_for_prev_page
     app.jinja_env.globals['version'] = __version__
+
+    @app.before_request
+    def before_request():
+        appconfig = AppConfiguration.query.first()
+
+        if appconfig:
+            use_ldap_cache = appconfig.use_ldap_cache
+        else:
+            use_ldap_cache = True
+
+        app.jinja_env.globals['use_ldap_cache'] = use_ldap_cache
 
     return app
