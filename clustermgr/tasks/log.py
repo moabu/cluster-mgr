@@ -133,7 +133,7 @@ def _install_filebeat(task_id, server, rc):
             "{} apt-get install -y filebeat".format(DEBCONF),
             "update-rc.d filebeat defaults 95 10",
         ]
-    elif opsys.startswith("centos"):
+    elif opsys.startswith("centos") or opsys.startswith("rhel"):
         cmd_list = [
             "rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch",
             "echo '{}' > /etc/yum.repos.d/elastic.repo".format(_ELASTIC_YUM_REPO),
@@ -170,7 +170,7 @@ def _render_filebeat_config(task_id, server, rc):
 
         src = "filebeat.yml"
         opsys = (server.os or "").lower()
-        if opsys.startswith("centos"):
+        if opsys.startswith("centos") or opsys.startswith("rhel"):
             src += ".centos"
 
         txt = render_template("filebeat/{}".format(src), **ctx)
@@ -184,9 +184,9 @@ def _restart_filebeat(task_id, server, rc):
     """
     opsys = (server.os or "").lower()
 
-    if opsys in ("centos 6", "ubuntu 14"):
+    if opsys in ("centos 6", "ubuntu 14", "rhel 6"):
         cmd = "service filebeat restart"
-    elif opsys in ("centos 7", "ubuntu 16"):
+    elif opsys in ("centos 7", "ubuntu 16", "rhel 7"):
         cmd = "systemctl enable filebeat && systemctl restart filebeat"
     else:
         task_logger.warn("Unable to determine underlying OS")
@@ -298,7 +298,7 @@ def _uninstall_filebeat(task_id, server, rc):
         cmd_list = [
             "apt-get remove -y --purge filebeat",
         ]
-    elif opsys.startswith("centos"):
+    elif opsys.startswith("centos") or opsys.startswith("rhel"):
         cmd_list = [
             "yum remove -y filebeat",
         ]
