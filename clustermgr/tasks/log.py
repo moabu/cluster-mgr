@@ -98,21 +98,34 @@ def collect_logs(host, ip, path, influx_fmt=True):
 
     try:
         rc.startup()
+        task_logger.warn("Collecting logs from remote server {}/{}".format(host, ip))
         _, stdout, stderr = rc.run("cat {}".format(path))
         if not stderr:
             logs = filter(
                 None,
                 [parse_log(log, hostname=host) for log in stdout.splitlines()],
             )
+        else:
+            task_logger.warn("Unable to collect logs from remote server {}/{}; "
+                             "reason={}".format(host, ip, stderr))
     except Exception as exc:
-        task_logger.warn("Unable to collect logs from remote server;"
-                         " reason={}".format(exc))
+        task_logger.warn("Unable to collect logs from remote server {}/{}; "
+                         "reason={}".format(host, ip, exc))
     finally:
         rc.close()
 
+    logs_collected = False
+
     influx = InfluxDBClient(database=dbname)
-    influx.create_database(dbname)
-    return influx.write_points(logs)
+    try:
+        influx.create_database(dbname)
+        if influx.write_points(logs):
+            logs_collected = True
+    except Exception as exc:
+        task_logger.warn(
+            "An error occured while trying to connect to InfluxDB; "
+            "reason={}".format(exc))
+    return logs_collected
 
 
 def _install_filebeat(task_id, server, rc):
