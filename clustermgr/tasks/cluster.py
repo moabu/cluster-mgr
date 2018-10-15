@@ -153,6 +153,48 @@ def modifyOxLdapProperties(server, c, tid, pDict, chroot):
                 'include all replicating servers: {1}'.format(server.hostname, temp),
                 'warning')
 
+    # Modify Shib ldap.properties to include all ldap properties
+    remote_file = os.path.join(chroot, 'opt/shibboleth-idp/conf/ldap.properties')
+    shib_ldap = c.get_file(remote_file)
+
+    temp = None
+
+    if shib_ldap[0]:
+         
+        ldap_server_list = [ 'ldaps://'+ldap_server for ldap_server in pDict[server.hostname].split(',') ]
+        server_list_string = ' '.join(ldap_server_list)
+
+        # iterate ldap.properties file and modify idp.authn.LDAP.ldapURL entry
+   
+        fc = ''
+        for l in shib_ldap[1]:
+            if l.startswith('idp.authn.LDAP.ldapURL'):
+                l = 'idp.authn.LDAP.ldapURL                          = {}\n'.format( server_list_string )
+            fc += l
+
+        r = c.put_file(remote_file,fc)
+
+        if r[0]:
+            wlogger.log(tid,
+                '/opt/shibboleth-idp/conf/ldap.properties file on {0} modified to include '
+                'all replicating servers'.format(server.hostname),
+                'success')
+        else:
+            temp = r[1]
+    else:
+        temp = shib_ldap[1]
+
+    if temp:
+        wlogger.log(tid,
+                '/opt/shibboleth-idp/conf/ldap.propertiess file on {0} was not modified to '
+                'include all replicating servers: {1}'.format(server.hostname, temp),
+                'warning')
+
+
+
+
+
+
 
 def get_csync2_config(exclude=None):
 
