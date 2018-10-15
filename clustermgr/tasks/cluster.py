@@ -1914,7 +1914,10 @@ def installNGINX(self, nginx_host):
     wlogger.log(tid, "Determining OS type")
     os_type = get_os_type(c)
     wlogger.log(tid, "OS is determined as {0}".format(os_type),'debug')
-
+    
+    # write nginx os type to database
+    app_config.nginx_os_type = os_type
+    db.session.commit()
 
     wlogger.log(tid, "Checking if Python was installed",'debug')
 
@@ -2091,3 +2094,59 @@ def register_objectclass(self, objcls):
     
     return True
 
+
+@celery.task(bind=True)
+def update_httpd_certs_task(self, httpd_key, httpd_crt):
+    
+    tid = self.request.id
+    appconf = AppConfiguration.query.first()
+
+    servers = Server.query.all()
+
+    if not appconf.external_load_balancer:
+        mock_server = Server()
+        mock_server.hostname = appconf.nginx_host
+        mock_server.ip = appconf.nginx_ip
+        mock_server.proxy = True
+        mock_server.os = appconf.nginx_os_type
+        servers.insert(0, mock_server)
+
+    for server in servers:
+        installer = Installer(server, appconf.gluu_version, logger_tid=tid)
+        if hasattr(server, 'proxy'):
+            if not server.os:
+                print "Determining nginx os type"
+                os_type = get_os_type(installer.c)
+                installer.server_os = os_type
+                appconf.nginx_os_type = os_type
+                installer.appy_config()
+
+            key_path = '/etc/nginx/ssl/httpd.key'
+            crt_path = '/etc/nginx/ssl/httpd.crt'
+        else:
+            key_path = os.path.join(installer.container, 'etc/certs/httpd.key')
+            crt_path = os.path.join(installer.container, 'etc/certs/httpd.crt')
+
+
+        wlogger.log(tid, "Uploading key to " + server.hostname,'debug')
+        result = installer.c.put_file(key_path, httpd_key)
+        if result[0]:
+            wlogger.log(tid, "Key uploaded",'success')
+        else:
+            wlogger.log(tid, "Failed to upload key: " + str(result[1]) ,'error')
+        
+        wlogger.log(tid, "Uploading certificate to " + server.hostname,'debug')
+        result = installer.c.put_file(crt_path, httpd_crt)
+        if result[0]:
+            wlogger.log(tid, "Certificate uploaded",'success')
+        else:
+            wlogger.log(tid, "Failed to upload certificate: " + str(result[1]) ,'error')
+
+        if hasattr(server, 'proxy'):
+            installer.run('service nginx restart', False)
+        else:
+            delete_key('httpd', server.hostname, appconf.gluu_version, tid, installer.c, installer.server_os)
+            import_key('httpd', server.hostname, appconf.gluu_version, tid, installer.c, installer.server_os)
+            installer.restart_gluu()
+
+    return True

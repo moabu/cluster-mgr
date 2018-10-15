@@ -336,3 +336,8 @@ class LdapSchema(FlaskForm):
     single_value = BooleanField("Single Valued")
     #obsolete = BooleanField("Obsolete")
     collective = BooleanField("Collective")
+
+class httpdCertificatesForm(FlaskForm):
+    httpd_key = TextAreaField('Key')
+    httpd_crt = TextAreaField('Crt')
+    submit = SubmitField("Submit")

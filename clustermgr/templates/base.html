@@ -145,6 +145,7 @@
             </li>
             {% endif %}
 
+
             <li>
                 <a href="{{ url_for('keyrotation.index') }}">
                     <i class="fa fa-key"></i><span>Key Rotation</span>
@@ -156,7 +157,27 @@
           
             <li><a href="{{ url_for('attributes.home') }}">
               <i class="fa fa-edit"></i><span>Custom Attributes</span></a></li>
+
+
+            <li class="treeview">
+              <a href="#">
+                <i class="fa fa-cogs"></i><span>Operations</span>
+                <span class="pull-right-container">
+                  <i class="fa fa-angle-left pull-right"></i>
+                </span>
+              </a>
+              <ul class="treeview-menu">
+                <li><a href="{{ url_for('operations.httpd_certs') }}"> <i class="fa fa-certificate"></i><span>Certificates</span></a> </li>
+
+              </ul>
+            </li>
+
+
+
+
           </ul>
+
+
           
           
         </section>

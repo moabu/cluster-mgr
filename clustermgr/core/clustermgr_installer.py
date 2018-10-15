@@ -42,10 +42,14 @@ class Installer:
                         'fail',
                         server_id=self.server_id,
                     )
-                
+        if self.server_os:
+            self.appy_config()
+    
+    def appy_config(self):
+    
         if self.c and (not hasattr(self.c, 'fake_remote')):
             
-            self.container = '/opt/gluu-server-{}'.format(gluu_version)
+            self.container = '/opt/gluu-server-{}'.format(self.gluu_version)
         
             if ('Ubuntu' in self.server_os) or ('Debian' in self.server_os):
                 self.run_command = 'chroot {} /bin/bash -c "{}"'.format(self.container,'{}')
@@ -75,9 +79,14 @@ class Installer:
 
 
 
-    def run(self, cmd):
-        print "Installer> executing: {}".format(cmd)
-        run_cmd = self.run_command.format(cmd)
+    def run(self, cmd, inside_container=True):
+        if inside_container:
+            run_cmd = self.run_command.format(cmd)
+        else:
+            run_cmd = cmd
+
+        print "Installer> executing: {}".format(run_cmd)
+
         self.log_command(run_cmd)
         result = self.c.run(run_cmd)
         self.log(result)

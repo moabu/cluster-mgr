@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block header %}
+    <h1>HTTPD Certificates</h1>
+    <ol class="breadcrumb">
+        <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+        <li>Operations</li> <li class="active">Httpd Certificate</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+<div class="box box-primary">
+    
+
+<div class="panel panel-default">
+    <div class="panel-body">
+      <form id="httpd_cert_form" action="{{ url_for('operations.update_httpd_certificate') }}" method="POST">
+          {{ cert_form.csrf_token }}
+        <div class="form-group {{ 'has-error' if cert_form.httpd_key.errors else '' }}">
+            {{ cert_form.httpd_key.label}}:
+            {{ cert_form.httpd_key(class="form-control", rows=25, style='font-family: monospace;') }}
+                {% for error in cert_form.httpd_key.errors %}
+                    <p class="help-block">{{ error }}</p>
+                {% endfor %}
+        </div>
+
+
+        <div class="form-group {{ 'has-error' if cert_form.httpd_crt.errors else '' }}">
+            {{ cert_form.httpd_crt.label}}:
+            {{ cert_form.httpd_crt(class="form-control", rows=20, style='font-family: monospace;') }}
+                {% for error in cert_form.httpd_crt.errors %}
+                    <p class="help-block">{{ error }}</p>
+                {% endfor %}
+        </div>
+
+
+
+    </div>
+
+        <div class="box-footer">
+            {{ cert_form.submit(class="btn btn-primary pull-right") }}
+        </div>
+      </form>
+
+</div>
+
+
+
+{% endblock %}
+
+
+{% block js %}
+{% endblock %}
