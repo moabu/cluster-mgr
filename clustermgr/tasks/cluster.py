@@ -2127,6 +2127,7 @@ def update_httpd_certs_task(self, httpd_key, httpd_crt):
                 installer.server_os = os_type
                 appconf.nginx_os_type = os_type
                 installer.appy_config()
+                db.session.commit()
 
             key_path = '/etc/nginx/ssl/httpd.key'
             crt_path = '/etc/nginx/ssl/httpd.crt'

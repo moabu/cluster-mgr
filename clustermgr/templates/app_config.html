@@ -159,10 +159,21 @@
 </div>
 
 
+
+
+
+
+
+
+
 <div class="panel panel-default">
     <div class="panel-heading">
-        <h3 class="panel-title">Custom Schema Files</h3>
+        <h3 class="panel-title">
+            <a data-toggle="collapse" href="#collapse1">Custom Schema Files</a>
+        </h3>
     </div>
+    
+    <div id="collapse1" class="panel-collapse collapse">
     <div class="panel-body">
         <ul class="list-group">
             {% for sf in schemafiles %}
@@ -185,6 +196,7 @@
             {% endfor %}
             {% endif %}
         </form>
+    </div>
     </div>
 </div>
 
