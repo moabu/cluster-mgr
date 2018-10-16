@@ -118,6 +118,10 @@
                 </span>
               </a>
               <ul class="treeview-menu">
+                  
+                <li><a href="{{ url_for('monitoring.gluu_status') }}"> <img src="{{ url_for('static', filename='images/favicon.ico') }}"> <span>Gluu Monitoring</span></a> </li>  
+                  
+                  
                 <li><a href="{{ url_for('monitoring.home') }}"> <i class="fa fa-bar-chart"></i><span>Statistics</span></a> </li>
                 <li><a href="{{ url_for('monitoring.setup_index') }}"> <i class="fa fa-wrench"></i><span>Setup Monitoring</span></a> </li>
               </ul>
@@ -232,6 +236,7 @@
 
 
     {% block js %} {% endblock js %}
+
 
   </body>
 </html>
