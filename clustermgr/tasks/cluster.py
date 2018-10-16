@@ -1538,56 +1538,56 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
                 tid, "Cannot establish SSH connection {0}".format(e), "warning")
             wlogger.log(tid, "Proxy server configuration were not updated", "warning")
 
-    if not proxy_c:
-        
-        proxy_c = RemoteClient(app_config.cache_host, ip=app_config.cache_ip)
-        
-        wlogger.log(tid,
-                "Making SSH connection to cache server {0}".format(
-                app_config.cache_host), 'debug'
-                )
+        if not proxy_c and not app_config.use_ldap_cache:
+            
+            proxy_c = RemoteClient(app_config.cache_host, ip=app_config.cache_ip)
+            
+            wlogger.log(tid,
+                    "Making SSH connection to cache server {0}".format(
+                    app_config.cache_host), 'debug'
+                    )
 
-        try:
-            proxy_c.startup()
-            # Update Twemproxy
-            wlogger.log(tid, "Updating Twemproxy configuration",'debug')
-            twemproxy_conf = make_twem_proxy_conf(exception=server_id)
-            remote = "/etc/nutcracker/nutcracker.yml"
-            r = proxy_c.put_file(remote, twemproxy_conf)
+            try:
+                proxy_c.startup()
+                # Update Twemproxy
+                wlogger.log(tid, "Updating Twemproxy configuration",'debug')
+                twemproxy_conf = make_twem_proxy_conf(exception=server_id)
+                remote = "/etc/nutcracker/nutcracker.yml"
+                r = proxy_c.put_file(remote, twemproxy_conf)
 
-            if not r[0]:
-                wlogger.log(tid, "An error occurred while uploading nutcracker.yml.", "warning")
+                if not r[0]:
+                    wlogger.log(tid, "An error occurred while uploading nutcracker.yml.", "warning")
 
-            wlogger.log(tid, "Twemproxy configuration updated", 'success')
+                wlogger.log(tid, "Twemproxy configuration updated", 'success')
 
-            run_command(tid, proxy_c, 'service nutcracker restart', no_error='warning')
+                run_command(tid, proxy_c, 'service nutcracker restart', no_error='warning')
 
-            # Update stunnel
-            proxy_stunnel_conf = make_proxy_stunnel_conf(exception=server_id)
-            proxy_stunnel_conf = '\n'.join(proxy_stunnel_conf)
-            remote = '/etc/stunnel/stunnel.conf'
-            r = proxy_c.put_file(remote, proxy_stunnel_conf)
+                # Update stunnel
+                proxy_stunnel_conf = make_proxy_stunnel_conf(exception=server_id)
+                proxy_stunnel_conf = '\n'.join(proxy_stunnel_conf)
+                remote = '/etc/stunnel/stunnel.conf'
+                r = proxy_c.put_file(remote, proxy_stunnel_conf)
 
-            if not r[0]:
-                wlogger.log(tid, "An error occurred while uploadng stunnel.conf.", "warning")
+                if not r[0]:
+                    wlogger.log(tid, "An error occurred while uploadng stunnel.conf.", "warning")
 
-            wlogger.log(tid, "Stunnel configuration updated", 'success')
+                wlogger.log(tid, "Stunnel configuration updated", 'success')
 
 
 
-            os_type = get_os_type(proxy_c)
+                os_type = get_os_type(proxy_c)
 
-            if 'CentOS' or 'RHEL' in os_type:
-                run_command(tid, proxy_c, 'systemctl restart stunnel', no_error='warning')
-            else:
-                run_command(tid, proxy_c, 'service stunnel4 restart', no_error='warning')
+                if 'CentOS' or 'RHEL' in os_type:
+                    run_command(tid, proxy_c, 'systemctl restart stunnel', no_error='warning')
+                else:
+                    run_command(tid, proxy_c, 'service stunnel4 restart', no_error='warning')
 
-            proxy_c.close()
+                proxy_c.close()
 
-        except Exception as e:
-            wlogger.log(
-                tid, "Cannot establish SSH connection {0}".format(e), "warning")
-            wlogger.log(tid, "Proxy server configuration were not updated", "warning")
+            except Exception as e:
+                wlogger.log(
+                    tid, "Cannot establish SSH connection {0}".format(e), "warning")
+                wlogger.log(tid, "Proxy server configuration were not updated", "warning")
 
 
     if disable_replication:
