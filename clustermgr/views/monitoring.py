@@ -570,29 +570,6 @@ def remove():
 
 
 
-@monitoring.route('/gluustatus')
-def gluu_status():
-    servers = Server.query.all()
-    server_id_list = [str(server.id) for server in servers]
-    appconf = AppConfiguration.query.first()
-    
-    refresh_time = appconf.ldap_update_period
-    
-    services = ['oxauth', 'identity']
-    prop = get_setup_properties()
-
-    if prop['installSaml']:
-        services.append('shib')
-
-    if prop['installPassport']:
-        services.append('passport')
-    
-    return render_template('gluu_status.html', servers=servers, 
-            services=services, server_id_list=server_id_list, 
-            refresh_time=refresh_time)
-
-
-
 @monitoring.route('/serverstat')
 def get_server_status():
 

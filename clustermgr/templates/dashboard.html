@@ -376,12 +376,12 @@ function updateStatus() {
                 s_element.removeClass("bg-red");
                 s_element.removeClass("inactiveService");
                 s_element.addClass("bg-green");
-                s_element.prop("title", "This service seems to be working as expected");
+                s_element.attr("data-original-title", "This service seems to be working as expected");
             } else {
                 s_element.addClass("bg-red");
                 s_element.addClass("inactiveService");
                 s_element.removeClass("bg-green");
-                s_element.prop("title", "This service may be stopped or not working properly");
+                s_element.attr("data-original-title", "This service may be stopped or not working properly");
                
             }
     
@@ -406,14 +406,14 @@ function showLdapStat() {
             ldap_element.addClass("bg-green");
             ldap_element.removeClass("bg-red");
             ldap_element.removeClass("inactiveService");
-            ldap_element.prop("title", "This service seems to be working as expected");
+            ldap_element.attr("data-original-title", "This service seems to be working as expected");
 
         } else {
 
             ldap_element.addClass("bg-red");
             ldap_element.removeClass("bg-green");
             ldap_element.addClass("inactiveService");
-            ldap_element.prop("title", "This service may be stopped or not working properly");
+            ldap_element.attr("data-original-title", "This service may be stopped or not working properly");
         }
         
     
@@ -501,7 +501,11 @@ function dryRun(server_id) {
     //console.log($("#drybutton").attr("disabled"));
     
     }
+    
 $('[data-toggle="tooltip"]').tooltip(); 
+
+
+
 </script>
 {% endblock %}
 
