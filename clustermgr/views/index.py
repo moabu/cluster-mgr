@@ -103,9 +103,21 @@ def home():
         return render_template('index_passphrase.html', e=e, 
                 ask_passphrase=ask_passphrase, next='/',
                 warning_text="Error accessing Nginx Load Balancer")
-    
 
-    return render_template('dashboard.html', servers=servers, app_conf=appconf)
+    server_id_list = [str(server.id) for server in servers]
+    
+    services = ['oxauth', 'identity']
+    prop = get_setup_properties()
+
+    if prop['installSaml']:
+        services.append('shib')
+
+    if prop['installPassport']:
+        services.append('passport')
+
+    return render_template('dashboard.html', servers=servers, app_conf=appconf,
+                             services=services, server_id_list=server_id_list,
+                            )
 
 
 @index.route('/configuration/', methods=['GET', 'POST'])
