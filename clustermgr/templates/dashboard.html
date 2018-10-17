@@ -87,7 +87,6 @@
                         <th>Server ID</th>
                         <th>Hostname</th>
                         <th>IP Address</th>
-                        <th>Gluu Server</th>
                         {% if servers[0].gluu_server %}<th><center>Service Liveness Status</center></th>{% endif %}
                         <th>OS</th>
                         <th>Actions</th>
@@ -103,7 +102,6 @@
                             {% endif %}
                         </td>
                         <td>{{ server.ip }}</td>
-                        <td>{% if server.gluu_server %} <span class="glyphicon glyphicon-ok"></span>{% endif %}
                         </td>
                         
                         {% if servers[0].gluu_server %}
