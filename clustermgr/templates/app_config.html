@@ -80,7 +80,6 @@
                     </div>
                 </div>
 
-
             </div>
 
             <div class="well well-sm" 
@@ -112,6 +111,11 @@
 
             </div>
 
+            <div id="ldap-cache-div" class="form-group">
+                <div class="col-md-offset-3 col-md-9">
+                    {{ render_checkbox_field(cform.use_ldap_cache) }}
+                </div>
+            </div>
 
             <div class="form-group {{ 'has-error' if cform.ldap_update_period.errors else '' }}">
                 {{ cform.ldap_update_period.label(class="control-label col-md-3") }}
@@ -155,10 +159,21 @@
 </div>
 
 
+
+
+
+
+
+
+
 <div class="panel panel-default">
     <div class="panel-heading">
-        <h3 class="panel-title">Custom Schema Files</h3>
+        <h3 class="panel-title">
+            <a data-toggle="collapse" href="#collapse1">Custom Schema Files</a>
+        </h3>
     </div>
+    
+    <div id="collapse1" class="panel-collapse collapse">
     <div class="panel-body">
         <ul class="list-group">
             {% for sf in schemafiles %}
@@ -181,6 +196,7 @@
             {% endfor %}
             {% endif %}
         </form>
+    </div>
     </div>
 </div>
 
@@ -205,15 +221,32 @@
 {% block js %}
 <script>
     
+function ldapCacheOption() {
+    
+  if ($("#gluu_version :selected").text() < '3.1.4') { 
+    $("#ldap-cache-div").attr('style', 'display: none');
+  } else {
+    $("#ldap-cache-div").removeAttr('style');
+  }
+
+  if ( $('#use_ldap_cache').prop('checked')) {
+      
+      $('#external-load-balancer-box').attr('style',  'display: none');
+    }
+
+}
+    
     $('#external_load_balancer').change(function() {
         if(this.checked) {
-            $('#external-load-balancer-box').removeAttr('style');
+            if ( ! $('#use_ldap_cache').prop('checked')) {
+               $('#external-load-balancer-box').removeAttr('style');
+            }
             $('#external_ip_group').attr('style',  'display: none');
             $('#nginx_ip').removeAttr('required');
             
     } else {
-        
         $('#external-load-balancer-box').attr('style',  'display: none');
+
         $('#external_ip_group').removeAttr('style');
         $('#nginx_ip').prop('required',true);
         
@@ -221,6 +254,22 @@
     }
         
     });
+
+    $('#gluu_version').on('change', function (e) {
+        ldapCacheOption();
+    });
+
+    $('#use_ldap_cache').change(function() {
+        if(this.checked) {
+            $('#external-load-balancer-box').attr('style',  'display: none');
+        } else { 
+            $('#external-load-balancer-box').removeAttr('style');
+        }
+        
+    });
+
+
+ldapCacheOption();
 
 </script>
 {% endblock %}

@@ -101,11 +101,13 @@
             </li>
             <!---------end of replication tree----------->
 
+            {% if not use_ldap_cache %}
 
             <li><a href="{{ url_for('cache_mgr.index') }}">
               <i class="fa fa-microchip"></i><span>Cache Management</span></a>
             </li>
 
+             {% endif %}
 
             <!-------Monitoring tree----------------->
             <li class="treeview">

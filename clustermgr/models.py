@@ -96,7 +96,8 @@ class AppConfiguration(db.Model):
     cache_ip = db.Column(db.String(50))
     
     nginx_os = db.Column(db.String(20))
-
+    use_ldap_cache = db.Column(db.Boolean())
+    ldap_update_period_unit = db.Column(db.String(1), default='s')
     
     
 

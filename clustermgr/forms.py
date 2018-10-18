@@ -19,31 +19,15 @@ class AppConfigForm(FlaskForm):
                 ]
     gluu_version = SelectField('Gluu Server Version',
                                choices=[(v, v) for v in versions])
-    # use_ip = BooleanField('Use IP Address in place of Hostname for replication')
-    # replication_dn = StringField('Replication Manager DN', validators=[
-    #    DataRequired(),
-    #    Regexp('^[a-zA-Z][a-zA-Z ]*[a-zA-Z]$',
-    #           message="Only alphabets and space allowed; cannot end with space.")])  # noqa
+
     replication_pw = PasswordField('Replication Manager Password', validators=[
         DataRequired(), validators.EqualTo(
             'replication_pw_confirm', message='Passwords must match')])
-    replication_pw_confirm = PasswordField(
-        'Re-enter Password', validators=[DataRequired()])
+
+    replication_pw_confirm = PasswordField('Re-enter Password', validators=[DataRequired()])
+        
     nginx_host = StringField('Load Balancer Hostname', validators=[DataRequired()])
-
     nginx_ip = StringField('Load Balancer IP Address', validators=[DataRequired()])
-    
-    
-
-    # purge_age_day = SelectField(choices=[(str(d), str(d)) for d in range(0, 31)])
-    # purge_age_hour = SelectField(choices=[(str(h), str(h)) for h in range(0, 25)], default="24")
-    # purge_age_min = SelectField(choices=[(str(m), str(m)) for m in range(0, 60)])
-
-    # purge_interval_day = SelectField(choices=[(str(d), str(d)) for d in range(0, 31)], default="1")
-    # purge_interval_hour = SelectField(choices=[(str(h), str(h)) for h in range(0, 25)])
-    # purge_interval_min = SelectField(choices=[(str(m), str(m)) for m in range(0, 60)])
-
-    # admin_email = StringField("Admin Email", validators=[Optional(), Email("Please enter valid email address")])
 
 
     ldap_update_period = SelectField('LDAP Status Check Period (mins)',
@@ -55,12 +39,9 @@ class AppConfigForm(FlaskForm):
                                 '/etc/hosts file on each server')
 
     external_load_balancer = BooleanField('This is external load balancer')
-
     cache_host = StringField('Cache Proxy Hostname', validators=[DataRequired()])
-
     cache_ip = StringField('Cache Proxy IP Address', validators=[DataRequired()])
-
-
+    use_ldap_cache = BooleanField('Use LDAP Cache')
     update = SubmitField("Update Configuration")
 
 

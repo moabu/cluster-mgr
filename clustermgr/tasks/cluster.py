@@ -667,7 +667,11 @@ def configure_OxIDPAuthentication(task_id, exclude=None, installers={}):
         wlogger.log(task_id, 'Modifying oxIDPAuthentication entry is failed: {}'.format(
                 adminOlc.conn.result['description']), 'success')
 
-
+    if app_config.use_ldap_cache:
+        adminOlc.changeOxCacheConfiguration('NATIVE_PERSISTENCE')
+        wlogger.log(tid,
+                'cacheProviderType entry is was set to NATIVE_PERSISTENCE',
+                'success')
 
 @celery.task(bind=True)
 def opendjenablereplication(self, server_id):

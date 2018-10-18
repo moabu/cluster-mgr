@@ -694,6 +694,20 @@ class LdapOLC(object):
                 oxidp_s = json.dumps(oxidp)
                 return self.conn.modify(
                                 r[0]['dn'], {"oxIDPAuthentication": [MODIFY_REPLACE, oxidp_s]})
+
+    def changeOxCacheConfiguration(self, method):
+        result=self.conn.search(search_base='o=gluu',
+                         search_filter='(oxCacheConfiguration=*)', search_scope=SUBTREE,
+                         attributes=["oxCacheConfiguration"])
+        if result:
+            oxCacheConfiguration = json.loads(self.conn.response[0]['attributes']['oxCacheConfiguration'][0])
+            oxCacheConfiguration['cacheProviderType'] = method
+            oxCacheConfiguration_js = json.dumps(oxCacheConfiguration)
+            dn = self.conn.response[0]['dn']
+            
+            self.conn.modify(dn, {'oxCacheConfiguration': [MODIFY_REPLACE, oxCacheConfiguration_js]})
+
+
     def getSyntaxes(self):
         self.conn.search(search_base='cn=schema',
                                 search_filter='(objectclass=*)',

@@ -106,7 +106,6 @@ def home():
 
     return render_template('dashboard.html', servers=servers, app_conf=appconf)
 
-
 @index.route('/configuration/', methods=['GET', 'POST'])
 @login_required
 def app_configuration():
@@ -123,19 +122,24 @@ def app_configuration():
     # not supplied, make password "**dummy**", so don't change
     # what we have before
 
-    external_lb_checked = False
+    #external_lb_checked = False
+    external_lb_checked = conf_form.external_load_balancer.data
     
     if request.method == 'POST':
         if config and not conf_form.replication_pw.data.strip():
             conf_form.replication_pw.validators = []
             conf_form.replication_pw_confirm.validators = []
             
-        if conf_form.external_load_balancer.data:
+        if not conf_form.external_load_balancer.data:
             conf_form.cache_host.validators = []
             conf_form.cache_ip.validators= []
         else:
-            external_lb_checked = True
+            #external_lb_checked = True
             conf_form.nginx_ip.validators= []
+        if  conf_form.use_ldap_cache.data:
+            conf_form.cache_host.validators = []
+            conf_form.cache_ip.validators= []
+
 
 
     if not config:
@@ -192,8 +196,11 @@ def app_configuration():
         config.nginx_host = conf_form.nginx_host.data.strip()
         config.nginx_ip = conf_form.nginx_ip.data.strip()
         config.modify_hosts = conf_form.modify_hosts.data
+        
         config.ldap_update_period = conf_form.ldap_update_period.data
+        config.ldap_update_period_unit = 's'
         config.external_load_balancer = conf_form.external_load_balancer.data
+        config.use_ldap_cache = conf_form.use_ldap_cache.data
 
         if conf_form.external_load_balancer.data:
             config.cache_host = conf_form.cache_host.data.strip()
@@ -213,11 +220,7 @@ def app_configuration():
 
         db.session.commit()
 
-        # -1 is for nginx server
-        collect_server_details.delay(-1)
-
-
-        flash("Gluu Cluster Manager application configuration has been "
+        flash("Gluu Replication Manager application configuration has been "
               "updated.", "success")
 
         if request.args.get('next'):
@@ -246,21 +249,32 @@ def app_configuration():
         conf_form.modify_hosts.data = config.modify_hosts
         conf_form.nginx_ip.data = config.nginx_ip
         conf_form.external_load_balancer.data = config.external_load_balancer
+        conf_form.use_ldap_cache.data = config.use_ldap_cache
+        
         if config.external_load_balancer:
             conf_form.cache_host.data = config.cache_host
             conf_form.cache_ip.data = config.cache_ip
         
-        conf_form.ldap_update_period.data = str(config.ldap_update_period) if config.ldap_update_period else '5'
+        
+        service_status_update_period = config.ldap_update_period
+        
+        if service_status_update_period and config.ldap_update_period_unit != 's':
+                service_status_update_period = service_status_update_period * 60         
+        
+        conf_form.ldap_update_period.data = str(service_status_update_period)
         
         #conf_form.use_ip.data = config.use_ip
         if config.gluu_version:
             conf_form.gluu_version.data = config.gluu_version
 
+    if not config.id:
+        conf_form.use_ldap_cache.data = True
+        
     #create fake remote class that provides the same interface with RemoteClient
     fc = FakeRemote()
     
     #Getermine local OS type
-    localos= fc.get_os_type()
+    localos = fc.get_os_type()
 
 
     return render_template('app_config.html', cform=conf_form, sform=sch_form,
