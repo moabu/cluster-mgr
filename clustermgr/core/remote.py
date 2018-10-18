@@ -22,14 +22,34 @@ def decode(key, enc):
 
 
 def get_os_type(self):
-    cmd = 'python -c "import platform;print platform.linux_distribution()"'
-    cin, cout, cerr = self.run(cmd)
-    result = eval(cout)
-    os_type = result[0].split()[0].title()
-    if os_type == 'Centos':
-        os_type = 'CentOS'
-    os_version = result[1].split('.')[0]
-    self.server_os = os_type+' '+os_version
+
+    cin, cout, cerr = self.run("ls /etc/*release")
+    files = cout.split()
+    
+    if files[0] == '/etc/alpine-release':
+        os_type = 'Alpine'
+
+    cin, cout, cerr = self.run("cat "+files[0])
+
+    if "Ubuntu" in cout and "14.04" in cout:
+        os_type = "Ubuntu 14"
+    if "Ubuntu" in cout and "16.04" in cout:
+        os_type = "Ubuntu 16"
+    if "Ubuntu" in cout and "18.04" in cout:
+        os_type = "Ubuntu 18"
+    if "CentOS" in cout and "release 6." in cout:
+        os_type = "CentOS 6"
+    if "CentOS" in cout and "release 7." in cout:
+        os_type = "CentOS 7"
+    if 'Red Hat Enterprise Linux' in cout and '7.':
+        os_type = 'RHEL 7'
+    if 'Debian' in cout and "(jessie)" in cout:
+        os_type = 'Debian 8'
+    if 'Debian' in cout and "(stretch)" in cout:
+        os_type = 'Debian 9'
+
+    self.server_os = os_type
+    
     return self.server_os
 
 
