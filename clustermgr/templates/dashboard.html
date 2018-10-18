@@ -165,14 +165,18 @@
             <div class="modal-body">
                 <p>This will remove the server from the cluster. Are you sure
                     you want it removed?</p>
-                    <div class="checkbox">
-                    <label><input type="checkbox" id="disable-replication" checked> Disable LDAP replication?</label>
+                    <div class="radio">
+                        <label><input type="radio" value="1" id="removeOption" checked name="removeOption"> Disable LDAP replication</label>
                     </div>
+                    <div class="radio">
+                        <label><input type="radio" value="2" id="removeOption" name="removeOption"> Remove only from dashboard</label>
+                    </div>
+                    
+                    
+                    
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-default"
-                        data-dismiss="modal">Close
-                </button>
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 <input type="button" id="remove_url" class="btn btn-danger" value="Confirm">
             </div>
         </div><!-- /.modal-content -->
@@ -292,10 +296,13 @@
 
     $('#remove_url').click(function(){
 
-        if($("#disable-replication").is(':checked')) {
+        removeOption = $("#removeOption:checked").val();
+         if(removeOption=='1') {
             remove_server_url = remove_server_url + '?disablereplication=true';
-            
-            }
+        } else {
+            remove_server_url = remove_server_url + '?removefromdashboard=true';
+        }
+
         window.location.href = remove_server_url;
 
     });

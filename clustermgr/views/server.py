@@ -237,6 +237,14 @@ def remove_server(server_id):
         if server.primary_server:
             flash("Please first remove non-primary servers ", "danger")
             return redirect(url_for('index.home'))
+            
+    
+    if request.args.get('removefromdashboard') == 'true':
+        db.session.delete(server)
+        db.session.commit()
+        return redirect(url_for('index.home'))
+    
+    
     provider_addr = server.ip if appconfig.use_ip else server.hostname
 
     setup_prop = get_setup_properties()
