@@ -46,9 +46,17 @@ class AppConfigForm(FlaskForm):
     # admin_email = StringField("Admin Email", validators=[Optional(), Email("Please enter valid email address")])
 
 
-    ldap_update_period = SelectField('LDAP Status Check Period (mins)',
-            choices=[(str(i),str(i)) for i in range(1,11)],
-            default = '5',
+    ldap_update_period = SelectField('Service Liveness Status Polling Period',
+            choices=[
+            
+                ('5', '5 secs'), ('10', '10 secs'), 
+                ('20', '20 secs'), ('30', '30 secs'),
+                ('60', '1 min'), ('120', '2 mins'),
+                ('300', '5 mins'), ('600', '10 mins'),
+                ('900', '15 mins'), ('1200', '20 mins'),
+                
+            ],
+            default = '300',
             )
 
     modify_hosts =  BooleanField('Add IP Addresses and hostnames to '

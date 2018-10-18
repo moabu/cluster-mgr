@@ -115,8 +115,18 @@ def home():
     if prop['installPassport']:
         services.append('passport')
 
+
+    service_update_period = 300
+    
+    if appconf.ldap_update_period:
+        service_update_period = appconf.ldap_update_period
+        if appconf.ldap_update_period_unit != 's':
+            service_update_period = service_update_period * 60
+
+
     return render_template('dashboard.html', servers=servers, app_conf=appconf,
                              services=services, server_id_list=server_id_list,
+                             service_update_period=service_update_period
                             )
 
 
@@ -214,7 +224,9 @@ def app_configuration():
         config.nginx_host = conf_form.nginx_host.data.strip()
         config.nginx_ip = conf_form.nginx_ip.data.strip()
         config.modify_hosts = conf_form.modify_hosts.data
+        
         config.ldap_update_period = conf_form.ldap_update_period.data
+        config.ldap_update_period_unit = 's'
         config.external_load_balancer = conf_form.external_load_balancer.data
         config.use_ldap_cache = conf_form.use_ldap_cache.data
 
@@ -271,7 +283,13 @@ def app_configuration():
             conf_form.cache_host.data = config.cache_host
             conf_form.cache_ip.data = config.cache_ip
         
-        conf_form.ldap_update_period.data = str(config.ldap_update_period) if config.ldap_update_period else '5'
+        
+        service_status_update_period = config.ldap_update_period
+        
+        if service_status_update_period and config.ldap_update_period_unit != 's':
+                service_status_update_period = service_status_update_period * 60         
+        
+        conf_form.ldap_update_period.data = str(service_status_update_period)
         
         #conf_form.use_ip.data = config.use_ip
         if config.gluu_version:

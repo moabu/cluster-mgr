@@ -426,24 +426,19 @@ showLdapStat();
 
 setInterval(function() {
     showLdapStat();
-}, {% if app_conf.ldap_update_period %}{{app_conf.ldap_update_period}}{%else%}5{%endif%}*60*1000);
+}, {{service_update_period}}*1000);
 
 
 function dryRun(server_id) {
     
     
-    
     if ($("#drybutton").attr("disabled") !== 'disabled') {
-    
-        
-    
     
         $("#dryicon"+server_id).addClass("fa-spin"); 
         $("#drybutton"+server_id).attr('disabled', true);
     
     }
         $.get("{{request.host_url}}server/dryrun/"+server_id, function(data, status) {
-        
         
         console.log(data)
         
