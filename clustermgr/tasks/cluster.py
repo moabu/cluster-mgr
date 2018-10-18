@@ -857,6 +857,9 @@ def installNGINX(self, nginx_host):
     #nc is required for dyr run
     nginx_installer.install('nc', inside=False)
 
+    if not nginx_installer.c.exists('/usr/bin/python'):
+        nginx_installer.install('python', inside=False)
+
     #check if nginx was installed on this server
     wlogger.log(task_id, "Check if NGINX installed")
 
