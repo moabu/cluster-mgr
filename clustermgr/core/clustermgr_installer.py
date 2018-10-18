@@ -273,8 +273,7 @@ class Installer:
         result = self.conn.listdir("/opt")
         if result[0]:
             for path in result[1]:
-                print path
-                regular_expr=re.search("gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+))$",path)
+                regular_expr = re.search('gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+)(.\d+)?)$', path)
                 if regular_expr:
                     gluu_version = regular_expr.group("gluu_version")
                     print "Installer> Gluu version was determined as {0}".format(gluu_version)
