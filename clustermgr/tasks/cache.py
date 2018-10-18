@@ -31,22 +31,31 @@ def install_redis(installer):
                     "Installing Redis in server",
                     "info", server_id=installer.server_id)
         
+
+        
         if installer.clone_type == 'deb':
-            installer.install('software-properties-common', inside=False)
-            installer.run('add-apt-repository ppa:chris-lea/redis-server -y',
-                            error_exception='gpg: keyring', inside=False)
-            installer.repo_updated = False
-            installer.install('redis-server', inside=False)
-        else:
-            installer.epel_release()
-            installer.install('redis', inside=False)
-            if installer.server_os[-1] == '6':
-                installer.run('chkconfig --add redis', inside=False)
-                installer.run('chkconfig --level 345 redis on', inside=False)
+
+            if installer.server_os in ('Ubuntu 14','Debian 8'):
+                version_number = 14
             else:
-                installer.run('systemctl enable redis', 
-                            error_exception='Created symlink from',
-                            inside=False)
+                version_number = 16
+
+            cmd_list = [
+                'wget https://github.com/mbaser/gluu/raw/master/redis/ubuntu{}/redis-tools_4.0.11-1_amd64.deb -O /tmp/redis-tools_4.0.11-1_amd64.deb'.format(version_number),
+                'wget https://github.com/mbaser/gluu/raw/master/redis/ubuntu{}/redis-server_4.0.11-1_amd64.deb -O /tmp/redis-server_4.0.11-1_amd64.deb'.format(version_number),
+                'DEBIAN_FRONTEND=noninteractive dpkg -i /tmp/redis*.deb',
+            ]
+
+            for cmd in cmd_list:
+                installer.run(cmd, inside=False, error_exception='__ALL__')
+                
+        else:
+            if installer.server_os in ('CentOS 6','RHEL 6'):
+                install_cmd = 'yum install -y https://github.com/mbaser/gluu/raw/master/redis/centos6/redis-4.0.11-1.centos6.x86_64.rpm'
+            else:
+                install_cmd = 'yum install -y https://github.com/mbaser/gluu/raw/master/redis/centos7/redis-4.0.11-1.centos7.x86_64.rpm'
+        
+            installer.run(install_cmd, inside=False, error_exception='__ALL__')
                 
         if installer.conn.exists('/usr/bin/redis-server') or \
                                 installer.conn.exists('/bin/redis-server'):
@@ -164,7 +173,7 @@ def install_cache_components(self, method, server_id_list):
             nginx_installer.run(
                     'wget http://ftp.debian.org/debian/pool/main/n/nutcracker/'
                     'nutcracker_0.4.0+dfsg-1_amd64.deb -O /tmp/'
-                    'nutcracker_0.4.0+dfsg-1_amd64.deb', inside=False)
+                    'nutcracker_0.4.0+dfsg-1_amd64.deb', inside=False, error_exception='__ALL__')
             nginx_installer.run(
                 'dpkg -i /tmp/nutcracker_0.4.0+dfsg-1_amd64.deb', inside=False)
         elif nginx_installer.server_os == "Ubuntu 16":

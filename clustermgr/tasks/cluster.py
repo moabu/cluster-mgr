@@ -76,9 +76,17 @@ def get_csync2_config(exclude=None):
 
     sync_directories = []
 
+
+    if not os.path.exists(replication_user_file):
+        
+        replication_user_file = os.path.join(app.root_path, 'templates',
+                                    'file_system_replication',
+                                    'replication_defaults.txt')
+
     for l in open(replication_user_file).readlines():
         sync_directories.append(l.strip())
 
+        
 
     exclude_files = [
         '/etc/gluu/conf/ox-ldap.properties',
