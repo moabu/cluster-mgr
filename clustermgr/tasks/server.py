@@ -258,6 +258,9 @@ def install_gluu_server(task_id, server_id):
     #nc is required for dyr run
     installer.install('nc', inside=False)
 
+    if not installer.c.exists('/usr/bin/python'):
+        installer.install('python', inside=False)
+
     #add gluu server repo and imports signatures
     if ('Ubuntu' in server.os) or ('Debian' in server.os):
 
