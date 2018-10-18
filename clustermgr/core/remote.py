@@ -41,7 +41,7 @@ def get_os_type(self):
         os_type = "CentOS 6"
     if "CentOS" in cout and "release 7." in cout:
         os_type = "CentOS 7"
-    if 'Red Hat Enterprise Linux' in cout and '7.':
+    if 'Red Hat Enterprise Linux' in cout and '7.' in cout:
         os_type = 'RHEL 7'
     if 'Debian' in cout and "(jessie)" in cout:
         os_type = 'Debian 8'
