@@ -345,7 +345,8 @@ def remove_filesystem_replication_do(server, app_config, task_id):
             installer.restart_service(s)
             
         installer.run('rm /var/lib/csync2/*.*')
-
+        installer.run('rm -f /etc/csync2.cfg')
+        
         return True
 
 
