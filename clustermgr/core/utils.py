@@ -278,8 +278,6 @@ def get_setup_properties(createNew=False):
         'installHTTPD':True,
         'installJce':True,
         'installSaml':False,
-        'installAsimba':False,
-        #'installCas':False,
         'installOxAuthRP':False,
         'installPassport':False,
         'ldap_type': 'opendj',
