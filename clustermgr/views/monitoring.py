@@ -3,9 +3,10 @@
 import time
 import json
 from datetime import timedelta
+import requests
 
 from flask import Blueprint, render_template, redirect, url_for, flash, \
-    request
+    request, jsonify
 # from flask import current_app as app
 from influxdb import InfluxDBClient
 from clustermgr.core.remote import RemoteClient
