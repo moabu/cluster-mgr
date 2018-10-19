@@ -594,3 +594,35 @@ def remove():
                            nextpage=nextpage,
                            whatNext=whatNext
                            )
+
+@monitoring.route('/serverstat')
+def get_server_status():
+
+    servers = Server.query.all()
+
+    services = {
+                'oxauth': '.well-known/openid-configuration',
+                'identity': 'identity/restv1/scim-configuration',
+                'shib': 'idp/shibboleth',
+                'passport': 'passport'
+            }
+
+    status = {}
+    active_services = ['oxauth', 'identity']
+    prop = get_setup_properties()
+
+    if prop['installSaml']:
+        active_services.append('shib')
+
+    if prop['installPassport']:
+        active_services.append('passport')
+
+
+    for server in servers:
+        status[server.id] = {}
+        for service in active_services:
+            url = 'https://{0}/{1}'.format(server.hostname, services[service])
+            r = requests.get(url, verify=False)
+            status[server.id][service]=r.ok
+
+    return jsonify(status)

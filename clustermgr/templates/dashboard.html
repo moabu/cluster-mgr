@@ -6,6 +6,14 @@
   </ol>
 {% endblock %}
 {% block content %}
+<style>
+
+.inactiveService {
+    text-decoration: line-through; 
+    text-decoration-color: black;
+    }
+
+</style>
 
 <div class="row">
     <div class="col-xs-12 col-sm-6 col-md-3">
@@ -79,8 +87,7 @@
                         <th>Server ID</th>
                         <th>Hostname</th>
                         <th>IP Address</th>
-                        <th>Gluu Server</th>
-                        {% if servers[0].gluu_server %}<th>LDAP Status</th>{% endif %}
+                        {% if servers[0].gluu_server %}<th><center>Service Liveness Status</center></th>{% endif %}
                         <th>OS</th>
                         <th>Actions</th>
                     </tr>
@@ -95,11 +102,19 @@
                             {% endif %}
                         </td>
                         <td>{{ server.ip }}</td>
-                        <td>{% if server.gluu_server %} <span class="glyphicon glyphicon-ok"></span>{% endif %}
                         </td>
                         
                         {% if servers[0].gluu_server %}
-                        <td><center> <span class="badge" id="ldapstat{{server.id}}"></span> </center></td>
+                        <td>
+                            <center> 
+                                <span class="badge" data-toggle="tooltip" id="ldapstat{{server.id}}" title="">LDAP</span> 
+                                {% for service in services %}
+                                <span  class="badge" data-toggle="tooltip" id="{{server.id}}-{{service}}" title="">{{service}}</span> 
+                                {% endfor %} 
+                                </center>
+                            
+                        
+                        </td>
                         
                         {% endif %}
                         
@@ -131,7 +146,7 @@
                                data-pserverid="{{server.id}}" data-phostname="{{ server.hostname }}">Make Primary</a>
 
                             {% endif %}
-                            
+
                         </td>
                     </tr>
                     {% endfor %}
@@ -171,12 +186,9 @@
                     <div class="radio">
                         <label><input type="radio" value="2" id="removeOption" name="removeOption"> Remove only from dashboard</label>
                     </div>
-                    
-                    
-                    
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close </button>
                 <input type="button" id="remove_url" class="btn btn-danger" value="Confirm">
             </div>
         </div><!-- /.modal-content -->
@@ -296,13 +308,16 @@
 
     $('#remove_url').click(function(){
 
+
         removeOption = $("#removeOption:checked").val();
-         if(removeOption=='1') {
+
+
+        if(removeOption=='1') {
             remove_server_url = remove_server_url + '?disablereplication=true';
+            
         } else {
             remove_server_url = remove_server_url + '?removefromdashboard=true';
         }
-
         window.location.href = remove_server_url;
 
     });
@@ -312,7 +327,7 @@
         var button = $(event.relatedTarget);
         var server_id = button.data('serverid');
         var hostname = button.data('hostname');
-        var reinstall_server_url = '{{ url_for("server.install_gluu_server", server_id=9999) }}';
+        var reinstall_server_url = '{{ url_for("server.install_gluu", server_id=9999) }}';
         reinstall_server_url = reinstall_server_url.replace('9999', server_id);
         var modal = $(this);
         modal.find('.modal-title').text('Re-install ' + hostname);
@@ -336,21 +351,59 @@
 
 
 
+var servers = {{server_id_list|safe}};
+var services = {{services|safe}};
+
+
+function updateStatus() {
+    
+    $.get("{{request.host_url}}monitoring/serverstat", function(data, status) {
+    
+    for (var i = 0; i < servers.length; i++) {
+        for (var j = 0; j < services.length; j++) {
+            var s_element = $('#'+ servers[i]+'-'+services[j]);
+            if (data[servers[i]][services[j]]) {
+                s_element.removeClass("bg-red");
+                s_element.removeClass("inactiveService");
+                s_element.addClass("bg-green");
+                s_element.attr("data-original-title", "This service seems to be working as expected");
+            } else {
+                s_element.addClass("bg-red");
+                s_element.addClass("inactiveService");
+                s_element.removeClass("bg-green");
+                s_element.attr("data-original-title", "This service may be stopped or not working properly");
+               
+            }
+    
+        }
+    
+    }
+    
+    });
+    
+}
+    
+
 
 function showLdapStat() {
+    updateStatus();
 
 {% for server in servers %}
 
     $.get("{{request.host_url}}server/ldapstat/{{server.id}}/", function(data, status){
+        var ldap_element = $("#ldapstat{{server.id}}");
         if (data == 1) {
-            $("#ldapstat{{server.id}}").addClass("bg-green");
-            $("#ldapstat{{server.id}}").removeClass("bg-red");
-            $("#ldapstat{{server.id}}").text("Live");
+            ldap_element.addClass("bg-green");
+            ldap_element.removeClass("bg-red");
+            ldap_element.removeClass("inactiveService");
+            ldap_element.attr("data-original-title", "This service seems to be working as expected");
+
         } else {
-            
-            $("#ldapstat{{server.id}}").addClass("bg-red");
-            $("#ldapstat{{server.id}}").removeClass("bg-green");
-            $("#ldapstat{{server.id}}").text("Down");
+
+            ldap_element.addClass("bg-red");
+            ldap_element.removeClass("bg-green");
+            ldap_element.addClass("inactiveService");
+            ldap_element.attr("data-original-title", "This service may be stopped or not working properly");
         }
         
     
@@ -362,26 +415,22 @@ function showLdapStat() {
 
 showLdapStat();
 
+
 setInterval(function() {
     showLdapStat();
-}, {% if app_conf.ldap_update_period %}{{app_conf.ldap_update_period}}{%else%}5{%endif%}*60*1000);
+}, {{service_update_period}}*1000);
 
 
 function dryRun(server_id) {
     
     
-    
     if ($("#drybutton").attr("disabled") !== 'disabled') {
-    
-        
-    
     
         $("#dryicon"+server_id).addClass("fa-spin"); 
         $("#drybutton"+server_id).attr('disabled', true);
     
     }
         $.get("{{request.host_url}}server/dryrun/"+server_id, function(data, status) {
-        
         
         console.log(data)
         
@@ -437,6 +486,10 @@ function dryRun(server_id) {
     //console.log($("#drybutton").attr("disabled"));
     
     }
+    
+$('[data-toggle="tooltip"]').tooltip(); 
+
+
 
 </script>
 {% endblock %}

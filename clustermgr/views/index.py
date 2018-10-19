@@ -103,8 +103,30 @@ def home():
 
         return render_template('index_passphrase.html', e=e, ask_passphrase=ask_passphrase, next='/')
     
+    service_update_period = 300
+    
+    if appconf.ldap_update_period:
+        service_update_period = appconf.ldap_update_period
+        if appconf.ldap_update_period_unit != 's':
+            service_update_period = service_update_period * 60
 
-    return render_template('dashboard.html', servers=servers, app_conf=appconf)
+
+    server_id_list = [str(server.id) for server in servers]
+    
+    services = ['oxauth', 'identity']
+    prop = get_setup_properties()
+
+    if prop['installSaml']:
+        services.append('shib')
+
+    if prop['installPassport']:
+        services.append('passport')
+
+
+    return render_template('dashboard.html', servers=servers, app_conf=appconf,
+                             services=services, server_id_list=server_id_list,
+                             service_update_period=service_update_period
+                        )
 
 @index.route('/configuration/', methods=['GET', 'POST'])
 @login_required
