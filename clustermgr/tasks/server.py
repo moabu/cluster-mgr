@@ -258,7 +258,7 @@ def install_gluu_server(task_id, server_id):
     #nc is required for dyr run
     installer.install('nc', inside=False)
 
-    if not installer.c.exists('/usr/bin/python'):
+    if not installer.conn.exists('/usr/bin/python'):
         installer.install('python', inside=False)
 
     #add gluu server repo and imports signatures
@@ -517,6 +517,28 @@ def install_gluu_server(task_id, server_id):
 
         modify_hosts(task_id, installer.conn, host_ip, '/opt/'+gluu_server+'/', server.hostname)
 
+    
+    if app_conf.gluu_version >= '3.1.4':
+        #make opendj listen all interfaces
+        wlogger.log(task_id, "Making openDJ listens all interfaces for port 4444 and 1636")
+        
+        opendj_commands = [
+                "sed -i 's/dsreplication.java-args=-Xms8m -client/dsreplication.java-args=-Xms8m -client -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true/g' /opt/opendj/config/java.properties",
+                "/opt/opendj/bin/dsjavaproperties",
+                "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-administration-connector-prop  --set listen-address:0.0.0.0 -X".format(server.ldap_password),
+                "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-connection-handler-prop --handler-name 'LDAPS Connection Handler' --set enabled:true --set listen-address:0.0.0.0 -X".format(server.ldap_password),
+                ]
+
+        if server.os == 'RHEL 7':
+            opendj_commands.append('systemctl stop opendj')
+            opendj_commands.append('systemctl start opendj')
+        else:
+            opendj_commands.append('/etc/init.d/opendj stop')
+            opendj_commands.append('/etc/init.d/opendj start')
+        
+        for command in opendj_commands:
+            installer.run(command)
+
 
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
@@ -602,19 +624,22 @@ def install_gluu_server(task_id, server_id):
     else:
         installer.restart_service('cron')
 
-    #We need to fix opendj initscript
-    wlogger.log(task_id, 'Uploading fixed opendj init.d script')
-    opendj_init_script = os.path.join(app.root_path, "templates",
-                           "opendj", "opendj")
-    remote_opendj_init_script = '/opt/{0}/etc/init.d/opendj'.format(gluu_server)
-    
-    result = installer.upload_file(opendj_init_script, remote_opendj_init_script)
 
-    if not result:
-        return False
+    if app_conf.gluu_version < '3.1.4':
 
-    cmd = 'chmod +x {}'.format(remote_opendj_init_script)
-    installer.run(cmd, inside=False)
+        #We need to fix opendj initscript
+        wlogger.log(task_id, 'Uploading fixed opendj init.d script')
+        opendj_init_script = os.path.join(app.root_path, "templates",
+                               "opendj", "opendj")
+        remote_opendj_init_script = '/opt/{0}/etc/init.d/opendj'.format(gluu_server)
+        
+        result = installer.upload_file(opendj_init_script, remote_opendj_init_script)
+
+        if not result:
+            return False
+
+        cmd = 'chmod +x {}'.format(remote_opendj_init_script)
+        installer.run(cmd, inside=False)
 
     server.gluu_server = True
     db.session.commit()
