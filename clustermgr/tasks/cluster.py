@@ -69,37 +69,40 @@ def modifyOxLdapProperties(server, installer, task_id, pDict):
                 'warning')
 
     # Modify Shib ldap.properties to include all ldap properties
-    remote_file = os.path.join(chroot, 'opt/shibboleth-idp/conf/ldap.properties')
-    shib_ldap = installer.get_file(remote_file)
+    remote_file = os.path.join(installer.container, 'opt/shibboleth-idp/conf/ldap.properties')
+    
+    if installer.conn.exists(remote_file):
+    
+        shib_ldap = installer.get_file(remote_file)
 
-    temp = None
+        temp = None
 
-    if shib_ldap:
-         
-        ldap_server_list = [ 'ldaps://'+ldap_server for ldap_server in pDict[server.hostname].split(',') ]
-        server_list_string = ' '.join(ldap_server_list)
+        if shib_ldap:
+             
+            ldap_server_list = [ 'ldaps://'+ldap_server for ldap_server in pDict[server.hostname].split(',') ]
+            server_list_string = ' '.join(ldap_server_list)
 
-        # iterate ldap.properties file and modify idp.authn.LDAP.ldapURL entry
+            # iterate ldap.properties file and modify idp.authn.LDAP.ldapURL entry
 
-        fc = ''
-        for l in shib_ldap[1]:
-            if l.startswith('idp.authn.LDAP.ldapURL'):
-                l = 'idp.authn.LDAP.ldapURL                          = {}\n'.format( server_list_string )
-            fc += l
+            fc = ''
+            for l in shib_ldap[1]:
+                if l.startswith('idp.authn.LDAP.ldapURL'):
+                    l = 'idp.authn.LDAP.ldapURL                          = {}\n'.format( server_list_string )
+                fc += l
 
-        r = installer.put_file(remote_file,fc)
+            r = installer.put_file(remote_file,fc)
 
-        if r:
-            wlogger.log(tid,
-                '/opt/shibboleth-idp/conf/ldap.properties file on {0} modified to include '
-                'all replicating servers'.format(server.hostname),
-                'success')
-        else:
+            if r:
+                wlogger.log(tid,
+                    '/opt/shibboleth-idp/conf/ldap.properties file on {0} modified to include '
+                    'all replicating servers'.format(server.hostname),
+                    'success')
+            else:
 
-            wlogger.log(tid,
-                '/opt/shibboleth-idp/conf/ldap.propertiess file on {0} was not modified to '
-                'include all replicating servers: {1}'.format(server.hostname, r[1]),
-                'warning')
+                wlogger.log(tid,
+                    '/opt/shibboleth-idp/conf/ldap.propertiess file on {0} was not modified to '
+                    'include all replicating servers: {1}'.format(server.hostname, r[1]),
+                    'warning')
 
 
 
