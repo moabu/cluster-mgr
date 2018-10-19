@@ -173,8 +173,8 @@ def install_nginx():
             return render_template("nginx_home.html", servers=status[1])
         
     if not app_conf.nginx_os:
-        flash("Nginx server's OS type has not been determined yet")
-        return
+        flash("Nginx server's OS type has not been determined yet",'error')
+        return redirect(url_for('index.home'))
 
     # Start nginx  installation celery task
     task = installNGINX.delay(app_conf.nginx_host)
@@ -183,6 +183,7 @@ def install_nginx():
     head = "Installing NGINX Server on {0}".format(app_conf.nginx_host)
     nextpage = url_for('index.multi_master_replication')
     whatNext = "LDAP Replication"
+
     return render_template('logger_single.html', title=head, server=app_conf.nginx_host,
                            task=task, nextpage=nextpage, whatNext=whatNext)
 

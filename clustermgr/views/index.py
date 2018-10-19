@@ -245,6 +245,10 @@ def app_configuration():
         flash("Gluu Replication Manager application configuration has been "
               "updated.", "success")
 
+
+        collect_server_details.delay(-1)
+
+
         if request.args.get('next'):
             return redirect(request.args.get('next'))
 
@@ -284,6 +288,9 @@ def app_configuration():
         
         if service_status_update_period and config.ldap_update_period_unit != 's':
                 service_status_update_period = service_status_update_period * 60         
+        
+        if not service_status_update_period:
+            service_status_update_period = 300
         
         conf_form.ldap_update_period.data = str(service_status_update_period)
         
