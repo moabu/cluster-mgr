@@ -56,6 +56,9 @@ class Installer:
     
     def settings(self):
 
+
+        print "INSTALLER:" + self.server_os
+
         if self.server_os == 'CentOS 7' or self.server_os == 'RHEL 7':
             self.init_command = '/sbin/gluu-serverd-{0} {1}'.format(
                                 self.gluu_version,'{}')
@@ -90,7 +93,8 @@ class Installer:
         else:
             self.run_command = '{}'
 
-
+        print "INSTALLER:" + self.service_script
+        
     def get_os_type(self):
         # 2. Linux Distribution of the server
         print "Installer> Determining os type"
@@ -241,7 +245,11 @@ class Installer:
             return False
 
     def enable_service(self, service, inside=True):
-        self.run('systemctl enable {}.service'.format(service), inside=inside)
+        
+        if self.clone_type == 'deb':
+            self.run('update-rc.d {0} enable'.format(service),inside=inside, error_exception='warning:')
+        else:
+            self.run(self.service_script.format(service, 'enable'), inside=inside)
 
     def stop_service(self, service, inside=True):
         cmd = self.service_script.format(service, 'stop')

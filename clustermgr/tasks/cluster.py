@@ -896,7 +896,7 @@ def installNGINX(self, nginx_host):
     #nc is required for dyr run
     nginx_installer.install('nc', inside=False)
 
-    if not nginx_installer.c.exists('/usr/bin/python'):
+    if not nginx_installer.conn.exists('/usr/bin/python'):
         nginx_installer.install('python', inside=False)
 
     #check if nginx was installed on this server
@@ -979,7 +979,7 @@ def installNGINX(self, nginx_host):
         modify_hosts(nginx_installer, host_ip, inside=False)
 
     # write nginx os type to database
-    app_config.nginx_os_type = os_type
+    app_conf.nginx_os_type = nginx_installer.server_os
     db.session.commit()
 
 
