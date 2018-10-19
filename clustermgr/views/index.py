@@ -280,6 +280,8 @@ def app_configuration():
         
         service_status_update_period = config.ldap_update_period
         
+        print(service_status_update_period)
+        
         if service_status_update_period and config.ldap_update_period_unit != 's':
                 service_status_update_period = service_status_update_period * 60         
         
