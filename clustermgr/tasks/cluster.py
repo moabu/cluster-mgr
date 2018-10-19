@@ -944,6 +944,11 @@ def installNGINX(self, nginx_host):
         host_ip.append((app_conf.nginx_host, app_conf.nginx_ip))
         modify_hosts(nginx_installer, host_ip, inside=False)
 
+    # write nginx os type to database
+    app_config.nginx_os_type = os_type
+    db.session.commit()
+
+
     wlogger.log(task_id, "NGINX successfully installed")
 
 def exec_cmd(command):    
@@ -1002,3 +1007,44 @@ def register_objectclass(self, objcls):
     
     return True
 
+@celery.task(bind=True)
+def update_httpd_certs_task(self, httpd_key, httpd_crt):
+    
+    task_id = self.request.id
+    app_conf = AppConfiguration.query.first()
+
+    servers = Server.query.all()
+
+    if not app_conf.external_load_balancer:
+        mock_server = Server()
+        mock_server.hostname = app_conf.nginx_host
+        mock_server.ip = app_conf.nginx_ip
+        mock_server.proxy = True
+        mock_server.os = app_conf.nginx_os_type
+        servers.insert(0, mock_server)
+
+    for server in servers:
+        installer = Installer(server, app_conf.gluu_version, logger_task_id=task_id)
+        if hasattr(server, 'proxy'):
+            if not server.os:
+                print "Determining nginx os type"
+                app_conf.nginx_os_type = installer.server_os
+                db.session.commit()
+
+            key_path = '/etc/nginx/ssl/httpd.key'
+            crt_path = '/etc/nginx/ssl/httpd.crt'
+        else:
+            key_path = os.path.join(installer.container, 'etc/certs/httpd.key')
+            crt_path = os.path.join(installer.container, 'etc/certs/httpd.crt')
+
+        installer.put_file(key_path, httpd_key)        
+        installer.put_file(crt_path, httpd_crt)
+
+        if hasattr(server, 'proxy'):
+            installer.run('service nginx restart', False)
+        else:
+            installer.delete_key('httpd', server.hostname)
+            installer.import_key('httpd', server.hostname)
+            installer.restart_gluu()
+
+    return True

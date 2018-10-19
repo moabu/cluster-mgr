@@ -107,7 +107,7 @@
               <i class="fa fa-microchip"></i><span>Cache Management</span></a>
             </li>
 
-             {% endif %}
+            {% endif %}
 
             <!-------Monitoring tree----------------->
             <li class="treeview">
@@ -145,6 +145,7 @@
             </li>
             {% endif %}
 
+
             <li>
                 <a href="{{ url_for('keyrotation.index') }}">
                     <i class="fa fa-key"></i><span>Key Rotation</span>
@@ -156,7 +157,27 @@
           
             <li><a href="{{ url_for('attributes.home') }}">
               <i class="fa fa-edit"></i><span>Custom Attributes</span></a></li>
+
+
+            <li class="treeview">
+              <a href="#">
+                <i class="fa fa-cogs"></i><span>Operations</span>
+                <span class="pull-right-container">
+                  <i class="fa fa-angle-left pull-right"></i>
+                </span>
+              </a>
+              <ul class="treeview-menu">
+                <li><a href="{{ url_for('operations.httpd_certs') }}"> <i class="fa fa-certificate"></i><span>Certificates</span></a> </li>
+
+              </ul>
+            </li>
+
+
+
+
           </ul>
+
+
           
           
         </section>
@@ -203,7 +224,7 @@
     {% block modals %} {% endblock modals %}
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
-    <script src="{{url_for('static', filename='js/jquery.min.js')}}"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/bootstrap-notify.min.js') }}"></script>
@@ -211,6 +232,7 @@
 
 
     {% block js %} {% endblock js %}
+
 
   </body>
 </html>

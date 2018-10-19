@@ -123,6 +123,7 @@ def get_age(host, c):
     except Exception as e:
         print "Monitoring: server {} did not return json data. Error: {}".format(host, e)
         arg_d = {u'fields': ['time', u'uptime'], u'data': [[int(time.time()), 0]]}
+        return
     
     print "Monitoring: uptime {}".format(data['data'])
     write_influx(host, 'uptime', arg_d)
