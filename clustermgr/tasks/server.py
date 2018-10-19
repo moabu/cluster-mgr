@@ -256,7 +256,11 @@ def install_gluu_server(task_id, server_id):
 
 
     #nc is required for dyr run
-    installer.install('nc', inside=False)
+    netcat_package = 'nc'
+    if nginx_installer.clone_type == 'deb':
+        netcat_package = 'netcat'
+    
+    installer.install(netcat_package, inside=False)
 
     if not installer.conn.exists('/usr/bin/python'):
         installer.install('python', inside=False)

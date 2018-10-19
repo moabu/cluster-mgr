@@ -893,8 +893,15 @@ def installNGINX(self, nginx_host):
     if not nginx_installer.conn:
         return False
 
+
+    
+
     #nc is required for dyr run
-    nginx_installer.install('nc', inside=False)
+    netcat_package = 'nc'
+    if nginx_installer.clone_type == 'deb':
+        netcat_package = 'netcat'
+    
+    nginx_installer.install(netcat_package, inside=False)
 
     if not nginx_installer.conn.exists('/usr/bin/python'):
         nginx_installer.install('python', inside=False)
