@@ -233,23 +233,27 @@ def setup_filesystem_replication_do(task_id):
         
         modify_hosts(installer, cysnc_hosts)
 
-        if installer.clone_type == 'deb':
-            for cmd in (
-                        'localedef -i en_US -f UTF-8 en_US.UTF-8',
-                        'locale-gen en_US.UTF-8',
-                        'DEBIAN_FRONTEND=noninteractive apt-get update',
-                        ):
-                installer.run(cmd)
-            installer.install('apt-utils')
-            installer.install('csync2')
 
-        elif installer.clone_type == 'rpm':
-            installer.epel_release(True)
+        if not installer.conn.exists(os.path.join(installer.container, 'usr/sbin/csync2')): 
 
-            csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos{}.x86_64.rpm'.format(server.os[-1])
-            installer.install(csync_rpm)
-            
-            installer.stop_service('xinetd stop')
+            if installer.clone_type == 'deb':
+                for cmd in (
+                            'localedef -i en_US -f UTF-8 en_US.UTF-8',
+                            'locale-gen en_US.UTF-8',
+                            'DEBIAN_FRONTEND=noninteractive apt-get update',
+                            ):
+                    installer.run(cmd)
+                installer.install('apt-utils')
+                installer.install('csync2')
+
+            elif installer.clone_type == 'rpm':
+                installer.epel_release(True)
+
+                csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos{}.x86_64.rpm'.format(server.os[-1])
+                installer.install(csync_rpm)
+                
+        else:
+            wlogger.log(task_id, "csync2 was allready installed on this serevr.", server_id=server.id)
 
         if server.os == 'CentOS 6':
             installer.install('crontabs')
@@ -353,13 +357,11 @@ def setup_filesystem_replication_do(task_id):
                          'debug', server_id=server.id)
 
         if installer.clone_type == 'rpm':
-            cmd = 'service crond reload'
-            installer.start_service('xinetd')
+            installer.restart_service('xinetd')
             installer.restart_service('crond')
         else:
             installer.restart_service('cron')
             installer.restart_service('openbsd-inetd')
-
 
     return True
 

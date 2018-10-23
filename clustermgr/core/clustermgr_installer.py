@@ -319,7 +319,8 @@ class Installer:
 
         wlogger.log(self.logger_task_id, "Installing package {0} with command: {1}".format(package, cmd), "debug", server_id=self.server_id)
         
-        result = self.run(cmd, inside=inside, error_exception=error_exception)
+        
+        result = self.run(cmd, inside=False, error_exception=error_exception)
         self.log(result)
         
         return result
