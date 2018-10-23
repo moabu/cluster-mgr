@@ -1,6 +1,7 @@
 import json
 import os
 import getpass
+import time
 
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, wlogger, celery
@@ -14,6 +15,28 @@ from flask import current_app as app
 
 from influxdb import InfluxDBClient
 
+
+def fix_influxdb_config():
+    conf_file = '/etc/influxdb/influxdb.conf'
+
+    conf = open(conf_file).readlines()
+    new_conf = []
+    http = False
+    
+    for l in conf:
+        if l.startswith('[http]'):
+            http = True
+            
+        if http:
+            if l.strip().startswith('bind-address'):
+                l = '  bind-address = "localhost:8086"\n'
+
+        new_conf.append(l)
+
+    with open('/tmp/influxdb.conf','w') as W:
+        W.write(''.join(new_conf))
+        
+    os.system('sudo cp -f /tmp/influxdb.conf /etc/influxdb/influxdb.conf')
 
 
 @celery.task(bind=True)
@@ -129,7 +152,14 @@ def install_local(self):
         for cmd in influx_cmd:
         
             result = installer.run(cmd, error_exception='__ALL__', inside=False)
-            
+    
+    wlogger.log(task_id, "Fixing /etc/influxdb/influxdb.conf for InfluxDB listen localhost", server_id=0)
+    installer.stop_service('influxdb', inside=False)
+    fix_influxdb_config()
+    installer.start_service('influxdb', inside=False)
+    #wait influxdb to start
+    time.sleep(10)
+    
     #Statistics will be written to 'gluu_monitoring' on local influxdb server,
     #so we should crerate it.
     try:
@@ -142,7 +172,7 @@ def install_local(self):
         wlogger.log(task_id, "InfluxDB database 'gluu_monitoring was created",
                             "success", server_id=0)
     except Exception as e:
-        wlogger.log(tid, "An error occurred while creating InfluxDB database "
+        wlogger.log(task_id, "An error occurred while creating InfluxDB database "
                         "'gluu_monitoring': {}".format(e),
                             "fail", server_id=0)
 
@@ -219,7 +249,7 @@ def install_monitoring(self):
         packages = ['gcc', 'python-dev', 'python-pip']
 
         for package in packages:
-            installer.install(package, inside=False)
+            installer.install(package, inside=False, error_exception='warning:')
 
         # 6b. These commands are common for all OS types 
         commands = [
