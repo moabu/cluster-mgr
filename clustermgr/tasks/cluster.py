@@ -1085,7 +1085,7 @@ def update_httpd_certs_task(self, httpd_key, httpd_crt):
         installer.put_file(crt_path, httpd_crt)
 
         if hasattr(server, 'proxy'):
-            installer.run('service nginx restart', False)
+            installer.run('service nginx restart', False, error_exception='Redirecting to')
         else:
             installer.delete_key('httpd', server.hostname)
             installer.import_key('httpd', server.hostname)
