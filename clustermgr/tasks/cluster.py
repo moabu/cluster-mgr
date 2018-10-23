@@ -85,7 +85,7 @@ def modifyOxLdapProperties(server, installer, task_id, pDict):
             # iterate ldap.properties file and modify idp.authn.LDAP.ldapURL entry
 
             fc = ''
-            for l in shib_ldap[1]:
+            for l in shib_ldap:
                 if l.startswith('idp.authn.LDAP.ldapURL'):
                     l = 'idp.authn.LDAP.ldapURL                          = {}\n'.format( server_list_string )
                 fc += l
@@ -93,13 +93,13 @@ def modifyOxLdapProperties(server, installer, task_id, pDict):
             r = installer.put_file(remote_file,fc)
 
             if r:
-                wlogger.log(tid,
+                wlogger.log(task_id,
                     '/opt/shibboleth-idp/conf/ldap.properties file on {0} modified to include '
                     'all replicating servers'.format(server.hostname),
                     'success')
             else:
 
-                wlogger.log(tid,
+                wlogger.log(task_id,
                     '/opt/shibboleth-idp/conf/ldap.propertiess file on {0} was not modified to '
                     'include all replicating servers: {1}'.format(server.hostname, r[1]),
                     'warning')

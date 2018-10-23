@@ -249,7 +249,7 @@ class Installer:
         if self.clone_type == 'deb':
             self.run('update-rc.d {0} enable'.format(service),inside=inside, error_exception='warning:')
         else:
-            self.run(self.service_script.format(service, 'enable'), inside=inside)
+            self.run(self.service_script.format(service, 'enable'), inside=inside, error_exception='Created symlink from')
 
     def stop_service(self, service, inside=True):
         cmd = self.service_script.format(service, 'stop')
@@ -297,7 +297,7 @@ class Installer:
         return run_cmd
         
 
-    def install(self, package, inside=True):
+    def install(self, package, inside=True, error_exception=None):
 
         if not self.repo_updated:
             if self.clone_type == 'rpm':
@@ -319,7 +319,7 @@ class Installer:
 
         wlogger.log(self.logger_task_id, "Installing package {0} with command: {1}".format(package, cmd), "debug", server_id=self.server_id)
         
-        result = self.conn.run(cmd)
+        result = self.run(cmd, inside=inside, error_exception=error_exception)
         self.log(result)
         
         return result
