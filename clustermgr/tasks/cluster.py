@@ -429,6 +429,8 @@ def modify_hosts(installer, hosts, inside=True, server_host=None):
     
     old_hosts = installer.get_file(hosts_file)
     
+    print "OLD hosts", old_hosts
+    
     if old_hosts:
         new_hosts = modify_etc_hosts(hosts, old_hosts)
         installer.put_file(hosts_file, new_hosts)

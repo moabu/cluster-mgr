@@ -347,7 +347,7 @@ def modify_etc_hosts(host_ip, old_hosts):
             'ipv6':{'::1':['ip6-localhost', 'ip6-loopback']},
             }
 
-    for l in old_hosts:
+    for l in old_hosts.split('\n'):
         ls=l.strip()
         if ls:
             if not ls[0]=='#':
