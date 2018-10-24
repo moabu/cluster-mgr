@@ -370,10 +370,19 @@ def remove_filesystem_replication_do(server, app_config, task_id):
         installer = Installer(server, app_config.gluu_version, logger_task_id=task_id)
         if not installer.conn:
             return False
-        installer.run('rm /etc/cron.d/csync2')
+        
+        if installer.conn.exists('/etc/cron.d/csync2'):
+            installer.run('rm /etc/cron.d/csync2')
+        
+        if installer.conn.exists('/var/lib/csync2/'):
+            installer.run('rm /var/lib/csync2/*.*')
+            
+        if installer.conn.exists('/etc/csync2.cfg'):
+            installer.run('rm -f /etc/csync2.cfg')
         
         if 'CentOS' in server.os or 'RHEL' in server.os :
-            installer.run('rm /etc/xinetd.d/csync2')
+            if installer.conn.exists('/etc/xinetd.d/csync2'):
+                installer.run('rm /etc/xinetd.d/csync2')
             services = ['xinetd', 'crond']
             
         else:
@@ -382,9 +391,8 @@ def remove_filesystem_replication_do(server, app_config, task_id):
             
         for s in services:
             installer.restart_service(s)
-            
-        installer.run('rm /var/lib/csync2/*.*')
-        installer.run('rm -f /etc/csync2.cfg')
+
+
         
         return True
 
@@ -570,7 +578,6 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
 
     nginx_installer = None
 
-        
     #mock server
     nginx_server = Server(
                         hostname=app_conf.nginx_host, 
@@ -588,30 +595,27 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
     if not app_conf.external_load_balancer:
         # Update nginx
         nginx_config = make_nginx_proxy_conf(exception=server_id)
-        remote = "/etc/nginx/nginx.conf"
-        nginx_installer.put_file(remote, nginx_config)
-        
-        nginx_installer.restart_service('nginx')
+        nginx_installer.put_file('/etc/nginx/nginx.conf', nginx_config)
+        nginx_installer.restart_service('nginx', inside=False)
     
 
-    # Update Twemproxy
-    wlogger.log(task_id, "Updating Twemproxy configuration",'debug')
-    twemproxy_conf = make_twem_proxy_conf(exception=server_id)
-    remote = "/etc/nutcracker/nutcracker.yml"
-    nginx_installer.put_file(remote, twemproxy_conf)
+    if not app_conf.use_ldap_cache:
 
-    nginx_installer.restart_service('nutcracker')
+        # Update Twemproxy
+        wlogger.log(task_id, "Updating Twemproxy configuration",'debug')
+        twemproxy_conf = make_twem_proxy_conf(exception=server_id)
+        nginx_installer.put_file('/etc/nutcracker/nutcracker.yml', twemproxy_conf)
+        nginx_installer.restart_service('nutcracker', inside=False)
 
-    # Update stunnel
-    proxy_stunnel_conf = make_proxy_stunnel_conf(exception=server_id)
-    proxy_stunnel_conf = '\n'.join(proxy_stunnel_conf)
-    remote = '/etc/stunnel/stunnel.conf'
-    nginx_installer.put_file(remote, proxy_stunnel_conf)
+        # Update stunnel
+        proxy_stunnel_conf = make_proxy_stunnel_conf(exception=server_id)
+        proxy_stunnel_conf = '\n'.join(proxy_stunnel_conf)
+        nginx_installer.put_file('/etc/stunnel/stunnel.conf', proxy_stunnel_conf)
 
-    if nginx_installer.clone_type == 'rpm':
-        nginx_installer.restart_service('stunnel')
-    else:
-        nginx_installer.restart_service('stunnel4')
+        if nginx_installer.clone_type == 'rpm':
+            nginx_installer.restart_service('stunnel', inside=False)
+        else:
+            nginx_installer.restart_service('stunnel4', inside=False)
 
 
     if disable_replication:
@@ -1046,7 +1050,7 @@ def register_objectclass(self, objcls):
         installer = Installer(server, app_conf.gluu_version, logger_task_id=task_id)
         if installer.conn:
             wlogger.log(task_id, "Restarting idendity at {}".format(server.hostname))
-            installer.run('/etc/init.d/identity restart')
+            installer.run('/etc/init.d/identity restart', error_exception='__ALL__')
     
     app_conf.object_class_base = objcls
     db.session.commit()
