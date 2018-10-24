@@ -56,9 +56,6 @@ class Installer:
     
     def settings(self):
 
-
-        print "INSTALLER:" + self.server_os
-
         if self.server_os == 'CentOS 7' or self.server_os == 'RHEL 7':
             self.init_command = '/sbin/gluu-serverd-{0} {1}'.format(
                                 self.gluu_version,'{}')
@@ -92,13 +89,12 @@ class Installer:
                 self.install_command = self.run_command.format('yum install -y {}')
         else:
             self.run_command = '{}'
-
-        print "INSTALLER:" + self.service_script
         
     def get_os_type(self):
         # 2. Linux Distribution of the server
-        print "Installer> Determining os type"
+        print "Installer> Determining OS type"
         self.server_os = self.conn.get_os_type()
+        print "Installer> OS type was determined as " + self.server_os
         return self.server_os
 
     def log(self, result, error_exception=None):

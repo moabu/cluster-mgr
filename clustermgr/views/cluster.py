@@ -171,10 +171,6 @@ def install_nginx():
         status = checkNginxStatus(app_conf.nginx_host)
         if status[0]:
             return render_template("nginx_home.html", servers=status[1])
-        
-    if not app_conf.nginx_os:
-        flash("Nginx server's OS type has not been determined yet",'error')
-        return redirect(url_for('index.home'))
 
     # Start nginx  installation celery task
     task = installNGINX.delay(app_conf.nginx_host)
