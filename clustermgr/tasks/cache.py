@@ -249,8 +249,8 @@ def __configure_stunnel(task_id, server, stunnel_conf, setup_props=None):
         installer.run("mkdir -p /var/log/stunnel4", inside=False)
         wlogger.log(task_id, "Setup auto-start on system boot", "info",
                     server_id=server.id)
-        installer.run('systemctl enable redis', inside=False)
-        installer.run('systemctl enable stunnel', inside=False)
+        installer.run('systemctl enable redis', inside=False, error_exception='Created symlink from')
+        installer.run('systemctl enable stunnel', inside=False, error_exception='Created symlink from')
 
     #if certificate of stunnel does not exists, create it
     if not installer.conn.exists("/etc/stunnel/cert.pem"):
