@@ -157,5 +157,8 @@ def wizard_step2(self):
     name_changer.modify_etc_hosts()
     wlogger.log(tid, "/etc/hosts was modified", 'success')
     
+    server.gluu_server = True
+    db.session.commit()
+    
     name_changer.installer.restart_gluu()
     
