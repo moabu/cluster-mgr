@@ -12,7 +12,7 @@ from clustermgr.config import Config
 from clustermgr.core.utils import get_setup_properties, \
         write_setup_properties_file
 from clustermgr.core.change_gluu_host import ChangeGluuHostname
-
+from clustermgr.tasks.server import make_opendj_listen_world
 from flask import current_app as app
 
 
@@ -79,11 +79,9 @@ def wizard_step1(self):
     write_setup_properties_file(prop)
 
     server.ldap_password = prop['ldapPass']
-    
     wlogger.log(task_id, "LDAP Bind password was identifed", 'success')
-    
+    make_opendj_listen_world(server, installer)
     db.session.commit()
-
 
 @celery.task(bind=True)
 def wizard_step2(self):
@@ -128,6 +126,7 @@ def wizard_step2(self):
         wlogger.log(tid, "Ending changing name.", 'error')
         return
 
+
     wlogger.log(tid, "Cahnging LDAP Applience configurations")
     name_changer.change_appliance_config()
     wlogger.log(tid, "LDAP Applience configurations were changed", 'success')
@@ -159,6 +158,9 @@ def wizard_step2(self):
     
     server.gluu_server = True
     db.session.commit()
+    
+    
+    
     
     name_changer.installer.restart_gluu()
     

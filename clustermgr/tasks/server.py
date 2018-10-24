@@ -87,7 +87,7 @@ def modify_hosts(task_id, conn, hosts, chroot='/', server_host=None, server_id='
     result, old_hosts = conn.get_file(hosts_file)
     
     if result:
-        new_hosts = modify_etc_hosts(hosts, old_hosts)
+        new_hosts = modify_etc_hosts(hosts, old_hosts.read())
         conn.put_file(hosts_file, new_hosts)
         wlogger.log(task_id, "{} was modified".format(hosts_file), 'success', server_id=server_id)
     else:
@@ -101,7 +101,7 @@ def modify_hosts(task_id, conn, hosts, chroot='/', server_host=None, server_id='
         result, old_hosts = conn.get_file(hosts_file)
         
         if result:
-            new_hosts = modify_etc_hosts(hosts, old_hosts)
+            new_hosts = modify_etc_hosts(hosts, old_hosts.read())
             conn.put_file(hosts_file, new_hosts)
             wlogger.log(task_id, "{0} of server {1} was modified".format(hosts_file, server_host), 'success', server_id=server_id)
         else:
@@ -189,6 +189,31 @@ def task_install_gluu_server(self, server_id):
         install_gluu_server(task_id, server_id)
     except:
         raise Exception(traceback.format_exc())
+
+
+def make_opendj_listen_world(server, installer):
+        
+    wlogger.log(installer.logger_task_id, "Making openDJ listens all interfaces for port 4444 and 1636")
+    
+    opendj_commands = [
+            "sed -i 's/dsreplication.java-args=-Xms8m -client/dsreplication.java-args=-Xms8m -client -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true/g' /opt/opendj/config/java.properties",
+            "/opt/opendj/bin/dsjavaproperties",
+            "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-administration-connector-prop  --set listen-address:0.0.0.0 -X".format(server.ldap_password),
+            "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-connection-handler-prop --handler-name 'LDAPS Connection Handler' --set enabled:true --set listen-address:0.0.0.0 -X".format(server.ldap_password),
+            ]
+
+    if server.os == 'RHEL 7':
+        opendj_commands.append('systemctl stop opendj')
+        opendj_commands.append('systemctl start opendj')
+    else:
+        opendj_commands.append('/etc/init.d/opendj stop')
+        opendj_commands.append('/etc/init.d/opendj start')
+    
+    for command in opendj_commands:
+        installer.run(command)
+
+    #wait a couple of seconds for starting opendj
+    time.sleep(5)
 
 def install_gluu_server(task_id, server_id):
 
@@ -337,7 +362,6 @@ def install_gluu_server(task_id, server_id):
 
         cmd = 'yum clean all'
         installer.run(cmd, inside=False, error_exception='__ALL__')
-
 
     wlogger.log(task_id, "Check if Gluu Server was installed", 'action')
 
@@ -524,25 +548,7 @@ def install_gluu_server(task_id, server_id):
     
     if app_conf.gluu_version >= '3.1.4':
         #make opendj listen all interfaces
-        wlogger.log(task_id, "Making openDJ listens all interfaces for port 4444 and 1636")
-        
-        opendj_commands = [
-                "sed -i 's/dsreplication.java-args=-Xms8m -client/dsreplication.java-args=-Xms8m -client -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true/g' /opt/opendj/config/java.properties",
-                "/opt/opendj/bin/dsjavaproperties",
-                "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-administration-connector-prop  --set listen-address:0.0.0.0 -X".format(server.ldap_password),
-                "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-connection-handler-prop --handler-name 'LDAPS Connection Handler' --set enabled:true --set listen-address:0.0.0.0 -X".format(server.ldap_password),
-                ]
-
-        if server.os == 'RHEL 7':
-            opendj_commands.append('systemctl stop opendj')
-            opendj_commands.append('systemctl start opendj')
-        else:
-            opendj_commands.append('/etc/init.d/opendj stop')
-            opendj_commands.append('/etc/init.d/opendj start')
-        
-        for command in opendj_commands:
-            installer.run(command)
-
+        make_opendj_listen_world(server, installer)
 
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
