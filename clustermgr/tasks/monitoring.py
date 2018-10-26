@@ -1,6 +1,7 @@
 import json
 import os
 import getpass
+import time
 
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, wlogger, celery
@@ -11,6 +12,29 @@ from clustermgr.tasks.cluster import get_os_type
 from flask import current_app as app
 
 from influxdb import InfluxDBClient
+
+def fix_influxdb_config():
+    conf_file = '/etc/influxdb/influxdb.conf'
+
+    conf = open(conf_file).readlines()
+    new_conf = []
+    http = False
+    
+    for l in conf:
+        if l.startswith('[http]'):
+            http = True
+            
+        if http:
+            if l.strip().startswith('bind-address'):
+                l = '  bind-address = "localhost:8086"\n'
+
+        new_conf.append(l)
+
+    with open('/tmp/influxdb.conf','w') as W:
+        W.write(''.join(new_conf))
+        
+    os.system('sudo cp -f /tmp/influxdb.conf /etc/influxdb/influxdb.conf')
+
 
 class FakeRemote():
     
@@ -192,6 +216,12 @@ def install_local(self):
                 wlogger.log(tid, "Command was run successfully: {}".format(cmd),
                                 "success", server_id=0)
     
+    wlogger.log(tid, "Fixing /etc/influxdb/influxdb.conf for InfluxDB listen localhost", server_id=0)
+    fc.run('sudo /etc/init.d/influxdb stop')
+    fix_influxdb_config()
+    fc.run('sudo /etc/init.d/influxdb start')
+    #wait influxdb to start
+    time.sleep(10)
 
     #Statistics will be written to 'gluu_monitoring' on local influxdb server,
     #so we should crerate it.
