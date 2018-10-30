@@ -867,7 +867,7 @@ def opendjenablereplication(self, server_id):
     wlogger.log(task_id, "Checking replication status")
 
     cmd = ("/opt/opendj/bin/dsreplication status -n -X -h {} "
-            "-p 1444 -I admin -w ${}").format(
+            "-p 1444 -I admin -w $'{}'").format(
                     primary_server.hostname,
                     app_conf.replication_pw.replace("'","\\'"))
 
