@@ -300,7 +300,8 @@ class Installer:
             if self.clone_type == 'rpm':
                 self.run('yum repolist', inside)
             else:
-                self.run('apt-get update', inside)
+                self.run('DEBIAN_FRONTEND=noninteractive apt-get update', inside)
+                self.run('DEBIAN_FRONTEND=noninteractive apt-get install -y apt-utils', inside)
             self.repo_updated[inside] = True
 
         if package.endswith('-dev'):
