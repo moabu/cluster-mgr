@@ -5,7 +5,7 @@ celery==4.0.2
 Flask-SQLAlchemy==2.2
 redis==2.10.5
 cryptography==1.8.1
-requests==2.13.0
+requests>=2.20.0
 Flask-Migrate==2.0.3
 paramiko >=2.4.0
 ldap3==2.3

@@ -33,7 +33,7 @@ setup(
         "celery",
         "flask-sqlalchemy",
         "redis",
-        "requests",
+        "requests>=2.20.0",
         "flask-migrate",
         "ldap3",
         "paramiko>=2.4.0",
