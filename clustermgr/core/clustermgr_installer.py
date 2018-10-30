@@ -13,7 +13,8 @@ class Installer:
         self.gluu_version = gluu_version
         self.server_os = server_os
         self.server_id = server_id
-        self.repo_updated = False
+        self.repo_updated = {False:False, True:False}
+        
         self.clone_type = None
         self.hostname = ''
         
@@ -295,12 +296,12 @@ class Installer:
 
     def install(self, package, inside=True, error_exception=None):
 
-        if not self.repo_updated:
+        if not self.repo_updated[inside]:
             if self.clone_type == 'rpm':
                 self.run('yum repolist', inside)
             else:
                 self.run('apt-get update', inside)
-            self.repo_updated = True
+            self.repo_updated[inside] = True
 
         if package.endswith('-dev'):
             if self.clone_type == 'rpm':
