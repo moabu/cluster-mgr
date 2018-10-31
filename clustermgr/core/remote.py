@@ -58,6 +58,12 @@ class ClientNotSetupException(Exception):
     of connection failures."""
     pass
 
+class mySSHClient(SSHClient):
+    def __init__(self):
+        super(mySSHClient, self).__init__()
+
+    def __del__(self):
+        self.close()
 
 class RemoteClient(object):
     """Remote Client is a wrapper over SSHClient with utility functions.
@@ -92,7 +98,7 @@ class RemoteClient(object):
                                 encoded_passphrase
                                 )
         self.passphrase = passphrase
-        self.client = SSHClient()
+        self.client = mySSHClient()
         self.sftpclient = None
         self.client.set_missing_host_key_policy(AutoAddPolicy())
         self.client.load_system_host_keys()
