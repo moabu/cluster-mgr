@@ -100,9 +100,10 @@ def home():
                 "added to /root/.ssh/authorized_keys on this server. Reason: {}".format(
                                                 servers[0].hostname, e), 'error')
 
-        #return render_template('index_passphrase.html', e=e, 
-        #        ask_passphrase=ask_passphrase, next='/',
-        #        warning_text="Error accessing primary server")
+        if ask_passphrase:
+            return render_template('index_passphrase.html', e=e, 
+                ask_passphrase=ask_passphrase, next='/',
+                warning_text="Error accessing primary server")
 
     server_id_list = [str(server.id) for server in servers]
     
