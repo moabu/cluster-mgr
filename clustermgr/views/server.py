@@ -101,7 +101,7 @@ def index():
                     'warning')
             else:
                 flash("SSH connection to {} failed. Please check if your pub key is "
-                    "asdded to /root/.ssh/authorized_keys on this server. Reason: {}".format(
+                    "added to /root/.ssh/authorized_keys on this server. Reason: {}".format(
                                                     server.hostname, e), 'error')
 
         

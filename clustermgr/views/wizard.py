@@ -89,7 +89,7 @@ def step1():
                     'warning')
             else:
                 flash("SSH connection to {} failed. Please check if your pub key is "
-                    "asdded to /root/.ssh/authorized_keys on this server. Reason: {}".format(
+                    "added to /root/.ssh/authorized_keys on this server. Reason: {}".format(
                                                     servers[0].hostname, e), 'error')
 
             return render_template('index_passphrase.html', e=e, 

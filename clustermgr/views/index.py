@@ -97,7 +97,7 @@ def home():
                 'warning')
         else:
             flash("SSH connection to {} failed. Please check if your pub key is "
-                "asdded to /root/.ssh/authorized_keys on this server. Reason: {}".format(
+                "added to /root/.ssh/authorized_keys on this server. Reason: {}".format(
                                                 servers[0].hostname, e), 'error')
 
         return render_template('index_passphrase.html', e=e, 
@@ -714,7 +714,7 @@ def upgrade_clustermgr():
     print "TASK STARTED", task.id
     head = "Upgrading clustermgr"
     nextpage = "index.home"
-    whatNext = "Go to Dashboard"
+    whatNext = "Dashboard"
     return render_template("logger.html", heading=head, server="",
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
