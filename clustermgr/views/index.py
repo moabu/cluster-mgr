@@ -25,9 +25,6 @@ from clustermgr.core.ldifschema_utils import OpenDjSchema
 
 
 from clustermgr.tasks.cluster import upgrade_clustermgr_task
-# from clustermgr.core.utils import encrypt_text
-# from clustermgr.core.utils import generate_random_key
-# from clustermgr.core.utils import generate_random_iv
 from clustermgr.core.license import license_reminder
 from clustermgr.extensions import celery
 from clustermgr.core.license import prompt_license
@@ -98,10 +95,10 @@ def home():
                 'warning')
         else:
             flash("SSH connection to {} failed. Please check if your pub key is "
-                "asdded to /root/.ssh/authorized_keys on this server. Reason: {}".format(
+                "added to /root/.ssh/authorized_keys on this server. Reason: {}".format(
                                                 servers[0].hostname, e), 'error')
-
-        return render_template('index_passphrase.html', e=e, ask_passphrase=ask_passphrase, next='/')
+        if ask_passphrase:
+            return render_template('index_passphrase.html', e=e, ask_passphrase=ask_passphrase, next='/')
     
     service_update_period = 300
     
