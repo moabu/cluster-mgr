@@ -92,7 +92,7 @@ def home():
                 'warning')
         elif str(e) == 'Could not deserialize key data.':
             ask_passphrase = True
-            flash("Password your provided for pubkey did not work. "
+            flash("Password you provided for pubkey did not work. "
                 "Please set valid passphrase.",
                 'warning')
         else:
@@ -100,9 +100,9 @@ def home():
                 "added to /root/.ssh/authorized_keys on this server. Reason: {}".format(
                                                 servers[0].hostname, e), 'error')
 
-        return render_template('index_passphrase.html', e=e, 
-                ask_passphrase=ask_passphrase, next='/',
-                warning_text="Error accessing Nginx Load Balancer")
+        #return render_template('index_passphrase.html', e=e, 
+        #        ask_passphrase=ask_passphrase, next='/',
+        #        warning_text="Error accessing primary server")
 
     server_id_list = [str(server.id) for server in servers]
     
@@ -171,10 +171,6 @@ def app_configuration():
         #del conf_form.replication_pw_confirm
         config = AppConfiguration()
         db.session.add(config)
-
-
-
-    
 
 
     # If form is submitted and validated process it
