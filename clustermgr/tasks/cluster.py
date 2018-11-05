@@ -2191,8 +2191,8 @@ def update_httpd_certs_task(self, httpd_key, httpd_crt):
         if hasattr(server, 'proxy'):
             installer.run('service nginx restart', False)
         else:
-            delete_key('httpd', server.hostname, appconf.gluu_version, tid, installer.c, installer.server_os)
-            import_key('httpd', server.hostname, appconf.gluu_version, tid, installer.c, installer.server_os)
+            delete_key('httpd', appconf.nginx_host, appconf.gluu_version, tid, installer.c, installer.server_os)
+            import_key('httpd', appconf.nginx_host, appconf.gluu_version, tid, installer.c, installer.server_os)
             installer.restart_gluu()
 
     return True
