@@ -422,17 +422,26 @@ def install_gluu(server_id):
 @server_view.route('/uploadsetupproperties/<int:server_id>', methods=['POST'])
 def upload_setup_properties(server_id):
     setup_properties_form = SetupPropertiesLastForm()
-    
-    print setup_properties_form.upload.data
-    print setup_properties_form.validate_on_submit()
 
-    
     if setup_properties_form.upload.data and \
             setup_properties_form.validate_on_submit():
 
         f = setup_properties_form.setup_properties.data
+        try:
+            setup_prop = parse_setup_properties(f.stream)
+        except:
+            flash("Can't parse, please upload valid setup.properties file.",
+                    "danger")
+            return redirect(url_for('install_gluu', server_id=1))
+            
+        for prop in (
+                    'countryCode', 'orgName', 'application_max_ram', 'city',
+                    'inumOrg', 'state', 'inumAppliance', 'admin_email'):
+            if not prop in setup_prop:
+                flash("'{0}' is missing, please upload valid setup.properties file.".format(prop),
+                "danger")
+                return redirect(url_for('server.install_gluu', server_id=1))
 
-        setup_prop = parse_setup_properties(f.stream)
 
         for rf in ( 
                     'oxauthClient_encoded_pw',
@@ -486,7 +495,8 @@ def upload_setup_properties(server_id):
         setup_prop['hostname'] = appconf.nginx_host
         setup_prop['ip'] = server.ip
         setup_prop['ldapPass'] = server.ldap_password
-
+        setup_prop['ldap_type'] = 'opendj'
+        
         write_setup_properties_file(setup_prop)
 
         flash("Setup properties file has been uploaded sucessfully. ",
