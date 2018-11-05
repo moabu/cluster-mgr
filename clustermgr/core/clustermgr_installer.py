@@ -81,11 +81,11 @@ class Installer:
                 self.run_command = 'chroot {} /bin/bash -c "{}"'.format(self.container,'{}')
                 self.install_command = 'chroot {} /bin/bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y {}"'.format(self.container,'{}')
             elif self.clone_type == 'rpm':                
-                self.run_command = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
-                                '-o Port=60022 -o LogLevel=QUIET -o '
-                                'StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null '
-                                '-o PubkeyAuthentication=yes root@localhost "{}"'
-                                )
+                self.run_command = (
+                        'ssh  -o IdentityFile=/etc/gluu/keys/gluu-console '
+                        '-o Port=60022 -o StrictHostKeyChecking=no '
+                        '-o PubkeyAuthentication=yes root@localhost  "{0}"'
+                        )
 
                 self.install_command = self.run_command.format('yum install -y {}')
         else:
@@ -128,7 +128,11 @@ class Installer:
         print "Installer> executing: {}".format(cmd)
         self.log_command(run_cmd)
         result = self.conn.run(run_cmd)
-        self.log(result, error_exception)
+        
+        if 'connect to host localhost port 60022: Connection refused' in result[2]:
+            self.log(result)
+        else:
+            self.log(result, error_exception)
         
         return result
         
