@@ -165,8 +165,8 @@ def collect():
     ])
     task.apply_async()
 
-    flash("Collecting logs from available remote servers may take awhile. "
-          "Refresh the page after few seconds.",
+    flash("Collecting logs from available remote servers may take a while. "
+          "Refresh the page after a few seconds.",
           "info")
     return redirect(url_for(".index"))
 
