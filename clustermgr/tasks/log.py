@@ -5,7 +5,6 @@ from flask import current_app
 from flask import render_template
 from influxdb import InfluxDBClient
 
-from ..core.remote import RemoteClient
 from ..core.clustermgr_installer import Installer
 from ..extensions import celery
 from ..extensions import db
@@ -83,33 +82,40 @@ def parse_log(log, influx_fmt=True, hostname=""):
     return json_log
 
 
-@celery.task
-def collect_logs(host, ip, path, influx_fmt=True):
+@celery.task(bind=True)
+def collect_logs(self, server, path, influx_fmt=True):
     """Collects logs from a server.
 
-    :params host: Hostname of the server.
-    :params ip: IP address of the server.
+    :params server: Server instance.
     :params path: Absolute path to file contains logs.
     :params influx_fmt: Whether to use influxdb format or not.
     :returns: A boolean whether logs are saved successfully to database or not.
     """
+    task_id = self.request.id
+    app_conf = AppConfiguration.query.first()
     dbname = current_app.config["INFLUXDB_LOGGING_DB"]
     logs = []
-    rc = RemoteClient(host, ip)
+
+    installer = Installer(
+        server,
+        app_conf.gluu_version,
+        logger_task_id=task_id,
+        server_os=server.os,
+    )
 
     try:
-        rc.startup()
-        _, stdout, stderr = rc.run("cat {}".format(path))
+        _, stdout, stderr = installer.run("cat {}".format(path))
         if not stderr:
             logs = filter(
                 None,
-                [parse_log(log, hostname=host) for log in stdout.splitlines()],
+                [parse_log(log, hostname=server.host) for log in stdout.splitlines()],
             )
+        else:
+            task_logger.warn("Unable to collect logs from remote server {}/{}; "
+                             "reason={}".format(server.host, server.ip, stderr))
     except Exception as exc:
-        task_logger.warn("Unable to collect logs from remote server;"
-                         " reason={}".format(exc))
-    finally:
-        rc.close()
+        task_logger.warn("Unable to collect logs from remote server; "
+                         "reason={}".format(exc))
 
     influx = InfluxDBClient(database=dbname)
     influx.create_database(dbname)
@@ -128,7 +134,7 @@ def _install_filebeat(installer):
             "wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add -",
             "echo 'deb https://artifacts.elastic.co/packages/6.x/apt stable main' | tee /etc/apt/sources.list.d/elastic-6.x.list",
             "apt-get update",
-            "{} apt-get install -y filebeat".format(DEBCONF),
+            "apt-get install -y filebeat",
             "update-rc.d filebeat defaults 95 10",
         ]
     else:
@@ -141,6 +147,7 @@ def _install_filebeat(installer):
 
     for cmd in cmd_list:
         installer.run(cmd, inside=False)
+
 
 def _render_filebeat_config(installer):
     """Renders filebeat config and upload to a server.
@@ -157,7 +164,7 @@ def _render_filebeat_config(installer):
         }
 
         src = "filebeat.yml"
-        
+
         if installer.clone_type == 'rpm':
             src += ".centos"
 
@@ -248,7 +255,7 @@ def remove_filebeat(self):
             )
 
         installer.remove('filebeat', inside=False)
-        
+
         # remove log used to collect all components logs
         installer.run("rm -f /tmp/gluu-filebeat*", inside=False)
 

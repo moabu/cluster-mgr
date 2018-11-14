@@ -160,7 +160,7 @@ def collect():
         return redirect(url_for('index.home'))
 
     task = group([
-        collect_logs.s(server.hostname, server.ip, "/tmp/gluu-filebeat")
+        collect_logs.s(server, "/tmp/gluu-filebeat")
         for server in servers
     ])
     task.apply_async()
