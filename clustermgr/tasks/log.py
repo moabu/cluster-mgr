@@ -139,10 +139,10 @@ def _install_filebeat(task_id, server, rc):
 
     if opsys.startswith("ubuntu"):
         cmd_list = [
-            "apt-get install -y apt-transport-https",
+            "{} apt-get install -y apt-transport-https".format(DEBCONF),
             "wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add -",
             "echo 'deb https://artifacts.elastic.co/packages/6.x/apt stable main' | tee /etc/apt/sources.list.d/elastic-6.x.list",
-            "apt-get update",
+            "{} apt-get update".format(DEBCONF),
             "{} apt-get install -y filebeat".format(DEBCONF),
             "update-rc.d filebeat defaults 95 10",
         ]
@@ -243,6 +243,7 @@ def setup_filebeat(self, force_install=False):
             _, stderr = _install_filebeat(tid, server, rc)
             if stderr:
                 wlogger.log(tid, stderr, "warning", server_id=server.id)
+                return False
 
             # renders filebeat config
             uploaded, maybe_err = _render_filebeat_config(tid, server, rc)
@@ -253,6 +254,7 @@ def setup_filebeat(self, force_install=False):
                     "warning",
                     server_id=server.id,
                 )
+                return False
 
             # restarts filebeat service
             # note, restarting filebeat service may gives unwanted output,
