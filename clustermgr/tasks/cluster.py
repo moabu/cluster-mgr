@@ -1239,11 +1239,17 @@ def installGluuServer(self, server_id):
         #make opendj listen all interfaces
         wlogger.log(tid, "Making openDJ listens all interfaces for port 4444 and 1636")
         
+        cin, cout, cerr = c.run('ip route get 8.8.8.8 | awk -F"src " \'NR==1{split($2,a," ");print a[1]}\'')
+        
+        set_ip_addr = cout.strip()
+        if not set_ip_addr:
+            set_ip_addr = '0.0.0.0'
+
         opendj_commands = [
                 "sed -i 's/dsreplication.java-args=-Xms8m -client/dsreplication.java-args=-Xms8m -client -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true/g' /opt/opendj/config/java.properties",
                 "/opt/opendj/bin/dsjavaproperties",
-                "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-administration-connector-prop  --set listen-address:0.0.0.0 -X".format(server.ldap_password),
-                "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-connection-handler-prop --handler-name 'LDAPS Connection Handler' --set enabled:true --set listen-address:0.0.0.0 -X".format(server.ldap_password),
+                "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-administration-connector-prop  --set listen-address:{} -X".format(server.ldap_password, set_ip_addr),
+                "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-connection-handler-prop --handler-name 'LDAPS Connection Handler' --set enabled:true --set listen-address:{} -X".format(server.ldap_password, set_ip_addr),
                 ]
 
         if server.os == 'RHEL 7':
