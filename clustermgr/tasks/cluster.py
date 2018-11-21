@@ -1716,7 +1716,7 @@ def configure_OxIDPAuthentication(tid, exclude=None):
     if app_config.use_ldap_cache:
         adminOlc.changeOxCacheConfiguration('NATIVE_PERSISTENCE')
         wlogger.log(tid,
-                'cacheProviderType entry is was set to NATIVE_PERSISTENCE',
+                'cacheProviderType entry is set to NATIVE_PERSISTENCE',
                 'success')
 
 
