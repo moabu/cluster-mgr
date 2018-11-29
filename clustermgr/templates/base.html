@@ -236,8 +236,9 @@
 <script>
 
 $.get("{{request.host_url}}checkupgrade/", function(data, status) {
+    console.log(data);
     if (data.upgrade) {
-        $('#new-version-text').html("Version "+data.new_version+" is available. <a style=\"color: yellow;\" href=\"{{url_for('index.upgrade_with_pip')}}\">Click here to upgrade</a>");
+        $('#new-version-text').html("Version "+data.new_version+" is available! <a style=\"color: yellow;\" href=\"{{url_for('index.upgrade_with_pip')}}\">Click <b>here</b> to upgrade</a>");
     }
 });
 </script>
