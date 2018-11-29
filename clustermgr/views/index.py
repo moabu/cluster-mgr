@@ -2,6 +2,8 @@
 import os
 from time import strftime
 import json
+import requests
+
 from flask import Blueprint, render_template, redirect, url_for, flash, \
     request, jsonify, session, current_app
 from flask import current_app as app
@@ -715,6 +717,16 @@ def upgrade_clustermgr():
     return render_template("logger.html", heading=head, server="",
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
+@index.route('/upgradewithpip')
+def upgrade_with_pip():
+    task = upgrade_clustermgr_task.delay(pip=True)
+    print "TASK STARTED", task.id
+    head = "Upgrading clustermgr via pip"
+    nextpage = "index.home"
+    whatNext = "Dashboard"
+    return render_template("logger.html", heading=head, server="",
+                           task=task, nextpage=nextpage, whatNext=whatNext)
+
 
 @index.route('/setpassphrase/', methods=['POST','GET'])
 @login_required
@@ -732,3 +744,15 @@ def set_passphrase():
         next_url = '/'
     
     return redirect(next_url)
+
+
+@index.route('/checkupgrade/')
+def checkupgrade():
+    result = requests.get('https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/clustermgr/__init__.py')
+    text = result.text.strip()
+    new_version = text.split('=')[1].strip().strip('"').strip("'")
+    if new_version > app.jinja_env.globals['version']:
+        return jsonify({'upgrade': True, 'new_version': new_version})
+    return jsonify({'upgrade': False})
+
+

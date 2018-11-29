@@ -52,7 +52,7 @@
             {% endif %}
 
             <div class="navbar-header">
-              <a href="/" class="navbar-brand"><strong>Gluu</strong> Cluster Manager</span></a><p class="navbar-text" style="color: white;">{{version}}</p>
+              <a href="/" class="navbar-brand"><strong>Gluu</strong> Cluster Manager</span></a><p class="navbar-text" style="color: white;">{{version}}</p> {% if not request.path.endswith('upgradewithpip') %}<p class="navbar-text" style="color: yellow;" id="new-version-text"></p>{% endif %}
               <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
                 <i class="fa fa-bars"></i>
               </button>
@@ -233,6 +233,14 @@
 
     {% block js %} {% endblock js %}
 
+<script>
+
+$.get("{{request.host_url}}checkupgrade/", function(data, status) {
+    if (data.upgrade) {
+        $('#new-version-text').html("Version "+data.new_version+" is available. <a style=\"color: yellow;\" href=\"{{url_for('index.upgrade_with_pip')}}\">Click here to upgrade</a>");
+    }
+});
+</script>
 
   </body>
 </html>

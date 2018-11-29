@@ -2095,10 +2095,12 @@ def exec_cmd(command):
 
 
 @celery.task(bind=True)
-def upgrade_clustermgr_task(self):
+def upgrade_clustermgr_task(self, pip=False):
     tid = self.request.id
-    
-    cmd = '/usr/bin/sudo pip install --upgrade https://github.com/GluuFederation/cluster-mgr/archive/master.zip'
+    if pip:
+        cmd = '/usr/bin/sudo pip install --upgrade clustermgr'
+    else:
+        cmd = '/usr/bin/sudo pip install --upgrade https://github.com/GluuFederation/cluster-mgr/archive/master.zip'
 
     wlogger.log(tid, cmd)
 
