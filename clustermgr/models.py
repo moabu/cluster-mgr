@@ -97,6 +97,8 @@ class AppConfiguration(db.Model):
     use_ldap_cache = db.Column(db.Boolean())
     nginx_os_type = db.Column(db.String(10))
     ldap_update_period_unit = db.Column(db.String(1), default='s')
+    
+    latest_version = db.Column(db.String(10))
 
 class KeyRotation(db.Model):
     __tablename__ = "keyrotation"

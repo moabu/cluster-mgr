@@ -67,6 +67,12 @@ class Config(object):
         },
 
 
+        'check_latest_version': {
+            'task': 'clustermgr.tasks.cluster.check_latest_version',
+            'schedule': timedelta(seconds=60 * 60 * 6),
+            'args': (),
+        },
+
 
     }
 

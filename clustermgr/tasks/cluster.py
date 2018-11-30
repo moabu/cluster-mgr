@@ -4,6 +4,7 @@ import os
 import re
 import time
 import subprocess
+import requests
 
 from flask import current_app as app
 
@@ -2204,3 +2205,15 @@ def update_httpd_certs_task(self, httpd_key, httpd_crt):
             installer.restart_gluu()
 
     return True
+
+@celery.task
+def check_latest_version():
+    appconf = AppConfiguration.query.first()
+    if appconf:
+        print "Checking latest version from github"
+        result = requests.get('https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/clustermgr/__init__.py')
+        text = result.text.strip()
+        latest_version = text.split('=')[1].strip().strip('"').strip("'")        
+        appconf.latest_version = latest_version
+        db.session.commit()
+

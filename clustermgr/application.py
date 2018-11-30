@@ -143,13 +143,14 @@ def create_app():
     app.jinja_env.globals['url_for_next_page'] = url_for_next_page
     app.jinja_env.globals['url_for_prev_page'] = url_for_prev_page
     app.jinja_env.globals['version'] = __version__
-
+    app.jinja_env.globals['latest_version'] = ''
     @app.before_request
     def before_request():
         appconfig = AppConfiguration.query.first()
 
         if appconfig:
             use_ldap_cache = appconfig.use_ldap_cache
+            app.jinja_env.globals['latest_version'] = appconfig.latest_version
         else:
             use_ldap_cache = True
 
