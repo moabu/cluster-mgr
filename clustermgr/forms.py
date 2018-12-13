@@ -170,8 +170,7 @@ class InstallServerForm(FlaskForm):
     countryCode = StringField(
         'Two Letter Country Code *', validators=[Length(min=2, max=2),
                                                  DataRequired()])
-    state = StringField('Two Letter State Code *',
-                        validators=[Length(min=2, max=2), DataRequired()])
+    state = StringField('State Code')
     city = StringField('City *', validators=[DataRequired()])
     orgName = StringField('Organization Name *', validators=[DataRequired()])
     admin_email = StringField('Admin E-mail *', validators=[DataRequired()])
