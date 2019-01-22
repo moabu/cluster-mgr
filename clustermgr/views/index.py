@@ -152,6 +152,10 @@ def app_configuration():
     external_lb_checked = conf_form.external_load_balancer.data
     
     if request.method == 'POST':
+        
+        if conf_form.gluu_version.data < '3.1.4':
+            conf_form.use_ldap_cache.data = False
+        
         if config and not conf_form.replication_pw.data.strip():
             conf_form.replication_pw.validators = []
             conf_form.replication_pw_confirm.validators = []
