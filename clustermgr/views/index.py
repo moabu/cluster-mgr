@@ -296,18 +296,7 @@ def app_configuration():
         #conf_form.use_ip.data = config.use_ip
         if config.gluu_version:
             conf_form.gluu_version.data = config.gluu_version
-        """
-        if config.log_purge:
-            a, i = config.log_purge.split()
-            pa = a.split(':')
-            pi = i.split(':')
-            conf_form.purge_age_day.data = pa[0]
-            conf_form.purge_age_hour.data = pa[1]
-            conf_form.purge_age_min.data = pa[2]
-            conf_form.purge_interval_day.data = pi[0]
-            conf_form.purge_interval_hour.data = pi[1]
-            conf_form.purge_interval_min.data = pi[2]
-        """
+
     if not config.id:
         conf_form.use_ldap_cache.data = True
         
