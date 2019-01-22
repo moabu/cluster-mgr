@@ -150,11 +150,13 @@ def create_app():
     def before_request():
         appconfig = AppConfiguration.query.first()
 
+        use_ldap_cache = False
+
         if appconfig:
-            use_ldap_cache = appconfig.use_ldap_cache
+            if appconfig.gluu_version >= '3.1.4':
+                use_ldap_cache = appconfig.use_ldap_cache
+                
             app.jinja_env.globals['latest_version'] = appconfig.latest_version
-        else:
-            use_ldap_cache = True
 
         app.jinja_env.globals['use_ldap_cache'] = use_ldap_cache
 
