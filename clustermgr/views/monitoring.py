@@ -596,8 +596,11 @@ def get_server_status():
     for server in servers:
         status[server.id] = {}
         for service in active_services:
-            url = 'https://{0}/{1}'.format(server.hostname, services[service])
-            r = requests.get(url, verify=False)
-            status[server.id][service]=r.ok
+            try:
+                url = 'https://{0}/{1}'.format(server.hostname, services[service])
+                r = requests.get(url, verify=False)
+                status[server.id][service]=r.ok
+            except:
+                pass
 
     return jsonify(status)
