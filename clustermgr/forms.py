@@ -12,6 +12,7 @@ from flask_wtf.file import FileField, FileRequired, FileAllowed
 
 class AppConfigForm(FlaskForm):
     versions = [
+                '3.1.5', 
                 '3.1.4', 
                 '3.1.3.1',
                 '3.1.3', 

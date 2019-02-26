@@ -1806,9 +1806,9 @@ def opendjenablereplication(self, server_id):
                         '\'cn=directory manager\' --bindPassword2 $\'{}\' '
                         '--replicationPort2 8989 --adminUID admin --adminPassword $\'{}\' '
                         '--baseDN \'o={}\' --trustAll -X -n').format(
-                            primary_server.hostname,
+                            primary_server.ip,
                             primary_server.ldap_password.replace("'","\\'"),
-                            server.hostname,
+                            server.ip,
                             server.ldap_password.replace("'","\\'"),
                             app_config.replication_pw.replace("'","\\'"),
                             base,
@@ -1828,7 +1828,7 @@ def opendjenablereplication(self, server_id):
                             base,
                             app_config.replication_pw.replace("'","\\'"),
                             #primary_server.hostname,
-                            server.hostname,
+                            server.ip,
                             )
 
 
@@ -1843,7 +1843,7 @@ def opendjenablereplication(self, server_id):
                 cmd = ('/opt/opendj/bin/dsconfig -h {} -p 4444 '
                         ' -D  \'cn=Directory Manager\' -w $\'{}\' --trustAll '
                         '-n set-crypto-manager-prop --set ssl-encryption:true'
-                        ).format(primary_server.hostname, primary_server.ldap_password.replace("'","\\'"))
+                        ).format(primary_server.ip, primary_server.ldap_password.replace("'","\\'"))
 
                 cmd = cmd_run.format(cmd)
                 run_command(tid, c, cmd, chroot)
@@ -1855,7 +1855,7 @@ def opendjenablereplication(self, server_id):
             cmd = ('/opt/opendj/bin/dsconfig -h {} -p 4444 '
                     ' -D  \'cn=Directory Manager\' -w $\'{}\' --trustAll '
                     '-n set-crypto-manager-prop --set ssl-encryption:true'
-                    ).format(server.hostname, primary_server.ldap_password.replace("'","\\'"))
+                    ).format(server.ip, primary_server.ldap_password.replace("'","\\'"))
 
             cmd = cmd_run.format(cmd)
             run_command(tid, c, cmd, chroot)
@@ -1929,7 +1929,7 @@ def opendjenablereplication(self, server_id):
 
     cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 1444 -I admin -w $\'{}\'').format(
-                    primary_server.hostname,
+                    primary_server.ip,
                     app_config.replication_pw.replace("'","\\'"))
 
     cmd = cmd_run.format(cmd)
