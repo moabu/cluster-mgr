@@ -80,6 +80,7 @@ def home():
 
     ask_passphrase = False
     
+    logger.debug("Checking if primary server is reachable with ssh")
     c = RemoteClient(servers[0].ip, servers[0].hostname)
     try:
         c.startup()
