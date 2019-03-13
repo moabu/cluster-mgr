@@ -900,10 +900,10 @@ def installGluuServer(self, server_id):
         #add gluu server repo and imports signatures
         if ('Ubuntu' in server.os) or ('Debian' in server.os):
 
-            if server.os == 'Ubuntu 14':
-                dist = 'trusty'
-            elif server.os == 'Ubuntu 16':
+            if server.os == 'Ubuntu 16':
                 dist = 'xenial'
+            elif server.os == 'Ubuntu 18':
+                dist = 'bionic'
 
             if 'Ubuntu' in server.os:
                 cmd = 'curl https://repo.gluu.org/ubuntu/gluu-apt.key | apt-key add -'
@@ -915,6 +915,13 @@ def installGluuServer(self, server_id):
             if 'Ubuntu' in server.os:
                 cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
                    '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
+                   
+                #Testing
+                cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" '
+                   '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
+                
+                
+                   
             elif 'Debian' in server.os:
                 cmd = ('echo "deb https://repo.gluu.org/debian/ stable main" '
                    '> /etc/apt/sources.list.d/gluu-repo.list')
@@ -953,6 +960,7 @@ def installGluuServer(self, server_id):
                 
             elif server.os == 'CentOS 7':
                 cmd = 'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O /etc/yum.repos.d/Gluu.repo'
+                cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo -O /etc/yum.repos.d/Gluu.repo' # Remove this after testing
                 
             elif server.os == 'RHEL 7':
                 cmd = 'wget https://repo.gluu.org/rhel/Gluu-rhel7.repo -O /etc/yum.repos.d/Gluu.repo'
@@ -1078,6 +1086,13 @@ def installGluuServer(self, server_id):
     if server.os == 'CentOS 7' or server.os == 'RHEL 7':
         wlogger.log(tid, "Sleeping 10 secs to wait for gluu server start properly.")
         time.sleep(10)
+
+
+    if setup_prop.get('opendj_type') == 'wrends':
+        cmd = 'wget https://ox.gluu.org/maven/org/forgerock/opendj/opendj-server-legacy/4.0.0-M3/opendj-server-legacy-4.0.0-M3.zip -P /opt/{}/opt/dist/app'.format(gluu_server)
+        run_command(tid, c, cmd, no_error='debug')
+        
+    
 
     # If this server is primary, upload local setup.properties to server
     if server.primary_server:
@@ -1239,12 +1254,8 @@ def installGluuServer(self, server_id):
     if appconf.gluu_version >= '3.1.4':
         #make opendj listen all interfaces
         wlogger.log(tid, "Making openDJ listens all interfaces for port 4444 and 1636")
-        
-        cin, cout, cerr = c.run('ip route get 8.8.8.8 | awk -F"src " \'NR==1{split($2,a," ");print a[1]}\'')
-        
-        set_ip_addr = cout.strip()
-        if not set_ip_addr:
-            set_ip_addr = '0.0.0.0'
+
+        set_ip_addr = '0.0.0.0'
 
         opendj_commands = [
                 "sed -i 's/dsreplication.java-args=-Xms8m -client/dsreplication.java-args=-Xms8m -client -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true/g' /opt/opendj/config/java.properties",
@@ -1784,21 +1795,24 @@ def opendjenablereplication(self, server_id):
     primary_server_secured = False
 
     for server in servers:
+        
+        cmd_run = '{}'
+
+        if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):
+            chroot = None
+            cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
+                    '-o Port=60022 -o LogLevel=QUIET '
+                    '-o StrictHostKeyChecking=no '
+                    '-o UserKnownHostsFile=/dev/null '
+                    '-o PubkeyAuthentication=yes root@localhost "{}"')
+                            
+        
+        
         if not server.primary_server:
             wlogger.log(tid, "Enabling replication on server {}".format(
                                                             server.hostname))
-
+                                                            
             for base in ['gluu', 'site']:
-                cmd_run = '{}'
-
-                if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):
-                    chroot = None
-                    cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
-                            '-o Port=60022 -o LogLevel=QUIET '
-                            '-o StrictHostKeyChecking=no '
-                            '-o UserKnownHostsFile=/dev/null '
-                            '-o PubkeyAuthentication=yes root@localhost "{}"')
-
 
                 cmd = ('/opt/opendj/bin/dsreplication enable --host1 {} --port1 4444 '
                         '--bindDN1 \'cn=directory manager\' --bindPassword1 $\'{}\' '
@@ -1818,22 +1832,6 @@ def opendjenablereplication(self, server_id):
                 
                 run_command(tid, c, cmd, chroot)
 
-                wlogger.log(tid, "Inıtializing replication on server {}".format(
-                                                                server.hostname))
-
-                cmd = ('/opt/opendj/bin/dsreplication initialize --baseDN \'o={}\' '
-                        '--adminUID admin --adminPassword $\'{}\' '
-                        '--portSource 4444  --hostDestination {} --portDestination 4444 '
-                        '--trustAll -X -n').format(
-                            base,
-                            app_config.replication_pw.replace("'","\\'"),
-                            #primary_server.hostname,
-                            server.ip,
-                            )
-
-
-                cmd = cmd_run.format(cmd)
-                run_command(tid, c, cmd, chroot)
 
             if not primary_server_secured:
 
@@ -1860,12 +1858,12 @@ def opendjenablereplication(self, server_id):
             cmd = cmd_run.format(cmd)
             run_command(tid, c, cmd, chroot)
 
-            server.mmr = True
+        server.mmr = True
 
 
     db.session.commit()
 
-    configure_OxIDPAuthentication(tid)
+    
 
     servers = Server.query.all()
 
@@ -1894,6 +1892,41 @@ def opendjenablereplication(self, server_id):
             return False
 
 
+        for target in servers:
+
+            if  target != server:
+
+                for base in ['gluu', 'site']:
+                    cmd = ('/opt/opendj/bin/dsreplication initialize --baseDN \'o={}\' '
+                        '--adminUID admin --adminPassword $\'{}\' '
+                        '--hostSource {} --portSource 4444 '
+                        '--hostDestination {} --portDestination 4444 '
+                        '--trustAll --no-prompt').format(
+                            base,
+                            app_config.replication_pw.replace("'","\\'"),
+                            target.ip,
+                            server.ip,
+                            )
+
+
+                    cmd_run = '{}'
+
+                    if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):
+                        chroot = None
+                        cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
+                                '-o Port=60022 -o LogLevel=QUIET '
+                                '-o StrictHostKeyChecking=no '
+                                '-o UserKnownHostsFile=/dev/null '
+                                '-o PubkeyAuthentication=yes root@localhost "{}"')
+                                    
+
+                    wlogger.log(tid, "Inıtializing replication on server {} for base {}".format(
+                                                                        server.hostname, base))
+
+                    cmd = cmd_run.format(cmd)
+                    run_command(tid, c, cmd, chroot)
+            
+
         if not server.primary_server:
 
             wlogger.log(tid, "Uploading OpenDj certificate files")
@@ -1920,10 +1953,12 @@ def opendjenablereplication(self, server_id):
 
         ct.close()
 
+
     if 'CentOS' in primary_server.os:
         wlogger.log(tid, "Waiting for Gluu to finish starting")
         time.sleep(60)
-    
+
+    configure_OxIDPAuthentication(tid)
 
     wlogger.log(tid, "Checking replication status")
 

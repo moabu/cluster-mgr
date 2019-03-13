@@ -114,7 +114,7 @@
     <!-- timeline time label -->
     <li class="time-label">
         <span class="bg-red">
-            Setup Cluster
+            Setup Cache Cluster
         </span>
     </li>
     <!-- /.timeline-label -->
@@ -122,49 +122,34 @@
     <!-- Step 1: Install -->
     <li>
       {% if current > 1 %}
-        <i class="fa fa-check bg-green"></i>
+        <i class="fa fa-check bg-green" id="step1"></i>
       {% else %}
-        <i class="fa fa-spinner fa-spin fa-fw bg-blue"></i>
+        <i class="fa fa-spinner fa-spin fa-fw bg-blue" id="step1"></i>
       {% endif %}
         <div class="timeline-item">
-            <h3 class="timeline-header">Install Components</h3>
+            <h3 class="timeline-header">Install Cache Servers</h3>
             <div class="timeline-body">
-              Install components like Redis, Stunnel in all the servers in the cluster
+              Install Redis and Stunnel on cache servers
             </div>
         </div>
     </li>
     <!-- Step 2: Configure -->
     <li>
       {% if current > 2 %}
-        <i class="fa fa-check bg-green"></i>
+        <i class="fa fa-check bg-green" id="step2"></i>
       {% elif current == 2 %}
-        <i class="fa fa-spinner fa-spin fa-fw bg-blue"></i>
+        <i class="fa fa-spinner fa-spin fa-fw bg-blue" id="step2"></i>
       {% elif current < 2 %}
-        <i class="fa fa-clock-o bg-gray"></i>
+        <i class="fa fa-clock-o bg-gray" id="step2"></i>
       {% endif %}
         <div class="timeline-item">
-            <h3 class="timeline-header">Configure Components</h3>
+            <h3 class="timeline-header">Install Stunnel on Nodes</h3>
             <div class="timeline-body">
-              Generate the configuration files for components and upload them to the servers
+              Install and configure stunnel on nodes for connecting redis server via stunnel
             </div>
         </div>
     </li>
-    <!-- Step 2: Restart Services -->
-    <li>
-      {% if current > 3 %}
-        <i class="fa fa-check bg-green"></i>
-      {% elif current == 3 %}
-        <i class="fa fa-spinner fa-spin fa-fw bg-blue"></i>
-      {% elif current < 3 %}
-        <i class="fa fa-clock-o bg-gray"></i>
-      {% endif %}
-        <div class="timeline-item">
-            <h3 class="timeline-header">Restart Services</h3>
-            <div class="timeline-body">
-              Restart the components of the servers and use the Redis Cache
-            </div>
-        </div>
-    </li>
+
     <!-- timeline time label -->
     <li class="time-label">
         <span class="bg-green">

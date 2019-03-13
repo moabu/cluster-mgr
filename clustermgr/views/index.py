@@ -233,9 +233,13 @@ def app_configuration():
         config.external_load_balancer = conf_form.external_load_balancer.data
         config.use_ldap_cache = conf_form.use_ldap_cache.data
 
-        if conf_form.external_load_balancer.data:
+        if conf_form.external_load_balancer.data or not conf_form.use_ldap_cache.data:
             config.cache_host = conf_form.cache_host.data.strip()
             config.cache_ip = conf_form.cache_ip.data.strip()
+            config.install_redis = conf_form.install_redis.data
+            
+            print "Redis data", config.install_redis, conf_form.install_redis.data
+            
         else:
             config.cache_host = None
             config.cache_ip = None
@@ -282,7 +286,7 @@ def app_configuration():
         conf_form.external_load_balancer.data = config.external_load_balancer
         conf_form.use_ldap_cache.data = config.use_ldap_cache
         
-        if config.external_load_balancer:
+        if config.external_load_balancer or not conf_form.use_ldap_cache.data:
             conf_form.cache_host.data = config.cache_host
             conf_form.cache_ip.data = config.cache_ip
         

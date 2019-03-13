@@ -552,3 +552,20 @@ def make_nginx_proxy_conf(exception=None):
     nginx_tmp = nginx_tmp.replace('{#PINGSTRING#}', ' '.join(server_list))
 
     return nginx_tmp
+
+
+def get_cache_servers():
+    
+    appconf = AppConfiguration.query.first()
+    
+    cache_servers = []
+
+    if not appconf.use_ldap_cache and appconf.install_redis:
+
+        mock_server = Server()
+        mock_server.hostname = appconf.cache_host
+        mock_server.ip = appconf.cache_ip
+        mock_server.id = 1001
+        cache_servers.append(mock_server)
+
+    return cache_servers

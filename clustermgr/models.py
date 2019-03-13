@@ -94,6 +94,7 @@ class AppConfiguration(db.Model):
     external_load_balancer = db.Column(db.Boolean())
     cache_host = db.Column(db.String(50))
     cache_ip = db.Column(db.String(50))
+    install_redis = db.Column(db.Boolean())
     use_ldap_cache = db.Column(db.Boolean())
     nginx_os_type = db.Column(db.String(10))
     ldap_update_period_unit = db.Column(db.String(1), default='s')

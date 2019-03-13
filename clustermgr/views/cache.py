@@ -8,13 +8,14 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
 from flask_login import login_required
 
 from clustermgr.models import Server, AppConfiguration
-from clustermgr.tasks.cache import get_cache_methods, install_cache_components, \
-    configure_cache_cluster, restart_services
+from clustermgr.tasks.cache import install_cache_cluster
+
+
 from ..core.license import license_reminder
 from ..core.license import prompt_license
 from ..core.license import license_required
 from clustermgr.core.remote import RemoteClient
-from clustermgr.core.utils import get_redis_config
+from clustermgr.core.utils import get_redis_config, get_cache_servers
 from clustermgr.forms import CacheSettingsForm
 
 cache_mgr = Blueprint('cache_mgr', __name__, template_folder='templates')
@@ -65,11 +66,6 @@ def index():
     if result[0]:
         installed_servers = get_redis_config(result[1])
     
-    for server in servers:
-        if server.ip in installed_servers:
-            server.redis = True
-        else:
-            server.redis = False
 
     version = int(appconf.gluu_version.replace(".", ""))
     if version < 311:
@@ -79,16 +75,13 @@ def index():
 
     form = CacheSettingsForm()
 
-    return render_template('cache_index.html', servers=servers, form=form)
+    cache_servers = get_cache_servers()
 
-
-@cache_mgr.route('/refresh_methods')
-@login_required
-def refresh_methods():
-    task = get_cache_methods.delay()
-    return jsonify({'task_id': task.id})
-
-
+    return render_template('cache_index.html', 
+                           servers=servers, 
+                           form=form,
+                           cache_servers=cache_servers,
+                           )
 
 
 def get_servers_and_list():
@@ -103,83 +96,27 @@ def get_servers_and_list():
     
     return servers, server_id_list, server_id
 
-@cache_mgr.route('/change/', methods=['GET', 'POST'])
+@cache_mgr.route('/install/', methods=['GET', 'POST'])
 @login_required
-def change():
-    servers, server_id_list, server_id = get_servers_and_list()
-    
-    method = 'STANDALONE'
+def install():
+
+    cache_servers = get_cache_servers()
+    servers = Server.query.all()
 
     if not servers:
         return redirect(url_for('cache_mgr.index'))
+
+
+    task = install_cache_cluster.delay()
     
-    task = install_cache_components.delay(method, server_id_list)
     
-    return render_template( 'cache_logger.html', 
-                            method=method,
+    
+    return render_template( 'cache_install_logger.html',
+                            servers=cache_servers+servers,
                             step=1,
                             task_id=task.id,
-                            servers=servers, 
-                            server_id=server_id
                            )
 
-
-@cache_mgr.route('/configure/<method>/')
-@login_required
-def configure(method):
-
-    servers, server_id_list, server_id = get_servers_and_list()
-
-    task = configure_cache_cluster.delay(method, server_id_list)
-
-
-
-    return render_template( 'cache_logger.html', 
-                            method=method, 
-                            servers=servers,
-                            server_id=server_id,
-                            step=2, 
-                            task_id=task.id)
-
-
-@cache_mgr.route('/finish_clustering/<method>/')
-@login_required
-def finish_clustering(method):
-    
-    server_id = request.args.get('id')
-
-    if server_id:
-        servers = []
-        qserver = Server.query.filter(
-                                    Server.redis.is_(True)
-                                ).filter(
-                                    Server.stunnel.is_(True)
-                                ).filter(
-                                    Server.id.is_(int(server_id))
-                                ).first()
-        
-        if qserver:
-            servers.append(qserver)
-    else:
-
-        servers = Server.query.filter(
-                                    Server.redis.is_(True)
-                                ).filter(
-                                    Server.stunnel.is_(True)
-                                ).all()
-
-
-    server_id_list = [ s.id for s in servers ]
-    
-    
-    task = restart_services.delay(method, server_id_list)
-    
-    return render_template( 'cache_logger.html', 
-                            servers=servers, 
-                            step=3,
-                            server_id=server_id,
-                            task_id=task.id
-                           )
 
 @cache_mgr.route('/status/')
 @login_required
@@ -190,28 +127,46 @@ def get_status():
     
     check_cmd = 'python -c "import socket;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);print s.connect_ex((\'{0}\', {1}))"'
     
-    for server in servers:
-        r = os.popen3(check_cmd.format(server.ip, 7777))
-        stat = r[1].read().strip()
-        if stat == '0':
-            status['stunnel'][server.id]=True
-        else:
-            status['stunnel'][server.id]=False
-            
+    cache_servers = get_cache_servers()
+    
+    for server in servers + cache_servers:
+        key = server.ip.replace('.','_')
+
         c = RemoteClient(host=server.hostname, ip=server.ip)
         try:
             c.startup()
         except:
-            status['stunnel'][server.id] = False
-            
-        r = c.run(check_cmd.format('localhost', 6379))
-        stat = r[1].strip()
-
-        if stat == '0':
-            status['redis'][server.id]=True
+            status['stunnel'][key] = False
+            status['redis'][key] = False
         else:
-            status['redis'][server.id]=False
-        
-            
+
+            if server in cache_servers:
+                r = c.run(check_cmd.format('localhost', 6379))
+                stat = r[1].strip()
+                
+                if stat == '0':
+                    status['redis'][key]=True
+                else:
+                    status['redis'][key]=False
+
+                r = c.run(check_cmd.format(server.ip, 8000))
+                stat = r[1].strip()
+
+                if stat == '0':
+                    status['stunnel'][key]=True
+                else:
+                    status['stunnel'][key]=False
+
+            else:
+                r = c.run(check_cmd.format('localhost', 8000))
+                stat = r[1].strip()
+
+                if stat == '0':
+                    status['stunnel'][key]=True
+                else:
+                    status['stunnel'][key]=False
+
+        c.close()
+    
     return jsonify(status)
 

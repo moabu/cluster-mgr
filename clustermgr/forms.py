@@ -12,6 +12,7 @@ from flask_wtf.file import FileField, FileRequired, FileAllowed
 
 class AppConfigForm(FlaskForm):
     versions = [
+                '3.1.6',
                 '3.1.5', 
                 '3.1.4', 
                 '3.1.3.1',
@@ -66,8 +67,8 @@ class AppConfigForm(FlaskForm):
     external_load_balancer = BooleanField('This is an external load balancer')
 
     cache_host = StringField('Cache Proxy Hostname', validators=[DataRequired()])
-
     cache_ip = StringField('Cache Proxy IP Address', validators=[DataRequired()])
+    install_redis = BooleanField('Install Redis + Stunnel', default=True)
 
     use_ldap_cache = BooleanField('Use LDAP Cache')
 
@@ -191,9 +192,9 @@ class InstallServerForm(FlaskForm):
         "Ldap Type",
         choices=[
             ("opendj", "OpenDJ",),
-            # ("openldap", "OpenLDAP")
+            #("wrends", "Gluu WrenDS")
         ],
-        validators=[AnyOf(["opendj", "openldap"])],
+        validators=[AnyOf(["opendj", "wrends"])],
         default='opendj'
     )
 

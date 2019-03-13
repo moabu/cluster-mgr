@@ -360,8 +360,11 @@ def install_gluu(server_id):
                   ):
             setup_prop[o] = getattr(form, o).data
 
-        write_setup_properties_file(setup_prop)
+        #if setup_prop['ldap_type'] == 'wrends':
+        #    setup_prop['ldap_type'] = 'opendj'
+        #    setup_prop['opendj_type'] = 'wrends'
 
+        write_setup_properties_file(setup_prop)
 
         # Redirect to cluster.install_gluu_server to start installation.
         
@@ -519,60 +522,6 @@ def confirm_setup_properties(server_id):
                         keys = keys,
                     )
 
-
-
-@server_view.route('/editslapdconf/<int:server_id>/', methods=['GET', 'POST'])
-@login_required
-def edit_slapd_conf(server_id):
-    """This view  provides editing of slapd.conf file before depoloyments."""
-
-    server = Server.query.get(server_id)
-    appconf = AppConfiguration.query.first()
-
-    # If there is no server with server_id return to home
-    if not server:
-        flash("No such server.", "warning")
-        return redirect(url_for('index.home'))
-
-    if not server.gluu_server:
-        chroot = '/'
-    else:
-        chroot = '/opt/gluu-server-' + appconf.gluu_version
-
-    # slapd.conf file will be downloaded from server. Make ssh connection
-    # and download it
-    c = RemoteClient(server.hostname, ip=server.ip)
-    try:
-        c.startup()
-    except ClientNotSetupException as e:
-        flash(str(e), "danger")
-        return redirect(url_for('index.home'))
-
-    slapd_conf_file = os.path.join(chroot, 'opt/symas/etc/openldap/slapd.conf')
-
-    if request.method == 'POST':
-
-        config = request.form.get('conf')
-        r = c.put_file(slapd_conf_file, config)
-        if not r[0]:
-            flash("Cant' saved to server: {0}".format(r[1]), "danger")
-        else:
-            flash('File {0} was saved on {1}'.format(slapd_conf_file,
-                                                     server.hostname))
-            return redirect(url_for('index.home'))
-
-    # After editing, slapd.conf file will be uploaded to server via ssh
-    r = c.get_file(slapd_conf_file)
-
-    if not r[0]:
-        flash("Cant't get file {0}: {1}".format(slapd_conf_file, r[1]),
-              "success")
-        return redirect(url_for('index.home'))
-
-    config = r[1].read()
-
-    return render_template('conf_editor.html', config=config,
-                           hostname=server.hostname)
 
 @server_view.route('/ldapstat/<int:server_id>/')
 def get_ldap_stat(server_id):
