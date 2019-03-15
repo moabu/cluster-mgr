@@ -1,6 +1,6 @@
 from datetime import datetime
 from datetime import timedelta
-
+from sqlalchemy.schema import Sequence
 from clustermgr.extensions import db
 
 
@@ -92,9 +92,7 @@ class AppConfiguration(db.Model):
     attribute_oid = db.Column(db.Integer, default=100)
     
     external_load_balancer = db.Column(db.Boolean())
-    cache_host = db.Column(db.String(50))
-    cache_ip = db.Column(db.String(50))
-    install_redis = db.Column(db.Boolean())
+    
     use_ldap_cache = db.Column(db.Boolean())
     nginx_os_type = db.Column(db.String(10))
     ldap_update_period_unit = db.Column(db.String(1), default='s')
@@ -170,3 +168,23 @@ class LoggingServer(db.Model):
 
     # # encrypted password; need to decrypt it before using the value
     # mq_password = db.Column(db.String(255))
+
+
+class CacheServer(db.Model):
+    __tablename__ = "cache_server"
+    id = db.Column(db.Integer, primary_key=True)
+    hostname = db.Column(db.String(250))
+    ip = db.Column(db.String(45))
+    install_redis = db.Column(db.Boolean, default=True)
+
+    def __repr__(self):
+        return '<Cache Server {} {}>'.format(self.id, self.hostname)
+
+
+@db.event.listens_for(CacheServer, 'before_insert')
+def do_stuff(mapper, connect, target):
+    last_entry = CacheServer.query.order_by(CacheServer.id.desc()).first()
+    if last_entry:
+        target.id = last_entry.id + 1
+    else:
+        target.id = 1000

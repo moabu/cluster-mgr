@@ -275,7 +275,7 @@ def install_cache_cluster(self):
                                 '[redis-server]\n'
                                 'cert = /etc/stunnel/redis-server.crt\n'
                                 'key = /etc/stunnel/redis-server.key\n'
-                                'accept = {0}:8000\n'
+                                'accept = {0}:16379\n'
                                 'connect = 127.0.0.1:6379\n'
                                 ).format(server.ip)
             
@@ -333,8 +333,8 @@ def install_cache_cluster(self):
                             'pid = /run/stunnel-redis.pid\n'
                             '[redis-client]\n'
                             'client = yes\n'
-                            'accept = 127.0.0.1:8000\n'
-                            'connect = {0}:8000\n'
+                            'accept = 127.0.0.1:16379\n'
+                            'connect = {0}:16379\n'
                             'CAfile = /etc/stunnel/redis-server.crt\n'
                             'verify = 4\n'
                             ).format(primary_cache)
@@ -354,7 +354,7 @@ def install_cache_cluster(self):
         si.run_sysctl('restart')
 
         if server.primary_server:
-            __update_LDAP_cache_method(tid, server, 'localhost:8000')
+            __update_LDAP_cache_method(tid, server, 'localhost:16379')
         
 
         wlogger.log(tid, "Restarting Gluu Server", "info",

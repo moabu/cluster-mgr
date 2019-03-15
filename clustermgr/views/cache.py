@@ -16,7 +16,10 @@ from ..core.license import prompt_license
 from ..core.license import license_required
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.utils import get_redis_config, get_cache_servers
-from clustermgr.forms import CacheSettingsForm
+from clustermgr.forms import CacheSettingsForm, cacheServerForm
+
+from clustermgr.models import db, CacheServer
+
 
 cache_mgr = Blueprint('cache_mgr', __name__, template_folder='templates')
 cache_mgr.before_request(prompt_license)
@@ -29,9 +32,7 @@ cache_mgr.before_request(license_reminder)
 def index():
     servers = Server.query.all()
     appconf = AppConfiguration.query.first()
-    
 
-    
     if not appconf:
         flash("The application needs to be configured first. Kindly set the "
               "values before attempting clustering.", "warning")
@@ -49,8 +50,6 @@ def index():
     else:
         c_host = appconf.nginx_host
         c_ip = appconf.nginx_ip
-        
-
 
     c = RemoteClient(host=c_host, ip=c_ip)
     
@@ -117,6 +116,44 @@ def install():
                             task_id=task.id,
                            )
 
+@cache_mgr.route('/addcacheserver/', methods=['GET', 'POST'])
+@login_required
+def add_cache_server():
+    cid = request.args.get('cid', type=int)
+
+    if cid:
+        cacheserver = CacheServer.query.get(cid)
+        if not cacheserver:
+            return "<h2>No such Cache Server</h2>"
+
+        form = cacheServerForm(obj=cacheserver)
+    else:
+        form = cacheServerForm()
+    
+    if request.method == "POST" and form.validate_on_submit():
+        hostname = form.hostname.data
+        ip = form.ip.data
+        install_redis = form.install_redis.data
+        
+        print (form.install_redis.data)
+        
+        if not cid:
+            cacheserver = CacheServer()
+            db.session.add(cacheserver)
+
+        cacheserver.hostname = hostname
+        cacheserver.ip = ip
+        cacheserver.install_redis = install_redis
+        
+        db.session.commit()
+        if cid:
+            flash("Cache server was added","success")
+        else:
+            flash("Cache server was updated","success")
+
+        return jsonify( {"result": True, "message": "Cache server was added"})
+    
+    return render_template( 'cache_server.html', form=form)
 
 @cache_mgr.route('/status/')
 @login_required
@@ -149,7 +186,7 @@ def get_status():
                 else:
                     status['redis'][key]=False
 
-                r = c.run(check_cmd.format(server.ip, 8000))
+                r = c.run(check_cmd.format(server.ip, 16379))
                 stat = r[1].strip()
 
                 if stat == '0':
@@ -158,7 +195,7 @@ def get_status():
                     status['stunnel'][key]=False
 
             else:
-                r = c.run(check_cmd.format('localhost', 8000))
+                r = c.run(check_cmd.format('localhost', 16379))
                 stat = r[1].strip()
 
                 if stat == '0':

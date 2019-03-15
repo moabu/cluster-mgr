@@ -35,18 +35,6 @@ class AppConfigForm(FlaskForm):
 
     nginx_ip = StringField('Load Balancer IP Address', validators=[DataRequired()])
     
-    
-
-    # purge_age_day = SelectField(choices=[(str(d), str(d)) for d in range(0, 31)])
-    # purge_age_hour = SelectField(choices=[(str(h), str(h)) for h in range(0, 25)], default="24")
-    # purge_age_min = SelectField(choices=[(str(m), str(m)) for m in range(0, 60)])
-
-    # purge_interval_day = SelectField(choices=[(str(d), str(d)) for d in range(0, 31)], default="1")
-    # purge_interval_hour = SelectField(choices=[(str(h), str(h)) for h in range(0, 25)])
-    # purge_interval_min = SelectField(choices=[(str(m), str(m)) for m in range(0, 60)])
-
-    # admin_email = StringField("Admin Email", validators=[Optional(), Email("Please enter valid email address")])
-
 
     ldap_update_period = SelectField('Service Liveness Status Polling Period',
             choices=[
@@ -66,9 +54,6 @@ class AppConfigForm(FlaskForm):
 
     external_load_balancer = BooleanField('This is an external load balancer')
 
-    cache_host = StringField('Cache Proxy Hostname', validators=[DataRequired()])
-    cache_ip = StringField('Cache Proxy IP Address', validators=[DataRequired()])
-    install_redis = BooleanField('Install Redis + Stunnel', default=True)
 
     use_ldap_cache = BooleanField('Use LDAP Cache')
 
@@ -350,3 +335,9 @@ class httpdCertificatesForm(FlaskForm):
     httpd_key = TextAreaField('Key')
     httpd_crt = TextAreaField('Crt')
     submit = SubmitField("Submit")
+
+
+class cacheServerForm(FlaskForm):
+    hostname = StringField("Cache Server Hostname", validators=[DataRequired()])
+    ip = StringField("Cache Server IP Address", validators=[DataRequired(), IPAddress()])
+    install_redis = BooleanField("Install Redis and stunnel", default=True)

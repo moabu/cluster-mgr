@@ -13,7 +13,7 @@
 
 
 
-<div class="panel panel-primary">
+<div class="panel panel-info">
   <div class="panel-heading">Gluu Servers</div>
     <div class="panel-body">
       <table class="table table-bordered table-hover">
@@ -55,6 +55,7 @@
             <th>IP Address</th>
             <th class="text-center">Redis Status</th>
             <th class="text-center">Stunnel Status</th>
+            <th class="text-center"></th>
           </tr>
         </thead>
         <tbody>
@@ -64,7 +65,10 @@
             <td class="ip">{{server.ip}}</td>
             <td align="center"> <span class="badge" id="redisstat-{{server.ip.replace('.','_')}}"></span> </td>
             <td align="center"> <span class="badge" id="stunnelstat-{{server.ip.replace('.','_')}}"></span> </td>
-            
+            <td align="center">
+                <a href="#" class="btn btn-danger btn-sm"><span class="glyphicon glyphicon-trash"></span> Delete  </a>&nbsp;&nbsp;&nbsp;&nbsp;
+                <a href="#" class="btn btn-primary btn-sm" onClick="editCacheServer({{server.id}})"><span class="glyphicon glyphicon-edit"></span> Edit  </a> 
+            </td>
           </tr>
           {% endfor %}
         </tbody>
@@ -74,56 +78,106 @@
     </div>
 </div>
 
+<input type="submit" class="btn btn-success pull-right" style="width: 20%" value="Setup Cache">
 
-<input type="submit" class="btn btn-success btn-block" value="Setup Cache">
+{% else %}
+
+<a href="#" class="btn btn-primary" id="add-cache-server" style="width: 20%">Add Cache Server</a>
 
 {% endif %}
+
+
+
 </form>
 
-
-<div class="row">
-<div class="col-md-8">
-<div id="cacheSettingsPanel" class="panel panel-warning" style="display: none">
-    <div class="panel-heading">Cache Settings</div>
-    <div class="panel-body">
- 
-    <form class="form-horizontal" action="">
-
-        <div class="form-group {{ 'has-error' if form.redis_port.errors else '' }}">
-          
-          {{ form.redis_port.label(class="control-label col-sm-2") }}
-          
-          <div class="col-sm-10">
-            
-            
-            {{ form.redis_port(class="form-control") }}
-            {% for error in form.redis_port.errors %}
-                <p class="help-block">{{ error }}</p>
-            {% endfor %}
-            
-          </div>
-        </div>
+</div>
 
 
-        <div class="form-group">        
-          <div class="col-sm-offset-2 col-sm-10">
-            <button type="submit" class="btn btn-default">Submit</button>
-          </div>
-        </div>
+
+<!-- Add Cache Server Modal Begin-->
+<div id="cacheServerModal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+  <form class="form-horizontal" id="form" action="{{ url_for('cache_mgr.add_cache_server') }}" method="POST">
+
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title" id="modal-title">Add New Cache Server</h4>
+      </div>
+      <div class="modal-body" id="cache-modal-body">
+
+
+        <p>Loading ...</p>
+        
+        
+      </div>
+      <div class="modal-footer">
+        <a href="#" class="btn btn-default" data-dismiss="modal">Close</a> <a href="#" class="btn btn-primary" id="cache-add-button">Ok</a>
+      </div>
+    </div>
     
-    </form>
- 
+  </form>
+ </div>
 </div>
+<!-- Add Cache Server Modal End-->
 
-  
-</div>
-</div>
 
 {% endblock %}
 
 
 {% block js %}
 <script>
+
+var cacheServerId;
+
+$("#add-cache-server").click(function(e){
+
+$('#cache-modal-body').html('<p>Loading ...</p>')
+  e.preventDefault();
+  $("#cache-add-button").show();
+  $('#cacheServerModal').modal('show').find('.modal-body').load("{{request.host_url}}{{url_for('cache_mgr.add_cache_server')[1:]}}");
+
+});
+
+
+function editCacheServer(cid) {
+  $("#cache-add-button").show();
+  
+  cacheServerId=cid;
+    
+  $('#cacheServerModal').modal('show').find('.modal-body').load("{{request.host_url}}{{url_for('cache_mgr.add_cache_server')[1:]}}?cid="+cacheServerId);
+    
+    
+    }
+
+$("#cache-add-button").click(function(e){
+  e.preventDefault();
+  
+  hostname = $("#hostname").val();
+  ip = $("#ip").val();
+  install_redis = $("#install_redis").is(':checked');
+  
+  csrf_token = $("#csrf_token").val();
+  $.post("{{request.host_url}}{{url_for('cache_mgr.add_cache_server')[1:]}}?cid="+cacheServerId, 
+            {hostname: hostname, ip: ip, 
+             install_redis: install_redis,
+             csrf_token: csrf_token
+            },
+            function(result, status, xhr){
+                
+                if (xhr.getResponseHeader('Content-Type') !== 'application/json') {
+                    $("#cache-modal-body").html(result);
+                } else {
+                    //$("#cache-modal-body").html(result["message"]);
+                    //$("#cache-add-button").hide();
+                    window.location.reload(true);
+                    
+                    }
+  });
+  
+
+
+});
 
 
 function cacheStat() {

@@ -32,7 +32,7 @@ setup(
         "flask-wtf",
         "celery",
         "flask-sqlalchemy",
-        "redis<3.0.0",
+        "redis==3.2.0",
         "requests>=2.20.0",
         "flask-migrate",
         "ldap3",

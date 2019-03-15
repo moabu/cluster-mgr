@@ -17,7 +17,7 @@ from cryptography.hazmat.backends import default_backend
 from clustermgr.config import Config
 
 from clustermgr.core.remote import RemoteClient
-from clustermgr.models import Server, AppConfiguration
+from clustermgr.models import Server, AppConfiguration, CacheServer
 from clustermgr.extensions import wlogger
 from flask import current_app as app
 
@@ -556,16 +556,7 @@ def make_nginx_proxy_conf(exception=None):
 
 def get_cache_servers():
     
-    appconf = AppConfiguration.query.first()
-    
-    cache_servers = []
+    cache_servers = CacheServer.query.all()
 
-    if not appconf.use_ldap_cache and appconf.install_redis:
-
-        mock_server = Server()
-        mock_server.hostname = appconf.cache_host
-        mock_server.ip = appconf.cache_ip
-        mock_server.id = 1001
-        cache_servers.append(mock_server)
 
     return cache_servers

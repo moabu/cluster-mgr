@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
-from time import strftime
+from time import strftime, sleep
 import json
 
 from flask import Blueprint, render_template, redirect, url_for, flash, \
@@ -161,16 +161,8 @@ def app_configuration():
             conf_form.replication_pw.validators = []
             conf_form.replication_pw_confirm.validators = []
             
-        if not conf_form.external_load_balancer.data:
-            conf_form.cache_host.validators = []
-            conf_form.cache_ip.validators= []
-        else:
-            #external_lb_checked = True
+        if conf_form.external_load_balancer.data:
             conf_form.nginx_ip.validators= []
-        if  conf_form.use_ldap_cache.data:
-            conf_form.cache_host.validators = []
-            conf_form.cache_ip.validators= []
-
 
 
     if not config:
@@ -233,20 +225,7 @@ def app_configuration():
         config.external_load_balancer = conf_form.external_load_balancer.data
         config.use_ldap_cache = conf_form.use_ldap_cache.data
 
-        if conf_form.external_load_balancer.data or not conf_form.use_ldap_cache.data:
-            config.cache_host = conf_form.cache_host.data.strip()
-            config.cache_ip = conf_form.cache_ip.data.strip()
-            config.install_redis = conf_form.install_redis.data
-            
-            print "Redis data", config.install_redis, conf_form.install_redis.data
-            
-        else:
-            config.cache_host = None
-            config.cache_ip = None
-            conf_form.cache_host.data = ''
-            conf_form.cache_ip.data = ''
-            
-    
+
         if getattr(conf_form, 'replication_pw'):
             if conf_form.replication_pw_confirm.data:
                 config.replication_pw = conf_form.replication_pw.data.strip()
@@ -258,8 +237,6 @@ def app_configuration():
         flash("Gluu Replication Manager application configuration has been "
               "updated.", "success")
 
-        if request.args.get('next'):
-            return redirect(request.args.get('next'))
 
     elif sch_form.upload.data and sch_form.validate_on_submit():
         f = sch_form.schema.data
@@ -276,20 +253,13 @@ def app_configuration():
               "success")
 
     # request.method == GET gets processed here
-    if config: #and config.replication_dn:
-        #conf_form.replication_dn.data = config.replication_dn.replace(
-        #    "cn=", "").replace(",o=gluu", "")
-        #conf_form.replication_pw.data = config.replication_pw
+    if config:
         conf_form.nginx_host.data = config.nginx_host
         conf_form.modify_hosts.data = config.modify_hosts
         conf_form.nginx_ip.data = config.nginx_ip
         conf_form.external_load_balancer.data = config.external_load_balancer
         conf_form.use_ldap_cache.data = config.use_ldap_cache
-        
-        if config.external_load_balancer or not conf_form.use_ldap_cache.data:
-            conf_form.cache_host.data = config.cache_host
-            conf_form.cache_ip.data = config.cache_ip
-        
+
         
         service_status_update_period = config.ldap_update_period
         
@@ -311,6 +281,8 @@ def app_configuration():
     #Getermine local OS type
     localos= get_os_type(fc)
 
+
+    app.jinja_env.globals['use_ldap_cache'] = config.use_ldap_cache
 
     return render_template('app_config.html', cform=conf_form, sform=sch_form,
                         config=config, schemafiles=schemafiles, localos=localos,
@@ -452,46 +424,6 @@ def get_log(task_id):
 
     return jsonify(log)
 
-
-@index.route('/install_ldapserver', methods=['GET', 'POST'])
-def install_ldap_server():
-    """This view provides installing non-gluu ldap server - depreceated"""
-    if 'nongluuldapinfo' in session:
-        del session['nongluuldapinfo']
-    form = InstallServerForm()
-
-    data = {'title': 'Install Symas Open-Ldap Server',
-            'button': 'Install',
-            }
-
-    if request.method == 'POST':
-        if form.validate_on_submit():
-            ldp = Server.query.filter(
-                Server.hostname == form.hostname.data).first()
-            if ldp:
-                flash("{0} is already in LDAP servers List".format(
-                    form.hostname.data), "warning")
-                return render_template('new_server.html', form=form,
-                                       data=data)
-
-            session['nongluuldapinfo'] = {
-                'fqn_hostname': form.hostname.data.strip(),
-                'ip_address': form.ip_address.data.strip(),
-                'ldap_password': form.ldap_password.data.strip(),
-                'ldap_user': 'ldap',
-                'ldap_group': 'ldap',
-                'countryCode': form.countryCode.data.strip(),
-                'state': form.state.data.strip(),
-                'city': form.city.data.strip(),
-                'orgName': form.orgName.data.strip(),
-                'admin_email': form.admin_email.data.strip(),
-            }
-
-            return redirect(url_for('cluster.install_ldap_server'))
-
-    return render_template('new_server.html', form=form, data=data)
-
-
 @index.route('/mmr/')
 def multi_master_replication():
     """Multi Master Replication view for OpenLDAP"""
@@ -513,183 +445,19 @@ def multi_master_replication():
         return redirect(url_for('index.home'))
 
 
-    ldap_errors = []
 
-    prop = get_setup_properties()
+    rep_status = get_opendj_replication_status()
 
-    if prop['ldap_type'] == 'openldap':
-
-        serverStats = {}
-
-        # Collect replication information for all configured servers
-        for ldp in ldaps:
-
-            s = LdapOLC(
-                "ldaps://{0}:1636".format(ldp.hostname), "cn=config",
-                ldp.ldap_password)
-            r = None
-            try:
-                r = s.connect()
-            except Exception as e:
-                ldap_errors.append(
-                    "Connection to LDAPserver {0} at port 1636 was failed:"
-                    " {1}".format(ldp.hostname, e))
-
-            if r:
-                sstat = s.getMMRStatus()
-                if sstat['server_id']:
-                    serverStats[ldp.hostname] = sstat
-
-        # If there is no ldap server, return to home
-        if not ldaps:
-            flash("Please add ldap servers.", "warning")
-            return redirect(url_for('index.home'))
-
-        return render_template('multi_master.html',
-                               ldapservers=ldaps,
-                               serverStats=serverStats,
-                               ldap_errors=ldap_errors,
-                               replication_status = sstat[primary_server.id],
-                               )
-
+    stat = ''
+    if not rep_status[0]:
+        flash(rep_status[1], "warning")
     else:
-
-        rep_status = get_opendj_replication_status()
-
-        stat = ''
-        if not rep_status[0]:
-            flash(rep_status[1], "warning")
-        else:
-            stat = rep_status[1]
-        return render_template('opendjmmr.html',
-                               servers=ldaps,
-                               stat = stat,
-                               app_conf=app_config,
-                               )
-
-
-@index.route('/addtestuser/<int:server_id>', methods=['GET', 'POST'])
-def add_test_user(server_id):
-    """This view provides adding test user UI"""
-
-    server = Server.query.get(server_id)
-
-    form = TestUser()
-    header = 'Add Test User [{0}]'.format(server.hostname)
-
-    # If form is submitted and validated, add user to specified server_id
-    if form.validate_on_submit():
-        # Make ldap connection
-        ldp = getLdapConn(server.hostname, "cn=directory manager,o=gluu",
-                          server.ldap_password)
-
-        # If connection was established try to add test user
-        if ldp:
-            if ldp.addTestUser(form.first_name.data.strip(), form.last_name.data.strip(),
-                               form.email.data.strip()):
-                flash("Test User {0} {1} to {2} was sucessfuly added.".format(
-                    form.first_name.data.strip(), form.last_name.data.strip(),
-                    server.hostname.strip()), "success")
-            else:
-                flash("Adding user failed: {0}".format(
-                    ldp.conn.result['description']), "warning")
-
-            return redirect(url_for('index.multi_master_replication'))
-
-    return render_template('new_server.html', form=form, header=header)
-
-
-@index.route('/searchtestusers/<int:server_id>')
-def search_test_users(server_id):
-    """This view provides searcing test user UI. Searched user on server
-    identified by server_id and displays within table"""
-
-    print "SERVER ID", server_id
-    server = Server.query.get(server_id)
-
-    users = []
-
-    # Make ldap connection
-    ldp = getLdapConn(server.hostname,
-                      "cn=directory manager,o=gluu", server.ldap_password)
-
-    # If connection was established try to display test users
-    if ldp:
-
-        if not ldp.searchTestUsers():
-            flash("Searching user failed: {0}".format(
-                ldp.conn.result['description']), "danger")
-        else:
-            users = ldp.conn.response
-            for user in users:
-                host = user['dn'].split('@')[1].split(',')[0]
-                user['host'] = host
-
-    if users:
-        st = '{0}({1})'.format(server.hostname, len(users))
-        return render_template('test_users.html', server_id=server_id,
-                               server=st, users=users)
-
-    return redirect(url_for('index.multi_master_replication'))
-
-
-@index.route('/deletetestuser/<server_id>/<dn>')
-def delete_test_user(server_id, dn):
-    """This view delates test user"""
-    server = Server.query.get(server_id)
-
-    # Make ldap connection
-    ldp = getLdapConn(server.hostname,
-                      "cn=directory manager,o=gluu", server.ldap_password)
-
-    # If connection was established try to delete test user
-    if ldp:
-        if ldp.delDn(dn):
-            flash("Test User form {0} was deleted".format(
-                server.hostname), "success")
-        else:
-            flash("Test User deletation failed: {0}".format(
-                ldp.conn.result['description']), "danger")
-
-    return redirect(url_for('index.search_test_users', server_id=server_id))
-
-
-@index.route('/addprovidertocustomer/<int:consumer_id>/<int:provider_id>')
-def add_provider_to_consumer(consumer_id, provider_id):
-    """This view adds provider to consumer"""
-    server = Server.query.get(consumer_id)
-
-    app_config = AppConfiguration.query.first()
-
-    # Make ldap connection
-    ldp = getLdapConn(server.hostname, "cn=config", server.ldap_password)
-
-    # If connection was established try to add provider
-    if ldp:
-        provider = Server.query.get(provider_id)
-
-        if app_config.use_ip:
-            p_addr = provider.ip
-        else:
-            p_addr = provider.hostname
-
-        status = ldp.add_provider(
-            provider.id, "ldaps://{0}:1636".format(p_addr),
-            app_config.replication_dn, app_config.replication_pw)
-
-        if status:
-            flash("Provider {0} was added to {1}".format(
-                provider.hostname, server.hostname), "success")
-        else:
-            flash("Adding provider {0} to {1} was failed: {2}".format(
-                provider.hostname, server.hostname,
-                ldp.conn.result['description']), "danger")
-
-        if not ldp.checkMirroMode():
-            ldp.makeMirroMode()
-
-    return redirect(url_for('index.multi_master_replication'))
-
+        stat = rep_status[1]
+    return render_template('opendjmmr.html',
+                           servers=ldaps,
+                           stat = stat,
+                           app_conf=app_config,
+                            )
 
 @index.route('/removecustomschema/<schema_file>')
 def remove_custom_schema(schema_file):
