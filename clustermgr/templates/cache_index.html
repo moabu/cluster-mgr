@@ -102,7 +102,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <button type="button" class="close" data-dismiss="modal">&times;</button>
-        <h4 class="modal-title" id="modal-title">Add New Cache Server</h4>
+        <h4 class="modal-title" id="modal-title">Cache Server Details</h4>
       </div>
       <div class="modal-body" id="cache-modal-body">
 
@@ -168,8 +168,6 @@ $("#cache-add-button").click(function(e){
                 if (xhr.getResponseHeader('Content-Type') !== 'application/json') {
                     $("#cache-modal-body").html(result);
                 } else {
-                    //$("#cache-modal-body").html(result["message"]);
-                    //$("#cache-add-button").hide();
                     window.location.reload(true);
                     
                     }

@@ -113,24 +113,19 @@ class RedisInstaller(BaseInstaller):
                     'yum clean all',
                     'yum install -y redis'
                     )
+    
+        err = ''
         
         for install_cmd in cmd_list:
 
             cin, cout, cerr = self.run_command(install_cmd)
             wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
-
-
-        if self.server.os in ('CentOS 6','RHEL 6'):
-            cin, cout, cerr = self.run_command("chkconfig --add redis")
-            wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
             
-            cin, cout, cerr = self.run_command("chkconfig --level 345 redis on")
-            wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
-        else:
-            cin, cout, cerr = self.run_command("systemctl enable redis")
-            wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
-        
+            if cerr:
+                wlogger.log(self.tid, cerr, "error", server_id=self.server.id)
+
         return True
+
 
     def run_sysctl(self, command):
         if self.os_type == 'deb':
