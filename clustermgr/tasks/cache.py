@@ -89,7 +89,16 @@ class RedisInstaller(BaseInstaller):
     `BaseInstaller` for docs.
     """
 
+    def check_installed(self):
+        if self.rc.exists('/usr/bin/redis-server'):
+            wlogger.log(self.tid, "Redis Server was already installed.", "debug", server_id=self.server.id)
+            return True
+
     def install_in_ubuntu(self):
+        
+        if self.check_installed():
+            return True
+        
         self.run_command("apt-get update")
 
         cmd_list = [
@@ -106,9 +115,12 @@ class RedisInstaller(BaseInstaller):
         
         return True
 
+
     def install_in_centos(self):
-        # To automatically start redis on boot
         
+        if self.check_installed():
+            return True
+                
         cmd_list = ('yum install epel-release -y',
                     'yum clean all',
                     'yum install -y redis'
