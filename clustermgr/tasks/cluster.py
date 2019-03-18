@@ -292,6 +292,17 @@ def setup_filesystem_replication(self):
         c = RemoteClient(server.hostname, ip=server.ip)
         c.startup()
         
+        if app_config.offline:
+            if not c.exists(os.path.join(chroot, 'usr/sbin/csync2')):
+                wlogger.log(
+                    tid, 
+                    'csync2 was not installed. Please install csync2 and retry.', 
+                    'error',
+                    server_id=server.id
+                )
+                return False
+        
+        
         modify_hosts(tid, c, cysnc_hosts, chroot=chroot, server_id=server.id)
 
         run_cmd = "{}"
