@@ -291,9 +291,14 @@ def setup_filesystem_replication(self):
         
         c = RemoteClient(server.hostname, ip=server.ip)
         c.startup()
-        
-        if app_config.offline:
-            if not c.exists(os.path.join(chroot, 'usr/sbin/csync2')):
+
+        modify_hosts(tid, c, cysnc_hosts, chroot=chroot, server_id=server.id)
+
+
+        if not c.exists(os.path.join(chroot, 'usr/sbin/csync2')):
+
+            if app_config.offline:
+            
                 wlogger.log(
                     tid, 
                     'csync2 was not installed. Please install csync2 and retry.', 
@@ -301,72 +306,70 @@ def setup_filesystem_replication(self):
                     server_id=server.id
                 )
                 return False
-        
-        
-        modify_hosts(tid, c, cysnc_hosts, chroot=chroot, server_id=server.id)
+        else:
+       
+            run_cmd = "{}"
+            cmd_chroot = chroot
 
-        run_cmd = "{}"
-        cmd_chroot = chroot
+            if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+                cmd_chroot = None
+                run_cmd = ("ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o "
+                    "Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no "
+                    "-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes "
+                    "root@localhost '{}'")
 
-        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-            cmd_chroot = None
-            run_cmd = ("ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o "
-                "Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no "
-                "-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes "
-                "root@localhost '{}'")
+            if 'Ubuntu' in server.os:
+                cmd = 'localedef -i en_US -f UTF-8 en_US.UTF-8'
+                run_command(tid, c, cmd, chroot, server_id=server.id)
 
-        if 'Ubuntu' in server.os:
-            cmd = 'localedef -i en_US -f UTF-8 en_US.UTF-8'
-            run_command(tid, c, cmd, chroot, server_id=server.id)
+                cmd = 'locale-gen en_US.UTF-8'
+                run_command(tid, c, cmd, chroot, server_id=server.id)
 
-            cmd = 'locale-gen en_US.UTF-8'
-            run_command(tid, c, cmd, chroot, server_id=server.id)
+                install_command = 'DEBIAN_FRONTEND=noninteractive apt-get'
 
-            install_command = 'DEBIAN_FRONTEND=noninteractive apt-get'
+                cmd = '{} update'.format(install_command)
+                run_command(tid, c, cmd, chroot, server_id=server.id)
 
-            cmd = '{} update'.format(install_command)
-            run_command(tid, c, cmd, chroot, server_id=server.id)
-
-            cmd = '{} install -y apt-utils'.format(install_command)
-            run_command(tid, c, cmd, chroot, no_error=None, server_id=server.id)
+                cmd = '{} install -y apt-utils'.format(install_command)
+                run_command(tid, c, cmd, chroot, no_error=None, server_id=server.id)
 
 
-            cmd = '{} install -y csync2'.format(install_command)
-            run_command(tid, c, cmd, chroot, server_id=server.id)
+                cmd = '{} install -y csync2'.format(install_command)
+                run_command(tid, c, cmd, chroot, server_id=server.id)
 
 
-            cmd = 'apt-get install -y csync2'
-            run_command(tid, c, cmd, chroot, server_id=server.id)
+                cmd = 'apt-get install -y csync2'
+                run_command(tid, c, cmd, chroot, server_id=server.id)
 
-        elif 'CentOS' in server.os:
+            elif 'CentOS' in server.os:
 
 
-            cmd = run_cmd.format('yum install -y epel-release')
-            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
+                cmd = run_cmd.format('yum install -y epel-release')
+                run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
-            cmd = run_cmd.format('yum repolist')
-            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
+                cmd = run_cmd.format('yum repolist')
+                run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
-            if server.os == 'CentOS 7':
-                csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos7.x86_64.rpm'
+                if server.os == 'CentOS 7':
+                    csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos7.x86_64.rpm'
+                if server.os == 'CentOS 6':
+                    csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos6.x86_64.rpm'
+
+                cmd = run_cmd.format('yum install -y ' + csync_rpm)
+                run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
+
+                cmd = run_cmd.format('service xinetd stop')
+                run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
+
             if server.os == 'CentOS 6':
-                csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos6.x86_64.rpm'
+                cmd = run_cmd.format('yum install -y crontabs')
+                run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
-            cmd = run_cmd.format('yum install -y ' + csync_rpm)
+            cmd = run_cmd.format('rm -f /var/lib/csync2/*.db3')
             run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
-            cmd = run_cmd.format('service xinetd stop')
+            cmd = run_cmd.format('rm -f /etc/csync2*')
             run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
-
-        if server.os == 'CentOS 6':
-            cmd = run_cmd.format('yum install -y crontabs')
-            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
-
-        cmd = run_cmd.format('rm -f /var/lib/csync2/*.db3')
-        run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
-
-        cmd = run_cmd.format('rm -f /etc/csync2*')
-        run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
 
         if server.primary_server:

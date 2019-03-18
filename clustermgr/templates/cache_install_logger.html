@@ -4,7 +4,7 @@
     <h1>Cache Management</h1>
   <ol class="breadcrumb">
     <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
-    <li><a href="{{ url_for('cluster.file_system_replication') }}">File System Replication</a></li>
+    <li><a href="{{ url_for('cache_mgr.install') }}">Cache Management</a></li>
     <li class="active">Setup</li>
   </ol>
 {% endblock %}
@@ -37,7 +37,7 @@
       <ul id="common_logger" class="list-group">
       </ul>
 
-        <a href="{{  url_for('cluster.file_system_replication', install='yes') }}" class="btn btn-block btn-danger" style="display: none;" id="error_button">
+        <a href="{{  url_for('cache_mgr.install') }}" class="btn btn-block btn-danger" style="display: none;" id="error_button">
             Oops, Installation Failed. Click Here to Retry</a>
 
       {% if step == 1 %}

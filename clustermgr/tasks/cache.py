@@ -150,6 +150,12 @@ class RedisInstaller(BaseInstaller):
 
 
 class StunnelInstaller(BaseInstaller):
+    
+    
+    def check_installed(self):
+        return self.rc.exists('/usr/bin/stunnel') or self.rc.exists('/bin/stunnel')
+                
+    
     def install_in_ubuntu(self):
         self.run_command("apt-get update")
         cin, cout, cerr = self.run_command("DEBIAN_FRONTEND=noninteractive apt-get install stunnel4 -y")
@@ -208,10 +214,20 @@ def install_cache_cluster(self):
             wlogger.log(tid, "SSH connection to server failed", "error", server_id=server.id)
             return False
         
-        wlogger.log(tid, "Installing Redis server", "info", server_id=server.id)
-
-        
         ri = RedisInstaller(server, tid, rc)
+        
+        if app_conf.offline:
+            if not ri.check_installed():
+                wlogger.log(
+                    tid, 
+                    'Redis Server was not installed. Please install Redis '
+                    ' Server and retry.', 
+                    'error',
+                    server_id=server.id
+                    )
+                return False
+                
+        
         redis_installed = ri.install()
     
         if redis_installed:
@@ -224,15 +240,22 @@ def install_cache_cluster(self):
 
         ri.run_sysctl('enable')
         ri.run_sysctl('restart')
-        
 
         si = StunnelInstaller(server, tid, rc)
 
-        wlogger.log(tid, "Installing Stunnel", "debug", server_id=server.id)
+        if app_conf.offline:
+            if not si.check_installed():
+                wlogger.log(
+                    tid, 
+                    'Stunnel was not installed. Please install stunnel '
+                    'and retry.', 
+                    'error',
+                    server_id=server.id
+                    )
+                return False
+
          
-        if si.rc.exists('/usr/bin/stunnel') or si.rc.exists('/bin/stunnel'):
-            wlogger.log(tid, "Stunnel was allready installed", "info", 
-                        server_id=server.id)
+        if si.check_installed:
             server.stunnel = True
         else:
             wlogger.log(tid, "Installing Stunnel", "info", server_id=server.id)
@@ -297,7 +320,6 @@ def install_cache_cluster(self):
         rc.close()
         
         wlogger.log(tid, "2", "set_step")
-
 
         
     for server in servers:
