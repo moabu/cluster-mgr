@@ -2099,6 +2099,15 @@ def installNGINX(self, nginx_host):
     wlogger.log(tid, "Checking if Python was installed",'debug')
 
     if not c.exists('/usr/bin/python'):
+        
+        if app_config.offline:
+            wlogger.log(
+            tid, 
+            'python was not installed. Please install python and retry.', 
+            'error'
+            )
+            return False
+        
         if 'Ubuntu' in os_type or 'Debian' in os_type:
             cmd = 'DEBIAN_FRONTEND=noninteractive apt-get install -y python'
         else:
@@ -2116,6 +2125,16 @@ def installNGINX(self, nginx_host):
     if r:
         wlogger.log(tid, "nginx allready exists")
     else:
+        
+        if app_config.offline:
+            wlogger.log(
+            tid, 
+            'nginx was not installed. Please install nginx and retry.', 
+            'error'
+            )
+            return False
+        
+        
         #If this is centos we need to install epel-release
         if 'CentOS' in os_type:
             run_command(tid, c, 'yum install -y epel-release')

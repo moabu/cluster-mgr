@@ -241,8 +241,7 @@ def install_nginx():
     # Start nginx  installation celery task
     task = installNGINX.delay(appconf.nginx_host)
 
-    print "Install NGINX TASK STARTED", task.id
-    head = "Installing NGINX Server on {0}".format(appconf.nginx_host)
+    head = "Configuring NGINX Load Balancer on {0}".format(appconf.nginx_host)
     nextpage = "index.multi_master_replication"
     whatNext = "LDAP Replication"
     return render_template("logger.html", heading=head, server=appconf.nginx_host,
