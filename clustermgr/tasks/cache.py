@@ -335,7 +335,6 @@ def install_cache_cluster(self):
         
         wlogger.log(tid, "2", "set_step")
 
-    return
     
     for server in servers:
                 
