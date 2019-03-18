@@ -189,10 +189,6 @@ def modifyOxLdapProperties(server, c, tid, pDict, chroot):
 
 
 
-
-
-
-
 def get_csync2_config(exclude=None):
 
     replication_user_file = os.path.join(Config.DATA_DIR,
@@ -526,18 +522,6 @@ def remove_filesystem_replication(self):
         if not r:
             return r
 
-@celery.task(bind=True)
-def setup_ldap_replication(self, server_id):
-    """Deploys ldap replicaton
-
-    Args:
-        server_id (integer): id of server to be deployed replication
-    """
-
-    #MB: removed until openldap replication is validated
-
-    pass
-
 
 
 def get_os_type(c):
@@ -809,6 +793,89 @@ def upload_custom_schema(tid, c, ldap_type, gluu_server):
                     "Can't upload custom schame file {0}: ".format(sf,
                                                             r[1]), 'error')
 
+def checkOfflineRequirements(tid, server, c, appconf):
+    os_type, os_version = server.os.split()
+
+    wlogger.log(tid, "Checking if dependencies were installed")
+
+    
+    
+    
+    #Check if archive type and os type matches
+    if os_type.lower() in ('ubuntu', 'debian'):
+        if not appconf.gluu_archive.endswith('.deb'):
+            wlogger.log(tid,
+                    "Os type does not match gluu archive type", 'error')
+            return False
+    elif os_type.lower() in ('centos', 'rhel'):
+        if not appconf.gluu_archive.endswith('.rmp'):
+            wlogger.log(tid,
+                    "Os type does not match gluu archive type", 'error')
+            return False
+
+        
+    wlogger.log(tid,
+                    "Os type matches with gluu archive", 'success')
+
+    #Determine gluu version
+    a_path, a_fname = os.path.split(appconf.gluu_archive)
+    m=re.search('gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+)(\.\d+)?)',a_fname)
+    if m:
+        gv = m.group('gluu_version')
+        appconf.gluu_version = gv
+        db.session.commit()
+        wlogger.log(
+            tid,
+            "Gluu version was determined as {0} from gluu archive".format(gv),
+            'success'
+            )
+    else:
+        wlogger.log(tid,
+                    "Gluu version could not be determined from gluu archive", 
+                    'error')
+        return False
+
+
+    #Check if python is installed
+    
+    if c.exists('/usr/bin/python'):
+        wlogger.log(tid, "Python was installed",'success')
+    else:
+        wlogger.log(
+            tid, 
+            'python was not installed. Please install python on the host '
+            'system (outside of the container) and retry.', 
+            'error'
+            )
+        return False
+
+
+    #Check if ntp was installed
+    if c.exists('/usr/sbin/ntpdate'):
+        wlogger.log(tid, "ntpdate was installed", 'success')
+    else:
+        wlogger.log(
+            tid, 
+            'ntpdate was not installed. Please install ntpdate on the host '
+            'system (outside of the container) and retry.', 
+            'error'
+            )
+        return False
+        
+    #Check if stunnel was installed
+    if c.exists('/usr/bin/stunnel') or c.exists('/bin/stunnel'):
+        wlogger.log(tid, "stunnel was installed", 'success')
+    else:
+        wlogger.log(
+            tid, 
+            'stunnel was not installed. Please install stunnel on the host '
+            'system (outside of the container) and retry.', 
+            'error'
+            )
+        return False
+        
+    
+    return True
 
 @celery.task(bind=True)
 def installGluuServer(self, server_id):
@@ -819,13 +886,32 @@ def installGluuServer(self, server_id):
     """
 
     tid = self.request.id
-
     server = Server.query.get(server_id)
+
+
+    if not server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18','Ubuntu 16', 'Debian 9'):
+        wlogger.log(tid, "Unsopported OS type", "error")
+        return False
+    
+
     pserver = Server.query.filter_by(primary_server=True).first()
 
     appconf = AppConfiguration.query.first()
 
     c = RemoteClient(server.hostname, ip=server.ip)
+
+    try:
+        c.startup()
+    except:
+        wlogger.log(tid, "Can't establish SSH connection",'fail')
+        wlogger.log(tid, "Ending server installation process.", "error")
+        return
+
+
+    if appconf.offline:
+        if not checkOfflineRequirements(tid, server, c, appconf):
+            return False
+
 
     #setup properties file path
     setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
@@ -871,30 +957,37 @@ def installGluuServer(self, server_id):
             wlogger.log(tid, "Ending server installation process.", "error")
             return
 
-    try:
-        c.startup()
-    except:
-        wlogger.log(tid, "Can't establish SSH connection",'fail')
-        wlogger.log(tid, "Ending server installation process.", "error")
-        return
-
-
 
     wlogger.log(tid, "Preparing for Installation")
 
 
+    
     start_command  = 'service gluu-server-{0} start'
     stop_command   = 'service gluu-server-{0} stop'
     enable_command = None
 
-    
 
-    local_install_cmd = os.environ.get('local_install_cmd')
-    
-    if local_install_cmd:
-        install_command = os.environ.get('install_command')
-        start_command = os.environ.get('start_command')
+
+    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+        enable_command  = '/sbin/gluu-serverd-{0} enable'
+        stop_command    = '/sbin/gluu-serverd-{0} stop'
+        start_command   = '/sbin/gluu-serverd-{0} start'
+
+
+    if appconf.offline:
+        gluu_archive_fn = os.path.split(appconf.gluu_archive)[1]
+        wlogger.log(tid, "Uploading {}".format(gluu_archive_fn))
         
+        cmd = 'scp {} root@{}:/root'.format(appconf.gluu_archive, server.hostname)
+        
+        wlogger.log(tid, cmd,'debug')
+        
+        os.system(cmd)
+
+        if ('Ubuntu' in server.os) or ('Debian' in server.os):
+            install_command = 'dpkg -i /root/{}'.format(gluu_archive_fn)
+        else:
+            install_command = 'rpm -i root/{}'.format(gluu_archive_fn)
     else:
 
         #add gluu server repo and imports signatures
@@ -976,7 +1069,6 @@ def installGluuServer(self, server_id):
             cmd = 'yum clean all'
             run_command(tid, c, cmd, no_error='debug')
 
-    wlogger.log(tid, "Checking if Python was installed",'debug')
 
     if not c.exists('/usr/bin/python'):
         if 'Ubuntu' in server.os or 'Debian' in server.os:
@@ -984,8 +1076,7 @@ def installGluuServer(self, server_id):
         else:
             cmd = 'yum install -y python'
         run_command(tid, c, cmd, no_error='debug')
-    else:
-        wlogger.log(tid, "Python was installed", 'success')
+
 
     wlogger.log(tid, "Check if Gluu Server was installed")
 
@@ -1024,8 +1115,8 @@ def installGluuServer(self, server_id):
     wlogger.log(tid, "Installing Gluu Server: " + gluu_server)
 
 
-    if local_install_cmd:
-        cmd = local_install_cmd
+    if appconf.offline:
+        cmd = install_command 
     else:
         cmd = install_command + 'install -y ' + gluu_server
     wlogger.log(tid, cmd, "debug")
@@ -1376,7 +1467,6 @@ def installGluuServer(self, server_id):
 
     #ntp is required for time sync, since ldap replication will be
     #done by time stamp. If not isntalled, install and configure crontab
-    wlogger.log(tid, "Checking if ntp is installed and configured.")
 
     if c.exists('/usr/sbin/ntpdate'):
         wlogger.log(tid, "ntp was installed", 'success')
@@ -2125,7 +2215,8 @@ def installNGINX(self, nginx_host):
 
     wlogger.log(tid, "NGINX successfully installed")
 
-def exec_cmd(command):    
+def exec_cmd(command):
+    print "executing commnd", command
     popen = subprocess.Popen(command, stdout=subprocess.PIPE)
     return iter(popen.stdout.readline, b"")
 

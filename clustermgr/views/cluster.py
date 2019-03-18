@@ -14,7 +14,7 @@ from flask import current_app as app
 
 from clustermgr.core.ldap_functions import LdapOLC, getLdapConn
 from clustermgr.models import Server, AppConfiguration
-from clustermgr.tasks.cluster import setup_ldap_replication, \
+from clustermgr.tasks.cluster import  \
     installGluuServer, removeMultiMasterDeployement, installNGINX, \
     setup_filesystem_replication, opendjenablereplication, \
     remove_server_from_cluster, remove_filesystem_replication, \

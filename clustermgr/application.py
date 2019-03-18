@@ -66,6 +66,9 @@ def create_app():
         os.makedirs(app.config['CERTS_DIR'])
     if not os.path.isdir(app.instance_path):
         os.makedirs(app.instance_path)
+    if not os.path.isdir(app.config['GLUU_REPO']):
+        os.makedirs(app.config['GLUU_REPO'])
+    
 
     # register blueprints
     from clustermgr.views.index import index

@@ -1,3 +1,6 @@
+import os
+import glob
+
 try:
     from flask_wtf import FlaskForm
 except ImportError:
@@ -9,6 +12,7 @@ from wtforms.validators import DataRequired, AnyOf, \
     ValidationError, URL, IPAddress, Email, Length, Optional
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 
+from clustermgr.config import Config
 
 class AppConfigForm(FlaskForm):
     versions = [
@@ -53,12 +57,12 @@ class AppConfigForm(FlaskForm):
                                 '/etc/hosts file on each server')
 
     external_load_balancer = BooleanField('This is an external load balancer')
-
-
     use_ldap_cache = BooleanField('Use LDAP Cache')
-
     update = SubmitField("Update Configuration")
-
+    offline = BooleanField('Offline installation')
+    gluu_archive = SelectField('Gluu archive',
+            choices = [ (f,os.path.split(f)[1]) for f in glob.glob(os.path.join(Config.GLUU_REPO,'gluu-server-*')) ]
+            )
 
 class SchemaForm(FlaskForm):
     schema = FileField(validators=[

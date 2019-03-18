@@ -37,6 +37,7 @@ class Config(object):
     CERTS_DIR = os.path.join(DATA_DIR, "certs")
     JKS_PATH = os.path.join(CERTS_DIR, "oxauth-keys.jks")
     LDIF_DIR = os.path.join(DATA_DIR, "ldif")
+    GLUU_REPO = os.path.join(DATA_DIR, "gluu_repo")
 
     LICENSE_CONFIG_FILE = os.path.join(DATA_DIR, "license.ini")
     LICENSE_SIGNED_FILE = os.path.join(DATA_DIR, "signed_license")

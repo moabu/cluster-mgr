@@ -64,13 +64,14 @@ def load_user(username):
 
 @auth_bp.route("/login/", methods=["GET", "POST"])
 def login():
-    
+
     oxd_config = current_app.config["OXD_CLIENT_CONFIG_FILE"]
 
     if os.path.exists(oxd_config):
         return redirect(url_for("auth.oxd_login"))
     
     cfg_file = current_app.config["AUTH_CONFIG_FILE"]
+
 
     if not os.path.exists(cfg_file):
         return redirect(url_for('auth.signup'))

@@ -164,6 +164,12 @@ def app_configuration():
         if conf_form.external_load_balancer.data:
             conf_form.nginx_ip.validators= []
 
+        print "OFFLINE", conf_form.offline.data, conf_form.gluu_archive.data
+
+        if not conf_form.offline.data:
+            del conf_form._fields['gluu_archive']
+
+
 
     if not config:
         #del conf_form.replication_pw
@@ -226,6 +232,14 @@ def app_configuration():
         config.use_ldap_cache = conf_form.use_ldap_cache.data
 
 
+        if conf_form.offline.data:
+            config.offline = True
+            config.gluu_archive = conf_form.gluu_archive.data
+        else:
+            config.offline = False
+            config.gluu_archive = ''
+
+
         if getattr(conf_form, 'replication_pw'):
             if conf_form.replication_pw_confirm.data:
                 config.replication_pw = conf_form.replication_pw.data.strip()
@@ -259,7 +273,7 @@ def app_configuration():
         conf_form.nginx_ip.data = config.nginx_ip
         conf_form.external_load_balancer.data = config.external_load_balancer
         conf_form.use_ldap_cache.data = config.use_ldap_cache
-
+        conf_form.offline.data =  config.offline
         
         service_status_update_period = config.ldap_update_period
         
@@ -287,7 +301,9 @@ def app_configuration():
     return render_template('app_config.html', cform=conf_form, sform=sch_form,
                         config=config, schemafiles=schemafiles, localos=localos,
                         external_lb_checked=external_lb_checked,
-                        next=request.args.get('next'))
+                        repo_dir = app.config['GLUU_REPO'],
+                        next=request.args.get('next'),
+                        )
 
 
 # @index.route("/key_rotation", methods=["GET", "POST"])
