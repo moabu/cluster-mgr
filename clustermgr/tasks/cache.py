@@ -185,6 +185,16 @@ class StunnelInstaller(BaseInstaller):
         else:
             return False
 
+    def upload_service_file(self):
+
+        local = os.path.join(app.root_path, 'templates', 'stunnel',
+                             'stunnel.service')
+        remote = '/lib/systemd/system/stunnel.service'
+        wlogger.log(self.tid, "Uploading systemd file", "info",
+                    server_id=self.server.id)
+        self.rc.upload(local, remote)
+        self.rc.run("mkdir -p /var/log/stunnel4")
+
     def run_sysctl(self, command):
         if self.os_type == 'deb':
             cmd = 'systemctl {} stunnel4'.format(command)
@@ -272,6 +282,10 @@ def install_cache_cluster(self):
                             
                 return False
         
+        if si.os_type == 'rpm':
+            print "Upload redis servie"
+            si.upload_service_file()
+        
         if si.os_type == 'deb':
             wlogger.log(tid, "Enabling stunnel", "debug", server_id=server.id)
             si.run_command("sed -i 's/ENABLED=0/ENABLED=1/g' /etc/default/stunnel4")
@@ -321,7 +335,8 @@ def install_cache_cluster(self):
         
         wlogger.log(tid, "2", "set_step")
 
-        
+    return
+    
     for server in servers:
                 
         rc = __get_remote_client(server, tid)
@@ -352,6 +367,9 @@ def install_cache_cluster(self):
                             server_id=server.id)
                             
                 return False
+
+        if si.os_type == 'rpm':
+            si.upload_service_file()
         
         
         if si.os_type == 'deb':
