@@ -203,7 +203,7 @@ def get_csync2_config(exclude=None):
     exclude_files = [
         '/etc/gluu/conf/ox-ldap.properties',
         '/etc/gluu/conf/oxTrustLogRotationConfiguration.xml',
-        '/etc/gluu/conf/openldap/salt',
+        '/etc/gluu/conf/salt',
 
         ]
 
@@ -604,10 +604,8 @@ def collect_server_details(server_id):
     components = {
         'oxAuth': 'opt/gluu/jetty/oxauth',
         'oxTrust': 'opt/gluu/jetty/identity',
-        'OpenLDAP': 'opt/symas/etc/openldap',
         'Shibboleth': 'opt/shibboleth-idp',
         'oxAuthRP': 'opt/gluu/jetty/oxauth-rp',
-        'Asimba': 'opt/gluu/jetty/asimba',
         'Passport': 'opt/gluu/node/passport',
     }
     installed = []
@@ -740,7 +738,7 @@ def download_and_upload_custom_schema(tid, pc, c, ldap_type, gluu_server):
 
         c (:object:`clustermgr.core.remote.RemoteClient`): client to be used
             for the SSH communication, representing current server
-        ldap_type (string): type of ldapserver, either openldap or opendj
+        ldap_type (string): type of ldapserver, either opendj
         gluu_server: Gluu server name
     """
     
@@ -780,7 +778,7 @@ def upload_custom_schema(tid, c, ldap_type, gluu_server):
         tid (string): id of the task running the command,
         c (:object:`clustermgr.core.remote.RemoteClient`): client to be used
             for the SSH communication
-        ldap_type (string): type of ldapserver, either openldap or opendj
+        ldap_type (string): type of ldapserver, either opendj
         gluu_server: Gluu server name
     """
     
@@ -1380,44 +1378,8 @@ def installGluuServer(self, server_id):
             cmd = run_cmd.format(command)
             run_command(tid, c, cmd, cmd_chroot)
 
-    # Get slapd.conf from primary server and upload this server
+    # Get certificates from primary server and upload this server
     if not server.primary_server:
-
-        if setup_prop['ldap_type'] == 'openldap':
-            #FIXME: Check this later
-            cmd = 'rm /opt/gluu/data/main_db/*.mdb'
-            run_command(tid, c, cmd, '/opt/'+gluu_server)
-
-
-            slapd_conf_file = '/opt/{0}/opt/symas/etc/openldap/slapd.conf'.format(gluu_server)
-            r = pc.get_file(slapd_conf_file)
-            if r[0]:
-                fc = r[1].read()
-                r2 = c.put_file(slapd_conf_file, fc)
-                if not r2[0]:
-                    wlogger.log(tid, "Can't put slapd.conf to this server: ".format(r[1]), 'error')
-                else:
-                    wlogger.log(tid, "slapd.conf was downloaded from primary server and uploaded to this server", 'success')
-            else:
-                wlogger.log(tid, "Can't get slapd.conf from primary server: ".format(r[1]), 'error')
-
-            # If primary conatins any custom schema, get them
-            # and put to this server
-            download_and_upload_custom_schema(  
-                                                tid, pc, c, 
-                                                'openldap', gluu_server
-                                            )
-
-            #stop and start solserver
-            if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-                run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver stop'")
-            else:
-                run_command(tid, c, 'service solserver stop', '/opt/'+gluu_server)
-
-            if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-                run_command(tid, c, "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'service solserver start'")
-            else:
-                run_command(tid, c, 'service solserver start', '/opt/'+gluu_server)
 
         #If gluu version is greater than 3.0.2 we need to download certificates
         #from primary server and upload to this server, then will delete and
@@ -1454,7 +1416,6 @@ def installGluuServer(self, server_id):
 
             cmd = 'tar -zxf /tmp/certs.tgz -C /'
             run_command(tid, c, cmd)
-
 
             #delete old keys and import new ones
             wlogger.log(tid, 'Manuplating keys')
@@ -1515,19 +1476,6 @@ def installGluuServer(self, server_id):
     server.gluu_server = True
     db.session.commit()
     wlogger.log(tid, "Gluu Server successfully installed")
-    
-
-    
-@celery.task(bind=True)
-def removeMultiMasterDeployement(self, server_id):
-    """Removes multi master replication deployment
-
-    Args:
-        server_id: id of server to be un-depoloyed
-    """
-    #MB: removed until openldap replication is validated
-    
-    pass
 
 
 def do_disable_replication(tid, server, primary_server, app_config):
@@ -1547,13 +1495,10 @@ def do_disable_replication(tid, server, primary_server, app_config):
                 '-o UserKnownHostsFile=/dev/null '
                 '-o PubkeyAuthentication=yes root@localhost "{}"')
 
-
-    
     wlogger.log(tid, 
         "Disabling replication for {0}".format(
         server.hostname)
         )
-
 
     wlogger.log(tid, 
             "Making SSH connection to primary server {0}".format(
