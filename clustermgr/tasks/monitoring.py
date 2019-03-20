@@ -106,120 +106,125 @@ def install_local(self):
     tid = self.request.id
     servers = Server.query.all()
     
+    app_config = AppConfiguration.query.first()
+    
     #create fake remote class that provides the same interface with RemoteClient
     fc = FakeRemote()
     
     #Getermine local OS type
     localos= get_os_type(fc)
 
-    
 
     wlogger.log(tid, "Local OS was determined as {}".format(localos), "success", server_id=0)
 
-    if not localos == 'Alpine':
-    
-        wlogger.log(tid, "Installing InfluxDB and Python client", "info", server_id=0)
-        
-        #commands to install influxdb on local machine for each OS type
-        if 'Ubuntu' in localos:
-            influx_cmd = [
-                'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
-                'DEBIAN_FRONTEND=noninteractive sudo apt-get install -y curl',
-                'curl -sL https://repos.influxdata.com/influxdb.key | '
-                'sudo apt-key add -'
-                ]
-                
-            if '14' in localos:
-                influx_cmd.append(
-                'echo "deb https://repos.influxdata.com/ubuntu '
-                'trusty stable" | sudo tee '
-                '/etc/apt/sources.list.d/influxdb.list')
-            elif '16' in localos:
-                influx_cmd.append(
-                'echo "deb https://repos.influxdata.com/ubuntu '
-                'xenial stable" | sudo tee '
-                '/etc/apt/sources.list.d/influxdb.list')
-            
-            influx_cmd += [
-                'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
-                'DEBIAN_FRONTEND=noninteractive sudo apt-get install influxdb',
-                'sudo service influxdb start',
-                'sudo pip install influxdb',
-                'sudo pip install psutil',
-                ]
-        
-        elif 'Debian' in localos:
-            influx_cmd = [
-                'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
-                'DEBIAN_FRONTEND=noninteractive sudo apt-get install -y curl',
-                'curl -sL https://repos.influxdata.com/influxdb.key | '
-                'sudo apt-key add -']
-                
-            if '7' in localos:
-                influx_cmd.append(
-                'echo "deb https://repos.influxdata.com/'
-                'debian wheezy stable" | sudo tee /etc/apt/sources.list.d/'
-                'influxdb.list')
-            elif '8' in localos:
-                influx_cmd.append(
-                'echo "deb https://repos.influxdata.com/'
-                'debian jessie stable" | sudo tee /etc/apt/sources.list.d/'
-                'influxdb.list')
-            
-            influx_cmd += [
-                'sudo apt-get update',
-                'sudo apt-get -y remove influxdb',
-                'DEBIAN_FRONTEND=noninteractive sudo apt-get -y install influxdb',
-                'sudo service influxdb start',
-                'sudo pip install influxdb',
-                'sudo pip install psutil',
-                ]
 
-        elif localos == 'CentOS 7':
-            influx_cmd = [
-                            'sudo yum install -y epel-release',
-                            'sudo yum repolist',
-                            'sudo yum install -y curl',
-                            'cat <<EOF | sudo tee /etc/yum.repos.d/influxdb.repo\n'
-                            '[influxdb]\n'
-                            'name = InfluxDB Repository - RHEL \$releasever\n'
-                            'baseurl = https://repos.influxdata.com/rhel/\$releasever/\$basearch/stable\n'
-                            'enabled = 1\n'
-                            'gpgcheck = 1\n'
-                            'gpgkey = https://repos.influxdata.com/influxdb.key\n'
-                            'EOF',
-                            'sudo yum remove -y influxdb',
-                            'sudo yum install -y influxdb',
-                            'sudo service influxdb start',
-                            'sudo pip install psutil',
-                        ]
+    if app_config.offline:
 
-        #run commands to install influxdb on local machine
-        for cmd in influx_cmd:
+        if not os.path.exists('/usr/bin/influxd'):
+            wlogger.log(tid, "Influxdb was installed on this machine. Please install influxdb", "error", server_id=0)
+            return False
+
+    else:
+
+        if not localos == 'Alpine':
         
-            result = fc.run(cmd)
+            wlogger.log(tid, "Installing InfluxDB and Python client", "info", server_id=0)
             
-            rtext = "\n".join(result)
-            if rtext.strip():
-                wlogger.log(tid, rtext, "debug", server_id=0)
-        
-            err = False
-        
-            if result[2].strip():
-                if not "pip install --upgrade pip" in result[2]:
-                    wlogger.log(tid, "An error occurrued while executing "
-                                "{}: {}".format(cmd, result[2]),
-                                "error", server_id=0)
-                    err = True
+            #commands to install influxdb on local machine for each OS type
+            if 'Ubuntu' in localos:
+                influx_cmd = [
+                    'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
+                    'DEBIAN_FRONTEND=noninteractive sudo apt-get install -y curl',
+                    'curl -sL https://repos.influxdata.com/influxdb.key | '
+                    'sudo apt-key add -'
+                    ]
+                    
+                if '14' in localos:
+                    influx_cmd.append(
+                    'echo "deb https://repos.influxdata.com/ubuntu '
+                    'trusty stable" | sudo tee '
+                    '/etc/apt/sources.list.d/influxdb.list')
+                elif '16' in localos:
+                    influx_cmd.append(
+                    'echo "deb https://repos.influxdata.com/ubuntu '
+                    'xenial stable" | sudo tee '
+                    '/etc/apt/sources.list.d/influxdb.list')
+                
+                influx_cmd += [
+                    'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
+                    'DEBIAN_FRONTEND=noninteractive sudo apt-get install influxdb',
+                    'sudo service influxdb start',
+                    ]
             
-            if not err:
-                wlogger.log(tid, "Command was run successfully: {}".format(cmd),
-                                "success", server_id=0)
+            elif 'Debian' in localos:
+                influx_cmd = [
+                    'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
+                    'DEBIAN_FRONTEND=noninteractive sudo apt-get install -y curl',
+                    'curl -sL https://repos.influxdata.com/influxdb.key | '
+                    'sudo apt-key add -']
+                    
+                if '7' in localos:
+                    influx_cmd.append(
+                    'echo "deb https://repos.influxdata.com/'
+                    'debian wheezy stable" | sudo tee /etc/apt/sources.list.d/'
+                    'influxdb.list')
+                elif '8' in localos:
+                    influx_cmd.append(
+                    'echo "deb https://repos.influxdata.com/'
+                    'debian jessie stable" | sudo tee /etc/apt/sources.list.d/'
+                    'influxdb.list')
+                
+                influx_cmd += [
+                    'sudo apt-get update',
+                    'sudo apt-get -y remove influxdb',
+                    'DEBIAN_FRONTEND=noninteractive sudo apt-get -y install influxdb',
+                    'sudo service influxdb start',
+                    ]
+
+            elif localos == 'CentOS 7':
+                influx_cmd = [
+                                'sudo yum install -y epel-release',
+                                'sudo yum repolist',
+                                'sudo yum install -y curl',
+                                'cat <<EOF | sudo tee /etc/yum.repos.d/influxdb.repo\n'
+                                '[influxdb]\n'
+                                'name = InfluxDB Repository - RHEL \$releasever\n'
+                                'baseurl = https://repos.influxdata.com/rhel/\$releasever/\$basearch/stable\n'
+                                'enabled = 1\n'
+                                'gpgcheck = 1\n'
+                                'gpgkey = https://repos.influxdata.com/influxdb.key\n'
+                                'EOF',
+                                'sudo yum remove -y influxdb',
+                                'sudo yum install -y influxdb',
+                                'sudo service influxdb start',
+                            ]
+
+            #run commands to install influxdb on local machine
+            for cmd in influx_cmd:
+            
+                result = fc.run(cmd)
+                
+                rtext = "\n".join(result)
+                if rtext.strip():
+                    wlogger.log(tid, rtext, "debug", server_id=0)
+            
+                err = False
+            
+                if result[2].strip():
+                    if not "pip install --upgrade pip" in result[2]:
+                        wlogger.log(tid, "An error occurrued while executing "
+                                    "{}: {}".format(cmd, result[2]),
+                                    "error", server_id=0)
+                        err = True
+                
+                if not err:
+                    wlogger.log(tid, "Command was run successfully: {}".format(cmd),
+                                    "success", server_id=0)
     
     wlogger.log(tid, "Fixing /etc/influxdb/influxdb.conf for InfluxDB listen localhost", server_id=0)
-    fc.run('sudo /etc/init.d/influxdb stop')
+    fc.run('sudo systemctl stop influxdb')
     fix_influxdb_config()
-    fc.run('sudo /etc/init.d/influxdb start')
+    fc.run('sudo systemctl start influxdb')
     #wait influxdb to start
     time.sleep(10)
 
@@ -240,7 +245,7 @@ def install_local(self):
                             "fail", server_id=0)
 
     #Flag database that configuration is done for local machine
-    app_config = AppConfiguration.query.first()
+    
     app_config.monitoring = True
     db.session.commit()
 
@@ -277,7 +282,21 @@ def install_monitoring(self):
             wlogger.log(tid, "Ending server setup process.", 
                                 "error", server_id=server.id)
             return False
-        
+
+
+        if app_config.offline:
+            # check if psutil and ldap3 was installed on remote server
+            for py_mod in ('psutil', 'ldap3'):            
+                result = c.run("python -c 'import {0}'".format(py_mod))
+                if 'No module named' in result[2]:
+                    wlogger.log(
+                                tid, 
+                                "{0} module is not installed. Please "
+                                "install python-{0} and retry.".format(py_mod),
+                                "error", server_id=server.id,
+                                )
+                    return False
+
         # 2. create monitoring directory
         result = c.run('mkdir -p /var/monitoring/scripts')
 
@@ -290,19 +309,16 @@ def install_monitoring(self):
                         "was created", "success", server_id=server.id)
         
         # 3. Upload scripts
-        
         scripts = (
+                    'pyDes.py',
                     'cron_data_sqtile.py', 
                     'get_data.py', 
                     'sqlite_monitoring_tables.py'
                     )
-        
-        for scr in scripts:
-        
-            local_file = os.path.join(app.root_path, 'monitoring_scripts', scr)
-                                        
-            remote_file = '/var/monitoring/scripts/'+scr
 
+        for scr in scripts:
+            local_file = os.path.join(app.root_path, 'monitoring_scripts', scr)
+            remote_file = '/var/monitoring/scripts/'+scr
             result = c.upload(local_file, remote_file)
             
             if result.startswith("Upload successful"):
@@ -315,10 +331,8 @@ def install_monitoring(self):
                 return False
         
         # 4. Upload gluu version, no need to determine gluu version each time
-        
         result = c.put_file('/var/monitoring/scripts/gluu_version.txt', app_config.gluu_version)
-        
-        
+
         # 5. Upload crontab entry to collect data in every 5 minutes
         crontab_entry = (
                         '*/5 * * * *    root    python '
@@ -326,8 +340,7 @@ def install_monitoring(self):
                         )
                         
         result = c.put_file('/etc/cron.d/monitoring', crontab_entry)
-        
-        
+
         if not result[0]:
             wlogger.log(tid, "An errorr occurred while uploading crontab entry"
                                 ": {}".format(result[1]),
@@ -335,57 +348,68 @@ def install_monitoring(self):
         else:
             wlogger.log(tid, "Crontab entry was uploaded",
                                 "success", server_id=server.id)
-        
-        # 6. Installing packages. 
-        # 6a. First determine commands for each OS type
+
+
+        if not app_config.offline:
+            # 6. Installing packages. 
+            # 6a. First determine commands for each OS type
+            if ('CentOS' in server.os) or ('RHEL' in server.os):
+                package_cmd = [ 'yum install -y epel-release',
+                                'yum repolist',
+                                'yum install -y gcc', 
+                                'yum install -y python-devel',
+                                'yum install -y python-pip',
+                                ]
+
+            else:
+                package_cmd = [ 
+                                'DEBIAN_FRONTEND=noninteractive apt-get install -y gcc', 
+                                'DEBIAN_FRONTEND=noninteractive apt-get install -y python-dev',
+                                'DEBIAN_FRONTEND=noninteractive apt-get install -y python-pip',
+                                ]
+
+            # 6b. These commands are common for all OS types 
+            package_cmd += [
+                            'pip install ldap3', 
+                            'pip install psutil',
+                            'pip install pyDes',
+                            ]
+
+            # 6c. Executing commands
+            wlogger.log(tid, "Installing Packages and Running Commands", 
+                                "info", server_id=server.id)
+
+            for cmd in package_cmd:
+                result = c.run(cmd)
+                wlogger.log(tid, "\n".join(result), "debug", server_id=server.id)
+                err = False
+
+                if result[2].strip():
+                    print "Writing error", cmd
+                    if not ("pip install --upgrade pip" in result[2] or 'Redirecting to /bin/systemctl' in result[2]):
+                        wlogger.log(tid, "An error occurrued while executing "
+                                    "{}: {}".format(cmd, result[2]),
+                                    "error", server_id=server.id)
+                        err = True
+
+                if not err:
+                    wlogger.log(tid, "Command was run successfully: {}".format(cmd),
+                                    "success", server_id=server.id)
+
         if ('CentOS' in server.os) or ('RHEL' in server.os):
-            package_cmd = [ 'yum install -y epel-release',
-                            'yum repolist',
-                            'yum install -y gcc', 
-                            'yum install -y python-devel',
-                            'yum install -y python-pip',
-                            'service crond restart'
-                            ]
-                            
+            cmd_list = ['service crond restart']
         else:
-            package_cmd = [ 
-                            'DEBIAN_FRONTEND=noninteractive apt-get install -y gcc', 
-                            'DEBIAN_FRONTEND=noninteractive apt-get install -y python-dev',
-                            'DEBIAN_FRONTEND=noninteractive apt-get install -y python-pip',
-                            'service cron restart',
-                            ]
-        # 6b. These commands are common for all OS types 
-        package_cmd += [
-                        'pip install ldap3', 
-                        'pip install psutil',
-                        'pip install pyDes',
-                        'python /var/monitoring/scripts/'
-                        'sqlite_monitoring_tables.py'
-                        
-                        ]
-        # 6c. Executing commands
-        wlogger.log(tid, "Installing Packages and Running Commands", 
-                            "info", server_id=server.id)
-        
-        for cmd in package_cmd:
-            
+            cmd_list = ['service cron restart']
+
+        cmd_list += ['python /var/monitoring/scripts/sqlite_monitoring_tables.py']
+
+        for cmd in cmd_list:
+            wlogger.log(tid, "Executing "+cmd, "debug", server_id=server.id)
             result = c.run(cmd)
-        
-            wlogger.log(tid, "\n".join(result), "debug", server_id=server.id)
-        
-            err = False
-        
-            if result[2].strip():
-                print "Writing error", cmd
-                if not ("pip install --upgrade pip" in result[2] or 'Redirecting to /bin/systemctl' in result[2]):
-                    wlogger.log(tid, "An error occurrued while executing "
-                                "{}: {}".format(cmd, result[2]),
-                                "error", server_id=server.id)
-                    err = True
-            
-            if not err:
-                wlogger.log(tid, "Command was run successfully: {}".format(cmd),
-                                "success", server_id=server.id)
+            r = "\n".join(result)
+            if r.strip():
+                wlogger.log(tid, r, "debug", server_id=server.id)
+
         server.monitoring = True
 
     db.session.commit()

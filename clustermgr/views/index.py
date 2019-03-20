@@ -2,6 +2,7 @@
 import os
 from time import strftime, sleep
 import json
+import glob
 
 from flask import Blueprint, render_template, redirect, url_for, flash, \
     request, jsonify, session, current_app
@@ -145,6 +146,10 @@ def app_configuration():
     schemafiles = os.listdir(app.config['SCHEMA_DIR'])
 
 
+    conf_form.gluu_archive.choices = [
+            (f,os.path.split(f)[1]) for f in glob.glob(
+            os.path.join(app.config['GLUU_REPO'],'gluu-server-*')) ]
+
     # If the form is submitted and password for replication user was not
     # not supplied, make password "**dummy**", so don't change
     # what we have before
@@ -285,6 +290,8 @@ def app_configuration():
         #conf_form.use_ip.data = config.use_ip
         if config.gluu_version:
             conf_form.gluu_version.data = config.gluu_version
+
+
 
     if not config.id:
         conf_form.use_ldap_cache.data = True

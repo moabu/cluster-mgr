@@ -61,7 +61,7 @@ class AppConfigForm(FlaskForm):
     update = SubmitField("Update Configuration")
     offline = BooleanField('Offline installation')
     gluu_archive = SelectField('Gluu archive',
-            choices = [ (f,os.path.split(f)[1]) for f in glob.glob(os.path.join(Config.GLUU_REPO,'gluu-server-*')) ]
+            choices = []
             )
 
 class SchemaForm(FlaskForm):

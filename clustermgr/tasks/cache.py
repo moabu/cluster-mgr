@@ -236,8 +236,7 @@ def install_cache_cluster(self):
                     server_id=server.id
                     )
                 return False
-                
-        
+
         redis_installed = ri.install()
     
         if redis_installed:
@@ -283,7 +282,6 @@ def install_cache_cluster(self):
                 return False
         
         if si.os_type == 'rpm':
-            print "Upload redis servie"
             si.upload_service_file()
         
         if si.os_type == 'deb':
@@ -342,7 +340,6 @@ def install_cache_cluster(self):
         if not rc:
             wlogger.log(tid, "SSH connection to server failed", "error", server_id=server.id)
             return False
-            
 
         si = StunnelInstaller(server, tid, rc)
 
@@ -385,12 +382,10 @@ def install_cache_cluster(self):
                             'verify = 4\n'
                             ).format(primary_cache)
 
-
         wlogger.log(tid, "Writing redis stunnel configurations", "info",
                                 server_id=server.id)
         rc.put_file('/etc/stunnel/stunnel.conf', stunnel_redis_conf)
-        
-        
+
         wlogger.log(tid, "Uploading server certificate", "info",
                                 server_id=server.id)
 
@@ -407,7 +402,6 @@ def install_cache_cluster(self):
                                 server_id=server.id)
 
         si.run_command('systemctl restart gluu-server-{}'.format(app_conf.gluu_version))
-
 
     wlogger.log(tid, "3", "set_step")
 
