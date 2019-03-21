@@ -48,10 +48,7 @@
         <div class="box box-widget">
             <div class="box-body">
                 <a class="btn btn-success btn-block" href="{{ url_for('log_mgr.install_filebeat')}}">
-                    <i class="fa fa-cloud"></i> Install Filebeat
-                </a>
-                <a class="btn btn-success btn-block" href="{{ url_for('log_mgr.install_filebeat')}}?force_install=true">
-                    <i class="fa fa-cloud"></i> Force-install Filebeat
+                    <i class="fa fa-cloud"></i>{% if appconf.offline %} Configure Filebeat {% else %} Install & Configure Filebeat {% endif %}
                 </a>
                 <a class="btn btn-danger btn-block" href="{{ url_for('log_mgr.uninstall_filebeat')}}">
                     <i class="fa fa-cloud"></i> Uninstall Filebeat

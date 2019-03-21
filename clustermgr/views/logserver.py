@@ -108,7 +108,9 @@ def index():
 @login_required
 def setup():
     servers = Server.query.all()
-    return render_template("log_setup.html", servers=servers)
+    appconf = AppConfiguration.query.first()
+    
+    return render_template("log_setup.html", servers=servers, appconf=appconf)
 
 
 @log_mgr.route("/install_filebeat/")

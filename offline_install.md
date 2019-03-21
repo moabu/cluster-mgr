@@ -34,16 +34,33 @@ inside container:
 
 # Monitoring
 
-## Local Machine (Cluster Manager) Machine
 
-1. Install Influxdb:
+Install Influxdb on local (Cluster Manager) machine :
 
 Obtain influxdb from https://repos.influxdata.com/ubuntu/pool/stable/i/influxdb/influxdb_1.7.4-1_amd64.deb
 
 ```
 # dpkg -i influxdb_1.7.4-1_amd64.deb
-# apt-get install python-influxdb
-# apt-get install python-psutil
 ```
 
-2.
+
+# Logging
+
+## ubuntu & Debian:
+Obtain filebeat from https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-6.6.2-amd64.deb
+and install all nodes:
+  
+```
+dpkg -i filebeat-6.6.2-amd64.deb
+```
+
+## CentOS 7 & RedHat 7
+Obtain filebeat from https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-6.6.2-x86_64.rpm
+and install all nodes:
+  
+```
+rpm -i filebeat-6.6.2-x86_64.rpm
+```
+
+If you did not installed ifluxd please install as explianed in Monitoring Section.
+

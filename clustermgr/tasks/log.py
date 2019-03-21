@@ -216,16 +216,10 @@ def setup_filebeat(self, force_install=False):
     """
     tid = self.request.id
     servers = Server.query.all()
+    appconf = AppConfiguration.query.first()
+
 
     for server in servers:
-        if server.filebeat and force_install is False:
-            wlogger.log(
-                tid,
-                "filebeat has been installed ... skipping task",
-                "info",
-                server_id=server.id,
-            )
-            continue
 
         # establishes SSH connection
         wlogger.log(
@@ -239,12 +233,27 @@ def setup_filebeat(self, force_install=False):
         try:
             rc.startup()
 
-            # installs filebeat
-            _, stderr = _install_filebeat(tid, server, rc)
-            if stderr:
-                wlogger.log(tid, stderr, "warning", server_id=server.id)
-                return False
+            fb_installed = rc.exists('/usr/bin/filebeat')
 
+            if appconf.offline:
+                if not fb_installed:
+                    wlogger.log(
+                            tid, 
+                            "Filebeat was not installed on this server. Please"
+                            " install and retry", "error", server_id=server.id)
+                    return False
+
+            else:
+                if fb_installed:
+                    # installs filebeat
+                    _, stderr = _install_filebeat(tid, server, rc)
+                    if stderr:
+                        wlogger.log(tid, stderr, "warning", server_id=server.id)
+                        return False
+                else:
+                    wlogger.log(tid, "Filebeat was allready installed.", 
+                                server_id=server.id)
+    
             # renders filebeat config
             uploaded, maybe_err = _render_filebeat_config(tid, server, rc)
             if not uploaded:
