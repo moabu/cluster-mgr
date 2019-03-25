@@ -1002,6 +1002,17 @@ def installGluuServer(self, server_id):
             install_command = 'rpm -i root/{}'.format(gluu_archive_fn)
     else:
 
+
+        #check if curl exists on the system
+        cmd = 'which curl'
+        result = c.run(cmd)
+        
+        if not 'curl' in result[1]:
+            curlexist = False
+        else:
+            curlexist = True
+
+
         #add gluu server repo and imports signatures
         if ('Ubuntu' in server.os) or ('Debian' in server.os):
 
@@ -1009,6 +1020,14 @@ def installGluuServer(self, server_id):
                 dist = 'xenial'
             elif server.os == 'Ubuntu 18':
                 dist = 'bionic'
+
+
+            if not curlexist:
+                cmd = 'DEBIAN_FRONTEND=noninteractive apt-get update'
+                run_command(tid, c, cmd, no_error='debug')
+                cmd = "DEBIAN_FRONTEND=noninteractive apt-get install -y curl"
+                run_command(tid, c, cmd, no_error='debug')
+
 
             if 'Ubuntu' in server.os:
                 cmd = 'curl https://repo.gluu.org/ubuntu/gluu-apt.key | apt-key add -'
@@ -1053,6 +1072,11 @@ def installGluuServer(self, server_id):
                 enable_command  = '/sbin/gluu-serverd-{0} enable'
                 stop_command    = '/sbin/gluu-serverd-{0} stop'
                 start_command   = '/sbin/gluu-serverd-{0} start'
+
+
+            if not curlexist:
+                cmd = "yum install -y curl"
+                run_command(tid, c, cmd, no_error='debug')
 
             qury_package = 'yum list installed | grep gluu-server-'
 
