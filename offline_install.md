@@ -1,4 +1,5 @@
 Offline Installations
+----------------------
 
 To enable offline installation, you need to put gluu-server package under `~/.clustermgr/gluu_repo`, you can download packages from https://repo.gluu.org/
 
