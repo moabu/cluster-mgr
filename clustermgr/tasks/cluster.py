@@ -1043,9 +1043,7 @@ def installGluuServer(self, server_id):
                 #Testing
                 cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" '
                    '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
-                
-                
-                   
+
             elif 'Debian' in server.os:
                 cmd = ('echo "deb https://repo.gluu.org/debian/ stable main" '
                    '> /etc/apt/sources.list.d/gluu-repo.list')
@@ -1089,7 +1087,6 @@ def installGluuServer(self, server_id):
                 
             elif server.os == 'CentOS 7':
                 cmd = 'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O /etc/yum.repos.d/Gluu.repo'
-                cmd = 'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo -O /etc/yum.repos.d/Gluu.repo' # Remove this after testing
                 
             elif server.os == 'RHEL 7':
                 cmd = 'wget https://repo.gluu.org/rhel/Gluu-rhel7.repo -O /etc/yum.repos.d/Gluu.repo'
