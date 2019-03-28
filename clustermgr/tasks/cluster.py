@@ -294,6 +294,15 @@ def setup_filesystem_replication(self):
 
         modify_hosts(tid, c, cysnc_hosts, chroot=chroot, server_id=server.id)
 
+        run_cmd = "{}"
+        cmd_chroot = chroot
+
+        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+            cmd_chroot = None
+            run_cmd = ("ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o "
+                "Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no "
+                "-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes "
+                "root@localhost '{}'")
 
         if not c.exists(os.path.join(chroot, 'usr/sbin/csync2')):
 
@@ -307,16 +316,6 @@ def setup_filesystem_replication(self):
                 )
                 return False
         else:
-       
-            run_cmd = "{}"
-            cmd_chroot = chroot
-
-            if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-                cmd_chroot = None
-                run_cmd = ("ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o "
-                    "Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no "
-                    "-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes "
-                    "root@localhost '{}'")
 
             if 'Ubuntu' in server.os:
                 cmd = 'localedef -i en_US -f UTF-8 en_US.UTF-8'
@@ -342,7 +341,6 @@ def setup_filesystem_replication(self):
                 run_command(tid, c, cmd, chroot, server_id=server.id)
 
             elif 'CentOS' in server.os:
-
 
                 cmd = run_cmd.format('yum install -y epel-release')
                 run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
@@ -430,7 +428,10 @@ def setup_filesystem_replication(self):
             r,f=c.get_file(inet_conf_file)
             csync_line = 'csync2\tstream\ttcp\tnowait\troot\t/usr/sbin/csync2\tcsync2 -i -l -N csync{}.gluu\n'.format(server.id) 
             csync_line_exists = False
+            
+            print f
             for l in f:
+                
                 if l.startswith('csync2'):
                     l = csync_line
                     csync_line_exists = True
