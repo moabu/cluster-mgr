@@ -153,8 +153,14 @@ class StunnelInstaller(BaseInstaller):
     
     
     def check_installed(self):
-        return self.rc.exists('/usr/bin/stunnel') or self.rc.exists('/bin/stunnel')
-                
+        
+        si = self.rc.exists('/usr/bin/stunnel') or self.rc.exists('/bin/stunnel')
+
+        if si:
+            wlogger.log(self.tid, "stunnel was already installed.", "debug", server_id=self.server.id)
+
+        return si
+
     
     def install_in_ubuntu(self):
         self.run_command("apt-get update")
@@ -264,7 +270,7 @@ def install_cache_cluster(self):
                 return False
 
          
-        if si.check_installed:
+        if si.check_installed():
             server.stunnel = True
         else:
             wlogger.log(tid, "Installing Stunnel", "info", server_id=server.id)
@@ -332,7 +338,6 @@ def install_cache_cluster(self):
         rc.close()
         
         wlogger.log(tid, "2", "set_step")
-
     
     for server in servers:
                 
