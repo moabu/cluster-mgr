@@ -118,7 +118,7 @@
                         
                         {% endif %}
                         
-                        <td>{{ server.os }}</td>
+                        <td id="server_os_{{server.id}}">{{ server.os }}</td>
                         <td>
                                 <a id="drybutton{{server.id}}" class="btn btn-default btn-xs" href="#" onClick="dryRun({{server.id}})" class="btn btn-info btn-block">
                                     
@@ -499,6 +499,18 @@ function dryRun(server_id) {
     }
     
 $('[data-toggle="tooltip"]').tooltip(); 
+
+
+setTimeout(function() {
+
+    $.get("{{request.host_url}}server/getostype", function(data, status) {
+        $.each(data, function( key, value ) {
+            $('#server_os_'+key).text(value);
+        });
+    });
+    
+
+},20000);
 
 </script>
 {% endblock %}
