@@ -197,7 +197,8 @@ def get_csync2_config(exclude=None):
     sync_directories = []
 
     for l in open(replication_user_file).readlines():
-        sync_directories.append(l.strip())
+        if l.strip():
+            sync_directories.append(l.strip())
 
 
     exclude_files = [
@@ -304,7 +305,14 @@ def setup_filesystem_replication(self):
                 "-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes "
                 "root@localhost '{}'")
 
-        print c.exists(os.path.join(chroot, 'usr/sbin/csync2'))
+        
+        cmd = run_cmd.format('rm -f /etc/csync2*')
+        run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
+        
+
+        cmd = run_cmd.format('rm -f /var/lib/csync2/*.db3')
+        run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
+
 
         if not c.exists(os.path.join(chroot, 'usr/sbin/csync2')):
 
@@ -318,9 +326,6 @@ def setup_filesystem_replication(self):
                 )
                 return False
             else:
-
-
-                print "Need install csync"
 
                 if 'Ubuntu' in server.os:
                     cmd = 'localedef -i en_US -f UTF-8 en_US.UTF-8'
@@ -368,11 +373,6 @@ def setup_filesystem_replication(self):
                     cmd = run_cmd.format('yum install -y crontabs')
                     run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
-                cmd = run_cmd.format('rm -f /var/lib/csync2/*.db3')
-                run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
-
-                cmd = run_cmd.format('rm -f /etc/csync2*')
-                run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
 
         if server.primary_server:
@@ -470,16 +470,10 @@ def setup_filesystem_replication(self):
             inetd_conf = inetd_conf % ({'HOSTNAME': 'csync{}.gluu'.format(server.id)})
             c.put_file(inet_conf_file, inetd_conf)
 
-
-        #cmd = '{} -xv -N {}'.format(csync2_path, server.hostname)
-        #run_command(tid, c, cmd, chroot, no_error=None)
-
-
-
         #run time sync in every minute
         cron_file = os.path.join(chroot, 'etc', 'cron.d', 'csync2')
         c.put_file(cron_file,
-            '{}-59/2 * * * *    root    {} -N csync{}.gluu -xv 2>/var/log/csync2.log\n'.format(
+            '{}-59/2 * * * *    root    {} -N csync{}.gluu -xvv 2>/var/log/csync2.log\n'.format(
             server_counter, csync2_path, server.id))
 
         server_counter += 1

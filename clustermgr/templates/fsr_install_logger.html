@@ -162,7 +162,16 @@ function updateLog(){
                     delay: 0,
                     animate: {enter: 'animated fadeInUp', exit: 'animated fadeOutDown'}
                 });
-            }
+            } else {
+                stepItem = $('#step_icon');
+                stepItem.removeClass("fa-spin");
+                stepItem.removeClass("bg-blue");
+                stepItem.removeClass("fa-spinner");
+                stepItem.addClass("fa-check");
+                stepItem.addClass("bg-green");
+                
+                
+                }
         }
     });
 }
