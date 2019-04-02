@@ -445,8 +445,12 @@ def setup_filesystem_replication(self):
             fc=''.join(fc)
             c.put_file(inet_conf_file, fc)
 
-            cmd = '/etc/init.d/openbsd-inetd restart'
+            cmd = '/etc/init.d/openbsd-inetd stop'
             run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
+
+            #if server.os == 'Ubuntu 16':
+            #    cmd = run_cmd.format('kill -9 `pidof inetd`')
+            #    run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
 
         elif 'CentOS' in server.os:
             inetd_conf = (
@@ -489,9 +493,10 @@ def setup_filesystem_replication(self):
             run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
 
         else:
+
             cmd = run_cmd.format('service cron reload')
             run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
-            cmd = run_cmd.format('service openbsd-inetd restart')
+            cmd = run_cmd.format('service openbsd-inetd start')
             run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
 
         c.close()
@@ -971,15 +976,13 @@ def installGluuServer(self, server_id):
 
     wlogger.log(tid, "Preparing for Installation")
 
-
-    
     start_command  = 'service gluu-server-{0} start'
     stop_command   = 'service gluu-server-{0} stop'
     enable_command = None
 
 
 
-    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+    if server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
         enable_command  = '/sbin/gluu-serverd-{0} enable'
         stop_command    = '/sbin/gluu-serverd-{0} stop'
         start_command   = '/sbin/gluu-serverd-{0} start'
@@ -1065,10 +1068,6 @@ def installGluuServer(self, server_id):
 
         elif 'CentOS' in server.os or 'RHEL' in server.os:
             install_command = 'yum '
-            if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-                enable_command  = '/sbin/gluu-serverd-{0} enable'
-                stop_command    = '/sbin/gluu-serverd-{0} stop'
-                start_command   = '/sbin/gluu-serverd-{0} start'
 
 
             if not curlexist:
@@ -1301,21 +1300,35 @@ def installGluuServer(self, server_id):
                 ).format(gluu_server)
 
         
-                
+        
         run_command(tid, c, cmd, no_error='debug')
         
         cmd = 'chmod +x /opt/{}/install/community-edition-setup/setup.py'.format(
             gluu_server)
         run_command(tid, c, cmd)
     
+    if not server.primary_server:
+        setup_py = os.path.join(app.root_path,'setup', 'setup_{}.py'.format(appconf.gluu_version.replace('.','_')))
+        remote_py = '/opt/{}/install/community-edition-setup/setup.py'.format(gluu_server)
+        wlogger.log(tid, "Uploading setup.py",'debug')
+        c.upload(setup_py, remote_py)
+        c.run('chmod +x ' + remote_py)
+        
+    
     #run setup.py on the server
     wlogger.log(tid, "Running setup.py - Be patient this process will take a while ...")
 
     if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-        cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'cd /install/community-edition-setup/ && ./setup.py -n -v'"
+        cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'cd /install/community-edition-setup/ && ./setup.py -n -v %s'"
     else:
         
-        cmd = 'chroot /opt/{}  /bin/bash -c "cd /install/community-edition-setup/ && ./setup.py -n -v"'.format(gluu_server)
+        cmd = 'chroot /opt/{} /bin/bash -c "cd /install/community-edition-setup/ && ./setup.py -n -v %s"'.format(gluu_server)
+
+    if not server.primary_server:
+        cmd = cmd % ' --empty-ldap'
+    else:
+        cmd = cmd % ''
+
 
     wlogger.log(tid ,cmd, "debug")
 
@@ -1433,6 +1446,9 @@ def installGluuServer(self, server_id):
                 wlogger.log(tid, r,'success')
             else:
                 wlogger.log(tid, r,'error')
+
+            cmd = ('cp -r /opt/gluu-server-{0}/etc/certs /opt/gluu-server-{0}/etc/certs.back'.format(appconf.gluu_version))
+            run_command(tid, c, cmd)
 
             cmd = 'tar -zxf /tmp/certs.tgz -C /'
             run_command(tid, c, cmd)
