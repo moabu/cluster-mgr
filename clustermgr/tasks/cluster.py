@@ -154,6 +154,7 @@ def modifyOxLdapProperties(server, c, tid, pDict, chroot):
                 'include all replicating servers: {1}'.format(server.hostname, temp),
                 'warning')
 
+    """
     # Modify Shib ldap.properties to include all ldap properties
     remote_file = os.path.join(chroot, 'opt/shibboleth-idp/conf/ldap.properties')
     shib_ldap = c.get_file(remote_file)
@@ -187,6 +188,7 @@ def modifyOxLdapProperties(server, c, tid, pDict, chroot):
                 'include all replicating servers: {1}'.format(server.hostname, r[1]),
                 'warning')
 
+    """
 
 
 def get_csync2_config(exclude=None):
@@ -448,9 +450,13 @@ def setup_filesystem_replication(self):
             cmd = '/etc/init.d/openbsd-inetd stop'
             run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
-            #if server.os == 'Ubuntu 16':
-            #    cmd = run_cmd.format('kill -9 `pidof inetd`')
-            #    run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
+
+            # ubuntu is buggy, sometimes it can't stop inetd
+            if server.os == 'Ubuntu 16':
+                pids = c.run('pidof inetd')
+                if pids[1].strip():
+                    cmd = 'kill -9 {0}'.format( pids[1].strip())
+                    run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
 
         elif 'CentOS' in server.os:
             inetd_conf = (

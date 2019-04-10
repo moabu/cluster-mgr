@@ -270,12 +270,15 @@ def opendj_enable_replication(server_id):
 
 def chekFSR(server, gluu_version):
     c = RemoteClient(server.hostname, ip=server.ip)
+    
+    paths = []
+    
     try:
         c.startup()
     except Exception as e:
         flash("Can't establish SSH connection to {}".format(server.hostname),
               "warning")
-        return False, []
+        return False, [], paths
     
     csync_config = '/opt/gluu-server-{}/etc/csync2.cfg'.format(gluu_version)
     result = c.get_file(csync_config)
@@ -284,16 +287,21 @@ def chekFSR(server, gluu_version):
         
         servers = []
 
+        paths
+
         for l in result[1].readlines():
             ls = l.strip()
             if ls.startswith('host') and ls.endswith(';'):
                 hostname = ls.split()[1][:-1]
                 servers.append(hostname)
+            elif ls.startswith('include') and ls.endswith(';'):
+                ipath = ls.split('include')[1].strip().strip(';').strip()
+                paths.append(ipath)
         
         if servers:
-            return True, servers
+            return True, servers, paths
 
-    return False, []
+    return False, [], paths
 
 @cluster.route('/fsrep', methods=['GET', 'POST'])
 def file_system_replication():
@@ -307,7 +315,7 @@ def file_system_replication():
     if request.method == 'GET':
         if not request.args.get('install') == 'yes':
             status = chekFSR(servers[0], app_config.gluu_version)
-            
+
             for server in servers:
                 if 'csync{}.gluu'.format(server.id) in status[1]:
                     server.csync = True
