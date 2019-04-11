@@ -271,6 +271,73 @@ def get_csync2_config(exclude=None):
 
     return csync2_config
 
+def get_chroot():
+    app_config = AppConfiguration.query.first()
+    chroot = '/opt/gluu-server-' + app_config.gluu_version
+    return chroot
+
+def get_run_cmd(server):
+    run_cmd = "{}"
+    cmd_chroot = get_chroot()
+
+    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+        cmd_chroot = None
+        run_cmd = ("ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o "
+            "Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no "
+            "-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes "
+            "root@localhost '{}'")
+                
+    return run_cmd, cmd_chroot
+
+
+def restart_inetd(tid, c, server):
+
+    run_cmd , cmd_chroot = get_run_cmd(server)
+
+    if server.os in ('Ubuntu 16', 'Debian 9'):
+    
+        cmd = '/etc/init.d/openbsd-inetd stop'
+        run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
+
+
+        # ubuntu is buggy, sometimes it can't stop inetd
+        if server.os == 'Ubuntu 16':
+            pids = c.run('pidof inetd')
+            if pids[1].strip():
+                cmd = 'kill -9 {0}'.format( pids[1].strip())
+                run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
+
+
+        cmd = '/etc/init.d/openbsd-inetd start'
+        run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
+
+    
+    if ('CentOS' in server.os) or ('RHEL' in server.os):
+
+        cmd = run_cmd.format('service xinetd start')
+        run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
+
+
+
+@celery.task(bind=True)
+def update_filesystem_replication_paths(self):
+    tid = self.request.id
+
+    servers = Server.query.all()
+    app_config = AppConfiguration.query.first()
+    
+    chroot = '/opt/gluu-server-' + app_config.gluu_version
+    csync2_config = get_csync2_config()
+    
+    for server in servers:
+        c = RemoteClient(server.hostname, ip=server.ip)
+        c.startup()
+
+        remote_file = os.path.join(chroot, 'etc', 'csync2.cfg')
+        wlogger.log(tid, "Uploading csync2.cfg", 'debug', server_id=server.id)
+        c.put_file(remote_file,  csync2_config)
+        restart_inetd(tid, c, server)
+
 
 @celery.task(bind=True)
 def setup_filesystem_replication(self):
@@ -297,17 +364,8 @@ def setup_filesystem_replication(self):
 
         modify_hosts(tid, c, cysnc_hosts, chroot=chroot, server_id=server.id)
 
-        run_cmd = "{}"
-        cmd_chroot = chroot
+        run_cmd , cmd_chroot = get_run_cmd(server)
 
-        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-            cmd_chroot = None
-            run_cmd = ("ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o "
-                "Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no "
-                "-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes "
-                "root@localhost '{}'")
-
-        
         cmd = run_cmd.format('rm -f /etc/csync2*')
         run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
         
@@ -447,16 +505,10 @@ def setup_filesystem_replication(self):
             fc=''.join(fc)
             c.put_file(inet_conf_file, fc)
 
-            cmd = '/etc/init.d/openbsd-inetd stop'
-            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
+
+            restart_inetd(tid, c, server)
 
 
-            # ubuntu is buggy, sometimes it can't stop inetd
-            if server.os == 'Ubuntu 16':
-                pids = c.run('pidof inetd')
-                if pids[1].strip():
-                    cmd = 'kill -9 {0}'.format( pids[1].strip())
-                    run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
 
         elif 'CentOS' in server.os:
             inetd_conf = (
@@ -491,10 +543,10 @@ def setup_filesystem_replication(self):
         wlogger.log(tid, 'Crontab entry was created to sync files in every minute',
                          'debug', server_id=server.id)
 
+
+
         if ('CentOS' in server.os) or ('RHEL' in server.os):
-            cmd = 'service crond reload'
-            cmd = run_cmd.format('service xinetd start')
-            run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
+            restart_inetd(tid, c, server)
             cmd = run_cmd.format('service crond restart')
             run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
 

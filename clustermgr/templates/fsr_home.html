@@ -40,8 +40,29 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                
+
+                
             </div>
-        </div>
+            </div>
+            
+
+{% if csync %}
+  <h3>The following paths are repliacted among replicating servers</h3>
+            
+  <form action="{{url_for('cluster.update_fsrep_path')}}" method="POST">
+     {{ form.csrf_token }}
+    <div class="form-group">
+        
+    {{form.fs_paths(class="form-control", rows=9)}}
+    
+    </div>
+  <br>
+  <button type="submit" class="btn btn-primary pull-right">Update Paths</button>
+
+  </form>
+{% endif %}
+            
     </div>
 
     <div class="col-md-4">
@@ -59,6 +80,9 @@
         </div>
     </div>
 </div>
+
+
+
 {% endblock %}
 
 {% block js %}

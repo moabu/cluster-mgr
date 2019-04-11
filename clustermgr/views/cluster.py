@@ -18,7 +18,7 @@ from clustermgr.tasks.cluster import  \
     installGluuServer, installNGINX, \
     setup_filesystem_replication, opendjenablereplication, \
     remove_server_from_cluster, remove_filesystem_replication, \
-    opendj_disable_replication_task
+    opendj_disable_replication_task, update_filesystem_replication_paths
 
 from clustermgr.core.remote import RemoteClient
 
@@ -321,8 +321,18 @@ def file_system_replication():
                     server.csync = True
                     csync += 1
             
+            
+            form = FSReplicationPathsForm()
+            form.fs_paths.data = '\n'.join(status[2])
+            
             if status[0]:
-                return render_template("fsr_home.html", servers=servers, csync=csync)
+                return render_template(
+                                "fsr_home.html", 
+                                servers=servers, 
+                                csync=csync,
+                                paths=status[2],
+                                form=form
+                                )
 
     #Check if replication user (dn) and password has been configured
     if not app_config:
@@ -335,6 +345,8 @@ def file_system_replication():
     if not servers:
         flash("Please install gluu servers", "warning")
         return redirect(url_for('index.home'))
+
+    replicated = False
 
     for server in servers:
         if not server.gluu_server:
@@ -375,6 +387,15 @@ def file_system_replication():
     return render_template('fsr_install_logger.html', step=1,
                            task_id=task.id, servers=servers)
                            
+
+
+@cluster.route('/updatefsreppath', methods=["POST"])
+def update_fsrep_path():
+    servers = Server.query.all()
+
+    task = update_filesystem_replication_paths.delay()
+    return render_template('fsr_install_logger.html', step=1,
+                           task_id=task.id, servers=servers)
 
 @cluster.route('/removefsrep')
 def remove_file_system_replication():
