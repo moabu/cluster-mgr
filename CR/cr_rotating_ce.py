@@ -24,6 +24,8 @@ fmt = logging.Formatter('%(levelname)s - %(asctime)s - %(message)s')
 ch.setFormatter(fmt)
 logger.addHandler(ch)
 
+
+# TODO : Update this function
 def get_credentials():
     bind_dn = None
     bind_pw = None
@@ -43,6 +45,7 @@ def get_credentials():
             if 'ldap_hostname=' in line:
                 ldap_host = line[14:].strip()
     return bind_dn.strip(), bind_pw.strip(), inum.strip(), ldap_host.strip()
+
 
 def clean_snapshot(ip):
     logger.info("Cleaning cache folders for node with IP {}".format(ip))
