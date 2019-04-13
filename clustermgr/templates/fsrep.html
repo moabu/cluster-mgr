@@ -22,11 +22,6 @@
             <h3 class="panel-title">Replication Paths</h3>
         </div>
 
-        <div class="box-body">
-            {{form.fs_paths(rows='12',cols='60')}}
-            <a class="btn btn-primary" href="{{ url_for('cluster.file_system_replication', next='defaults') }}">Load Defaults</a>
-        </div>
-
         <div class="box-footer">
             {{ form.update(class="btn btn-success btn-block") }}
         </div>
