@@ -193,9 +193,9 @@ def modifyOxLdapProperties(server, c, tid, pDict, chroot):
 
 def get_csync2_config(exclude=None):
 
-    replication_user_file = os.path.join(Config.DATA_DIR,
-                            'fs_replication_paths.txt')
-
+    replication_user_file = os.path.join(app.root_path, 'templates',
+                                    'file_system_replication',
+                                    'replication_defaults.txt')
     sync_directories = []
 
     for l in open(replication_user_file).readlines():

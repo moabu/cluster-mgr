@@ -355,8 +355,6 @@ def file_system_replication():
 
     fs_paths_form = FSReplicationPathsForm()
 
-    replication_user_file = os.path.join(Config.DATA_DIR,
-                                    'fs_replication_paths.txt')
 
     if not request.args.get('next') == 'install':
 
@@ -364,22 +362,11 @@ def file_system_replication():
                                     'file_system_replication',
                                     'replication_defaults.txt')
 
-        replication_paths = ''
-        if not request.args.get('next') == 'defaults':
-            if os.path.exists(replication_user_file):
-                replication_paths = open(replication_user_file).read()
-
-
-        if not replication_paths:
-            replication_paths = open(replication_defaults_file).read()
+        replication_paths = open(replication_defaults_file).read()
 
         fs_paths_form.fs_paths.data = replication_paths
 
         return render_template("fsrep.html", form=fs_paths_form)
-
-
-    with open(replication_user_file, 'w') as F:
-        F.write(fs_paths_form.fs_paths.data)
 
 
     task = setup_filesystem_replication.delay()
