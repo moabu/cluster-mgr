@@ -44,28 +44,6 @@ def index():
         return redirect(url_for('index.home'))
 
 
-    if appconf.external_load_balancer:
-        c_host = appconf.cache_host
-        c_ip = appconf.cache_ip
-    else:
-        c_host = appconf.nginx_host
-        c_ip = appconf.nginx_ip
-
-    c = RemoteClient(host=c_host, ip=c_ip)
-    
-    try:
-        c.startup()
-    except:
-        flash("SSH connection can't be established to cache server", "warning")
-
-    result = c.get_file('/etc/stunnel/stunnel.conf')
-    
-    installed_servers = []
-
-    if result[0]:
-        installed_servers = get_redis_config(result[1])
-    
-
     version = int(appconf.gluu_version.replace(".", ""))
     if version < 311:
         flash("Cache Management is available only for clusters configured with"
