@@ -66,16 +66,17 @@ def get_appliance(conn_ldap, inum):
             'inum={},ou=appliances,o=gluu'.format(inum),
             '(objectclass=gluuAppliance)',
             attributes=['oxTrustCacheRefreshServerIpAddress',
-                        'gluuVdsCacheRefreshEnabled'],
+                        'gluuVdsCacheRefreshEnabled']
         )
-
     return conn_ldap.entries[0]
 
 
 def update_appliance(conn_ldap, appliance, ip):
     try:
+        dn = str(appliance)
+        dn = dn[dn.find("inum"):dn.find("ou=appliances,o=gluu") + 20]
         logger.info("Updating oxTrustCacheRefreshServerIpAddress with IP {}".format(ip))
-        conn_ldap.modify(appliance.entry_dn,
+        conn_ldap.modify(dn,
                          {'oxTrustCacheRefreshServerIpAddress': [(MODIFY_REPLACE, [ip])]})
         result = conn_ldap.result
         if result["description"] == "success":
@@ -96,11 +97,11 @@ def main():
 
     try:
         with Connection(ldap_server, bind_dn, bind_password) as conn_ldap:
-            appliance = get_appliance(conn_ldap, inum='')
-            ip = str(appliance["gluuIpAddress"])
+            ip_appliance = get_appliance(conn_ldap, inum='')
+            ip = str(ip_appliance["gluuIpAddress"])
             appliance = get_appliance(conn_ldap, inum)
             current_ip_in_ldap = appliance["oxTrustCacheRefreshServerIpAddress"]
-            is_cr_enabled = bool(appliance["gluuVdsCacheRefreshEnabled"] == "enabled")
+            is_cr_enabled = bool(str(appliance["gluuVdsCacheRefreshEnabled"]).strip() == "enabled")
             # The user has disabled the CR or CR is not active
             if not is_cr_enabled:
                 # TODO: should we bail since CR is disabled?
