@@ -107,11 +107,12 @@ def main():
                 # TODO: should we bail since CR is disabled?
                 logger.warn('Cache refresh is found to be disabled.')
 
-            if ip != current_ip_in_ldap and is_cr_enabled :
+            if ip.strip() != str(current_ip_in_ldap).strip() and is_cr_enabled:
                 logger.info("Current oxTrustCacheRefreshServerIpAddress: {}".format(current_ip_in_ldap))
                 # Clean cache folder
                 clean_snapshot(ip)
                 update_appliance(conn_ldap, appliance, ip)
+
 
     except KeyboardInterrupt:
         logger.warn("Canceled by user; exiting ...")
