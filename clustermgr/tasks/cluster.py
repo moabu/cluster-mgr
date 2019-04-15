@@ -873,13 +873,13 @@ def makeOpenDjListenIpAddr(tid, c, cmd_chroot, run_cmd, server, ip_addr='0.0.0.0
     wlogger.log(tid, "Making openDJ listens all interfaces for port 4444 and 1636")
 
     opendj_commands = [
-            "sed -i \"s/dsreplication.java-args=-Xms8m -client/dsreplication.java-args=-Xms8m -client -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true/g\" /opt/opendj/config/java.properties",
+            "sed -i \\\"s/dsreplication.java-args=-Xms8m -client/dsreplication.java-args=-Xms8m -client -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true/g\\\" /opt/opendj/config/java.properties",
             "/opt/opendj/bin/dsjavaproperties",
-            "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D \"cn=directory manager\" -w $\"{}\" -n set-administration-connector-prop  --set listen-address:{} -X".format(server.ldap_password, ip_addr),
-            "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D \"cn=directory manager\" -w $\"{}\" -n set-connection-handler-prop --handler-name \"LDAPS Connection Handler\" --set enabled:true --set listen-address:{} -X".format(server.ldap_password, ip_addr),
+            "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D \\\"cn=directory manager\\\" -w $\\\"{}\\\" -n set-administration-connector-prop  --set listen-address:{} -X".format(server.ldap_password, ip_addr),
+            "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D \\\"cn=directory manager\\\" -w $\\\"{}\\\" -n set-connection-handler-prop --handler-name \\\"LDAPS Connection Handler\\\" --set enabled:true --set listen-address:{} -X".format(server.ldap_password, ip_addr),
             ]
 
-    if server.os == 'RHEL 7':
+    if server.os in ('RHEL 7', 'CentOS 7'):
         opendj_commands.append('systemctl stop opendj')
         opendj_commands.append('systemctl start opendj')
     else:
@@ -887,6 +887,8 @@ def makeOpenDjListenIpAddr(tid, c, cmd_chroot, run_cmd, server, ip_addr='0.0.0.0
         opendj_commands.append('/etc/init.d/opendj start')
     
     for command in opendj_commands:
+        if server.os in ('RHEL 7', 'CentOS 7'):
+            command = command.replace('\\\"','"')
         cmd = run_cmd.format(command)
         run_command(tid, c, cmd, cmd_chroot)
 
