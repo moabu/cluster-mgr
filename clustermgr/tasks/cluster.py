@@ -866,6 +866,29 @@ def upload_custom_schema(tid, c, ldap_type, gluu_server):
                 wlogger.log(tid,
                     "Can't upload custom schame file {0}: ".format(sf,
                                                             r[1]), 'error')
+                                                            
+                                                            
+def makeOpenDjListenIpAddr(tid, c, cmd_chroot, run_cmd, server, ip_addr='0.0.0.0'):
+
+    wlogger.log(tid, "Making openDJ listens all interfaces for port 4444 and 1636")
+
+    opendj_commands = [
+            "sed -i \"s/dsreplication.java-args=-Xms8m -client/dsreplication.java-args=-Xms8m -client -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true/g\" /opt/opendj/config/java.properties",
+            "/opt/opendj/bin/dsjavaproperties",
+            "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D \"cn=directory manager\" -w $\"{}\" -n set-administration-connector-prop  --set listen-address:{} -X".format(server.ldap_password, ip_addr),
+            "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D \"cn=directory manager\" -w $\"{}\" -n set-connection-handler-prop --handler-name \"LDAPS Connection Handler\" --set enabled:true --set listen-address:{} -X".format(server.ldap_password, ip_addr),
+            ]
+
+    if server.os == 'RHEL 7':
+        opendj_commands.append('systemctl stop opendj')
+        opendj_commands.append('systemctl start opendj')
+    else:
+        opendj_commands.append('/etc/init.d/opendj stop')
+        opendj_commands.append('/etc/init.d/opendj start')
+    
+    for command in opendj_commands:
+        cmd = run_cmd.format(command)
+        run_command(tid, c, cmd, cmd_chroot)
 
 def checkOfflineRequirements(tid, server, c, appconf):
     os_type, os_version = server.os.split()
@@ -1447,27 +1470,7 @@ def installGluuServer(self, server_id):
 
     if appconf.gluu_version >= '3.1.4':
         #make opendj listen all interfaces
-        wlogger.log(tid, "Making openDJ listens all interfaces for port 4444 and 1636")
-
-        set_ip_addr = '0.0.0.0'
-
-        opendj_commands = [
-                "sed -i 's/dsreplication.java-args=-Xms8m -client/dsreplication.java-args=-Xms8m -client -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true/g' /opt/opendj/config/java.properties",
-                "/opt/opendj/bin/dsjavaproperties",
-                "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-administration-connector-prop  --set listen-address:{} -X".format(server.ldap_password, set_ip_addr),
-                "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-connection-handler-prop --handler-name 'LDAPS Connection Handler' --set enabled:true --set listen-address:{} -X".format(server.ldap_password, set_ip_addr),
-                ]
-
-        if server.os == 'RHEL 7':
-            opendj_commands.append('systemctl stop opendj')
-            opendj_commands.append('systemctl start opendj')
-        else:
-            opendj_commands.append('/etc/init.d/opendj stop')
-            opendj_commands.append('/etc/init.d/opendj start')
-        
-        for command in opendj_commands:
-            cmd = run_cmd.format(command)
-            run_command(tid, c, cmd, cmd_chroot)
+        makeOpenDjListenIpAddr(tid, c, cmd_chroot, run_cmd, server)
 
     # Get certificates from primary server and upload this server
     if not server.primary_server:

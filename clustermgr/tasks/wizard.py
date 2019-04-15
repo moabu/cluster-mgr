@@ -7,7 +7,8 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, wlogger, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.utils import run_and_log
-from clustermgr.tasks.cluster import get_os_type
+from clustermgr.tasks.cluster import get_os_type, makeOpenDjListenIpAddr,\
+        get_chroot, get_run_cmd
 from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.config import Config
 from clustermgr.core.utils import get_setup_properties, \
@@ -122,6 +123,9 @@ def wizard_step2(self):
         wlogger.log(tid, "Can't establish SSH connection",'fail')
         wlogger.log(tid, "Ending changing name.", 'error')
         return
+    
+    run_cmd , cmd_chroot = get_run_cmd(server)
+    makeOpenDjListenIpAddr(tid, c, cmd_chroot, run_cmd, server)
     
     name_changer = ChangeGluuHostname(
             old_host = server.hostname,

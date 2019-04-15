@@ -316,7 +316,6 @@ def install_cache_cluster(self):
                             server_id=server.id)
 
             stunnel_cert = stunnel_cert[1].read()
-            
 
             stunnel_redis_conf = (
                                 'pid = /run/stunnel-redis.pid\n'
