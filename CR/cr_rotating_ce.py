@@ -10,8 +10,6 @@ import logging
 import os
 import string
 import time
-import pyDes
-import socket
 import pwd
 import shutil
 from ldap3 import Server, Connection, MODIFY_REPLACE
@@ -25,26 +23,34 @@ ch.setFormatter(fmt)
 logger.addHandler(ch)
 
 
-# TODO : Update this function
 def get_credentials():
-    bind_dn = None
-    bind_pw = None
-    inum = None
-    ldap_host = None
-    with open('/install/community-edition-setup/setup.properties.last', 'r+') as f:
+    bindDN = None
+    bindPassword = None
+    inumAppliance = None
+    ldapHost = None
+    with open('/etc/gluu/conf/ox-ldap.properties', 'r+') as f:
         for line in f:
-            if 'ldap_binddn=' in line:
-                bind_dn = line[16:].strip()
+            ls = line.strip()
+            if ls.startswith('servers:'):
+                lsl = ls.split('servers:')
+                ldap_host_port = lsl[1].strip().split(',')[0].strip()
+                ldapHost, ldapPort = ldap_host_port.split(':')
+                
+            elif ls.startswith('bindDN:'):
+                bindDN = ls.split('bindDN:')[1].strip()
 
-            if 'ldapPass=' in line:
-                bind_pw = line[9:].strip()
-
-            if 'inumAppliance=' in line:
-                inum = line[14:].strip()
-
-            if 'ldap_hostname=' in line:
-                ldap_host = line[14:].strip()
-    return bind_dn.strip(), bind_pw.strip(), inum.strip(), ldap_host.strip()
+            elif ls.startswith('bindPassword:'):
+        
+                lsl = ls.split('bindPassword:')
+                bindPassword_encoded = lsl[1].strip()
+                bindPassword = os.popen('/opt/gluu/bin/encode.py -D {}'.format(bindPassword_encoded)).read().strip()
+                
+            elif ls.startswith('oxauth_ConfigurationEntryDN='):
+                lsl = ls.split('oxauth_ConfigurationEntryDN=')
+                lsll = lsl[1].split(',')
+                inumAppliance = lsll[2].replace('inum=','')
+                
+    return bindDN, bindPassword, inumAppliance, ldapHost
 
 
 def clean_snapshot(ip):
@@ -88,18 +94,19 @@ def update_appliance(conn_ldap, appliance, ip):
 
 
 def main():
+    
+    
+    bindDN, bindPassword, inumAppliance, ldapHost = get_credentials()
+    
     credentials = get_credentials()
     # Get creds for LDAP access
-    bind_dn = 'cn=' + credentials[0]
-    bind_password = credentials[1]
-    inum = credentials[2]
-    ldap_server = Server(credentials[3], port=1636, use_ssl=True)
+    ldap_server = Server(ldapHost, port=1636, use_ssl=True)
 
     try:
-        with Connection(ldap_server, bind_dn, bind_password) as conn_ldap:
+        with Connection(ldap_server, bindDN, bindPassword) as conn_ldap:
             ip_appliance = get_appliance(conn_ldap, inum='')
             ip = str(ip_appliance["gluuIpAddress"])
-            appliance = get_appliance(conn_ldap, inum)
+            appliance = get_appliance(conn_ldap, inumAppliance)
             current_ip_in_ldap = appliance["oxTrustCacheRefreshServerIpAddress"]
             is_cr_enabled = bool(str(appliance["gluuVdsCacheRefreshEnabled"]).strip() == "enabled")
             # The user has disabled the CR or CR is not active
@@ -112,7 +119,6 @@ def main():
                 # Clean cache folder
                 clean_snapshot(ip)
                 update_appliance(conn_ldap, appliance, ip)
-
 
     except KeyboardInterrupt:
         logger.warn("Canceled by user; exiting ...")
