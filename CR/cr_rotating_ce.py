@@ -97,8 +97,6 @@ def main():
     
     
     bindDN, bindPassword, inumAppliance, ldapHost = get_credentials()
-    
-    credentials = get_credentials()
     # Get creds for LDAP access
     ldap_server = Server(ldapHost, port=1636, use_ssl=True)
 
