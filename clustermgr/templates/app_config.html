@@ -184,16 +184,20 @@
 
 {% if localos != 'Alpine' %}
 
-    <div class="panel panel-default">
+  {% if not request.path.endswith('upgradewithpip') and latest_version > version %}
+
+    <div class="panel panel-default" id="upgrade-panel">
         <div class="panel-heading">
             <h3 class="panel-title">Upgrade</h3>
         </div>
         <div class="panel-body">
-        Upgrade Clustermgr from github repository<br><br>
+        <span class="text-warning">Version {{latest_version}} is available!</span> Upgrade Clustermgr from github repository<br><br>
         <a class="btn btn-primary" href="{{ url_for('index.upgrade_clustermgr') }}">Upgrade</a>
 
         </div>
     </div>
+    {% endif %}
+
 {% endif %}
 
 {% endblock %}

@@ -2418,5 +2418,6 @@ def check_latest_version():
         text = result.text.strip()
         latest_version = text.split('=')[1].strip().strip('"').strip("'")        
         appconf.latest_version = latest_version
+        print "Latest github version is %s" % latest_version
         db.session.commit()
 
