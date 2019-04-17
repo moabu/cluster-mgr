@@ -193,12 +193,20 @@ def modifyOxLdapProperties(server, c, tid, pDict, chroot):
 
 def get_csync2_config(exclude=None):
 
-    replication_user_file = os.path.join(app.root_path, 'templates',
+    fsr_file_name = os.path.join(app.root_path, 'templates',
                                     'file_system_replication',
                                     'replication_defaults.txt')
+                                    
+
+    user_fsr_file_name = os.path.join(app.config["DATA_DIR"], 'fsr_paths')
+    
+    if os.path.exists(user_fsr_file_name):
+        fsr_file_name = user_fsr_file_name
+
+
     sync_directories = []
 
-    for l in open(replication_user_file).readlines():
+    for l in open(fsr_file_name).readlines():
         if l.strip():
             sync_directories.append(l.strip())
 

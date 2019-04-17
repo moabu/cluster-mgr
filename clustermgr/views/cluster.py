@@ -369,6 +369,11 @@ def file_system_replication():
         return render_template("fsrep.html", form=fs_paths_form)
 
 
+    user_fsr_file_name = os.path.join(app.config["DATA_DIR"], 'fsr_paths')
+
+    with open(user_fsr_file_name,'w') as w:
+        w.write(fs_paths_form.fs_paths.data.strip())
+
     task = setup_filesystem_replication.delay()
 
     return render_template('fsr_install_logger.html', step=1,
@@ -379,6 +384,13 @@ def file_system_replication():
 @cluster.route('/updatefsreppath', methods=["POST"])
 def update_fsrep_path():
     servers = Server.query.all()
+
+    fsr_paths = request.form['fs_paths']
+
+    user_fsr_file_name = os.path.join(app.config["DATA_DIR"], 'fsr_paths')
+    
+    with open(user_fsr_file_name,'w') as w:
+        w.write(fsr_paths)
 
     task = update_filesystem_replication_paths.delay()
     return render_template('fsr_install_logger.html', step=1,
