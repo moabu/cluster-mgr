@@ -1226,7 +1226,16 @@ def installGluuServer(self, server_id):
                     cmd = stop_command.format(gluu_version)
                     rs = run_command(tid, c, cmd, no_error='debug')
 
-                run_command(tid, c, install_command + "remove -y "+s)
+
+                if appconf.offline:
+                    if ('Ubuntu' in server.os) or ('Debian' in server.os):
+                        cmd = 'apt-get remove -y ' + s
+                    else:
+                        cmd = 'rpm -e ' + s
+                else:
+                    cmd = install_command + "remove -y "+s
+                        
+                run_command(tid, c,cmd)
 
 
     if not gluu_installed:
