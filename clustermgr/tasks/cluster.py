@@ -443,7 +443,31 @@ def setup_filesystem_replication(self):
                     cmd = run_cmd.format('yum install -y crontabs')
                     run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
+                if server.os == 'RHEL 7':
+                    #enable centos7 repo
+                    centos7_repo = ('[centos]\n'
+                                    'name=CentOS-7\n'
+                                    'baseurl=http://ftp.heanet.ie/pub/centos/7/os/x86_64/\n'
+                                    'enabled=1\n'
+                                    'gpgcheck=1\n'
+                                    'gpgkey=http://ftp.heanet.ie/pub/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7\n'
+                                    )
+                    
+                    wlogger.log(tid, "Enabling CentOS 7 repository", 'debug', server_id=server.id)
+                    repo_fn = os.path.join(chroot, 'etc/yum.repos.d/centos.repo')
+                    c.put_file(repo_fn, centos7_repo)
 
+
+                    cmd_list = ('yum repolist',
+                                'yum install -y sqlite-devel xinetd gnutls librsync',
+                                'yum install -y https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos7.x86_64.rpm',
+                                )
+                    
+                    for cmdi in cmd_list:
+                        cmd = run_cmd.format(cmdi)
+                        run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
+                    
+                    
 
         if server.primary_server:
 
