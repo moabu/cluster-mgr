@@ -17,7 +17,7 @@ pip install pyDes
 
 # csync2 Installation
 
-##cysnc2 installation (CentOS 7):
+## cysnc2 installation (CentOS 7):
 
 
 Obtain csync2 from https://raw.githubusercontent.com/mbaser/gluu/master/csync2-2.0-3.gluu.centos7.x86_64.rpm
@@ -28,7 +28,7 @@ inside container:
 # yum install -y sqlite-devel xinetd gnutls librsync
 # rpm -i csync2-2.0-3.gluu.centos7.x86_64.rpm 
 ```
-##cysnc2 installation (RedHat 7):
+## cysnc2 installation (RedHat 7):
 
 First enable centos7 repository. For this create file `/etc/yum.repos.d/centos.repo`
 with the following content:
