@@ -25,9 +25,32 @@ Obtain csync2 from https://raw.githubusercontent.com/mbaser/gluu/master/csync2-2
 inside container:
 
 ```
-# yum install sqlite-devel xinetd gnutls librsync
+# yum install -y sqlite-devel xinetd gnutls librsync
 # rpm -i csync2-2.0-3.gluu.centos7.x86_64.rpm 
 ```
+##cysnc2 installation (RedHat 7):
+
+First enable centos7 repository. For this create file `/etc/yum.repos.d/centos.repo`
+with the following content:
+
+```
+[centos]
+name=CentOS-7
+baseurl=http://ftp.heanet.ie/pub/centos/7/os/x86_64/
+enabled=1
+gpgcheck=1
+gpgkey=http://ftp.heanet.ie/pub/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7
+```
+
+Obtain csync2 from https://raw.githubusercontent.com/mbaser/gluu/master/csync2-2.0-3.gluu.centos7.x86_64.rpm
+
+inside container:
+
+```
+# yum install -y sqlite-devel xinetd gnutls librsync
+# rpm -i csync2-2.0-3.gluu.centos7.x86_64.rpm 
+```
+
 
 ## cysnc2 installation (ubuntu & Debian):
 
