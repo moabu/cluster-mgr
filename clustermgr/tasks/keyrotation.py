@@ -159,24 +159,24 @@ def _rotate_keys(kr, javalibs_dir, jks_path):
                     jks_pass, javalibs_dir, jks_path, exp=exp,
                 )
 
-                if retcode == 0:
-                    new_keys = json.loads(out)
-                    merged_keys = merge_keys(new_keys, conf_webkeys)
-                    ox_modified = modify_oxauth_config(conn, ox_config.entry_dn, ox_rev, conf_dynamic, merged_keys)
-
-                    if ox_modified["description"] != "success":
-                        task_logger.warn("Unable to update oxAuth config; reason={}".format(ox_modified["message"]))
-                    else:
-                        task_logger.info("Keys have been updated")
-                        kr.rotated_at = datetime.utcnow()
-                        db.session.add(kr)
-                        db.session.commit()
-                        # copy JKS to all servers
-                        distribute_jks(jks_path)
-                        break
-                else:
+                if retcode != 0:
                     task_logger.warn("Unable to generate keys; reason={}".format(err))
+                    continue
 
+                new_keys = json.loads(out)
+                merged_keys = merge_keys(new_keys, conf_webkeys)
+                ox_modified = modify_oxauth_config(conn, ox_config.entry_dn, ox_rev, conf_dynamic, merged_keys)
+
+                if ox_modified["description"] != "success":
+                    task_logger.warn("Unable to update oxAuth config; reason={}".format(ox_modified["message"]))
+                else:
+                    task_logger.info("Keys have been updated")
+                    kr.rotated_at = datetime.utcnow()
+                    db.session.add(kr)
+                    db.session.commit()
+                    # copy JKS to all servers
+                    distribute_jks(jks_path)
+                    break
         except LDAPSocketOpenError:
             task_logger.warn("Unable to connect to LDAP at {}; trying other server (if possible).".format(server.hostname))
             continue
