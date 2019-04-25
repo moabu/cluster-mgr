@@ -53,6 +53,8 @@ def run_command(tid, c, command, container=None, no_error='error',  server_id=''
         command = 'chroot {0} /bin/bash -c "{1}"'.format(container,
                                                          command)
 
+    print "command", command
+
     wlogger.log(tid, command, "debug", server_id=server_id)
 
     cin, cout, cerr = c.run(command)
@@ -322,7 +324,7 @@ def restart_inetd(tid, c, server):
     
     if ('CentOS' in server.os) or ('RHEL' in server.os):
 
-        cmd = run_cmd.format('service xinetd start')
+        cmd = run_cmd.format('service xinetd restart')
         run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
 
@@ -518,7 +520,7 @@ def setup_filesystem_replication(self):
 
 
 
-        elif 'CentOS' in server.os:
+        elif 'CentOS' in server.os or 'RHEL' in server.os:
             inetd_conf = (
                 '# default: off\n'
                 '# description: csync2\n'
@@ -878,10 +880,15 @@ def upload_custom_schema(tid, c, ldap_type, gluu_server):
                                                             
 def makeOpenDjListenIpAddr(tid, c, cmd_chroot, run_cmd, server, ip_addr='0.0.0.0'):
 
+    appconf = AppConfiguration.query.first()
+
     wlogger.log(tid, "Making openDJ listens all interfaces for port 4444 and 1636")
 
-    opendj_commands = [
-            "sed -i \\\"s/dsreplication.java-args=-Xms8m -client/dsreplication.java-args=-Xms8m -client -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true/g\\\" /opt/opendj/config/java.properties",
+    cmd = "sed -i 's/dsreplication.java-args=-Xms8m -client/dsreplication.java-args=-Xms8m -client -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true/g' /opt/gluu-server-{}/opt/opendj/config/java.properties".format(appconf.gluu_version)
+
+    run_command(tid, c, cmd)
+
+    opendj_commands = [            
             "/opt/opendj/bin/dsjavaproperties",
             "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D \\\"cn=directory manager\\\" -w $\\\"{}\\\" -n set-administration-connector-prop  --set listen-address:{} -X".format(server.ldap_password, ip_addr),
             "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D \\\"cn=directory manager\\\" -w $\\\"{}\\\" -n set-connection-handler-prop --handler-name \\\"LDAPS Connection Handler\\\" --set enabled:true --set listen-address:{} -X".format(server.ldap_password, ip_addr),
@@ -896,7 +903,7 @@ def makeOpenDjListenIpAddr(tid, c, cmd_chroot, run_cmd, server, ip_addr='0.0.0.0
     
     for command in opendj_commands:
         if server.os in ('RHEL 7', 'CentOS 7'):
-            command = command.replace('\\\"','"')
+            command = command.replace('\\\"',"'")
         cmd = run_cmd.format(command)
         run_command(tid, c, cmd, cmd_chroot)
 
@@ -915,7 +922,7 @@ def checkOfflineRequirements(tid, server, c, appconf):
                     "Os type does not match gluu archive type", 'error')
             return False
     elif os_type.lower() in ('centos', 'rhel'):
-        if not appconf.gluu_archive.endswith('.rmp'):
+        if not appconf.gluu_archive.endswith('.rpm'):
             wlogger.log(tid,
                     "Os type does not match gluu archive type", 'error')
             return False
@@ -1027,8 +1034,8 @@ def installGluuServer(self, server_id):
 
     gluu_server = 'gluu-server-' + appconf.gluu_version
 
-    #opendj_version = '3.0.0.dd9dedab5172885f14f0929682570c573d0c2b7b'
     
+
     #If os type of this server was not idientified, return to home
     if not server.os:
         wlogger.log(tid, "OS type has not been identified.", 'fail')
@@ -1092,7 +1099,7 @@ def installGluuServer(self, server_id):
         if ('Ubuntu' in server.os) or ('Debian' in server.os):
             install_command = 'dpkg -i /root/{}'.format(gluu_archive_fn)
         else:
-            install_command = 'rpm -i root/{}'.format(gluu_archive_fn)
+            install_command = 'rpm -i /root/{}'.format(gluu_archive_fn)
     else:
 
 
@@ -1289,14 +1296,6 @@ def installGluuServer(self, server_id):
                             last_debug = False
                             wlogger.log(tid, cout, "debug")
 
-    
-    #If previous installation was broken, make a re-installation. This sometimes
-    #occur on ubuntu installations
-    if 'half-installed' in cout:
-        if ('Ubuntu' in server.os) or  ('Debian' in server.os):
-            cmd = 'DEBIAN_FRONTEND=noninteractive apt-get install --reinstall -y '+ gluu_server
-            run_command(tid, c, cmd, no_error='debug')
-
 
     if enable_command:
         run_command(tid, c, enable_command.format(appconf.gluu_version), no_error='debug')
@@ -1332,18 +1331,6 @@ def installGluuServer(self, server_id):
             wlogger.log(tid, "Can't establish SSH connection to primary server: ".format(pserver.hostname), 'error')
             wlogger.log(tid, "Ending server installation process.", "error")
             return
-
-
-        #if opendj version is not default, download latest version
-        
-        #if opendj_version != '3.0.0.dd9dedab5172885f14f0929682570c573d0c2b7b':
-        #    wlogger.log(tid, "Downloading lastest openDj from http://ox.gluu.org/")
-        #    cmd = ('wget http://ox.gluu.org/maven/org/forgerock/opendj/'
-        #           'opendj-server-legacy/3.0.1.gluu/opendj-server-legacy-3.0.1.gluu.zip '
-        #           '-O /opt/{0}/opt/dist/app/opendj-server-3.0.0.1.zip').format(gluu_server)
-        #    wlogger.log(tid, cmd, 'debug')
-
-        #    c.run(cmd)
 
 
         # ldap_paswwrod of this server should be the same with primary server

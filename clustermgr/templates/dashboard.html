@@ -120,34 +120,46 @@
                         
                         <td id="server_os_{{server.id}}">{{ server.os }}</td>
                         <td>
-                                <a id="drybutton{{server.id}}" class="btn btn-default btn-xs" href="#" onClick="dryRun({{server.id}})" class="btn btn-info btn-block">
+                            
+                            {% if server.os %}
+                            
+                                {% if 'CentOSX' in server.os or 'RHELX' in server.os %}
+                                
+                                    Currently CentOS and Redhat Systems <br>
+                                    are notsupported due to<br>
+                                    OpenDj replication issue.
+                                
+                                {% else %}
+                                
+                                    <a id="drybutton{{server.id}}" class="btn btn-default btn-xs" href="#" onClick="dryRun({{server.id}})" class="btn btn-info btn-block">
+                                        
+                                        <i id="dryicon{{server.id}}" class="fa fa-spinner"></i> Dry-run
                                     
-                                    <i id="dryicon{{server.id}}" class="fa fa-spinner"></i> Dry-run
-                                
-                                
-                                </a>
-                            <a class="btn btn-default btn-xs" href="{{ url_for('server.edit', server_id=server.id) }}">Edit</a>
-                            <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal"
-                               data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Remove</a>
+                                    
+                                        </a>
+                                    <a class="btn btn-default btn-xs" href="{{ url_for('server.edit', server_id=server.id) }}">Edit</a>
+                                    <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal"
+                                       data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Remove</a>
+                                    
+                                    {% if not server.gluu_server %}
+                                    <br>
+                                    <a class="btn btn-default btn-xs" href="{{ url_for('server.install_gluu', server_id=server.id) }}">Install Gluu</a>
+                                    {% else %}
+                                    <br>
+                                    
+                                    <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#reinstall_alert_modal"
+                                       data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Re-install</a>
+                                   
+                                    {% endif %}
+
+                                    {% if not server.primary_server %}
+                                    <a class="btn btn-default btn-xs" href="#" data-toggle="modal" data-target="#change_primary_server_modal"
+                                       data-pserverid="{{server.id}}" data-phostname="{{ server.hostname }}">Make Primary</a>
+
+                                    {% endif %}
+                                {% endif %}
                             
-                            {% if not server.gluu_server %}
-                            <br>
-                            <a class="btn btn-default btn-xs" href="{{ url_for('server.install_gluu', server_id=server.id) }}">Install Gluu</a>
-                            {% else %}
-                            <br>
-                            
-                           <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#reinstall_alert_modal"
-                               data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Re-install</a>
-                           
                             {% endif %}
-
-                            {% if not server.primary_server %}
-                            <a class="btn btn-default btn-xs" href="#" data-toggle="modal" data-target="#change_primary_server_modal"
-                               data-pserverid="{{server.id}}" data-phostname="{{ server.hostname }}">Make Primary</a>
-
-                            {% endif %}
-                            
-
                         </td>
                     </tr>
                     {% endfor %}

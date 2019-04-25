@@ -405,7 +405,11 @@ def install_cache_cluster(self):
         wlogger.log(tid, "Restarting Gluu Server", "info",
                                 server_id=server.id)
 
-        si.run_command('systemctl restart gluu-server-{}'.format(app_conf.gluu_version))
+
+        if server.os in ('RHEL 7', 'CentOS 7'):
+            si.run_command('/sbin/gluu-serverd-{} restart'.format(app_conf.gluu_version))
+        else:
+            si.run_command('systemctl restart gluu-server-{}'.format(app_conf.gluu_version))
 
     wlogger.log(tid, "3", "set_step")
 
