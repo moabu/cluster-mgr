@@ -2096,6 +2096,9 @@ def opendjenablereplication(self, server_id):
                                 '-o PubkeyAuthentication=yes root@localhost "{}"')
                                     
 
+                    print "Sleeping 60 seconds"
+                    time.sleep(60)
+
                     wlogger.log(tid, "Inıtializing replication on server {} for base {}".format(
                                                                         server.hostname, base))
 
