@@ -2105,9 +2105,9 @@ def opendjenablereplication(self, server_id):
 
         if not server.primary_server:
 
-            if server.os == 'RHEL 7':
+            if server.os == 'RHEL 7' or server.os == 'CentOS 7':
 
-                print "Sleeping 30 seconds"
+                print "Sleeping 60 seconds"
                 time.sleep(60)
 
                 print "Running second initialization on {}".format(ct.host)
