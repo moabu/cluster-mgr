@@ -2105,6 +2105,31 @@ def opendjenablereplication(self, server_id):
 
         if not server.primary_server:
 
+            if server.os == 'RHEL 7':
+
+                print "Sleeping 30 seconds"
+                time.sleep(60)
+
+                print "Running second initialization on {}".format(ct.host)
+
+
+                #sometimes we need re-imitialization
+                cmd = ('/opt/opendj/bin/dsreplication initialize --adminUID admin '
+                        '--adminPassword $\'{}\' --baseDN o=gluu --hostSource {} '
+                        '--portSource 4444 --hostDestination {} '
+                        '--portDestination 4444 --trustAll --no-prompt').format(
+                                app_config.replication_pw.replace("'","\\'"),
+                                primary_server.ip,
+                                server.ip,
+                                )
+
+
+                print "Init command", cmd
+
+
+                cmd = cmd_run.format(cmd)
+                run_command(tid, ct, cmd, chroot)
+
             wlogger.log(tid, "Uploading OpenDj certificate files")
             for cf in opendj_cert_files:
 
@@ -2130,7 +2155,7 @@ def opendjenablereplication(self, server_id):
         ct.close()
 
 
-    if 'CentOS' in primary_server.os:
+    if primary_server.os != 'Ubuntu 16':
         wlogger.log(tid, "Waiting for Gluu to finish starting")
         time.sleep(60)
 
