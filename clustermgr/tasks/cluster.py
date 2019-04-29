@@ -295,7 +295,7 @@ def get_run_cmd(server):
         run_cmd = ("ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o "
             "Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no "
             "-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes "
-            "root@localhost '{}'")
+            "root@localhost $'{}'")
                 
     return run_cmd, cmd_chroot
 
@@ -1231,6 +1231,7 @@ def installGluuServer(self, server_id):
         run_command(tid, c, cmd, no_error='debug')
 
 
+
     wlogger.log(tid, "Check if Gluu Server was installed")
 
     gluu_installed = False
@@ -1599,6 +1600,20 @@ def installGluuServer(self, server_id):
     #cmd = 'chmod +x {}'.format(remote_opendj_init_script)
     run_command(tid, c, cmd)
     #########
+
+
+    #fix oxauth.war for openid connect session
+    wlogger.log(tid, "Fixing oxauth.war for OpenId connect session")
+    rcmd, cmdchr = get_run_cmd(server)
+    cmd_list = [
+            '/opt/jre/bin/jar -xf /opt/gluu/jetty/oxauth/webapps/oxauth.war WEB-INF/incl/layout/authorize-template.xhtml',
+            'sed \\\'s/<f:view locale="#{language.localeCode}">/<f:view transient="true" locale="#{language.localeCode}">/\\\' -i WEB-INF/incl/layout/authorize-template.xhtml',
+            '/opt/jre/bin/jar -uf /opt/gluu/jetty/oxauth/webapps/oxauth.war WEB-INF/incl/layout/authorize-template.xhtml',
+            ]
+    
+    for cmd in cmd_list:
+        run_command(tid, c, rcmd.format(cmd), cmdchr)
+
 
     server.gluu_server = True
     db.session.commit()
