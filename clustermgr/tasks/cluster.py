@@ -1072,6 +1072,11 @@ def installGluuServer(self, server_id):
     if not server.primary_server:
         wlogger.log(tid, "Check if Primary Server is Installed")
 
+        if not server.os == pserver.os:
+            wlogger.log(tid, "OS type is not the same as primary server.", 'fail')
+            wlogger.log(tid, "Ending server installation process.", "error")
+            return False
+
         pc = RemoteClient(pserver.hostname, ip=pserver.ip)
 
         try:
