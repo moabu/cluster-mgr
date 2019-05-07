@@ -1581,19 +1581,18 @@ def installGluuServer(self, server_id):
     run_command(tid, c, cmd)
     #########
 
+    if appconf.gluu_version == '3.1.6':
+        #fix oxauth.war for openid connect session
+        wlogger.log(tid, "Fixing oxauth.war for OpenId connect session")
+        rcmd, cmdchr = get_run_cmd(server)
+        cmd_list = [
+                '/opt/jre/bin/jar -xf /opt/gluu/jetty/oxauth/webapps/oxauth.war WEB-INF/incl/layout/authorize-template.xhtml',
+                'sed \\\'s/<f:view locale="#{language.localeCode}">/<f:view transient="true" locale="#{language.localeCode}">/\\\' -i WEB-INF/incl/layout/authorize-template.xhtml',
+                '/opt/jre/bin/jar -uf /opt/gluu/jetty/oxauth/webapps/oxauth.war WEB-INF/incl/layout/authorize-template.xhtml',
+                ]
 
-    #fix oxauth.war for openid connect session
-    wlogger.log(tid, "Fixing oxauth.war for OpenId connect session")
-    
-    cmd_list = [
-            '/opt/jre/bin/jar -xf /opt/gluu/jetty/oxauth/webapps/oxauth.war WEB-INF/incl/layout/authorize-template.xhtml',
-            'sed \\\'s/<f:view locale="#{language.localeCode}">/<f:view transient="true" locale="#{language.localeCode}">/\\\' -i WEB-INF/incl/layout/authorize-template.xhtml',
-            '/opt/jre/bin/jar -uf /opt/gluu/jetty/oxauth/webapps/oxauth.war WEB-INF/incl/layout/authorize-template.xhtml',
-            ]
-    
-    for cmd in cmd_list:
-        run_command(tid, c, run_cmd.format(cmd), cmd_chroot)
-
+        for cmd in cmd_list:
+            run_command(tid, c, run_cmd.format(cmd), cmd_chroot)
 
     server.gluu_server = True
     db.session.commit()
