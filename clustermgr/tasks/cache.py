@@ -121,7 +121,7 @@ class RedisInstaller(BaseInstaller):
         if self.check_installed():
             return True
                 
-        cmd_list = ('yum install epel-release -y',
+        cmd_list = ('yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm',
                     'yum clean all',
                     'yum install -y redis'
                     )
@@ -406,7 +406,7 @@ def install_cache_cluster(self):
                                 server_id=server.id)
 
 
-        if server.os in ('RHEL 7', 'CentOS 7'):
+        if server.os in ('RHEL 7', 'CentOS 7', 'Ubuntu 18'):
             si.run_command('/sbin/gluu-serverd-{} restart'.format(app_conf.gluu_version))
         else:
             si.run_command('systemctl restart gluu-server-{}'.format(app_conf.gluu_version))

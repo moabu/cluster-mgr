@@ -149,6 +149,11 @@ def install_local(self):
                     'echo "deb https://repos.influxdata.com/ubuntu '
                     'xenial stable" | sudo tee '
                     '/etc/apt/sources.list.d/influxdb.list')
+                elif '16' in localos:
+                    influx_cmd.append(
+                    'echo "deb https://repos.influxdata.com/ubuntu '
+                    'bionic stable" | sudo tee '
+                    '/etc/apt/sources.list.d/influxdb.list')
                 
                 influx_cmd += [
                     'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
@@ -181,9 +186,10 @@ def install_local(self):
                     'sudo service influxdb start',
                     ]
 
-            elif localos == 'CentOS 7':
+            elif localos in ('CentOS 7', 'RHEL 7'):
                 influx_cmd = [
-                                'sudo yum install -y epel-release',
+                                'sudo yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm',
+                                'yum --enablerepo=epel repolist',
                                 'sudo yum repolist',
                                 'sudo yum install -y curl',
                                 'cat <<EOF | sudo tee /etc/yum.repos.d/influxdb.repo\n'
@@ -354,15 +360,15 @@ def install_monitoring(self):
             # 6. Installing packages. 
             # 6a. First determine commands for each OS type
             if ('CentOS' in server.os) or ('RHEL' in server.os):
-                package_cmd = [ 'yum install -y epel-release',
-                                'yum repolist',
+                package_cmd = [ 'rpm -U --force https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm',
+                                'yum --enablerepo=epel repolist',
                                 'yum install -y gcc', 
                                 'yum install -y python-devel',
                                 'yum install -y python-pip',
                                 ]
 
             else:
-                package_cmd = [ 
+                package_cmd = [ 'DEBIAN_FRONTEND=noninteractive apt-get update', 
                                 'DEBIAN_FRONTEND=noninteractive apt-get install -y gcc', 
                                 'DEBIAN_FRONTEND=noninteractive apt-get install -y python-dev',
                                 'DEBIAN_FRONTEND=noninteractive apt-get install -y python-pip',

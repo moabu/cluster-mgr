@@ -121,45 +121,44 @@
                         <td id="server_os_{{server.id}}">{{ server.os }}</td>
                         <td>
                             
-                            {% if server.os %}
-                            
-                                {% if 'CentOSX' in server.os or 'RHELX' in server.os %}
+                            <div id="serverunsupperted-{{server.id}}" {% if server.os and (server.os in SUPPORTED_OS) %} style="display:none" {% endif %}>
+                                Currently Cluster Manager<br>
+                                supports {{', '.join(SUPPORTED_OS)}}
+                            </div>
+
+
+                                <span  {% if (not server.os) or (not server.os in SUPPORTED_OS) %}style="display:none"{% endif %} id="serverhide-{{server.id}}">
+                                <a id="drybutton{{server.id}}" class="btn btn-default btn-xs" href="#" onClick="dryRun({{server.id}})" class="btn btn-info btn-block">
+                                    
+                                    <i id="dryicon{{server.id}}" class="fa fa-spinner"></i> Dry-run
                                 
-                                    Currently CentOS and Redhat Systems <br>
-                                    are notsupported due to<br>
-                                    OpenDj replication issue.
                                 
+                                    </a>
+                                <a class="btn btn-default btn-xs" href="{{ url_for('server.edit', server_id=server.id) }}">Edit</a>
+
+                                
+                                {% if not server.gluu_server %}
+                                <br>
+                                <a class="btn btn-default btn-xs" href="{{ url_for('server.install_gluu', server_id=server.id) }}">Install Gluu</a>
                                 {% else %}
+                                <br>
                                 
-                                    <a id="drybutton{{server.id}}" class="btn btn-default btn-xs" href="#" onClick="dryRun({{server.id}})" class="btn btn-info btn-block">
-                                        
-                                        <i id="dryicon{{server.id}}" class="fa fa-spinner"></i> Dry-run
-                                    
-                                    
-                                        </a>
-                                    <a class="btn btn-default btn-xs" href="{{ url_for('server.edit', server_id=server.id) }}">Edit</a>
-                                    <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal"
-                                       data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Remove</a>
-                                    
-                                    {% if not server.gluu_server %}
-                                    <br>
-                                    <a class="btn btn-default btn-xs" href="{{ url_for('server.install_gluu', server_id=server.id) }}">Install Gluu</a>
-                                    {% else %}
-                                    <br>
-                                    
-                                    <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#reinstall_alert_modal"
-                                       data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Re-install</a>
-                                   
-                                    {% endif %}
-
-                                    {% if not server.primary_server %}
-                                    <a class="btn btn-default btn-xs" href="#" data-toggle="modal" data-target="#change_primary_server_modal"
-                                       data-pserverid="{{server.id}}" data-phostname="{{ server.hostname }}">Make Primary</a>
-
-                                    {% endif %}
+                                <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#reinstall_alert_modal"
+                                   data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Re-install</a>
+                               
                                 {% endif %}
-                            
-                            {% endif %}
+
+                                {% if not server.primary_server %}
+                                <a class="btn btn-default btn-xs" href="#" data-toggle="modal" data-target="#change_primary_server_modal"
+                                   data-pserverid="{{server.id}}" data-phostname="{{ server.hostname }}">Make Primary</a>
+
+                                {% endif %}
+                                
+
+                                </span>
+                           
+                            <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal"
+                                   data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Remove</a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -514,10 +513,17 @@ $('[data-toggle="tooltip"]').tooltip();
 
 
 setTimeout(function() {
-
+    var supportedOs = {{SUPPORTED_OS|safe}};
     $.get("{{request.host_url}}server/getostype", function(data, status) {
         $.each(data, function( key, value ) {
             $('#server_os_'+key).text(value);
+            if (supportedOs.includes(value)) {
+                $('#serverhide-'+key).show();
+                $('#serverunsupperted-'+key).hide();
+            } else {
+                $('#serverhide-'+key).hide();
+                $('#serverunsupperted-'+key).show();
+            }
         });
     });
     

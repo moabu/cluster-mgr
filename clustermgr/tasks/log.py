@@ -140,7 +140,8 @@ def _install_filebeat(task_id, server, rc):
     if opsys.startswith("ubuntu"):
         cmd_list = [
             "{} apt-get install -y apt-transport-https".format(DEBCONF),
-            "wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add -",
+            "wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch > /tmp/artifacts.key",
+            "APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn apt-key add /tmp/artifacts.key",
             "echo 'deb https://artifacts.elastic.co/packages/6.x/apt stable main' | tee /etc/apt/sources.list.d/elastic-6.x.list",
             "{} apt-get update".format(DEBCONF),
             "{} apt-get install -y filebeat".format(DEBCONF),
@@ -199,7 +200,7 @@ def _restart_filebeat(task_id, server, rc):
 
     if opsys in ("centos 6", "ubuntu 14", "rhel 6"):
         cmd = "service filebeat restart"
-    elif opsys in ("centos 7", "ubuntu 16", "rhel 7"):
+    elif opsys in ("centos 7", "ubuntu 16", "rhel 7", " ubuntu 18"):
         cmd = "systemctl enable filebeat && systemctl restart filebeat"
     else:
         task_logger.warn("Unable to determine underlying OS")
@@ -235,6 +236,9 @@ def setup_filebeat(self, force_install=False):
 
             fb_installed = rc.exists('/usr/bin/filebeat')
 
+            print fb_installed
+
+
             if appconf.offline:
                 if not fb_installed:
                     wlogger.log(
@@ -244,7 +248,7 @@ def setup_filebeat(self, force_install=False):
                     return False
 
             else:
-                if fb_installed:
+                if not fb_installed:
                     # installs filebeat
                     _, stderr = _install_filebeat(tid, server, rc)
                     if stderr:

@@ -181,7 +181,7 @@ class InstallServerForm(FlaskForm):
         "Ldap Type",
         choices=[
             ("opendj", "OpenDJ",),
-            #("wrends", "Gluu WrenDS")
+            ("wrends", "Gluu WrenDS")
         ],
         validators=[AnyOf(["opendj", "wrends"])],
         default='opendj'

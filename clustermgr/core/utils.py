@@ -319,7 +319,7 @@ def get_opendj_replication_status():
     cmd_run = '{}'
 
     #determine execution environment for differetn OS types
-    if (primary_server.os == 'CentOS 7') or (primary_server.os == 'RHEL 7'):
+    if primary_server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
         chroot = None
         cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
                 '-o Port=60022 -o LogLevel=QUIET '
@@ -335,7 +335,7 @@ def get_opendj_replication_status():
         return False, "Cannot establish SSH connection {0}".format(e)
 
     #This command queries server for replication status
-    cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
+    cmd = ('OPENDJ_JAVA_HOME=/opt/jre /opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 4444 -I admin -w $\'{}\'').format(
                     primary_server.ip,
                     app_config.replication_pw.replace("'","\\'"))

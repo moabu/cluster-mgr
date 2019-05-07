@@ -147,7 +147,7 @@ def create_app():
     app.jinja_env.globals['url_for_prev_page'] = url_for_prev_page
     app.jinja_env.globals['version'] = __version__
     app.jinja_env.globals['latest_version'] = ''
-
+    app.jinja_env.globals['SUPPORTED_OS'] = app.config['SUPPORTED_OS']
 
     @app.before_request
     def before_request():

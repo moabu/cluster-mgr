@@ -360,9 +360,9 @@ def install_gluu(server_id):
                   ):
             setup_prop[o] = getattr(form, o).data
 
-        #if setup_prop['ldap_type'] == 'wrends':
-        #    setup_prop['ldap_type'] = 'opendj'
-        #    setup_prop['opendj_type'] = 'wrends'
+        if setup_prop['ldap_type'] == 'wrends':
+            setup_prop['ldap_type'] = 'opendj'
+            setup_prop['opendj_type'] = 'wrends'
 
         write_setup_properties_file(setup_prop)
 
