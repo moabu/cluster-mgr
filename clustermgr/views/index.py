@@ -400,6 +400,7 @@ def app_configuration():
 
 
 @index.route('/log/<task_id>')
+@login_required
 def get_log(task_id):
     
     global msg_text
@@ -448,6 +449,7 @@ def get_log(task_id):
     return jsonify(log)
 
 @index.route('/mmr/')
+@login_required
 def multi_master_replication():
     """Multi Master Replication view for OpenLDAP"""
 
@@ -483,6 +485,7 @@ def multi_master_replication():
                             )
 
 @index.route('/removecustomschema/<schema_file>')
+@login_required
 def remove_custom_schema(schema_file):
     """This view deletes custom schema file"""
 
@@ -494,6 +497,7 @@ def remove_custom_schema(schema_file):
 
 
 @index.route('/upgrade')
+@login_required
 def upgrade_clustermgr():
     """Initiates upgrading of clustermgr"""
 
@@ -506,6 +510,7 @@ def upgrade_clustermgr():
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
 @index.route('/upgradewithpip')
+@login_required
 def upgrade_with_pip():
     task = upgrade_clustermgr_task.delay(pip=True)
     print "TASK STARTED", task.id

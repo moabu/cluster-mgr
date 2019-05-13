@@ -1276,6 +1276,8 @@ def installGluuServer(self, server_id):
     wlogger.log(tid, cmd, "debug")
     
     
+    c.log_me("running command: {}".format(cmd))
+    
     channel = c.client.get_transport().open_session()
     channel.get_pty()
     channel.exec_command(cmd)
@@ -1434,6 +1436,8 @@ def installGluuServer(self, server_id):
 
 
     wlogger.log(tid ,cmd, "debug")
+
+    c.log_me("running command: {}".format(cmd))
 
     channel = c.client.get_transport().open_session()
     channel.get_pty()
