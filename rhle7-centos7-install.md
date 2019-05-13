@@ -31,12 +31,17 @@ gpgkey=http://ftp.heanet.ie/pub/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7
 # Install CM on CentOS 7
 
 `# yum install -y epel-release`
+
 `# yum repolist`
+
 `# yum install gcc gcc-c++ make python-devel  openldap-devel python-pip`
 
 `# yum install -y redis`
+
 `# pip install python-ldap`
+
 `# pip install clustermgr`
 
 `# systemctl enable redis`
+
 `# systemctl start redis`
