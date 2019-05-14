@@ -133,7 +133,9 @@ class RedisInstaller(BaseInstaller):
             cin, cout, cerr = self.run_command(install_cmd)
             wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
             
-            if cerr:
+            if '/var/cache/yum' in cerr:
+                wlogger.log(self.tid, cerr, "debug", server_id=self.server.id)
+            else:
                 wlogger.log(self.tid, cerr, "error", server_id=self.server.id)
 
         return True
@@ -167,7 +169,7 @@ class StunnelInstaller(BaseInstaller):
         cin, cout, cerr = self.run_command("DEBIAN_FRONTEND=noninteractive apt-get install stunnel4 -y")
         wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
         if cerr:
-            wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
+            wlogger.log(self.tid, cerr, "error", server_id=self.server.id)
 
         # Verifying installation by trying to reinstall
         cin, cout, cerr = self.rc.run("DEBIAN_FRONTEND=noninteractive apt-get install stunnel4 -y")
@@ -182,8 +184,12 @@ class StunnelInstaller(BaseInstaller):
         #self.run_command("yum update -y")
         cin, cout, cerr = self.run_command("yum install -y stunnel")
         wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
-        if cerr:
-            wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
+        
+        if '/var/cache/yum' in cerr:
+            wlogger.log(self.tid, cerr, "debug", server_id=self.server.id)
+        else:
+            wlogger.log(self.tid, cerr, "error", server_id=self.server.id)
+            
         # verifying installation
         cin, cout, cerr = self.rc.run("yum install -y stunnel")
         if "already installed" in cout:
