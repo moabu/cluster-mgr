@@ -118,7 +118,7 @@ class RemoteClient(object):
 
     def _try_with_ip(self):
         try:
-            self.log_me("Connecting to IP:%s User:%s" % self.ip, self.user )
+            self.log_me("Connecting to IP:%s User:%s" % (self.ip, self.user) )
             self.client.connect(self.ip, port=22, username=self.user,
                                 passphrase=self.passphrase)
             self.sftpclient = self.client.open_sftp()
