@@ -24,7 +24,7 @@ gpgkey=http://ftp.heanet.ie/pub/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7
 
 `# pip install python-ldap`
 
-`# pip install clustermgr`
+`# pip install clustermgr` [ If from github then: `pip install https://github.com/GluuFederation/cluster-mgr/archive/master.zip` ] 
 
 `# systemctl enable redis`
 
