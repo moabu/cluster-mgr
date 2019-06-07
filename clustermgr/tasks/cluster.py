@@ -1215,7 +1215,9 @@ def installGluuServer(self, server_id):
 
 
     if not c.exists('/usr/bin/python'):
-        if 'Ubuntu' in server.os or 'Debian' in server.os:
+        if 'Ubuntu' in server.os:
+            cmd = 'DEBIAN_FRONTEND=noninteractive apt-get install -y python-minimal'
+        elif 'Debian' in server.os:
             cmd = 'DEBIAN_FRONTEND=noninteractive apt-get install -y python'
         else:
             cmd = 'yum install -y python'
