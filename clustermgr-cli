@@ -16,7 +16,7 @@ start() {
     if [ ! -f "$HOME/.clustermgr/instance/config.py" ]
     then
         mkdir -p "$HOME/.clustermgr/instance/"
-        echo "DEBUG = True\nSECRET_KEY = '$NEW_UUID'\nLICENSE_ENFORCEMENT_ENABLED = True" > "$HOME/.clustermgr/instance/config.py"
+        echo "DEBUG = False\nSECRET_KEY = '$NEW_UUID'\nLICENSE_ENFORCEMENT_ENABLED = True" > "$HOME/.clustermgr/instance/config.py"
     fi
 
     echo "Starting Celery Worker"
