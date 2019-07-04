@@ -148,6 +148,10 @@ def get_status():
     
     cache_servers = get_cache_servers()
     
+
+    stunnel_port = cache_servers[0].stunnel_port if cache_servers else None
+        
+    
     for server in servers + cache_servers:
         key = server.ip.replace('.','_')
 
@@ -159,6 +163,8 @@ def get_status():
             status['redis'][key] = False
         else:
 
+            status['stunnel'][key]=False
+            
             if server in cache_servers:
                 r = c.run(check_cmd.format('localhost', 6379))
                 stat = r[1].strip()
@@ -168,22 +174,22 @@ def get_status():
                 else:
                     status['redis'][key]=False
 
-                r = c.run(check_cmd.format(server.ip, 16379))
-                stat = r[1].strip()
+                if stunnel_port:
+                    r = c.run(check_cmd.format(server.ip, stunnel_port))
+                    stat = r[1].strip()
 
                 if stat == '0':
                     status['stunnel'][key]=True
-                else:
-                    status['stunnel'][key]=False
 
             else:
-                r = c.run(check_cmd.format('localhost', 16379))
-                stat = r[1].strip()
+                
+                if stunnel_port:
 
-                if stat == '0':
-                    status['stunnel'][key]=True
-                else:
-                    status['stunnel'][key]=False
+                    r = c.run(check_cmd.format('localhost', stunnel_port))
+                    stat = r[1].strip()
+
+                    if stat == '0':
+                        status['stunnel'][key]=True
 
         c.close()
     
