@@ -180,6 +180,8 @@ class CacheServer(db.Model):
     hostname = db.Column(db.String(250))
     ip = db.Column(db.String(45))
     install_redis = db.Column(db.Boolean, default=True)
+    redis_password = db.Column(db.String(45))
+    stunnel_port = db.Column(db.Integer)
 
     def __repr__(self):
         return '<Cache Server {} {}>'.format(self.id, self.hostname)

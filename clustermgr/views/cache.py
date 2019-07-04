@@ -15,7 +15,7 @@ from ..core.license import license_reminder
 from ..core.license import prompt_license
 from ..core.license import license_required
 from clustermgr.core.remote import RemoteClient
-from clustermgr.core.utils import get_redis_config, get_cache_servers
+from clustermgr.core.utils import get_redis_config, get_cache_servers, random_chars
 from clustermgr.forms import CacheSettingsForm, cacheServerForm
 
 from clustermgr.models import db, CacheServer
@@ -99,22 +99,24 @@ def install():
 def add_cache_server():
     cid = request.args.get('cid', type=int)
 
+    form = cacheServerForm()
+
     if cid:
         cacheserver = CacheServer.query.get(cid)
+        form = cacheServerForm(obj=cacheserver)
         if not cacheserver:
             return "<h2>No such Cache Server</h2>"
-
-        form = cacheServerForm(obj=cacheserver)
     else:
-        form = cacheServerForm()
-    
+        form.redis_password.data = random_chars(20)
+        form.stunnel_port.data = 16379
+
     if request.method == "POST" and form.validate_on_submit():
         hostname = form.hostname.data
         ip = form.ip.data
         install_redis = form.install_redis.data
-        
-        print (form.install_redis.data)
-        
+        redis_password = form.redis_password.data
+        stunnel_port = form.stunnel_port.data
+
         if not cid:
             cacheserver = CacheServer()
             db.session.add(cacheserver)
@@ -122,7 +124,9 @@ def add_cache_server():
         cacheserver.hostname = hostname
         cacheserver.ip = ip
         cacheserver.install_redis = install_redis
-        
+        cacheserver.redis_password = redis_password
+        cacheserver.stunnel_port = stunnel_port
+
         db.session.commit()
         if cid:
             flash("Cache server was added","success")

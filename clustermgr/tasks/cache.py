@@ -96,6 +96,8 @@ class RedisInstaller(BaseInstaller):
 
     def install_in_ubuntu(self):
         
+        self.config_file = '/etc/redis/redis.conf'
+
         if self.check_installed():
             return True
         
@@ -118,8 +120,12 @@ class RedisInstaller(BaseInstaller):
 
     def install_in_centos(self):
         
+        self.config_file = '/etc/redis.conf'
+        
         if self.check_installed():
             return True
+        
+        
                 
         cmd_list = ('yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm',
                     'yum clean all',
@@ -141,13 +147,34 @@ class RedisInstaller(BaseInstaller):
         return True
 
 
+
+    def set_redis_password(self):
+        result = self.rc.get_file(self.config_file)
+        if result[0]:
+            config_file = result[1].readlines()
+            for i, l in enumerate(config_file[:]):
+                if l.startswith('requirepass'):
+                    if not self.server.redis_password:
+                        del config_file[i]
+                    else:
+                        config_file[i] = 'requirepass ' + self.server.redis_password+'\n'
+                    break
+                if l.replace(' ','').startswith('#requirepass') and self.server.redis_password:
+                    config_file[i] = 'requirepass ' + self.server.redis_password+'\n'
+                    break
+                
+            else:
+                if self.server.redis_password:
+                    config_file.append('requirepass ' + self.server.redis_password+'\n')
+            filecontent = ''.join(config_file)
+            self.rc.put_file(self.config_file, filecontent)
+
     def run_sysctl(self, command):
         if self.os_type == 'deb':
             cmd = 'systemctl {} redis-server'.format(command)
         elif self.os_type == 'rpm':
             cmd = 'systemctl {} redis'.format(command)
         self.run_command(cmd)
-
 
 
 
@@ -250,6 +277,15 @@ def install_cache_cluster(self):
                 return False
 
         redis_installed = ri.install()
+        
+        wlogger.log(
+                    tid, 
+                    'Setting Redis password',
+                    'info',
+                    server_id=server.id
+                    )
+        
+        ri.set_redis_password()
     
         if redis_installed:
             wlogger.log(tid, "Redis install successful", "success",
@@ -328,9 +364,9 @@ def install_cache_cluster(self):
                                 '[redis-server]\n'
                                 'cert = /etc/stunnel/redis-server.crt\n'
                                 'key = /etc/stunnel/redis-server.key\n'
-                                'accept = {0}:16379\n'
+                                'accept = {0}:{1}\n'
                                 'connect = 127.0.0.1:6379\n'
-                                ).format(server.ip)
+                                ).format(server.ip, cache_servers[0].stunnel_port)
             
             wlogger.log(tid, "Writing redis stunnel configurations", "info",
                                 server_id=server.id)
@@ -386,11 +422,11 @@ def install_cache_cluster(self):
                             'pid = /run/stunnel-redis.pid\n'
                             '[redis-client]\n'
                             'client = yes\n'
-                            'accept = 127.0.0.1:16379\n'
-                            'connect = {0}:16379\n'
+                            'accept = 127.0.0.1:{1}\n'
+                            'connect = {0}:{1}\n'
                             'CAfile = /etc/stunnel/redis-server.crt\n'
                             'verify = 4\n'
-                            ).format(primary_cache)
+                            ).format(primary_cache, cache_servers[0].stunnel_port)
 
         wlogger.log(tid, "Writing redis stunnel configurations", "info",
                                 server_id=server.id)
@@ -405,7 +441,9 @@ def install_cache_cluster(self):
         si.run_sysctl('restart')
 
         if server.primary_server:
-            __update_LDAP_cache_method(tid, server, 'localhost:16379')
+            
+            server_string = 'localhost:{0}'.format(cache_servers[0].stunnel_port)
+            __update_LDAP_cache_method(tid, server, server_string, redis_password=cache_servers[0].redis_password)
         
 
         wlogger.log(tid, "Restarting Gluu Server", "info",
@@ -421,7 +459,7 @@ def install_cache_cluster(self):
 
 
 
-def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE'):
+def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE', redis_password=''):
     """Connects to LDAP and updathe cache method and the cache servers
 
     :param tid: task id for log identification
@@ -447,6 +485,7 @@ def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE'):
     cache_conf['cacheProviderType'] = 'REDIS'
     cache_conf['redisConfiguration']['redisProviderType'] = method
     cache_conf['redisConfiguration']['servers'] = server_string
+    cache_conf['redisConfiguration']['decryptedPassword'] = redis_password
 
     result = dbm.set_applicance_attribute('oxCacheConfiguration',
                                           [json.dumps(cache_conf)])
