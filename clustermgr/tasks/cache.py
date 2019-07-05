@@ -4,7 +4,7 @@ import re
 import socket
 
 
-from clustermgr.models import Server, AppConfiguration
+from clustermgr.models import Server, AppConfiguration, CacheServer
 from clustermgr.extensions import db, wlogger, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import DBManager
@@ -212,10 +212,13 @@ class StunnelInstaller(BaseInstaller):
         cin, cout, cerr = self.run_command("yum install -y stunnel")
         wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
         
-        if '/var/cache/yum' in cerr:
-            wlogger.log(self.tid, cerr, "debug", server_id=self.server.id)
-        else:
-            wlogger.log(self.tid, cerr, "error", server_id=self.server.id)
+        print cerr
+        
+        if cerr.strip():
+            if '/var/cache/yum' in cerr:
+                wlogger.log(self.tid, cerr, "debug", server_id=self.server.id)
+            else:
+                wlogger.log(self.tid, cerr, "error", server_id=self.server.id)
             
         # verifying installation
         cin, cout, cerr = self.rc.run("yum install -y stunnel")
@@ -240,22 +243,21 @@ class StunnelInstaller(BaseInstaller):
         elif self.os_type == 'rpm':
             cmd = 'systemctl {} stunnel'.format(command)
         self.run_command(cmd)
-
-
+    
 
 @celery.task(bind=True)
-def install_cache_cluster(self):
-    
+def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
+
     tid = self.request.id
-    
+
+    servers = [ Server.query.get(id) for id in servers_id_list ]
+    cache_servers = [ CacheServer.query.get(id) for id in cache_servers_id_list ]
+
     app_conf = AppConfiguration.query.first()
     
-    cache_servers = get_cache_servers()
-    servers = Server.query.all()
-    
     primary_cache = None
-    
-    
+    primary_cache_server = CacheServer.query.first()
+
     for server in cache_servers:
 
         rc = __get_remote_client(server, tid)
@@ -351,13 +353,7 @@ def install_cache_cluster(self):
             
             wlogger.log(tid, "Retreiving server certificate", "info",
                                 server_id=server.id)
-            stunnel_cert = rc.get_file('/etc/stunnel/redis-server.crt')
 
-            if not stunnel_cert[0]:
-                wlogger.log(tid, "Can't retreive server certificate", "fail",
-                            server_id=server.id)
-
-            stunnel_cert = stunnel_cert[1].read()
 
             stunnel_redis_conf = (
                                 'pid = /run/stunnel-redis.pid\n'
@@ -366,7 +362,7 @@ def install_cache_cluster(self):
                                 'key = /etc/stunnel/redis-server.key\n'
                                 'accept = {0}:{1}\n'
                                 'connect = 127.0.0.1:6379\n'
-                                ).format(server.ip, cache_servers[0].stunnel_port)
+                                ).format(server.ip, primary_cache_server.stunnel_port)
             
             wlogger.log(tid, "Writing redis stunnel configurations", "info",
                                 server_id=server.id)
@@ -380,8 +376,19 @@ def install_cache_cluster(self):
         db.session.commit()
         rc.close()
         
-        wlogger.log(tid, "2", "set_step")
+    wlogger.log(tid, "2", "set_step")
     
+    # retreive stunnel certificate
+    rc = RemoteClient(primary_cache_server.hostname, ip=primary_cache_server.ip)
+    rc.startup()
+    stunnel_cert = rc.get_file('/etc/stunnel/redis-server.crt')
+
+    if not stunnel_cert[0]:
+        print "Can't retreive server certificate from primary cache server"
+        return False
+
+    stunnel_cert = stunnel_cert[1].read()
+
     for server in servers:
                 
         rc = __get_remote_client(server, tid)
@@ -419,7 +426,7 @@ def install_cache_cluster(self):
         if si.os_type == 'deb':
             wlogger.log(tid, "Enabling stunnel", "debug", server_id=server.id)
             si.run_command("sed -i 's/ENABLED=0/ENABLED=1/g' /etc/default/stunnel4")
-        
+
         stunnel_redis_conf = ( 
                             'pid = /run/stunnel-redis.pid\n'
                             '[redis-client]\n'
@@ -428,7 +435,7 @@ def install_cache_cluster(self):
                             'connect = {0}:{1}\n'
                             'CAfile = /etc/stunnel/redis-server.crt\n'
                             'verify = 4\n'
-                            ).format(primary_cache, cache_servers[0].stunnel_port)
+                            ).format(primary_cache, primary_cache_server.stunnel_port)
 
         wlogger.log(tid, "Writing redis stunnel configurations", "info",
                                 server_id=server.id)
@@ -444,8 +451,8 @@ def install_cache_cluster(self):
 
         if server.primary_server:
             
-            server_string = 'localhost:{0}'.format(cache_servers[0].stunnel_port)
-            __update_LDAP_cache_method(tid, server, server_string, redis_password=cache_servers[0].redis_password)
+            server_string = 'localhost:{0}'.format(primary_cache_server.stunnel_port)
+            __update_LDAP_cache_method(tid, server, server_string, redis_password=primary_cache_server.redis_password)
         
 
         wlogger.log(tid, "Restarting Gluu Server", "info",

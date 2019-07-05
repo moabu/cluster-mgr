@@ -73,25 +73,34 @@ def get_servers_and_list():
     
     return servers, server_id_list, server_id
 
-@cache_mgr.route('/install/', methods=['GET', 'POST'])
+@cache_mgr.route('/install', methods=['GET', 'POST'])
 @login_required
 def install():
 
-    cache_servers = get_cache_servers()
-    servers = Server.query.all()
+    server_id = request.args.get('server')
+    
+    if server_id:
+        cache_servers = []
+        servers = [ Server.query.get(int(server_id)) ]
+
+    else:
+        cache_servers = get_cache_servers()
+        servers = Server.query.all()
 
     if not servers:
         return redirect(url_for('cache_mgr.index'))
 
 
-    task = install_cache_cluster.delay()
-    
-    
-    
+    task = install_cache_cluster.delay(
+                                [server.id for server in servers],
+                                [server.id for server in cache_servers],
+                                )
+
     return render_template( 'cache_install_logger.html',
                             servers=cache_servers+servers,
                             step=1,
                             task_id=task.id,
+                            server_id=server_id,
                            )
 
 @cache_mgr.route('/addcacheserver/', methods=['GET', 'POST'])

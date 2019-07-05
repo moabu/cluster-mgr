@@ -555,8 +555,6 @@ def make_nginx_proxy_conf(exception=None):
 
 
 def get_cache_servers():
-    
     cache_servers = CacheServer.query.all()
-
-
+    
     return cache_servers
