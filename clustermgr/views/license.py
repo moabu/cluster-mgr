@@ -33,6 +33,9 @@ def _humanize_timestamp(ts, date_fmt="%Y:%m:%d %H:%M:%S GMT"):
 @license_bp.route("/")
 @login_required
 def index():
+    if not os.path.isfile(current_app.config["LICENSE_VALIDATOR"]):
+        flash("License validator is missing; please download it first.", "warning")
+
     license_data, err = license_manager.validate_license()
 
     if "creation_date" in license_data["metadata"]:
@@ -53,6 +56,9 @@ def index():
 @license_bp.route("/settings/", methods=["GET", "POST"])
 @login_required
 def settings():
+    if not os.path.isfile(current_app.config["LICENSE_VALIDATOR"]):
+        flash("License validator is missing; please download it first.", "warning")
+
     form = LicenseSettingsForm()
     cfg = license_manager.load_license_config()
 
