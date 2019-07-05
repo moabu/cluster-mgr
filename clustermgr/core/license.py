@@ -248,6 +248,8 @@ class LicenseManager(object):
         app = self._get_app()
         data = {"valid": False, "metadata": {}}
 
+        public_key = public_key.replace(" ", "").replace("\n", "")
+
         # shell out and get the license data (if any)
         out, err, code = exec_cmd(
             "java -jar {} {} {} {} {} {} {}".format(
@@ -274,6 +276,7 @@ class LicenseManager(object):
 
         data = json.loads(meta)
         return data, err
+
 
 # create an instance so we can import it globally
 license_manager = LicenseManager()
