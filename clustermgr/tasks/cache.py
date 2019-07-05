@@ -375,7 +375,9 @@ def install_cache_cluster(self):
             
             si.run_sysctl('enable')
             si.run_sysctl('restart')
-            
+        
+        server.installed = True
+        db.session.commit()
         rc.close()
         
         wlogger.log(tid, "2", "set_step")
