@@ -200,8 +200,7 @@ class StunnelInstaller(BaseInstaller):
 
         # Verifying installation by trying to reinstall
         cin, cout, cerr = self.rc.run("DEBIAN_FRONTEND=noninteractive apt-get install stunnel4 -y")
-        
-        
+
         if "stunnel4 is already the newest version" in cout:
             return True
         else:
@@ -211,9 +210,7 @@ class StunnelInstaller(BaseInstaller):
         #self.run_command("yum update -y")
         cin, cout, cerr = self.run_command("yum install -y stunnel")
         wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
-        
-        print cerr
-        
+
         if cerr.strip():
             if '/var/cache/yum' in cerr:
                 wlogger.log(self.tid, cerr, "debug", server_id=self.server.id)

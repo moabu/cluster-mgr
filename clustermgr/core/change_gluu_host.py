@@ -257,7 +257,7 @@ class ChangeGluuHostname:
             'chown jetty:jetty /etc/certs/oxauth-keys*'
             ]
 
-        cert_list = ['httpd', 'idp-encryption', 'idp-signing', 'shibIDP', 'opendj', 'passport-sp']
+        cert_list = ['httpd', 'idp-encryption', 'idp-signing', 'shibIDP', 'passport-sp']
 
         for crt in cert_list:
 
