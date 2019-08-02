@@ -19,6 +19,11 @@ start() {
         echo "DEBUG = False\nSECRET_KEY = '$NEW_UUID'\nLICENSE_ENFORCEMENT_ENABLED = True" > "$HOME/.clustermgr/instance/config.py"
     fi
 
+    if [ ! -f "$HOME/.clustermgr/.start" ]
+    then
+        echo `date +%s` > $HOME/.clustermgr/.start
+    fi
+
     echo "Starting Celery Worker"
     if [ -f "$CELERY_PID" ]
     then

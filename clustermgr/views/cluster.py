@@ -78,6 +78,7 @@ def deploy_config(server_id):
 
 
 @cluster.route('/opendjdisablereplication/<int:server_id>/')
+@login_required
 def opendj_disable_replication(server_id):
     server = Server.query.get(server_id)
     task = opendj_disable_replication_task.delay(
@@ -94,6 +95,7 @@ def opendj_disable_replication(server_id):
 
 
 @cluster.route('/removeserverfromcluster/<int:server_id>/')
+@login_required
 def remove_server_from_cluster_view(server_id):
     """Initiates removal of replications"""
     remove_server = False
@@ -249,6 +251,7 @@ def install_nginx():
 
 
 @cluster.route('/opendjenablereplication/<server_id>')
+@login_required
 def opendj_enable_replication(server_id):
 
     nextpage = 'index.multi_master_replication'
@@ -304,6 +307,7 @@ def chekFSR(server, gluu_version):
     return False, [], paths
 
 @cluster.route('/fsrep', methods=['GET', 'POST'])
+@login_required
 def file_system_replication():
     """File System Replication view"""
 
@@ -382,6 +386,7 @@ def file_system_replication():
 
 
 @cluster.route('/updatefsreppath', methods=["POST"])
+@login_required
 def update_fsrep_path():
     servers = Server.query.all()
 
@@ -397,6 +402,7 @@ def update_fsrep_path():
                            task_id=task.id, servers=servers)
 
 @cluster.route('/removefsrep')
+@login_required
 def remove_file_system_replication():
     servers = Server.query.all()
     task = remove_filesystem_replication.delay()

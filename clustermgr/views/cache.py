@@ -54,6 +54,8 @@ def index():
 
     cache_servers = get_cache_servers()
 
+    print cache_servers
+
     return render_template('cache_index.html', 
                            servers=servers, 
                            form=form,
