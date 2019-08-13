@@ -351,7 +351,7 @@ def license_required():
         
         if not os.path.exists(dot_start):
             with open(dot_start,'w') as w:
-                w.write(int(time.time()))
+                w.write(str(int(time.time())))
 
         start_time = time.time() - 31*aday
 
