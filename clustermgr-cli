@@ -13,11 +13,13 @@ start() {
     echo "Upgrading Database"
     $app db upgrade
 
-    if [ ! -f "$HOME/.clustermgr/instance/config.py" ]
+    if [ ! -f "$HOME/.clustermgr/instance" ]
     then
         mkdir -p "$HOME/.clustermgr/instance/"
-        echo "DEBUG = False\nSECRET_KEY = '$NEW_UUID'\nLICENSE_ENFORCEMENT_ENABLED = True" > "$HOME/.clustermgr/instance/config.py"
+        
     fi
+
+    echo -e "DEBUG = False\nSECRET_KEY = '$NEW_UUID'\nLICENSE_ENFORCEMENT_ENABLED = True" > "$HOME/.clustermgr/instance/config.py"
 
     if [ ! -f "$HOME/.clustermgr/.start" ]
     then
