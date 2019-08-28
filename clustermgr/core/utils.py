@@ -7,6 +7,7 @@ import shlex
 import subprocess
 import uuid
 import base64
+import zipfile
 
 from cryptography.hazmat.primitives.ciphers import Cipher
 from cryptography.hazmat.primitives.ciphers import algorithms
@@ -558,3 +559,17 @@ def get_cache_servers():
     cache_servers = CacheServer.query.all()
     
     return cache_servers
+
+
+def get_oxauth_version(war_io):
+    war_zip = zipfile.ZipFile(war_io)
+    menifest = war_zip.read('META-INF/MANIFEST.MF')
+
+    for l in menifest.split('\n'):
+        ls = l.strip()
+        if 'Implementation-Version:' in ls:
+            version = ls.split(':')[1].strip()
+            version = '.'.join(version.split('.')[:3])
+            return version
+
+
