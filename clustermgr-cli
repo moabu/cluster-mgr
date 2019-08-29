@@ -8,6 +8,10 @@ PW_FILE="$HOME/.clustermgr/.pw"
 NEW_UUID=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1`
 app=`which clusterapp.py`
 
+if ! java -version 2>&1 >/dev/null | grep -q "version"; then
+  echo "Java is not found in PATH. Please install Java and/or add PATH before starting Cluster Manager."
+  exit
+fi
 
 start() { 
     echo "Upgrading Database"
