@@ -1367,8 +1367,13 @@ def installGluuServer(self, server_id):
             for l in setup_properties:
                 n = l.find('=')
                 prop_name = l[:n]
+                
+                    
                 if prop_name in prop_list:
-                    new_setup_properties.append(l)
+                    if prop_name == 'ldap_type':
+                        new_setup_properties.append('ldap_type=opendj\n')
+                    else:
+                        new_setup_properties.append(l)
 
                 if prop_name == 'ldapPass':
                     ldap_passwd = l.strip()[n+1:]
