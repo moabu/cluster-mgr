@@ -496,35 +496,12 @@ def install_gluu_server(task_id, server_id):
     #JavaScript on logger duplicates next log if we don't add this
     time.sleep(1)
     
-    if app_conf.gluu_version < '3.1.3':
-        wlogger.log(tid, "Downloading setup.py")
-        cmd = ( 
-                'curl  https://raw.githubusercontent.com/GluuFederation/'
-                'community-edition-setup/master/setup.py  -o /install/'
-                'community-edition-setup/setup.py'
-                )
-                
-        cmd = ( 
-                'curl https://raw.githubusercontent.com/mbaser/gluu/master'
-                '/setup.py -o /install/'
-                'community-edition-setup/setup.py'
-                )
-
-        
-                
-        installer.run(cmd)
-        
-        cmd = 'chmod +x /install/community-edition-setup/setup.py'
-        installer.run(cmd)
-    
-    #run setup.py on the server
-    wlogger.log(task_id, 
-            "Running setup.py - Be patient this process will take a while ...")
-
-
     cmd = installer.run_command.format(
-                    'cd /install/community-edition-setup/ && ./setup.py -n -v')
+                    'cd /install/community-edition-setup/ && ./setup.py --listen_all_interfaces -n -v')
 
+    #Don't load base data for secondary nodes
+    if not server.primary_server:
+        cmd += ' --no-data'
     
     re_list = [re.compile(' \[(#|\s)*\] ')]
     
