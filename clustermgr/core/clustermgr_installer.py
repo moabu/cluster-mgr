@@ -58,7 +58,7 @@ class Installer:
     def settings(self):
 
         if self.server_os == 'CentOS 7' or self.server_os == 'RHEL 7':
-            self.init_command = '/sbin/gluu-serverd')
+            self.init_command = '/sbin/gluu-serverd'
             self.service_script = 'systemctl {1} {0}'
         else:
             self.init_command = '/etc/init.d/gluu-server'

@@ -545,10 +545,6 @@ def install_gluu_server(task_id, server_id):
 
         modify_hosts(task_id, installer.conn, host_ip, '/opt/'+gluu_server+'/', server.hostname)
 
-    
-    if app_conf.gluu_version >= '3.1.4':
-        #make opendj listen all interfaces
-        make_opendj_listen_world(server, installer)
 
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
