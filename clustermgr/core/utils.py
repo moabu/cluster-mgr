@@ -322,7 +322,7 @@ def get_opendj_replication_status():
     #This command queries server for replication status
     cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 4444 -I admin -w $\'{}\'').format(
-                    primary_server.hostname,
+                    primary_server.ip,
                     app_conf.replication_pw.replace("'","\\'"))
 
     stdin, stdout, stderr = installer.run(cmd)

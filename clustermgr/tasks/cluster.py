@@ -715,7 +715,7 @@ def configure_OxIDPAuthentication(task_id, exclude=None, installers={}):
     if app_conf.use_ldap_cache:
         adminOlc.changeOxCacheConfiguration('NATIVE_PERSISTENCE')
         wlogger.log(task_id,
-                'cacheProviderType entry is was set to NATIVE_PERSISTENCE',
+                'cacheProviderType entry is set to NATIVE_PERSISTENCE',
                 'success')
 
 @celery.task(bind=True)
@@ -777,7 +777,7 @@ def opendjenablereplication(self, server_id):
                         "--baseDN 'o={}' --trustAll -X -n").format(
                             primary_server.hostname,
                             primary_server.ldap_password.replace("'","\\'"),
-                            server.hostname,
+                            server.ip,
                             server.ldap_password.replace("'","\\'"),
                             app_conf.replication_pw.replace("'","\\'"),
                             base,
@@ -797,7 +797,7 @@ def opendjenablereplication(self, server_id):
                         "--trustAll -X -n").format(
                             base,
                             app_conf.replication_pw.replace("'","\\'"),
-                            server.hostname,
+                            server.ip,
                             )
 
                 installer.run(cmd, error_exception='no base DNs available to enable replication')
@@ -810,7 +810,7 @@ def opendjenablereplication(self, server_id):
                 cmd = ("/opt/opendj/bin/dsconfig -h {} -p 4444 "
                         " -D  'cn=Directory Manager' -w $'{}' --trustAll "
                         "-n set-crypto-manager-prop --set ssl-encryption:true"
-                        ).format(primary_server.hostname, primary_server.ldap_password.replace("'","\\'"))
+                        ).format(primary_server.ip, primary_server.ldap_password.replace("'","\\'"))
 
                 installer.run(cmd)
                 
@@ -822,7 +822,7 @@ def opendjenablereplication(self, server_id):
             cmd = ("/opt/opendj/bin/dsconfig -h {} -p 4444 "
                     " -D  'cn=Directory Manager' -w $'{}' --trustAll "
                     "-n set-crypto-manager-prop --set ssl-encryption:true"
-                    ).format(server.hostname, primary_server.ldap_password.replace("'","\\'"))
+                    ).format(server.ip, primary_server.ldap_password.replace("'","\\'"))
 
             installer.run(cmd)
 
@@ -1095,8 +1095,8 @@ def update_httpd_certs_task(self, httpd_key, httpd_crt):
         if hasattr(server, 'proxy'):
             installer.run('service nginx restart', False, error_exception='Redirecting to')
         else:
-            installer.delete_key('httpd', server.hostname)
-            installer.import_key('httpd', server.hostname)
+            installer.delete_key('httpd', app_conf.nginx_host)
+            installer.import_key('httpd', app_conf.hostname)
             installer.restart_gluu()
 
     return True

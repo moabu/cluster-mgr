@@ -91,15 +91,18 @@ def home():
                 'warning')
         elif str(e) == 'Could not deserialize key data.':
             ask_passphrase = True
-            flash("Password your provided for pubkey did not work. "
+            flash("Password you provided for pubkey did not work. "
                 "Please set valid passphrase.",
                 'warning')
         else:
             flash("SSH connection to {} failed. Please check if your pub key is "
                 "added to /root/.ssh/authorized_keys on this server. Reason: {}".format(
                                                 servers[0].hostname, e), 'error')
+
         if ask_passphrase:
-            return render_template('index_passphrase.html', e=e, ask_passphrase=ask_passphrase, next='/')
+            return render_template('index_passphrase.html', e=e, 
+                ask_passphrase=ask_passphrase, next='/',
+                warning_text="Error accessing primary server")
     
     service_update_period = 300
     
