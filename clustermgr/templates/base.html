@@ -215,6 +215,15 @@
                 <strong>{{ g.license_reminder_msg }}</strong>
             </div>
             {% endif %}
+            
+            {% if evaluation_period %}
+            <div class="alert alert-warning" role="alert">
+                <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
+                <strong>{{ evaluation_period }}</strong>
+            </div>
+            {% endif %}
+            
+            
             {% block content %}{% endblock %}
           </section>
       </div><!-- end of content wrapper -->

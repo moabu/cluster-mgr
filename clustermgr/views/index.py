@@ -27,7 +27,7 @@ from clustermgr.core.ldifschema_utils import OpenDjSchema
 from clustermgr.tasks.cluster import upgrade_clustermgr_task
 from clustermgr.core.license import license_reminder
 from clustermgr.extensions import celery
-from clustermgr.core.license import prompt_license
+from clustermgr.core.license import prompt_license, license_required
 
 from clustermgr.core.remote import RemoteClient, FakeRemote, ClientNotSetupException
 
@@ -43,6 +43,7 @@ from clustermgr.tasks.server import collect_server_details
 index = Blueprint('index', __name__)
 index.before_request(prompt_license)
 index.before_request(license_reminder)
+index.before_request(license_required)
 
 msg_text = ''
 

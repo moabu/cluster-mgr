@@ -335,10 +335,48 @@ def prompt_license():
 
 
 def license_required():
+
     if not current_app.config["LICENSE_ENFORCEMENT_ENABLED"]:
         return
 
     license_data, err = license_manager.validate_license()
+    
+    aday = 24*60*60
+    
+    if not license_data["valid"]:
+
+        dot_start = os.path.join(current_app.config["DATA_DIR"],'.start')
+        
+        if not os.path.exists(dot_start):
+            with open(dot_start,'w') as w:
+                w.write(str(int(time.time())))
+
+        start_time = time.time() - 31*aday
+
+        try:
+            with open(dot_start) as f:
+                start_time = int(f.read().strip())
+        except:
+            pass
+        date_left = (30*aday - (time.time() - start_time)) // aday
+
+        if date_left <= 0:
+            current_app.jinja_env.globals['evaluation_period'] = ("Your "
+            "evaluation version EXPIRED. To get a license, "
+            "please contact sales@gluu.org.")
+            return redirect(url_for("license.settings"))
+
+        else:
+            current_app.jinja_env.globals['evaluation_period'] = ("Thanks "
+            "for trying Cluster Manager! This trial will expire in {} days. "
+            "To obtain a license key, contact sales@gluu.org".format(
+                int(date_left))
+            )
+
+            return
+            
+    
+    
     now = current_date_millis()
 
     invalid = license_data["valid"] is not True

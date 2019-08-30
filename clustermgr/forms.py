@@ -12,10 +12,7 @@ from flask_wtf.file import FileField, FileRequired, FileAllowed
 
 class AppConfigForm(FlaskForm):
     versions = [
-                '3.1.4', 
-                '3.1.3.1',
-                '3.1.3', 
-                '3.1.2',
+                '4.0', 
                 ]
     gluu_version = SelectField('Gluu Server Version',
                                choices=[(v, v) for v in versions])
