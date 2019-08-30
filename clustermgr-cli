@@ -8,11 +8,28 @@ PW_FILE="$HOME/.clustermgr/.pw"
 NEW_UUID=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1`
 app=`which clusterapp.py`
 
+if ! java -version 2>&1 >/dev/null | grep -q "version"; then
+  echo "Java is not found in PATH. Please install Java and/or add PATH before starting Cluster Manager."
+  exit
+fi
 
 start() { 
     echo "Upgrading Database"
     $app db upgrade
-    
+
+    if [ ! -f "$HOME/.clustermgr/instance" ]
+    then
+        mkdir -p "$HOME/.clustermgr/instance/"
+        
+    fi
+
+    printf "DEBUG = False\nSECRET_KEY = '$NEW_UUID'\nLICENSE_ENFORCEMENT_ENABLED = True" > "$HOME/.clustermgr/instance/config.py"
+
+    if [ ! -f "$HOME/.clustermgr/.start" ]
+    then
+        echo `date +%s` > $HOME/.clustermgr/.start
+    fi
+
     echo "Starting Celery Worker"
     if [ -f "$CELERY_PID" ]
     then
