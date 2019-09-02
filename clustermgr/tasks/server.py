@@ -223,7 +223,7 @@ def install_gluu_server(task_id, server_id):
     app_conf = AppConfiguration.query.first()
 
     enable_command = None
-    gluu_server = 'gluu-server-{0}'.format(app_conf.gluu_version)
+    gluu_server = 'gluu-server'
 
     # local setup properties file path
     setup_properties_file = os.path.join(
@@ -426,7 +426,7 @@ def install_gluu_server(task_id, server_id):
 
 
     if enable_command:
-        installer.run(enable_command.format(app_conf.gluu_version), error_exception='__ALL__')
+        installer.run(enable_command, inside=False, error_exception='__ALL__')
 
     installer.start_gluu()
 
@@ -439,9 +439,8 @@ def install_gluu_server(task_id, server_id):
     # If this server is primary, upload local setup.properties to server
     if server.primary_server:
         wlogger.log(task_id, "Uploading setup.properties")
-        result = installer.conn.upload(setup_properties_file, 
-                 '/opt/gluu-server/install/community-edition-setup/'
-                 'setup.properties')
+        result = installer.upload_file(setup_properties_file, 
+                 '/opt/gluu-server/root/setup.properties')
     # If this server is not primary, get setup.properties.last from primary
     # server and upload to this server
     else:
@@ -489,9 +488,9 @@ def install_gluu_server(task_id, server_id):
     #JavaScript on logger duplicates next log if we don't add this
     time.sleep(1)
     
-    installer.run('wget https://raw.githubusercontent.com/GluuFederation/community-edition-setup/master/install.py -O /opt/gluu/bin/install.py')
+    installer.run('wget https://raw.githubusercontent.com/GluuFederation/community-edition-setup/master/install.py -O /opt/gluu/bin/install.py',  error_exception='__ALL__')
     
-    cmd = installer.run_command.format('/opt/gluu/bin/install.py --args "-f /root/setup.properties --listen_all_interfaces -n')
+    cmd = installer.run_command.format('/opt/gluu/bin/install.py -o --args \\"-f /root/setup.properties --listen_all_interfaces -n\\"')
 
     #Don't load base data for secondary nodes
     if not server.primary_server:

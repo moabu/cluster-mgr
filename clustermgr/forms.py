@@ -163,16 +163,6 @@ class InstallServerForm(FlaskForm):
     installOxAuthRP = BooleanField('Install oxAuth RP')
     installPassport = BooleanField('Install Passport')
 
-    ldap_type = RadioField(
-        "Ldap Type",
-        choices=[
-            ("opendj", "OpenDJ",),
-            # ("openldap", "OpenLDAP")
-        ],
-        validators=[AnyOf(["opendj", "openldap"])],
-        default='opendj'
-    )
-
     gluu_licence = SelectField(
         "Do you acknowledge that use of the Gluu Server is under the MIT license?",
         choices=[('no', "No"), ('yes', "Yes")]

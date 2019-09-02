@@ -959,7 +959,7 @@ def installNGINX(self, nginx_host):
     # get httpd.crt and httpd.key from primary server and put to this server
     for crt_file in ('httpd.crt', 'httpd.key'):
         wlogger.log(task_id, "Downloading {0} from primary server".format(crt_file), "debug")
-        remote_file = '/opt/gluu-server-{0}/etc/certs/{1}'.format(app_conf.gluu_version, crt_file)
+        remote_file = '/opt/gluu-server/etc/certs/{0}'.format(crt_file)
         file_content = primary_installer.get_file(remote_file)
 
         if not file_content:
