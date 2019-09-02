@@ -337,17 +337,18 @@ def install_gluu_server(task_id, server_id):
         elif server.os == 'CentOS 7':
             
             cmd = (
-              'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O '
+              'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo -O ' #testing repo
+              #'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O '
               '/etc/yum.repos.d/Gluu.repo'
               )
-            enable_command  = '/sbin/gluu-serverd-{0} enable'
+            enable_command  = '/sbin/gluu-serverd enable'
             
         elif server.os == 'RHEL 7':
             cmd = (
               'wget https://repo.gluu.org/rhel/Gluu-rhel7.repo -O '
               '/etc/yum.repos.d/Gluu.repo'
               )
-            enable_command  = '/sbin/gluu-serverd-{0} enable'
+            enable_command  = '/sbin/gluu-serverd enable'
 
         installer.run(cmd, inside=False, error_exception='__ALL__')
 
@@ -368,38 +369,30 @@ def install_gluu_server(task_id, server_id):
     gluu_installed = False
 
     #Determine if a version of gluu server was installed.
-    result = installer.conn.listdir("/opt")
+    
+    if installer.conn.exists('/opt/gluu-server'):
+        gluu_version = installer.get_gluu_version(installed=True)
+        gluu_installed = True
 
-    if result[0]:
-        for file_name in result[1]:
-            test = re.search(
-                     "gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+))$",
-                      file_name
-                      )
-            if test:
-                gluu_version = test.group("gluu_version")
-                gluu_installed = True
+        stop_result = installer.stop_gluu()
 
-                stop_result = installer.stop_gluu()
+        #If gluu server is installed, first stop it then remove
+        if "Can't stop gluu server" in stop_result:
+            cmd = 'rm -f /var/run/{0}.pid'.format(gluu_server)
+            installer.run(cmd, inside=False,
+                        error_exception='__ALL__')
 
-                #If gluu server is installed, first stop it then remove
-                if "Can't stop gluu server" in stop_result:
-                    cmd = 'rm -f /var/run/{0}.pid'.format(gluu_server)
-                    installer.run(cmd, inside=False,
-                                error_exception='__ALL__')
+            cmd = (
+              "df -aP | grep %s | awk '{print $6}' | xargs -I "
+              "{} umount -l {}" % (gluu_server)
+              )
+            installer.run(cmd, 
+                            inside=False, 
+                            error_exception='__ALL__')
+            
+            stop_result = installer.stop_gluu()
 
-                    cmd = (
-                      "df -aP | grep %s | awk '{print $6}' | xargs -I "
-                      "{} umount -l {}" % (gluu_server)
-                      )
-                    installer.run(cmd, 
-                                    inside=False, 
-                                    error_exception='__ALL__')
-                    
-                    stop_result = installer.stop_gluu()
-
-                installer.remove('gluu-server-'+gluu_version, 
-                                inside=False)
+        installer.remove('gluu-server', inside=False)
 
     if not gluu_installed:
         wlogger.log(
@@ -447,8 +440,8 @@ def install_gluu_server(task_id, server_id):
     if server.primary_server:
         wlogger.log(task_id, "Uploading setup.properties")
         result = installer.conn.upload(setup_properties_file, 
-                 '/opt/{}/install/community-edition-setup/'
-                 'setup.properties'.format(gluu_server))
+                 '/opt/gluu-server/install/community-edition-setup/'
+                 'setup.properties')
     # If this server is not primary, get setup.properties.last from primary
     # server and upload to this server
     else:
@@ -459,7 +452,7 @@ def install_gluu_server(task_id, server_id):
         ldap_passwd = None
 
 
-        remote_file = '/opt/{}/install/community-edition-setup/setup.properties.last'.format(gluu_server)
+        remote_file = '/opt/gluu-server/install/community-edition-setup/setup.properties.last'.format(gluu_server)
         wlogger.log(task_id, 'Downloading setup.properties.last from primary server', 'debug')
 
        #get setup.properties.last from primary server.
@@ -478,7 +471,7 @@ def install_gluu_server(task_id, server_id):
                 new_setup_properties += l
 
             #put setup.properties to server
-            remote_file_new = '/opt/{}/install/community-edition-setup/setup.properties'.format(gluu_server)
+            remote_file_new = '/opt/gluu-server/root/setup.properties'
             installer.put_file(remote_file_new,  new_setup_properties)
 
             if ldap_passwd:
@@ -496,8 +489,9 @@ def install_gluu_server(task_id, server_id):
     #JavaScript on logger duplicates next log if we don't add this
     time.sleep(1)
     
-    cmd = installer.run_command.format(
-                    'cd /install/community-edition-setup/ && ./setup.py --listen_all_interfaces -n -v')
+    installer.run('wget https://raw.githubusercontent.com/GluuFederation/community-edition-setup/master/install.py -O /opt/gluu/bin/install.py')
+    
+    cmd = installer.run_command.format('/opt/gluu/bin/install.py --args "-f /root/setup.properties --listen_all_interfaces -n')
 
     #Don't load base data for secondary nodes
     if not server.primary_server:
@@ -520,47 +514,46 @@ def install_gluu_server(task_id, server_id):
         for ship in all_server:
             host_ip.append((ship.hostname, ship.ip))
 
-        modify_hosts(task_id, installer.conn, host_ip, '/opt/'+gluu_server+'/', server.hostname)
+        modify_hosts(task_id, installer.conn, host_ip, '/opt/gluu-server/', server.hostname)
 
 
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
 
-        #If gluu version is greater than 3.0.2 we need to download certificates
+        #we need to download certificates
         #from primary server and upload to this server, then will delete and
         #import keys
-        if app_conf.gluu_version > '3.0.2':
-            wlogger.log(task_id, "Downloading certificates from primary "
-                             "server and uploading to this server")
-            certs_remote_tmp = "/tmp/certs_"+str(uuid.uuid4())[:4].upper()+".tgz"
-            certs_local_tmp = "/tmp/certs_"+str(uuid.uuid4())[:4].upper()+".tgz"
+        wlogger.log(task_id, "Downloading certificates from primary "
+                         "server and uploading to this server")
+        certs_remote_tmp = "/tmp/certs_"+str(uuid.uuid4())[:4].upper()+".tgz"
+        certs_local_tmp = "/tmp/certs_"+str(uuid.uuid4())[:4].upper()+".tgz"
 
-            cmd = ('tar -zcf {0} /opt/{1}/etc/certs/ '
-                    '/opt/{1}/install/community-edition-setup/output/scim-rp.jks '
-                    '/etc/gluu/conf/passport-config.json'
-                    ).format(certs_remote_tmp, gluu_server)
-            
-            primary_server_installer.run(cmd,inside=False, error_exception='Removing leading')
+        cmd = ('tar -zcf {0} /opt/{1}/etc/certs/ '
+                '/opt/{1}/install/community-edition-setup/output/scim-rp.jks '
+                '/etc/gluu/conf/passport-config.json'
+                ).format(certs_remote_tmp, gluu_server)
+        
+        primary_server_installer.run(cmd,inside=False, error_exception='Removing leading')
 
-            primary_server_installer.download_file(certs_remote_tmp, certs_local_tmp)
-           
-            installer.upload_file(certs_local_tmp, 
-                                "/tmp/certs.tgz".format(gluu_server))
+        primary_server_installer.download_file(certs_remote_tmp, certs_local_tmp)
+       
+        installer.upload_file(certs_local_tmp, 
+                            "/tmp/certs.tgz".format(gluu_server))
 
-            cmd = 'tar -zxf /tmp/certs.tgz -C /'
-            installer.run(cmd, inside=False)
+        cmd = 'tar -zxf /tmp/certs.tgz -C /'
+        installer.run(cmd, inside=False)
 
-            #delete old keys and import new ones
-            wlogger.log(task_id, 'Manuplating keys')
-            for suffix in (
-                    'httpd',
-                    'shibIDP',
-                    'idp-encryption',
-                    'asimba',
-                    setup_prop['ldap_type'],
-                    ):
-                installer.delete_key(suffix, app_conf.nginx_host)
-                installer.import_key(suffix, app_conf.nginx_host)
+        #delete old keys and import new ones
+        wlogger.log(task_id, 'Manuplating keys')
+        for suffix in (
+                'httpd',
+                'shibIDP',
+                'idp-encryption',
+                'asimba',
+                setup_prop['ldap_type'],
+                ):
+            installer.delete_key(suffix, app_conf.nginx_host)
+            installer.import_key(suffix, app_conf.nginx_host)
 
         download_and_upload_custom_schema(  
                                             task_id,

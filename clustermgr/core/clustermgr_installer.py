@@ -74,7 +74,7 @@ class Installer:
 
 
         if self.conn.__class__.__name__ != 'FakeRemote':
-            self.container = '/opt/gluu-server-{}'.format(self.gluu_version)
+            self.container = '/opt/gluu-server'
             if self.clone_type == 'deb':
                 self.run_command = 'chroot {} /bin/bash -c "{}"'.format(self.container,'{}')
                 self.install_command = 'chroot {} /bin/bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y {}"'.format(self.container,'{}')
@@ -265,24 +265,34 @@ class Installer:
 
     def is_gluu_installed(self):
         
-        check_file = ('/opt/gluu-server-{}/install/community-edition-setup/'
-                  'setup.properties.last').format(
-                                                self.gluu_version
-                                            )
+        check_file = ('/opt/gluu-server/install/community-edition-setup/'
+                  'setup.properties.last')
+
         print "Installer> Checking existence of file {} for gluu installation".format(check_file)
 
         return self.conn.exists(check_file)
 
-    def get_gluu_version(self):
+    def get_gluu_version(self, installed=False):
         gluu_version = None
         
-        print "Installer> Determining gluu version"
-        result = self.conn.listdir("/opt")
-        if result[0]:
-            for path in result[1]:
-                regular_expr = re.search('gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+)(.\d+)?)$', path)
-                if regular_expr:
-                    gluu_version = regular_expr.group("gluu_version")
+        print "Installer> Determining gluu version by using oxauth.war"
+        
+        oxauth_path = '/opt/gluu-server/opt/gluu/jetty/oxauth/webapps/oxauth.war'
+        
+        if installed and not self.conn.exists(oxauth_path):
+            oxauth_path = '/opt/gluu-server/opt/dist/gluu/oxauth.war'
+            
+        
+        if self.conn.exists(oxauth_path):
+            result = self.conn.run('''python -c "import zipfile;zf=zipfile.ZipFile('{}','r');print zf.read('META-INF/MANIFEST.MF')"'''.format(oxauth_path))
+
+            menifest = result[1]
+
+            for l in menifest.split('\n'):
+                ls = l.strip()
+                if 'Implementation-Version:' in ls:
+                    version = ls.split(':')[1].strip()
+                    gluu_version = '.'.join(version.split('.')[:3])
                     print "Installer> Gluu version was determined as {0}".format(gluu_version)
 
         return gluu_version
