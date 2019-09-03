@@ -99,6 +99,9 @@ class AppConfiguration(db.Model):
     use_ldap_cache = db.Column(db.Boolean())
     ldap_update_period_unit = db.Column(db.String(1), default='s')
     nginx_os_type = db.Column(db.String(10))
+    latest_version = db.Column(db.String(10))
+    offline = db.Column(db.Boolean())
+    gluu_archive = db.Column(db.String(50))
     
 
 class KeyRotation(db.Model):
@@ -170,3 +173,16 @@ class LoggingServer(db.Model):
 
     # # encrypted password; need to decrypt it before using the value
     # mq_password = db.Column(db.String(255))
+
+class CacheServer(db.Model):
+    __tablename__ = "cache_server"
+    id = db.Column(db.Integer, primary_key=True)
+    hostname = db.Column(db.String(250))
+    ip = db.Column(db.String(45))
+    install_redis = db.Column(db.Boolean, default=True)
+    redis_password = db.Column(db.String(45))
+    stunnel_port = db.Column(db.Integer)
+    installed = db.Column(db.Boolean)
+
+    def __repr__(self):
+        return '<Cache Server {} {}>'.format(self.id, self.hostname)

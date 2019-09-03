@@ -48,7 +48,10 @@ class AppConfigForm(FlaskForm):
     cache_ip = StringField('Cache Proxy IP Address', validators=[DataRequired()])
     use_ldap_cache = BooleanField('Use LDAP Cache')
     update = SubmitField("Update Configuration")
-
+    offline = BooleanField('Offline installation')
+    gluu_archive = SelectField('Gluu archive',
+            choices = []
+            )
 
 class SchemaForm(FlaskForm):
     schema = FileField(validators=[
@@ -304,3 +307,10 @@ class httpdCertificatesForm(FlaskForm):
     httpd_key = TextAreaField('Key')
     httpd_crt = TextAreaField('Crt')
     submit = SubmitField("Submit")
+
+class cacheServerForm(FlaskForm):
+    hostname = StringField("Cache Server Hostname", validators=[DataRequired()])
+    ip = StringField("Cache Server IP Address", validators=[DataRequired(), IPAddress()])
+    install_redis = BooleanField("Install Redis and stunnel", default=True)
+    redis_password = StringField("Redis Password")
+    stunnel_port = IntegerField("Stunnel Port", validators=[DataRequired()])

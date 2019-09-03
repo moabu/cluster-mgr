@@ -109,3 +109,57 @@
     </form>
 {%- endmacro %}
 
+
+
+
+{% macro cache_process_steps(current) -%}
+<ul class="timeline">
+    <!-- timeline time label -->
+    <li class="time-label">
+        <span class="bg-red">
+            Setup Cache Cluster
+        </span>
+    </li>
+    <!-- /.timeline-label -->
+
+    <!-- Step 1: Install -->
+    <li>
+      {% if current > 1 %}
+        <i class="fa fa-check bg-green" id="step1"></i>
+      {% else %}
+        <i class="fa fa-spinner fa-spin fa-fw bg-blue" id="step1"></i>
+      {% endif %}
+        <div class="timeline-item">
+            <h3 class="timeline-header">Install Cache Servers</h3>
+            <div class="timeline-body">
+              Install Redis and Stunnel on cache servers
+            </div>
+        </div>
+    </li>
+    <!-- Step 2: Configure -->
+    <li>
+      {% if current > 2 %}
+        <i class="fa fa-check bg-green" id="step2"></i>
+      {% elif current == 2 %}
+        <i class="fa fa-spinner fa-spin fa-fw bg-blue" id="step2"></i>
+      {% elif current < 2 %}
+        <i class="fa fa-clock-o bg-gray" id="step2"></i>
+      {% endif %}
+        <div class="timeline-item">
+            <h3 class="timeline-header">Install Stunnel on Nodes</h3>
+            <div class="timeline-body">
+              Install and configure stunnel on nodes for connecting redis server via stunnel
+            </div>
+        </div>
+    </li>
+
+    <!-- timeline time label -->
+    <li class="time-label">
+        <span class="bg-green">
+          Done
+        </span>
+    </li>
+
+</ul>
+
+{%- endmacro %}

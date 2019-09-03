@@ -3,314 +3,468 @@ import os
 import re
 import socket
 
-from clustermgr.models import Server, AppConfiguration
-from clustermgr.extensions import db, wlogger, celery
-from clustermgr.core.ldap_functions import LdapOLC
-from clustermgr.core.utils import parse_setup_properties, \
-        get_redis_config, make_proxy_stunnel_conf, make_twem_proxy_conf
 
-from clustermgr.core.clustermgr_installer import Installer
-from clustermgr.config import Config
+from clustermgr.models import Server, AppConfiguration, CacheServer
+from clustermgr.extensions import db, wlogger, celery
+from clustermgr.core.remote import RemoteClient
+from clustermgr.core.ldap_functions import DBManager
+from clustermgr.core.utils import parse_setup_properties, \
+        get_redis_config, make_proxy_stunnel_conf, make_twem_proxy_conf, get_cache_servers
 
 from ldap3.core.exceptions import LDAPSocketOpenError
 from flask import current_app as app
 
 
-def install_redis(installer):
+class BaseInstaller(object):
+    """Base class for component installers.
 
-    redis_installed = False
+    Args:
+        server (class:`clustermgr.models.Server`): the server object denoting
+            the server where server should be installed
+        tid (string): the task id of the celery task to add logs
+    """
 
-    if installer.conn.exists('/usr/bin/redis-server') or \
-                                installer.conn.exists('/bin/redis-server'):
-        wlogger.log(installer.logger_task_id, 
-                "Redis was already installed on this server", 
-                "info", server_id=installer.server_id)
-        redis_installed = True
-    else:
-        wlogger.log(installer.logger_task_id, 
-                    "Installing Redis in server",
-                    "info", server_id=installer.server_id)
+    def __init__(self, server, tid, rc):
+        self.server = server
+        self.tid = tid
+        self.rc = rc
+        self.os_type = None
+        self.determine_os_type()
+
+    def determine_os_type(self):
+        cin, cout, cerr = self.rc.run("ls /etc/*release")
+        files = cout.split()
+        cin, cout, cerr = self.rc.run("cat " + files[0])
+
+        if "Ubuntu" in cout:
+            self.os_type = 'deb'
+        elif "CentOS" in cout or 'Red Hat' in cout:
+            self.os_type = 'rpm'
+
+
+    def install(self):
+        """install() detects the os of the server and calls the appropriate
+        function to install redis on that server.
+
+        Returns:
+            boolean status of the install process
+        """
+
+        status = False
+        if self.os_type == 'deb':
+            status = self.install_in_ubuntu()
+        elif  self.os_type == 'rpm':
+            status = self.install_in_centos()
+        else:
+            wlogger.log(self.tid, "Server OS is not supported. {0}".format(
+                cout), "error", server_id=self.server.id)
+        return status
+
+    def install_in_ubuntu(self):
+        """This method should be overridden by the sub classes. Run the
+        commands needed to install your component.
+
+        Returns:
+            boolean status of success of the install
+        """
+        pass
+
+    def install_in_centos(self):
+        """This method should be overridden by the sub classes. Run the
+        commands needed to install your component.
+
+        Returns:
+            boolean status of success of the install
+        """
+        pass
+
+    def run_command(self, cmd):
+        wlogger.log(self.tid, cmd, "debug", server_id=self.server.id)
+        return self.rc.run(cmd)
+
+
+class RedisInstaller(BaseInstaller):
+    """RedisInstaller installs redis-server in the provided server. Refer to
+    `BaseInstaller` for docs.
+    """
+
+    def check_installed(self):
+        if self.rc.exists('/usr/bin/redis-server'):
+            wlogger.log(self.tid, "Redis Server was already installed.", "debug", server_id=self.server.id)
+            return True
+
+    def install_in_ubuntu(self):
         
+        self.config_file = '/etc/redis/redis.conf'
 
+        if self.check_installed():
+            return True
         
-        if installer.clone_type == 'deb':
+        self.run_command("apt-get update")
 
-            if installer.server_os in ('Ubuntu 14','Debian 8'):
-                version_number = 14
-            else:
-                version_number = 16
-
-            cmd_list = [
-                'wget https://github.com/mbaser/gluu/raw/master/redis/ubuntu{}/redis-tools_4.0.11-1_amd64.deb -O /tmp/redis-tools_4.0.11-1_amd64.deb'.format(version_number),
-                'wget https://github.com/mbaser/gluu/raw/master/redis/ubuntu{}/redis-server_4.0.11-1_amd64.deb -O /tmp/redis-server_4.0.11-1_amd64.deb'.format(version_number),
-                'DEBIAN_FRONTEND=noninteractive dpkg -i /tmp/redis*.deb',
+        cmd_list = [
+            'DEBIAN_FRONTEND=noninteractive apt-get install -y redis-server',
             ]
 
-            for cmd in cmd_list:
-                installer.run(cmd, inside=False, error_exception='__ALL__')
-                
-        else:
-            if installer.server_os in ('CentOS 6','RHEL 6'):
-                install_cmd = 'yum install -y https://github.com/mbaser/gluu/raw/master/redis/centos6/redis-4.0.11-1.centos6.x86_64.rpm'
+        for cmd in cmd_list:
+            cin, cout, cerr = self.run_command(cmd)
+            if cerr and not 'Saving to:' in cerr:
+                wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
+                return False
             else:
-                install_cmd = 'yum install -y https://github.com/mbaser/gluu/raw/master/redis/centos7/redis-4.0.11-1.centos7.x86_64.rpm'
+                wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
         
-            installer.run(install_cmd, inside=False, error_exception='__ALL__')
-                
-        if installer.conn.exists('/usr/bin/redis-server') or \
-                                installer.conn.exists('/bin/redis-server'):
-            redis_installed = True
-            wlogger.log(installer.logger_task_id, 
-                        "Redis install successful", "success",
-                        server_id=installer.server_id)
-        else:
-            wlogger.log(installer.logger_task_id, 
-                        "Redis install failed", "fail",
-                        server_id=installer.server_id)
-
-    return redis_installed
-
-def install_stunnel(installer):
-    
-    stunnel_installed = False
-    
-    if installer.conn.exists('/usr/bin/stunnel') or \
-                                installer.conn.exists('/bin/stunnel'):
-        wlogger.log(installer.logger_task_id, 
-                    "Stunnel was allready installed", 
-                    "info", server_id=installer.server_id)
-        stunnel_installed = True
-    else:
-        wlogger.log(installer.logger_task_id, 
-                    "Installing Stunnel", "info", 
-                    server_id=installer.server_id)
-        if installer.clone_type == 'deb':
-            installer.install('stunnel4', inside=False)
-        else:
-            installer.install('stunnel', inside=False)
-
-        if installer.conn.exists('/usr/bin/stunnel') or \
-                            installer.conn.exists('/bin/stunnel'):
-            stunnel_installed = True
-            wlogger.log(installer.logger_task_id, 
-                        "Stunnel install successful", "success",
-                        server_id=installer.server_id)
-        else:
-            wlogger.log(installer.logger_task_id, 
-                        "Stunnel install failed", "fail",
-                        server_id=installer.server_id)
-
-    return stunnel_installed
-
-@celery.task(bind=True)
-def install_cache_components(self, method, server_id_list):
-    """Celery task that installs the redis, stunnel and twemproxy applications
-    in the required servers.
-
-    Redis and stunnel are installed in all the servers in the cluster.
-    Twemproxy is installed in the load-balancer/proxy server
-
-    :param self: the celery task
-    :param method: either STANDALONE, SHARDED
-
-    :return: the number of servers where both stunnel and redis were installed
-        successfully
-    """
-    
-    task_id = self.request.id
-    installed = 0
-    
-    app_conf = AppConfiguration.query.first()
-    
-    servers = []
-
-    for server_id in server_id_list:
-        
-        server = Server.query.get(server_id)
-        
-        installer = Installer(
-            server,
-            app_conf.gluu_version,
-            logger_task_id=task_id,
-            )
-    
-        server.redis = install_redis(installer)
-        server.stunnel = install_stunnel(installer)
-        
-        # Save the redis and stunnel install situation to the db    
-        if server.redis and server.stunnel:
-            installed += 1
-        db.session.commit()
-
-
-    #If we are using external load balancer no need to proceed.
-    if app_conf.external_load_balancer:
         return True
 
-    # Install twemproxy in the Nginx load balancing proxy server
-    mock_nginx = Server(
-                hostname=app_conf.nginx_host,
-                ip=app_conf.nginx_ip,
-                os = app_conf.nginx_os,
-                id=9999
-                )
 
-    nginx_installer = Installer(
-        mock_nginx,
-        app_conf.gluu_version,
-        logger_task_id=task_id,
-        )
-
-    install_redis(nginx_installer)
-    install_stunnel(nginx_installer)
-
-    if not nginx_installer.conn.exists('/usr/sbin/nutcracker'):
-
-        wlogger.log(task_id, "Installing Twemproxy", server_id=9999)
-        # 1. Setup the development tools for installation
-
-        if nginx_installer.server_os == "Ubuntu 14":
-            nginx_installer.run(
-                    'wget http://ftp.debian.org/debian/pool/main/n/nutcracker/'
-                    'nutcracker_0.4.0+dfsg-1_amd64.deb -O /tmp/'
-                    'nutcracker_0.4.0+dfsg-1_amd64.deb', inside=False, error_exception='__ALL__')
-            nginx_installer.run(
-                'dpkg -i /tmp/nutcracker_0.4.0+dfsg-1_amd64.deb', inside=False)
-        elif nginx_installer.server_os == "Ubuntu 16":
-            nginx_installer.install('nutcracker', inside=False)
-        else:
-            nginx_package = ('https://raw.githubusercontent.com/mbaser/gluu/'
-                'master/nutcracker-0.4.1-1.gluu.centos{0}.x86_64.rpm').format(
-                    nginx_installer.server_os[-1])
-            nginx_installer.install(nginx_package, inside=False)
-            nginx_installer.run('chkconfig nutcracker on', inside=False)
-
-        # 5. Create the default configuration file referenced in the init scripts
-        #run_and_log(rc, "mkdir -p /etc/nutcracker", tid)
-        nginx_installer.run("touch /etc/nutcracker/nutcracker.yml", inside=False)
-    else:
-        wlogger.log(task_id, 
-                "Twemproxy was already installed on cache server",
-                server_id=9999)
+    def install_in_centos(self):
+        
+        self.config_file = '/etc/redis.conf'
+        
+        if self.check_installed():
+            return True
+        
+        
                 
-    return installed
-
-
-@celery.task(bind=True)
-def configure_cache_cluster(self, method, server_id_list):
-    setup_proxied(self.request.id, server_id_list)
-
-
-def __configure_stunnel(task_id, server, stunnel_conf, setup_props=None):
-    """Sets up Stunnel with given configuration, init or service scripts,
-    SSL certificate ...etc., for use in a server
-
-    :param task_id: task id for log identification
-    :param server: :object:`clustermgr.models.Server` where stunnel needs to be
-        setup
-    :param stunnel_conf: list of lines for the stunnel config file
-    :param chdir: chroot directory to find out the setup.properties file and
-        extract the required values to generate a SSL certificate
-    :param setup_props: Optional - location of setup.properties file to get the
-        details for SSL Cert generation for Stunnel
-    :return: boolean status fo the operation
-    """
-    wlogger.log(task_id, "Setting up stunnel",'info', server_id=server.id)
-    app_conf = AppConfiguration.query.first()
-    installer = Installer(
-            server,
-            app_conf.gluu_version,
-            logger_task_id=task_id,
-            server_os=server.os
-            )
-    if not installer.conn:
-        return False
+        cmd_list = ('yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm',
+                    'yum clean all',
+                    'yum install -y redis'
+                    )
     
-    wlogger.log(task_id, "Adding init/service scripts of boot time startup",
-                "info", server_id=server.id)
-    # replace the /etc/default/stunnel4 to enable start on system startup
-    local = os.path.join(app.root_path, 'templates', 'stunnel',
-                         'stunnel4.default')
-    remote = '/etc/default/stunnel4'
-    installer.upload_file(local, remote)
+        err = ''
+        
+        for install_cmd in cmd_list:
 
-    if 'CentOS 6' == server.os:
-        local = os.path.join(app.root_path, 'templates', 'stunnel',
-                             'centos.init')
-        remote = '/etc/rc.d/init.d/stunnel4'
-        installer.upload_file(local, remote)
-        installer.run("chmod +x {0}".format(remote), inside=False)
+            cin, cout, cerr = self.run_command(install_cmd)
+            wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
+            
+            if '/var/cache/yum' in cerr:
+                wlogger.log(self.tid, cerr, "debug", server_id=self.server.id)
+            else:
+                wlogger.log(self.tid, cerr, "error", server_id=self.server.id)
 
-    if server.os in ('CentOS 7', 'RHEL 7'):
+        return True
+
+
+
+    def set_redis_password(self):
+        result = self.rc.get_file(self.config_file)
+        if result[0]:
+            config_file = result[1].readlines()
+            for i, l in enumerate(config_file[:]):
+                if l.startswith('requirepass'):
+                    if not self.server.redis_password:
+                        del config_file[i]
+                    else:
+                        config_file[i] = 'requirepass ' + self.server.redis_password+'\n'
+                    break
+                if l.replace(' ','').startswith('#requirepass') and self.server.redis_password:
+                    config_file[i] = 'requirepass ' + self.server.redis_password+'\n'
+                    break
+                
+            else:
+                if self.server.redis_password:
+                    config_file.append('requirepass ' + self.server.redis_password+'\n')
+            filecontent = ''.join(config_file)
+            self.rc.put_file(self.config_file, filecontent)
+
+    def run_sysctl(self, command):
+        if self.os_type == 'deb':
+            cmd = 'systemctl {} redis-server'.format(command)
+        elif self.os_type == 'rpm':
+            cmd = 'systemctl {} redis'.format(command)
+        self.run_command(cmd)
+
+
+
+class StunnelInstaller(BaseInstaller):
+    
+    
+    def check_installed(self):
+        
+        si = self.rc.exists('/usr/bin/stunnel') or self.rc.exists('/bin/stunnel')
+
+        if si:
+            wlogger.log(self.tid, "stunnel was already installed.", "debug", server_id=self.server.id)
+
+        return si
+
+    
+    def install_in_ubuntu(self):
+        self.run_command("apt-get update")
+        cin, cout, cerr = self.run_command("DEBIAN_FRONTEND=noninteractive apt-get install stunnel4 -y")
+        wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
+        if cerr:
+            wlogger.log(self.tid, cerr, "error", server_id=self.server.id)
+
+        # Verifying installation by trying to reinstall
+        cin, cout, cerr = self.rc.run("DEBIAN_FRONTEND=noninteractive apt-get install stunnel4 -y")
+
+        if "stunnel4 is already the newest version" in cout:
+            return True
+        else:
+            return False
+
+    def install_in_centos(self):
+        #self.run_command("yum update -y")
+        cin, cout, cerr = self.run_command("yum install -y stunnel")
+        wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
+
+        if cerr.strip():
+            if '/var/cache/yum' in cerr:
+                wlogger.log(self.tid, cerr, "debug", server_id=self.server.id)
+            else:
+                wlogger.log(self.tid, cerr, "error", server_id=self.server.id)
+            
+        # verifying installation
+        cin, cout, cerr = self.rc.run("yum install -y stunnel")
+        if "already installed" in cout:
+            return True
+        else:
+            return False
+
+    def upload_service_file(self):
+
         local = os.path.join(app.root_path, 'templates', 'stunnel',
                              'stunnel.service')
         remote = '/lib/systemd/system/stunnel.service'
-        installer.upload_file(local, remote)
-        installer.run("mkdir -p /var/log/stunnel4", inside=False)
-        wlogger.log(task_id, "Setup auto-start on system boot", "info",
-                    server_id=server.id)
-        installer.run('systemctl enable redis', inside=False, error_exception='Created symlink from')
-        installer.run('systemctl enable stunnel', inside=False, error_exception='Created symlink from')
+        wlogger.log(self.tid, "Uploading systemd file", "info",
+                    server_id=self.server.id)
+        self.rc.upload(local, remote)
+        self.rc.run("mkdir -p /var/log/stunnel4")
 
-    #if certificate of stunnel does not exists, create it
-    if not installer.conn.exists("/etc/stunnel/cert.pem"):
-        # setup the certificate file
-        wlogger.log(task_id, "Generating certificate for stunnel ...", 'debug',
-                    server_id=server.id)
+    def run_sysctl(self, command):
+        if self.os_type == 'deb':
+            cmd = 'systemctl {} stunnel4'.format(command)
+        elif self.os_type == 'rpm':
+            cmd = 'systemctl {} stunnel'.format(command)
+        self.run_command(cmd)
+    
+
+@celery.task(bind=True)
+def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
+
+    tid = self.request.id
+
+    servers = [ Server.query.get(id) for id in servers_id_list ]
+    cache_servers = [ CacheServer.query.get(id) for id in cache_servers_id_list ]
+
+    app_conf = AppConfiguration.query.first()
+    
+    primary_cache = None
+    primary_cache_server = CacheServer.query.first()
+
+    for server in cache_servers:
+
+        rc = __get_remote_client(server, tid)
+        if not rc:
+            wlogger.log(tid, "SSH connection to server failed", "error", server_id=server.id)
+            return False
         
-        if setup_props:
-            propsfile = setup_props
-        else:
-            propsfile = os.path.join(Config.DATA_DIR, 'setup.properties')
+        ri = RedisInstaller(server, tid, rc)
+        
+        if app_conf.offline:
+            if not ri.check_installed():
+                wlogger.log(
+                    tid, 
+                    'Redis Server was not installed. Please install Redis '
+                    ' Server and retry.', 
+                    'error',
+                    server_id=server.id
+                    )
+                return False
 
-        props = parse_setup_properties(open(propsfile))
-
-        subject = "'/C={countryCode}/ST={state}/L={city}/O={orgName}/CN={hostname}" \
-                  "/emailAddress={admin_email}'".format(**props)
-        cert_path = "/etc/stunnel/server.crt"
-        key_path = "/etc/stunnel/server.key"
-        pem_path = "/etc/stunnel/cert.pem"
-        cmd = ('/usr/bin/openssl req -subj {0} -new -newkey rsa:2048 -sha256 '
-               '-days 365 -nodes -x509 -keyout {1} -out {2}').format(
-               subject, key_path, cert_path)
-
-        installer.run(cmd, 
-                    error_exception='Generating a 2048 bit RSA private key',
-                    inside=False)
-        installer.run("cat {cert} {key} > {pem}".format(cert=cert_path, key=key_path,
-                                                 pem=pem_path), inside=False)
-        # verify certificate
-        cin, cout, cerr = installer.run("/usr/bin/openssl verify " + pem_path, inside=False)
-        if props['hostname'] in cout and props['orgName'] in cout:
-            wlogger.log(task_id, "Certificate generated successfully", "success",
-                        server_id=server.id)
-        else:
-            wlogger.log(task_id, "/usr/bin/openssl verify " + pem_path, 
-                        "debug", server_id=server.id)
-            wlogger.log(task_id, cerr, "cerror")
-            wlogger.log(task_id, "Certificate generation failed. Add a SSL "
-                             "certificate at /etc/stunnel/cert.pem", "error",
-                        server_id=server.id)
-
-    # Generate stunnel config
-    wlogger.log(task_id, "Setup stunnel listening and forwarding", "debug",
-                server_id=server.id)
-    installer.put_file("/etc/stunnel/stunnel.conf", "\n".join(stunnel_conf))
+        redis_installed = ri.install()
+        
+        wlogger.log(
+                    tid, 
+                    'Setting Redis password',
+                    'info',
+                    server_id=server.id
+                    )
+        
+        ri.set_redis_password()
     
-    
-    # Setup Twemproxy if this is cache server, id of cache server is 9999
-    if server.id == 9999:
-        wlogger.log(task_id, "Writing Twemproxy configuration", 
+        if redis_installed:
+            wlogger.log(tid, "Redis install successful", "success",
                         server_id=server.id)
-        twemproxy_conf = make_twem_proxy_conf()
-        remote = "/etc/nutcracker/nutcracker.yml"
-        installer.put_file(remote, twemproxy_conf)
-        installer.restart_service('nutcracker', inside=False)
+        else:
+            wlogger.log(tid, "Redis install failed", "fail",
+                        server_id=server.id)
+            return False
 
-    return True
+        ri.run_sysctl('enable')
+        ri.run_sysctl('restart')
+
+        si = StunnelInstaller(server, tid, rc)
+
+        if app_conf.offline:
+            if not si.check_installed():
+                wlogger.log(
+                    tid, 
+                    'Stunnel was not installed. Please install stunnel '
+                    'and retry.', 
+                    'error',
+                    server_id=server.id
+                    )
+                return False
+
+         
+        if si.check_installed():
+            server.stunnel = True
+        else:
+            wlogger.log(tid, "Installing Stunnel", "info", server_id=server.id)
+            
+            stunnel_installed = si.install()
+            if stunnel_installed:
+                server.stunnel = True
+                wlogger.log(tid, "Stunnel install successful", "success",
+                            server_id=server.id)
+            else:
+                server.stunnel = False
+                wlogger.log(tid, "Stunnel install failed", "fail",
+                            server_id=server.id)
+                            
+                return False
+        
+        if si.os_type == 'rpm':
+            si.upload_service_file()
+        
+        if si.os_type == 'deb':
+            wlogger.log(tid, "Enabling stunnel", "debug", server_id=server.id)
+            si.run_command("sed -i 's/ENABLED=0/ENABLED=1/g' /etc/default/stunnel4")
+        
+        if not primary_cache:
+            primary_cache = server.ip
+            if not rc.exists('/etc/stunnel/redis-server.crt'):
+                wlogger.log(tid, "Creating SSL certificate for stunnel", "info",
+                                server_id=server.id)
+                si.run_command(
+                        'openssl req -x509 -nodes -days 3650 -newkey rsa:2048 '
+                        '-batch -keyout /etc/stunnel/redis-server.key '
+                        '-out /etc/stunnel/redis-server.crt'
+                        )
+                si.run_command('chmod 600 /etc/stunnel/redis-server.key')
+            
+            
+            wlogger.log(tid, "Retreiving server certificate", "info",
+                                server_id=server.id)
 
 
-def __update_LDAP_cache_method(task_id, server, server_string, method):
+            stunnel_redis_conf = (
+                                'pid = /run/stunnel-redis.pid\n'
+                                '[redis-server]\n'
+                                'cert = /etc/stunnel/redis-server.crt\n'
+                                'key = /etc/stunnel/redis-server.key\n'
+                                'accept = {0}:{1}\n'
+                                'connect = 127.0.0.1:6379\n'
+                                ).format(server.ip, primary_cache_server.stunnel_port)
+            
+            wlogger.log(tid, "Writing redis stunnel configurations", "info",
+                                server_id=server.id)
+            
+            rc.put_file('/etc/stunnel/stunnel.conf', stunnel_redis_conf)
+            
+            si.run_sysctl('enable')
+            si.run_sysctl('restart')
+        
+        server.installed = True
+        db.session.commit()
+        rc.close()
+        
+    wlogger.log(tid, "2", "set_step")
+    
+    # retreive stunnel certificate
+    rc = RemoteClient(primary_cache_server.hostname, ip=primary_cache_server.ip)
+    rc.startup()
+    stunnel_cert = rc.get_file('/etc/stunnel/redis-server.crt')
+
+    if not stunnel_cert[0]:
+        print "Can't retreive server certificate from primary cache server"
+        return False
+
+    stunnel_cert = stunnel_cert[1].read()
+
+    for server in servers:
+                
+        rc = __get_remote_client(server, tid)
+        if not rc:
+            wlogger.log(tid, "SSH connection to server failed", "error", server_id=server.id)
+            return False
+
+        si = StunnelInstaller(server, tid, rc)
+
+        wlogger.log(tid, "Installing Stunnel", "debug", server_id=server.id)
+         
+        if si.rc.exists('/usr/bin/stunnel') or si.rc.exists('/bin/stunnel'):
+            wlogger.log(tid, "Stunnel was allready installed", "info", 
+                        server_id=server.id)
+            server.stunnel = True
+        else:
+            wlogger.log(tid, "Installing Stunnel", "info", server_id=server.id)
+            
+            stunnel_installed = si.install()
+            if stunnel_installed:
+                server.stunnel = True
+                wlogger.log(tid, "Stunnel install successful", "success",
+                            server_id=server.id)
+            else:
+                server.stunnel = False
+                wlogger.log(tid, "Stunnel install failed", "fail",
+                            server_id=server.id)
+                            
+                return False
+
+        if si.os_type == 'rpm':
+            si.upload_service_file()
+        
+        
+        if si.os_type == 'deb':
+            wlogger.log(tid, "Enabling stunnel", "debug", server_id=server.id)
+            si.run_command("sed -i 's/ENABLED=0/ENABLED=1/g' /etc/default/stunnel4")
+
+        stunnel_redis_conf = ( 
+                            'pid = /run/stunnel-redis.pid\n'
+                            '[redis-client]\n'
+                            'client = yes\n'
+                            'accept = 127.0.0.1:{1}\n'
+                            'connect = {0}:{1}\n'
+                            'CAfile = /etc/stunnel/redis-server.crt\n'
+                            'verify = 4\n'
+                            ).format(primary_cache, primary_cache_server.stunnel_port)
+
+        wlogger.log(tid, "Writing redis stunnel configurations", "info",
+                                server_id=server.id)
+        rc.put_file('/etc/stunnel/stunnel.conf', stunnel_redis_conf)
+
+        wlogger.log(tid, "Uploading server certificate", "info",
+                                server_id=server.id)
+
+        rc.put_file('/etc/stunnel/redis-server.crt', stunnel_cert)
+
+        si.run_sysctl('enable')
+        si.run_sysctl('restart')
+
+        if server.primary_server:
+            
+            server_string = 'localhost:{0}'.format(primary_cache_server.stunnel_port)
+            __update_LDAP_cache_method(tid, server, server_string, redis_password=primary_cache_server.redis_password)
+        
+
+        wlogger.log(tid, "Restarting Gluu Server", "info",
+                                server_id=server.id)
+
+
+        if server.os in ('RHEL 7', 'CentOS 7', 'Ubuntu 18'):
+            si.run_command('/sbin/gluu-serverd-{} restart'.format(app_conf.gluu_version))
+        else:
+            si.run_command('systemctl restart gluu-server-{}'.format(app_conf.gluu_version))
+
+    wlogger.log(tid, "3", "set_step")
+
+
+
+def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE', redis_password=''):
     """Connects to LDAP and updathe cache method and the cache servers
 
     :param tid: task id for log identification
@@ -319,20 +473,15 @@ def __update_LDAP_cache_method(task_id, server, server_string, method):
     :param method: STANDALONE for proxied and SHARDED for client sharding
     :return: boolean status of the LDAP update operation
     """
-    wlogger.log(task_id, "Updating oxCacheConfiguration", "debug",
+    wlogger.log(tid, "Updating oxCacheConfiguration ...", "debug",
                 server_id=server.id)
-                
     try:
-        wlogger.log(task_id, "Connecting LDAP Server ...", "debug",
-                server_id=server.id)
-
-        dbm = LdapOLC('ldaps://{}:1636'.format(server.hostname), 
-                        'cn=Directory Manager', server.ldap_password)
-        dbm.connect()
+        dbm = DBManager(server.hostname, 1636, server.ldap_password,
+                        ssl=True, ip=server.ip, )
     except Exception as e:
-        wlogger.log(task_id, "Couldn't connect to LDAP. Error: {0}".format(e),
+        wlogger.log(tid, "Couldn't connect to LDAP. Error: {0}".format(e),
                     "error", server_id=server.id)
-        wlogger.log(task_id, "Make sure your LDAP server is listening to "
+        wlogger.log(tid, "Make sure your LDAP server is listening to "
                          "connections from outside", "debug",
                     server_id=server.id)
         return
@@ -341,161 +490,48 @@ def __update_LDAP_cache_method(task_id, server, server_string, method):
     cache_conf['cacheProviderType'] = 'REDIS'
     cache_conf['redisConfiguration']['redisProviderType'] = method
     cache_conf['redisConfiguration']['servers'] = server_string
+    cache_conf['redisConfiguration']['decryptedPassword'] = redis_password
 
     result = dbm.set_applicance_attribute('oxCacheConfiguration',
                                           [json.dumps(cache_conf)])
     
     if not result:
-        wlogger.log(task_id, "oxCacheConfigutaion update failed", "fail",
-                    server_id=server.id)
-    else:
-        wlogger.log(task_id, "oxCacheConfigutaion updated", "success",
+        wlogger.log(tid, "oxCacheConfigutaion update failed", "fail",
                     server_id=server.id)
 
-def setup_proxied(task_id, server_id_list):
-    """Configures the servers to use the Twemproxy installed in proxy server
-    for Redis caching securely via stunnel.
 
-    :param tid: task id for log identification
-    :return: None
+
+def __get_remote_client(server, tid):
+    rc = RemoteClient(server.hostname, ip=server.ip)
+    try:
+        rc.startup()
+        wlogger.log(tid, "Connecting to server: {0}".format(server.hostname),
+                    "success", server_id=server.id)
+    except Exception as e:
+        wlogger.log(tid, "Could not connect to the server over SSH. Error:"
+                         "\n{0}".format(e), "error", server_id=server.id)
+        return None
+    return rc
+
+
+def run_and_log(rc, cmd, tid, server_id=None):
+    """Runs a command using the provided RemoteClient instance and logs the
+    cout and cerr to the wlogger using the task id and server id
+
+    :param rc: the remote client to run the command
+    :param cmd: command that has to be executed
+    :param tid: the task id of the celery task for logging
+    :param server_id: OPTIONAL id of the server in which the cmd is executed
+    :return: nothing
     """
-    
-    servers = []
-    
-    primary_ready = False
-    
-    for server_id in server_id_list:
-        qserver = Server.query.filter(
-                                Server.redis.is_(True)
-                            ).filter(
-                                Server.stunnel.is_(True)
-                            ).filter(
-                                Server.id.is_(server_id)
-                            ).first()
-        if qserver:
-            servers.append(qserver)
-            if qserver.primary_server:
-                primary_ready = True
-
-    app_conf = AppConfiguration.query.first()
-
-    if app_conf.external_load_balancer:
-        cache_ip = app_conf.cache_ip
-    else:
-        cache_ip = app_conf.nginx_ip
-    
-    if not primary_ready :
-        wlogger.log(task_id, "Primary Server is not setup yet. Cannot setup "
-                    "clustered caching.", "error", server_id=servers[0].id)
-
-        return False
-
-    # Configure Stunnel and Redis in each server
-    for server in servers:
-        #Since replication is active, we only need to update on primary server
-        if server.primary_server:
-            print "UPDATING CACHE METHOD"
-            __update_LDAP_cache_method(task_id, server, 'localhost:7000', 'STANDALONE')
-       
-        stunnel_conf = [
-            "cert = /etc/stunnel/cert.pem",
-            "pid = /var/run/stunnel.pid",
-            "output = /var/log/stunnel4/stunnel.log",
-            "[redis-server]",
-            "client = no",
-            "accept = {0}:7777".format(server.ip),
-            "connect = 127.0.0.1:6379",
-            "[twemproxy]",
-            "client = yes",
-            "accept = 127.0.0.1:7000",
-            "connect = {0}:8888".format(cache_ip)
-        ]
-     
-        status = __configure_stunnel(task_id, server, stunnel_conf)
-
-        if not status:
-            continue
-    
-    if app_conf.external_load_balancer:
-        return True
-        
-    # Setup Stunnel in the proxy server
-    mock_nginx = Server(
-                hostname=app_conf.nginx_host,
-                ip=app_conf.nginx_ip,
-                os = app_conf.nginx_os,
-                id=9999
-                )
-
-    proxy_stunnel_conf = make_proxy_stunnel_conf()
-    
-    status = __configure_stunnel(task_id, mock_nginx, proxy_stunnel_conf)
-
-    if not status:
-        return False
-
-    return True
-
-@celery.task(bind=True)
-def restart_services(self, method, server_id_list):
-    task_id = self.request.id
-
-    app_conf = AppConfiguration.query.first()
-    ips = []
-
-    for server_id in server_id_list:
-        server = Server.query.get(server_id)
-        ips.append(server.ip)
-        wlogger.log(task_id, "(Re)Starting services ... ", "info",
-                    server_id=server.id)
-
-        installer = Installer(
-                server,
-                app_conf.gluu_version,
-                logger_task_id=task_id,
-                )
-
-        # Common restarts for all
-        if server.os == 'CentOS 6':
-            installer.restart_service('redis', inside=False)
-            installer.restart_service('stunnel4', inside=False)
-        elif server.os in ('CentOS 7', 'RHEL 7'):
-            installer.restart_service('redis', inside=False)
-            installer.restart_service('stunnel', inside=False)
-        else:
-            installer.restart_service('redis-server', inside=False)
-            installer.restart_service('stunnel4', inside=False)
-            # sometime apache service is stopped (happened in Ubuntu 16)
-            # when install_cache_components task is executed; hence we also need to
-            # restart the service
-            installer.restart_service('apache2')
-         
-        wlogger.log(task_id, "(Re)Starting Gluu Server", "info", server_id=server.id)
-        installer.restart_gluu()
-
-    if app_conf.external_load_balancer:
-        return True
-        
-    mock_nginx = Server(
-                hostname=app_conf.nginx_host,
-                ip=app_conf.nginx_ip,
-                os = app_conf.nginx_os,
-                id=9999
-                )
-
-    nginx_installer = Installer(
-            mock_nginx,
-            app_conf.gluu_version,
-            logger_task_id=task_id,
-            )
+    wlogger.log(tid, cmd, "debug", server_id=server_id)
+    _, cout, cerr = rc.run(cmd)
+    if cout:
+        wlogger.log(tid, cout, "debug", server_id=server_id)
+    if cerr:
+        wlogger.log(tid, cerr, "cerror", server_id=server_id)
 
 
-    if mock_nginx.os in ['Ubuntu 14', 'Ubuntu 16', 'CentOS 6']:
-        nginx_installer.restart_service('stunnel4', inside=False)
-    if mock_nginx.os in ["CentOS 7", "RHEL 7"]:
-        nginx_installer.restart_service('stunnel', inside=False)
-
-    nginx_installer.restart_service('nutcracker', inside=False)
 
 
 @celery.task(bind=True)

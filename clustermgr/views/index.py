@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
+import glob
+
 from time import strftime
 import json
 from flask import Blueprint, render_template, redirect, url_for, flash, \
@@ -140,6 +142,9 @@ def app_configuration():
     config = AppConfiguration.query.first()
     schemafiles = os.listdir(app.config['SCHEMA_DIR'])
 
+    conf_form.gluu_archive.choices = [
+            (f,os.path.split(f)[1]) for f in glob.glob(
+            os.path.join(app.config['GLUU_REPO'],'gluu-server-*')) ]
 
     # If the form is submitted and password for replication user was not
     # not supplied, make password "**dummy**", so don't change
@@ -163,7 +168,8 @@ def app_configuration():
             conf_form.cache_host.validators = []
             conf_form.cache_ip.validators= []
 
-
+        if not conf_form.offline.data:
+            del conf_form._fields['gluu_archive']
 
     if not config:
         #del conf_form.replication_pw
@@ -225,14 +231,12 @@ def app_configuration():
         config.external_load_balancer = conf_form.external_load_balancer.data
         config.use_ldap_cache = conf_form.use_ldap_cache.data
 
-        if conf_form.external_load_balancer.data:
-            config.cache_host = conf_form.cache_host.data.strip()
-            config.cache_ip = conf_form.cache_ip.data.strip()
+        if conf_form.offline.data:
+            config.offline = True
+            config.gluu_archive = conf_form.gluu_archive.data
         else:
-            config.cache_host = None
-            config.cache_ip = None
-            conf_form.cache_host.data = ''
-            conf_form.cache_ip.data = ''
+            config.offline = False
+            config.gluu_archive = ''
             
     
         if getattr(conf_form, 'replication_pw'):
@@ -312,6 +316,7 @@ def app_configuration():
     return render_template('app_config.html', cform=conf_form, sform=sch_form,
                         config=config, schemafiles=schemafiles, localos=localos,
                         external_lb_checked=external_lb_checked,
+                        repo_dir = app.config['GLUU_REPO'],
                         next=request.args.get('next'))
 
 

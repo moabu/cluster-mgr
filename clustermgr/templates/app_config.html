@@ -11,6 +11,7 @@
 {% endblock %}
 
 {% block content %}
+
 <div class="box box-primary">
     <form id="cform" action="{{ url_for('index.app_configuration', next=next) }}" method="POST" class="form-horizontal">
 
@@ -27,6 +28,23 @@
                 {% endfor %}
             </div>
         
+            <div class="form-group {{ 'has-error' if cform.gluu_archive.errors else '' }}">
+                <div class="col-md-offset-3 col-md-2">
+                    {{ render_checkbox_field(cform.offline) }}
+                </div>
+                <div id="div-gluu-archive">
+                    <div class="col-md-2">  {{ cform.gluu_version.label(class="control-label") }}</div>
+                    <div class="col-md-5" data-toggle="gluu-repo-tooltip" title="Please put gluu .deb or .rpm archives to {{repo_dir}}"> {{ cform.gluu_archive(class="form-inline form-control")  }}
+                    
+                     {% for error in cform.gluu_archive.errors %}
+                    <p class="help-block">{{ error }}</p>
+                    {% endfor %}
+                    </div>
+
+                </div>
+ 
+            </div>
+
             {% if cform.replication_pw %}
                 <div class="form-group {{ 'has-error' if cform.replication_pw.errors else '' }}">
                     {{ cform.replication_pw.label(class="control-label col-md-3") }}
@@ -82,35 +100,6 @@
 
             </div>
 
-            <div class="well well-sm" 
-                {% if not external_lb_checked %}
-                    {% if not cform.external_load_balancer.data %}style="display: none"{% endif %} 
-                {% endif %}
-                id="external-load-balancer-box">
-
-                <div class="form-group {{ 'has-error' if cform.cache_host.errors else '' }}">
-                    {{ cform.cache_host.label(class="control-label col-md-3") }}
-                    <div class="col-md-9">
-                        {{ cform.cache_host(class="form-control", required=False) }}
-                        {% for error in cform.cache_host.errors %}
-                            <p class="help-block">{{ error }}</p>
-                        {% endfor %}
-                    </div>
-                </div>
-
-
-                <div class="form-group {{ 'has-error' if cform.cache_ip.errors else '' }}">
-                    {{ cform.cache_ip.label(class="control-label col-md-3") }}
-                    <div class="col-md-9">
-                        {{ cform.cache_ip(class="form-control", required=False) }}
-                        {% for error in cform.cache_ip.errors %}
-                            <p class="help-block">{{ error }}</p>
-                        {% endfor %}
-                    </div>
-                </div>
-
-            </div>
-
             <div id="ldap-cache-div" class="form-group">
                 <div class="col-md-offset-3 col-md-9">
                     {{ render_checkbox_field(cform.use_ldap_cache) }}
@@ -159,13 +148,6 @@
 </div>
 
 
-
-
-
-
-
-
-
 <div class="panel panel-default">
     <div class="panel-heading">
         <h3 class="panel-title">
@@ -203,16 +185,20 @@
 
 {% if localos != 'Alpine' %}
 
-    <div class="panel panel-default">
+  {% if not request.path.endswith('upgradewithpip') and latest_version > version %}
+
+    <div class="panel panel-default" id="upgrade-panel">
         <div class="panel-heading">
             <h3 class="panel-title">Upgrade</h3>
         </div>
         <div class="panel-body">
-        Upgrade Clustermgr from github repository<br><br>
+        <span class="text-warning">Version {{latest_version}} is available!</span> Upgrade Clustermgr from github repository<br><br>
         <a class="btn btn-primary" href="{{ url_for('index.upgrade_clustermgr') }}">Upgrade</a>
 
         </div>
     </div>
+    {% endif %}
+
 {% endif %}
 
 {% endblock %}
@@ -232,7 +218,11 @@ function ldapCacheOption() {
   if ( $('#use_ldap_cache').prop('checked')) {
       
       $('#external-load-balancer-box').attr('style',  'display: none');
-    }
+  } else {
+      
+      $('#external-load-balancer-box').removeAttr('style');
+  }
+    
 
 }
     
@@ -269,7 +259,37 @@ function ldapCacheOption() {
     });
 
 
+
+function offlineInstallation() {
+
+    if ($('#offline').is(':checked')) {
+        $('#div-gluu-archive').removeAttr('style',  'display: none');
+        $('#gluu_archive').attr('required');
+            
+        
+    } else {
+        
+        $('#div-gluu-archive').attr('style',  'display: none');
+        $('#gluu_archive').removeAttr('required');
+            
+    }
+
+}
+
+
+$('#offline').change(function() {
+        
+        offlineInstallation();
+});
+
+
+offlineInstallation();
 ldapCacheOption();
+
+
+$(document).ready(function(){
+  $('[data-toggle="gluu-repo-tooltip"]').tooltip(); 
+});
 
 </script>
 {% endblock %}

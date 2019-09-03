@@ -17,7 +17,7 @@ from cryptography.hazmat.backends import default_backend
 from clustermgr.config import Config
 
 from clustermgr.core.remote import RemoteClient
-from clustermgr.models import Server, AppConfiguration
+from clustermgr.models import Server, AppConfiguration, CacheServer
 from clustermgr.extensions import wlogger
 from flask import current_app as app
 from clustermgr.core.clustermgr_installer import Installer
@@ -518,3 +518,7 @@ def make_nginx_proxy_conf(exception=None):
 
     return nginx_tmp
 
+def get_cache_servers():
+    cache_servers = CacheServer.query.all()
+    
+    return cache_servers

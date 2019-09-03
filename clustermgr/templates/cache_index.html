@@ -9,155 +9,182 @@
 {% endblock %}
 
 {% block content %}
-<form method="get" action="{{ url_for('cache_mgr.change')}}">
-  <div class="row">
+<form method="get" action="{{ url_for('cache_mgr.install')}}">
 
-    
-    <div class="col-md-8">
-      <div class="box box-warning">
-        <div class="box-body no-padding">
-          <table class="table table-bordered table-hover">
-            <thead>
-              <tr>
-                <th>Server ID</th>
-                <th>Hostname</th>
-                <th>IP Address</th>
-                <th align="center">Stunnel Status</th>
-                <th align="center">Redis Status</th>
-                <th align="center">Cache Installed</th>
-                <th>Cache Method</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for server in servers %}
-              <tr id="server_{{server.id}}">
-                <td class="id">{{server.id}}</td>
-                <td class="hostname">{{server.hostname}}</td>
-                <td class="ip">{{server.ip}}</td>
-                <td align="center"> <span class="badge" id="stunnelstat{{server.id}}"></span> </td>
-                <td align="center"> <span class="badge" id="redisstat{{server.id}}"></span> </td>
-                <td class="redis" align="center">
-                  {% if server.redis %}
-                    <span class="glyphicon glyphicon-ok text-success"></span>
-                  {% else %}
-                    <!-- <span class="glyphicon glyphicon-remove text-danger"></span> -->
-                    <a href="{{url_for('cache_mgr.change', id=server.id)}}" class="btn btn-success btn-sm">Install</a>
-                    
-                  {% endif %}
-                </td>
-                
-                <td class="cache_method">{{server.cache_method}}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
 
-    <div class="col-md-4">
-      <div class="box box-widget">
 
-        <div class="box-body">
-          <!--
-          <a id="cacheSettingsBtn" class="btn btn-warning btn-block">
-          <i class="fa fa-wrench"></i> Cache Settings</a>
-          -->
-          <a id="refreshBtn" class="btn btn-info btn-block" data-loading-text="Fetching cache method ...">
-            <i class="fa fa-arrow-circle-down"></i> Fetch cache methods</a>
-          
-          <input type="submit" class="btn btn-success btn-block" value="Setup Cache">
+<div class="panel panel-info">
+  <div class="panel-heading">Gluu Servers</div>
+    <div class="panel-body">
+      <table class="table table-bordered table-hover">
+        <thead>
+          <tr>
+            <th>Server ID</th>
+            <th>Hostname</th>
+            <th>IP Address</th>
+            <th class="text-center">Stunnel Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for server in servers %}
+          <tr id="server_{{server.id}}">
+            <td class="id">{{server.id}}</td>
+            <td class="hostname">{{server.hostname}}</td>
+            <td class="ip">{{server.ip}}</td>
+            <td align="center"> <span class="badge" id="stunnelstat-{{server.ip.replace('.','_')}}"></span>
+              {% if cache_servers and cache_servers[0].installed  and not server.primary_server %} 
+                <a style="display: none" id="install-stunnel-{{server.ip.replace('.','_')}}" class="btn btn-primary btn-xs" href="{{ url_for('cache_mgr.install') }}?server={{server.id}}">Reinstall</a>
+              {% endif %}
+            </td>
             
-        </div>
-      </div>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-  </div>
+</div>
+
+{% if cache_servers %}
+
+
+<div class="panel panel-primary">
+  <div class="panel-heading">Cache Servers</div>
+    <div class="panel-body">
+
+
+      <table class="table table-bordered table-hover">
+        <thead>
+          <tr>
+            <th>Hostname</th>
+            <th>IP Address</th>
+            <th class="text-center">Redis Status</th>
+            <th class="text-center">Stunnel Status</th>
+            <th class="text-center"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for server in cache_servers %}
+          <tr>
+            <td class="hostname">{{server.hostname}}</td>
+            <td class="ip">{{server.ip}}</td>
+            <td align="center"> <span class="badge" id="redisstat-{{server.ip.replace('.','_')}}"></span> </td>
+            <td align="center"> <span class="badge" id="stunnelstat-{{server.ip.replace('.','_')}}"></span> </td>
+            <td align="center">
+                <a href="#" class="btn btn-danger btn-sm"><span class="glyphicon glyphicon-trash"></span> Delete  </a>&nbsp;&nbsp;&nbsp;&nbsp;
+                <a href="#" class="btn btn-primary btn-sm" onClick="editCacheServer({{server.id}})"><span class="glyphicon glyphicon-edit"></span> Edit  </a> 
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+
+    </div>
+</div>
+
+<input type="submit" class="btn btn-success pull-right" style="width: 20%" value="Setup Cache">
+
+{% else %}
+
+<a href="#" class="btn btn-primary" id="add-cache-server" style="width: 20%">Add Cache Server</a>
+
+{% endif %}
+
+
 
 </form>
 
-
-<div class="row">
-<div class="col-md-8">
-<div id="cacheSettingsPanel" class="panel panel-warning" style="display: none">
-    <div class="panel-heading">Cache Settings</div>
-    <div class="panel-body">
- 
-    <form class="form-horizontal" action="">
-
-        <div class="form-group {{ 'has-error' if form.redis_port.errors else '' }}">
-          
-          {{ form.redis_port.label(class="control-label col-sm-2") }}
-          
-          <div class="col-sm-10">
-            
-            
-            {{ form.redis_port(class="form-control") }}
-            {% for error in form.redis_port.errors %}
-                <p class="help-block">{{ error }}</p>
-            {% endfor %}
-            
-          </div>
-        </div>
+</div>
 
 
-        <div class="form-group">        
-          <div class="col-sm-offset-2 col-sm-10">
-            <button type="submit" class="btn btn-default">Submit</button>
-          </div>
-        </div>
+
+<!-- Add Cache Server Modal Begin-->
+<div id="cacheServerModal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+  <form class="form-horizontal" id="form" action="{{ url_for('cache_mgr.add_cache_server') }}" method="POST">
+
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title" id="modal-title">Cache Server Details</h4>
+      </div>
+      <div class="modal-body" id="cache-modal-body">
+
+
+        <p>Loading ...</p>
+        
+        
+      </div>
+      <div class="modal-footer">
+        <a href="#" class="btn btn-default" data-dismiss="modal">Close</a> <a href="#" class="btn btn-primary" id="cache-add-button">Ok</a>
+      </div>
+    </div>
     
-    </form>
- 
+  </form>
+ </div>
 </div>
+<!-- Add Cache Server Modal End-->
 
-  
-</div>
-</div>
 
 {% endblock %}
 
 
 {% block js %}
 <script>
-  var task_id;
-  var timer;
-  var refreshBtn = $('#refreshBtn').click(function(){
-    $(this).button('loading');
-    var url = '{{ url_for("cache_mgr.refresh_methods") }}';
-    $.get(url, function(data){
-      task_id = data.task_id;
-      timer = setInterval(fetchResult, 2000);
-    });
 
+var cacheServerId;
+
+$("#add-cache-server").click(function(e){
+
+$('#cache-modal-body').html('<p>Loading ...</p>')
+  e.preventDefault();
+  $("#cache-add-button").show();
+  $('#cacheServerModal').modal('show').find('.modal-body').load("{{request.host_url}}{{url_for('cache_mgr.add_cache_server')[1:]}}");
+
+});
+
+
+function editCacheServer(cid) {
+  $("#cache-add-button").show();
+  
+  cacheServerId=cid;
+    
+  $('#cacheServerModal').modal('show').find('.modal-body').load("{{request.host_url}}{{url_for('cache_mgr.add_cache_server')[1:]}}?cid="+cacheServerId);
+    
+    
+    }
+
+$("#cache-add-button").click(function(e){
+  e.preventDefault();
+  
+  hostname = $("#hostname").val();
+  ip = $("#ip").val();
+  redis_password = $("#redis_password").val();
+  install_redis = $("#install_redis").is(':checked');
+  stunnel_port = $("#stunnel_port").val();
+  
+  csrf_token = $("#csrf_token").val();
+  $.post("{{request.host_url}}{{url_for('cache_mgr.add_cache_server')[1:]}}?cid="+cacheServerId, 
+            {hostname: hostname, ip: ip, 
+             install_redis: install_redis,
+             redis_password: redis_password,
+             stunnel_port: stunnel_port,
+             csrf_token: csrf_token
+            },
+            function(result, status, xhr){
+                
+                if (xhr.getResponseHeader('Content-Type') !== 'application/json') {
+                    $("#cache-modal-body").html(result);
+                } else {
+                    window.location.reload(true);
+                    
+                    }
   });
-
-  function fetchResult(){
-    var url = '{{ url_for("index.get_log", task_id="dummyid")}}';
-    url = url.replace("dummyid", task_id);
-
-    $.get(url, function(data){
-      if(data.state === "SUCCESS" || data.state === "FAILURE"){
-        clearInterval(timer);
-        refreshBtn.button('reset');
-        var methods = data.result;
-        for(var i=0; i < methods.length; i++){
-          $("tr#server_"+methods[i].id+"> td.cache_method").text(methods[i].method);
-        }
-        // update the user about the backgroud task via notifications
-        for( var i=0; i<data.messages.length; i++){
-          if (data.messages[i].level === 'error' || data.messages[i].level === 'fail'){
-            $.notify({message: data.messages[i].msg,},
-                 {type: 'danger', mouse_over: 'pause'});
-          } else {
-            $.notify({message: data.messages[i].msg},
-                 {type: data.messages[i].level, mouse_over: 'pause'})
-          }
-        }
-      }
-    });
-  }
   
-  
+
+
+});
+
 
 function cacheStat() {
 
@@ -166,22 +193,32 @@ function cacheStat() {
         for (var key in data.redis) {
             
             if (data.redis[key]) {
-                $("#redisstat"+key).addClass("bg-green");
-                $("#redisstat"+key).text("Live");
+                $("#redisstat-"+key).addClass("bg-green");
+                $("#redisstat-"+key).text("Live");
             } else {
             
-                $("#redisstat"+key).addClass("bg-red");
-                $("#redisstat"+key).text("Down");
+                $("#redisstat-"+key).addClass("bg-red");
+                $("#redisstat-"+key).text("Down");
             }
+        }
+            
+        for (var key in data.stunnel) {
+            console.log('data:'+data.stunnel[key]);
+            console.log('key:'+key);
+            $("#install-stunnel-"+key).css("display","");
             
             if (data.stunnel[key]) {
-                $("#stunnelstat"+key).addClass("bg-green");
-                $("#stunnelstat"+key).text("Live");
+                $("#stunnelstat-"+key).addClass("bg-green");
+                $("#stunnelstat-"+key).text("Live");
+                $("#install-stunnel-"+key).text("Reinstall")
+
             } else {
-            
-                $("#stunnelstat"+key).addClass("bg-red");
-                $("#stunnelstat"+key).text("Down");
+                $("#stunnelstat-"+key).addClass("bg-red");
+                $("#stunnelstat-"+key).text("Down");
+                $("#install-stunnel-"+key).text("Install")
             }
+            
+            console.log("KK"+ $("#stunnelstat-"+key).text());
         }
     
     });
@@ -190,9 +227,9 @@ function cacheStat() {
 }
 
 cacheStat();
-  
 
-    $('#cacheSettingsBtn').click(function(){
+
+$('#cacheSettingsBtn').click(function(){
     
         $('#cacheSettingsPanel').removeAttr("style");
 

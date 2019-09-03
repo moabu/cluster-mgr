@@ -1,6 +1,5 @@
 """A Flask blueprint with the views and logic dealing with the Cache Management
 of Gluu Servers"""
-
 import os
 
 from flask import Blueprint, render_template, url_for, flash, redirect, \
@@ -9,14 +8,18 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
 from flask_login import login_required
 
 from clustermgr.models import Server, AppConfiguration
-from clustermgr.tasks.cache import get_cache_methods, install_cache_components, \
-    configure_cache_cluster, restart_services
+from clustermgr.tasks.cache import install_cache_cluster
+
+
 from ..core.license import license_reminder
 from ..core.license import prompt_license
 from ..core.license import license_required
 from clustermgr.core.remote import RemoteClient
-from clustermgr.core.utils import get_redis_config
-from clustermgr.forms import CacheSettingsForm
+from clustermgr.core.utils import get_redis_config, get_cache_servers, random_chars
+from clustermgr.forms import CacheSettingsForm, cacheServerForm
+
+from clustermgr.models import db, CacheServer
+
 
 cache_mgr = Blueprint('cache_mgr', __name__, template_folder='templates')
 cache_mgr.before_request(prompt_license)
@@ -24,16 +27,13 @@ cache_mgr.before_request(license_required)
 cache_mgr.before_request(license_reminder)
 
 
-cache_steps = ["Install Components", "Configure Components", "Restart Services"]
-
-
 @cache_mgr.route('/')
 @login_required
 def index():
     servers = Server.query.all()
-    app_conf = AppConfiguration.query.first()
+    appconf = AppConfiguration.query.first()
 
-    if not app_conf:
+    if not appconf:
         flash("The application needs to be configured first. Kindly set the "
               "values before attempting clustering.", "warning")
         return redirect(url_for("index.app_configuration"))
@@ -44,49 +44,17 @@ def index():
         return redirect(url_for('index.home'))
 
 
-    if app_conf.external_load_balancer:
-        c_host = app_conf.cache_host
-        c_ip = app_conf.cache_ip
-    else:
-        c_host = app_conf.nginx_host
-        c_ip = app_conf.nginx_ip
-
-    c = RemoteClient(host=c_host, ip=c_ip)
-    
-    try:
-        c.startup()
-    except:
-        flash("SSH connection can't be established to cache server", "warning")
-
-    result = c.get_file('/etc/stunnel/stunnel.conf')
-    
-    installed_servers = []
-
-    if result[0]:
-        installed_servers = get_redis_config(result[1])
-    
-    for server in servers:
-        if server.ip in installed_servers:
-            server.redis = True
-        else:
-            server.redis = False
-
-    version = int(app_conf.gluu_version.replace(".", ""))
-    if version < 311:
-        flash("Cache Management is available only for clusters configured with"
-              " Gluu Server version 3.1.1 and above", "danger")
-        return redirect(url_for('index.home'))
-
     form = CacheSettingsForm()
 
-    return render_template('cache_index.html', servers=servers, form=form)
+    cache_servers = get_cache_servers()
 
+    print cache_servers
 
-@cache_mgr.route('/refresh_methods')
-@login_required
-def refresh_methods():
-    task = get_cache_methods.delay()
-    return jsonify({'task_id': task.id})
+    return render_template('cache_index.html', 
+                           servers=servers, 
+                           form=form,
+                           cache_servers=cache_servers,
+                           )
 
 
 def get_servers_and_list():
@@ -101,133 +69,78 @@ def get_servers_and_list():
     
     return servers, server_id_list, server_id
 
-@cache_mgr.route('/change/', methods=['GET', 'POST'])
+@cache_mgr.route('/install', methods=['GET', 'POST'])
 @login_required
-def change():
+def install():
 
-    app_conf = AppConfiguration.query.first()
-    servers, server_id_list, server_id = get_servers_and_list()
+    server_id = request.args.get('server')
     
-    method = 'STANDALONE'
+    if server_id:
+        cache_servers = []
+        servers = [ Server.query.get(int(server_id)) ]
+
+    else:
+        cache_servers = get_cache_servers()
+        servers = Server.query.all()
 
     if not servers:
         return redirect(url_for('cache_mgr.index'))
-    
-    task = install_cache_components.delay(method, server_id_list)
 
-    nextpage = url_for('cache_mgr.configure', method=method)
-    whatNext = cache_steps[1]
-    title = "Cache Clustering"
 
-    if not app_conf.external_load_balancer:
-        #mock server for cache
-        mock_nginx = Server(
-                    hostname="Nginx Proxy [{0}]".format(app_conf.nginx_host),
-                    id=9999)
-    
-        servers.append(mock_nginx)
+    task = install_cache_cluster.delay(
+                                [server.id for server in servers],
+                                [server.id for server in cache_servers],
+                                )
 
-    return render_template('logger_single.html',
-                           title=title,
-                           steps=cache_steps,
-                           task=task,
-                           cur_step=1,
-                           auto_next=False,
-                           multiserver=servers,
-                           nextpage=nextpage,
-                           whatNext=whatNext
+    return render_template( 'cache_install_logger.html',
+                            servers=cache_servers+servers,
+                            step=1,
+                            task_id=task.id,
+                            server_id=server_id,
                            )
 
-
-@cache_mgr.route('/configure/<method>/')
+@cache_mgr.route('/addcacheserver/', methods=['GET', 'POST'])
 @login_required
-def configure(method):
+def add_cache_server():
+    cid = request.args.get('cid', type=int)
 
-    app_conf = AppConfiguration.query.first()
-    servers, server_id_list, server_id = get_servers_and_list()
+    form = cacheServerForm()
 
-    task = configure_cache_cluster.delay(method, server_id_list)
-
-    nextpage = url_for('cache_mgr.finish_clustering', method=method)
-    whatNext = cache_steps[2]
-    title = "Cache Clustering"
-
-    if not app_conf.external_load_balancer:
-        #mock server for cache
-        mock_nginx = Server(
-                    hostname="Nginx Proxy [{0}]".format(app_conf.nginx_host),
-                    id=9999)
-    
-        servers.append(mock_nginx)
-
-    return render_template('logger_single.html',
-                           title=title,
-                           steps=cache_steps,
-                           task=task,
-                           cur_step=2,
-                           auto_next=False,
-                           multiserver=servers,
-                           nextpage=nextpage,
-                           whatNext=whatNext
-                           )
-
-
-@cache_mgr.route('/finish_clustering/<method>/')
-@login_required
-def finish_clustering(method):
-
-    server_id = request.args.get('id')
-    app_conf = AppConfiguration.query.first()
-
-    if server_id:
-        servers = []
-        qserver = Server.query.filter(
-                                    Server.redis.is_(True)
-                                ).filter(
-                                    Server.stunnel.is_(True)
-                                ).filter(
-                                    Server.id.is_(int(server_id))
-                                ).first()
-
-        if qserver:
-            servers.append(qserver)
+    if cid:
+        cacheserver = CacheServer.query.get(cid)
+        form = cacheServerForm(obj=cacheserver)
+        if not cacheserver:
+            return "<h2>No such Cache Server</h2>"
     else:
+        form.redis_password.data = random_chars(20)
+        form.stunnel_port.data = 16379
 
-        servers = Server.query.filter(
-                                    Server.redis.is_(True)
-                                ).filter(
-                                    Server.stunnel.is_(True)
-                                ).all()
+    if request.method == "POST" and form.validate_on_submit():
+        hostname = form.hostname.data
+        ip = form.ip.data
+        install_redis = form.install_redis.data
+        redis_password = form.redis_password.data
+        stunnel_port = form.stunnel_port.data
 
+        if not cid:
+            cacheserver = CacheServer()
+            db.session.add(cacheserver)
 
-    server_id_list = [ s.id for s in servers ]
+        cacheserver.hostname = hostname
+        cacheserver.ip = ip
+        cacheserver.install_redis = install_redis
+        cacheserver.redis_password = redis_password
+        cacheserver.stunnel_port = stunnel_port
 
-    task = restart_services.delay(method, server_id_list)
+        db.session.commit()
+        if cid:
+            flash("Cache server was added","success")
+        else:
+            flash("Cache server was updated","success")
+
+        return jsonify( {"result": True, "message": "Cache server was added"})
     
-
-    nextpage = url_for('monitoring.home', method=method)
-    whatNext = "Monitoring Setup"
-    title = "Cache Clustering"
-
-    if not app_conf.external_load_balancer:
-        #mock server for cache
-        mock_nginx = Server(
-                    hostname="Nginx Proxy [{0}]".format(app_conf.nginx_host),
-                    id=9999)
-
-        servers.append(mock_nginx)
-
-    return render_template('logger_single.html',
-                           title=title,
-                           steps=cache_steps,
-                           task=task,
-                           cur_step=3,
-                           auto_next=False,
-                           multiserver=servers,
-                           nextpage=nextpage,
-                           whatNext=whatNext
-                           )
- 
+    return render_template( 'cache_server.html', form=form)
 
 @cache_mgr.route('/status/')
 @login_required
@@ -238,28 +151,51 @@ def get_status():
     
     check_cmd = 'python -c "import socket;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);print s.connect_ex((\'{0}\', {1}))"'
     
-    for server in servers:
-        r = os.popen3(check_cmd.format(server.ip, 7777))
-        stat = r[1].read().strip()
-        if stat == '0':
-            status['stunnel'][server.id]=True
-        else:
-            status['stunnel'][server.id]=False
-            
+    cache_servers = get_cache_servers()
+    
+
+    stunnel_port = cache_servers[0].stunnel_port if cache_servers else None
+        
+    
+    for server in servers + cache_servers:
+        key = server.ip.replace('.','_')
+
         c = RemoteClient(host=server.hostname, ip=server.ip)
         try:
             c.startup()
         except:
-            status['stunnel'][server.id] = False
-            
-        r = c.run(check_cmd.format('localhost', 6379))
-        stat = r[1].strip()
-
-        if stat == '0':
-            status['redis'][server.id]=True
+            status['stunnel'][key] = False
+            status['redis'][key] = False
         else:
-            status['redis'][server.id]=False
-        
-            
-    return jsonify(status)
 
+            status['stunnel'][key]=False
+            
+            if server in cache_servers:
+                r = c.run(check_cmd.format('localhost', 6379))
+                stat = r[1].strip()
+                
+                if stat == '0':
+                    status['redis'][key]=True
+                else:
+                    status['redis'][key]=False
+
+                if stunnel_port:
+                    r = c.run(check_cmd.format(server.ip, stunnel_port))
+                    stat = r[1].strip()
+
+                if stat == '0':
+                    status['stunnel'][key]=True
+
+            else:
+                
+                if stunnel_port:
+
+                    r = c.run(check_cmd.format('localhost', stunnel_port))
+                    stat = r[1].strip()
+
+                    if stat == '0':
+                        status['stunnel'][key]=True
+
+        c.close()
+    
+    return jsonify(status)

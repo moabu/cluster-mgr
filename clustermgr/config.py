@@ -37,6 +37,7 @@ class Config(object):
     CERTS_DIR = os.path.join(DATA_DIR, "certs")
     JKS_PATH = os.path.join(CERTS_DIR, "oxauth-keys.jks")
     LDIF_DIR = os.path.join(DATA_DIR, "ldif")
+    GLUU_REPO = os.path.join(DATA_DIR, "gluu_repo")
 
     LICENSE_CONFIG_FILE = os.path.join(DATA_DIR, "license.ini")
     LICENSE_SIGNED_FILE = os.path.join(DATA_DIR, "signed_license")
@@ -66,6 +67,11 @@ class Config(object):
             'args': (),
         },
 
+        'check_latest_version': {
+            'task': 'clustermgr.tasks.cluster.check_latest_version',
+            'schedule': timedelta(seconds=60 * 60 * 6),
+            'args': (),
+        },
 
 
     }
@@ -81,7 +87,7 @@ class Config(object):
     MAIL_DEFAULT_RECIPIENT_ADDRESS = ["admin@localhost"]
 
     INFLUXDB_LOGGING_DB = "gluu_logs"
-
+    SUPPORTED_OS = ['CentOS 7', 'RHEL 7', 'Ubuntu 16']
 
 class ProductionConfig(Config):
     SECRET_KEY = ''
