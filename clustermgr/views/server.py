@@ -325,7 +325,7 @@ def install_gluu(server_id):
         
         for o in ('installOxAuth',
                   'installOxTrust',
-                  'installLDAP',
+                  'installLdap',
                   'installHTTPD',
                   'installJce',
                   'installSaml',

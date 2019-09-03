@@ -80,7 +80,8 @@ class Installer:
                 self.install_command = 'chroot {} /bin/bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y {}"'.format(self.container,'{}')
             elif self.clone_type == 'rpm':                
                 self.run_command = (
-                        'ssh  -o IdentityFile=/etc/gluu/keys/gluu-console '
+                        'ssh -q -o IdentityFile=/etc/gluu/keys/gluu-console '
+                        '-o UserKnownHostsFile=/dev/null '
                         '-o Port=60022 -o StrictHostKeyChecking=no '
                         '-o PubkeyAuthentication=yes root@localhost  "{0}"'
                         )

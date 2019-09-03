@@ -154,31 +154,21 @@ class InstallServerForm(FlaskForm):
     #inumOrg = StringField("inumOrg * (Please don't change this unless you know what you do)", validators=[DataRequired()])
     #inumAppliance = StringField("inumAppliance * (Please don't change this unless you know what you do)", validators=[DataRequired()])
 
+    installLdap = BooleanField('Install LDAP', default=True)
     installOxAuth = BooleanField('Install oxAuth', default=True)
     installOxTrust = BooleanField('Install oxTrust', default=True)
-    installLDAP = BooleanField('Install LDAP', default=True)
     installHTTPD = BooleanField('Install Apache 2 web server', default=True)
     installJce = BooleanField('Install JCE 1.8')
     installSaml = BooleanField('Install Shibboleth SAML IDP')
     installOxAuthRP = BooleanField('Install oxAuth RP')
     installPassport = BooleanField('Install Passport')
-
+    
     gluu_licence = SelectField(
         "Do you acknowledge that use of the Gluu Server is under the MIT license?",
         choices=[('no', "No"), ('yes', "Yes")]
     )
-    oracle_licence = SelectField(
-        "You must accept the Oracle Binary Code "
-        "License Agreement for the Java SE Platform Products to "
-        "download this software. Accept License Agreement?",
-        choices=[('no', "No"), ('yes', "Yes")]
-    )
 
     def validate_gluu_licence(form, field):
-        if not field.data == 'yes':
-            raise ValidationError("Can't proceed without accepting licence.")
-
-    def validate_oracle_licence(form, field):
         if not field.data == 'yes':
             raise ValidationError("Can't proceed without accepting licence.")
 
