@@ -26,7 +26,7 @@ from ..core.license import license_reminder
 from ..core.license import prompt_license
 
 from clustermgr.core.utils import parse_setup_properties, \
-    write_setup_properties_file, get_setup_properties, get_inums
+    write_setup_properties_file, get_setup_properties
 
 from clustermgr.core.ldap_functions import getLdapConn
 
@@ -313,14 +313,6 @@ def install_gluu(server_id):
     setup_prop['ip'] = server.ip
     setup_prop['ldapPass'] = server.ldap_password
 
-
-    #required for inum fields
-    #if request.method == 'POST':
-    #    if not form.inumOrg.data.strip():
-    #        inumOrg, inumAppliance = get_inums()
-    #        form.inumOrg.data = inumOrg
-    #        form.inumAppliance.data = inumAppliance
-
     # If form is submitted and validated, create setup.properties file.
     if form.validate_on_submit():
         setup_prop['countryCode'] = form.countryCode.data.strip()
@@ -329,12 +321,7 @@ def install_gluu(server_id):
         setup_prop['orgName'] = form.orgName.data.strip()
         setup_prop['admin_email'] = form.admin_email.data.strip()
         setup_prop['application_max_ram'] = str(form.application_max_ram.data)
-        
-        setup_prop['inumOrg'], setup_prop['inumAppliance'] = get_inums()
-        
-        #setup_prop['inumOrg'] = form.inumOrg.data.strip()
-        #setup_prop['inumAppliance'] = form.inumAppliance.data.strip()
-        
+                
         
         for o in ('installOxAuth',
                   'installOxTrust',
@@ -348,6 +335,8 @@ def install_gluu(server_id):
                   ):
             setup_prop[o] = getattr(form, o).data
             setup_prop['ldap_type'] = 'opendj'
+            setup_prop['opendj_type'] = 'wrends'
+            setup_prop['installLdap'] = True
 
 
         write_setup_properties_file(setup_prop)
@@ -369,14 +358,11 @@ def install_gluu(server_id):
         form.orgName.data = setup_prop['orgName']
         form.admin_email.data = setup_prop['admin_email']
         form.application_max_ram.data = setup_prop['application_max_ram']
-        
-        
-        #form.inumOrg.data = setup_prop['inumOrg']
-        #form.inumAppliance.data = setup_prop['inumAppliance']
+
 
         for o in ('installOxAuth',
                   'installOxTrust',
-                  'installLDAP',
+                  'installLdap',
                   'installHTTPD',
                   'installJce',
                   'installSaml',
@@ -412,7 +398,8 @@ def upload_setup_properties(server_id):
             
         for prop in (
                     'countryCode', 'orgName', 'application_max_ram', 'city',
-                    'inumOrg', 'state', 'inumAppliance', 'admin_email'):
+                    'state', 'admin_email'):
+
             if not prop in setup_prop:
                 flash("'{0}' is missing, please upload valid setup.properties file.".format(prop),
                 "danger")

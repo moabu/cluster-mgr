@@ -215,17 +215,6 @@ def get_quad():
     return str(uuid.uuid4())[:4].upper()
 
 
-def get_inums():
-    """This fuction created inums based on Python's uuid4 function.
-    Barrowed from setup.py of gluu installer"""
-
-    base_inum = '@!%s.%s.%s.%s' % tuple([get_quad() for _ in xrange(4)])
-    org_two_quads = '%s.%s' % tuple([get_quad() for _ in xrange(2)])
-    inum_org = '%s!0001!%s' % (base_inum, org_two_quads)
-    appliance_two_quads = '%s.%s' % tuple([get_quad() for _ in xrange(2)])
-    inum_appliance = '%s!0002!%s' % (base_inum, appliance_two_quads)
-    return inum_org, inum_appliance
-
 def parse_setup_properties(content):
     setup_prop = dict()
     for l in content:
@@ -268,8 +257,6 @@ def get_setup_properties(createNew=False):
         'city': '',
         'state': '',
         'jksPass': '',
-        'inumOrg': '',
-        'inumAppliance': '',
         'admin_email': '',
         'ip': '',
         'installOxAuth':True,
@@ -281,6 +268,8 @@ def get_setup_properties(createNew=False):
         'installOxAuthRP':False,
         'installPassport':False,
         'ldap_type': 'opendj',
+        'opendj_type': 'wrends',
+        'installLdap': True,
         'application_max_ram': 3072,
         }
 
@@ -293,12 +282,6 @@ def get_setup_properties(createNew=False):
                                 open(setup_properties_file).readlines())
 
         setup_prop.update(setup_prop_f)
-
-    if createNew:
-        #Every time this function is called, create new inum
-        inum_org, inum_appliance = get_inums()
-        setup_prop['inumOrg'] = inum_org
-        setup_prop['inumAppliance'] = inum_appliance
 
     return setup_prop
 
