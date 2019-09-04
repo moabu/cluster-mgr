@@ -14,6 +14,16 @@
     <a href="{{url_for(items[item]['end_point'], item=item, period=p)}}">{{periods[p]['title']}}</a>
 {% endfor %}
 
+<style>
+
+.chart {
+  width: 100%;
+}
+
+.row {
+  margin: 0 !important;
+}
+</style>
 
 <br><br>
 <form method="GET">
@@ -23,19 +33,20 @@
 </form>
 <br>
 
-<table>
+<div class="clearfix"></div>
+
 
 {% for i in range(0, data.__len__(),2) %}
 
-    <tr>
-    {% for j in range(2) %}
-        <td><div id="chart_div_{{i+j}}"></div></td>
     
+    {% for j in range(2) %}
+        <div class="col-md-{{(12/data.__len__())|int}}">
+          <div id="chart_div_{{i+j}}" class="chart"></div>
+        </div>
     {% endfor %}
-    </tr>
+    
     
 {% endfor %}
-</table>
 
 
 
