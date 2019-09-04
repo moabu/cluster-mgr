@@ -1152,10 +1152,10 @@ def installGluuServer(self, server_id):
             if 'Ubuntu' in server.os:
                 cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
                    '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
-                   
+
                 #Testing
-                cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" '
-                   '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
+                #cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" '
+                #   '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
 
             elif 'Debian' in server.os:
                 cmd = ('echo "deb https://repo.gluu.org/debian/ stable main" '

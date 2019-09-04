@@ -254,7 +254,7 @@ def app_configuration():
 
         db.session.commit()
 
-        flash("Gluu Replication Manager application configuration has been "
+        flash("Gluu Cluster Manager application configuration has been "
               "updated.", "success")
 
 
