@@ -675,3 +675,14 @@ def test_view():
                            nextpage=nextpage,
                            whatNext=whatNext
                            )
+
+@server_view.route('/getostype', methods=['GET'])
+@login_required
+def get_os_type():
+    servers = Server.query.all()
+
+    data = {}
+    for server in servers:
+        data[str(server.id)] = server.os
+
+    return jsonify(data)
