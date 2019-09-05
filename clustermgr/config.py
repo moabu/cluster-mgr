@@ -33,7 +33,6 @@ class Config(object):
     JAVALIBS_DIR = os.path.join(DATA_DIR, "javalibs")
     APP_INSTANCE_DIR = os.path.join(DATA_DIR, "instance")
     SCHEMA_DIR = os.path.join(DATA_DIR, "schema")
-    SLAPDCONF_DIR = os.path.join(DATA_DIR, "slapdconf")
     CERTS_DIR = os.path.join(DATA_DIR, "certs")
     JKS_PATH = os.path.join(CERTS_DIR, "oxauth-keys.jks")
     LDIF_DIR = os.path.join(DATA_DIR, "ldif")
