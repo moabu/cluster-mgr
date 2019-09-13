@@ -303,7 +303,8 @@ def get_opendj_replication_status():
                 )
 
     #This command queries server for replication status
-    cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
+    cmd = ( 'OPENDJ_JAVA_HOME=/opt/jre '
+            '/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 4444 -I admin -w $\'{}\'').format(
                     primary_server.ip,
                     app_conf.replication_pw.replace("'","\\'"))

@@ -33,7 +33,7 @@ def modifyOxLdapProperties(server, installer, task_id, pDict):
     """
 
     # get ox-ldap.properties file from server
-    remote_file = os.path.join(installer.container, 'etc/gluu/conf/ox-ldap.properties')
+    remote_file = os.path.join(installer.container, 'etc/gluu/conf/gluu-ldap.properties')
     result = installer.get_file(remote_file)
 
     state = True
@@ -65,7 +65,7 @@ def modifyOxLdapProperties(server, installer, task_id, pDict):
     if not state:
         wlogger.log(task_id,
                 'ox-ldap.properties file on {0} was not modified to '
-                'include all replicating servers: {1}'.format(server.hostname, temp),
+                'include all replicating servers.'.format(server.hostname),
                 'warning')
 
     # Modify Shib ldap.properties to include all ldap properties
@@ -531,7 +531,8 @@ def do_disable_replication(task_id, server, primary_server, app_conf):
         server.hostname)
         )
 
-    cmd = ('/opt/opendj/bin/dsreplication disable --disableAll --port 4444 '
+    cmd = ( 'OPENDJ_JAVA_HOME=/opt/jre '
+            '/opt/opendj/bin/dsreplication disable --disableAll --port 4444 '
             '--hostname {} --adminUID admin --adminPassword $\'{}\' '
             '--trustAll --no-prompt').format(
                             server.hostname,
@@ -547,7 +548,8 @@ def do_disable_replication(task_id, server, primary_server, app_conf):
 
     wlogger.log(task_id, "Checking replication status", 'debug')
 
-    cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
+    cmd = ( 'OPENDJ_JAVA_HOME=/opt/jre '
+            '/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 1444 -I admin -w $\'{}\'').format(
                     primary_server.hostname,
                     app_conf.replication_pw)
@@ -769,7 +771,8 @@ def opendjenablereplication(self, server_id):
             
             for base in ['gluu', 'site']:
 
-                cmd = ("/opt/opendj/bin/dsreplication enable --host1 {} --port1 4444 "
+                cmd = ( "OPENDJ_JAVA_HOME=/opt/jre "
+                        "/opt/opendj/bin/dsreplication enable --host1 {} --port1 4444 "
                         "--bindDN1 'cn=directory manager' --bindPassword1 $'{}' "
                         "--replicationPort1 8989 --host2 {} --port2 4444 --bindDN2 "
                         "'cn=directory manager' --bindPassword2 $'{}' "
@@ -791,7 +794,8 @@ def opendjenablereplication(self, server_id):
                 wlogger.log(task_id, "Initializing replication on server {} for {}".format(
                                                                 server.hostname, base))
 
-                cmd = ("/opt/opendj/bin/dsreplication initialize --baseDN 'o={}' "
+                cmd = ( "OPENDJ_JAVA_HOME=/opt/jre "
+                        "/opt/opendj/bin/dsreplication initialize --baseDN 'o={}' "
                         "--adminUID admin --adminPassword $'{}' "
                         "--portSource 4444  --hostDestination {} --portDestination 4444 "
                         "--trustAll -X -n").format(
@@ -807,7 +811,8 @@ def opendjenablereplication(self, server_id):
                 wlogger.log(task_id, "Securing replication on primary server {}".format(
                                                                 primary_server.hostname))
 
-                cmd = ("/opt/opendj/bin/dsconfig -h {} -p 4444 "
+                cmd = ( "OPENDJ_JAVA_HOME=/opt/jre "
+                        "/opt/opendj/bin/dsconfig -h {} -p 4444 "
                         " -D  'cn=Directory Manager' -w $'{}' --trustAll "
                         "-n set-crypto-manager-prop --set ssl-encryption:true"
                         ).format(primary_server.ip, primary_server.ldap_password.replace("'","\\'"))
@@ -819,7 +824,8 @@ def opendjenablereplication(self, server_id):
 
             wlogger.log(task_id, "Securing replication on server {}".format(
                                                             server.hostname))
-            cmd = ("/opt/opendj/bin/dsconfig -h {} -p 4444 "
+            cmd = ( "OPENDJ_JAVA_HOME=/opt/jre "
+                    "/opt/opendj/bin/dsconfig -h {} -p 4444 "
                     " -D  'cn=Directory Manager' -w $'{}' --trustAll "
                     "-n set-crypto-manager-prop --set ssl-encryption:true"
                     ).format(server.ip, primary_server.ldap_password.replace("'","\\'"))
@@ -859,14 +865,13 @@ def opendjenablereplication(self, server_id):
 
     installer.restart_gluu()
 
-    if 'CentOS' in primary_server.os:
-        wlogger.log(task_id, "Waiting for Gluu to finish starting")
-        time.sleep(60)
-    
+    wlogger.log(task_id, "Waiting for Gluu to finish starting")
+    time.sleep(60)
 
     wlogger.log(task_id, "Checking replication status")
 
-    cmd = ("/opt/opendj/bin/dsreplication status -n -X -h {} "
+    cmd = ( "OPENDJ_JAVA_HOME=/opt/jre "
+            "/opt/opendj/bin/dsreplication status -n -X -h {} "
             "-p 1444 -I admin -w $'{}'").format(
                     primary_server.hostname,
                     app_conf.replication_pw.replace("'","\\'"))

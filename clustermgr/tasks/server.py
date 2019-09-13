@@ -488,9 +488,9 @@ def install_gluu_server(task_id, server_id):
     #JavaScript on logger duplicates next log if we don't add this
     time.sleep(1)
     
-    installer.run('wget https://raw.githubusercontent.com/GluuFederation/community-edition-setup/master/install.py -O /opt/gluu/bin/install.py',  error_exception='__ALL__')
+    #installer.run('wget https://raw.githubusercontent.com/GluuFederation/community-edition-setup/master/install.py -O /opt/gluu/bin/install.py',  error_exception='__ALL__')
     
-    cmd = installer.run_command.format('/opt/gluu/bin/install.py -o --args \\"-f /root/setup.properties --listen_all_interfaces -n\\"')
+    cmd = installer.run_command.format('/install/community-edition-setup/setup.py -f /root/setup.properties --listen_all_interfaces -n')
 
     #Don't load base data for secondary nodes
     if not server.primary_server:

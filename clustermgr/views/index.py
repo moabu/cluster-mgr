@@ -480,55 +480,18 @@ def multi_master_replication():
 
     prop = get_setup_properties()
 
-    if prop['ldap_type'] == 'openldap':
+    rep_status = get_opendj_replication_status()
 
-        serverStats = {}
-
-        # Collect replication information for all configured servers
-        for ldp in ldaps:
-
-            s = LdapOLC(
-                "ldaps://{0}:1636".format(ldp.hostname), "cn=config",
-                ldp.ldap_password)
-            r = None
-            try:
-                r = s.connect()
-            except Exception as e:
-                ldap_errors.append(
-                    "Connection to LDAPserver {0} at port 1636 was failed:"
-                    " {1}".format(ldp.hostname, e))
-
-            if r:
-                sstat = s.getMMRStatus()
-                if sstat['server_id']:
-                    serverStats[ldp.hostname] = sstat
-
-        # If there is no ldap server, return to home
-        if not ldaps:
-            flash("Please add ldap servers.", "warning")
-            return redirect(url_for('index.home'))
-
-        return render_template('multi_master.html',
-                               ldapservers=ldaps,
-                               serverStats=serverStats,
-                               ldap_errors=ldap_errors,
-                               replication_status = sstat[primary_server.id],
-                               )
-
+    stat = ''
+    if not rep_status[0]:
+        flash(rep_status[1], "warning")
     else:
-
-        rep_status = get_opendj_replication_status()
-
-        stat = ''
-        if not rep_status[0]:
-            flash(rep_status[1], "warning")
-        else:
-            stat = rep_status[1]
-        return render_template('opendjmmr.html',
-                               servers=ldaps,
-                               stat = stat,
-                               app_conf=app_config,
-                               )
+        stat = rep_status[1]
+    return render_template('opendjmmr.html',
+                           servers=ldaps,
+                           stat = stat,
+                           app_conf=app_config,
+                           )
 
 @index.route('/removecustomschema/<schema_file>')
 def remove_custom_schema(schema_file):
