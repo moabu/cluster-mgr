@@ -120,17 +120,21 @@ class LdapOLC(object):
                             {"oxIDPAuthentication": [MODIFY_REPLACE, oxidp_s]}
                             )
 
-    def changeOxCacheConfiguration(self, method):
-        result=self.conn.search(search_base='o=gluu',
-                         search_filter='(oxCacheConfiguration=*)', search_scope=SUBTREE,
-                         attributes=["oxCacheConfiguration"])
+    def changeOxCacheConfiguration(self, method, server_string):
+        result=self.conn.search(
+                        search_base="ou=configuration,o=gluu",
+                        search_scope=BASE,
+                        search_filter='(objectclass=*)',
+                        attributes=["oxCacheConfiguration"]
+                        )
         if result:
             oxCacheConfiguration = json.loads(self.conn.response[0]['attributes']['oxCacheConfiguration'][0])
             oxCacheConfiguration['cacheProviderType'] = method
-            oxCacheConfiguration_js = json.dumps(oxCacheConfiguration)
+            oxCacheConfiguration['redisConfiguration']['servers'] = server_string
+            oxCacheConfiguration_js = json.dumps(oxCacheConfiguration, indent=2)
             dn = self.conn.response[0]['dn']
             
-            self.conn.modify(dn, {'oxCacheConfiguration': [MODIFY_REPLACE, oxCacheConfiguration_js]})
+            return self.conn.modify(dn, {'oxCacheConfiguration': [MODIFY_REPLACE, oxCacheConfiguration_js]})
 
 
     def getSyntaxes(self):

@@ -7,7 +7,7 @@ import socket
 from clustermgr.models import Server, AppConfiguration, CacheServer
 from clustermgr.extensions import db, wlogger, celery
 from clustermgr.core.remote import RemoteClient
-from clustermgr.core.ldap_functions import DBManager
+from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.core.utils import parse_setup_properties, \
         get_redis_config, make_proxy_stunnel_conf, make_twem_proxy_conf, get_cache_servers
 
@@ -166,6 +166,7 @@ class RedisInstaller(BaseInstaller):
                 if self.server.redis_password:
                     config_file.append('requirepass ' + self.server.redis_password+'\n')
             filecontent = ''.join(config_file)
+
             self.rc.put_file(self.config_file, filecontent)
 
     def run_sysctl(self, command):
@@ -476,8 +477,10 @@ def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE', 
     wlogger.log(tid, "Updating oxCacheConfiguration ...", "debug",
                 server_id=server.id)
     try:
-        dbm = DBManager(server.hostname, 1636, server.ldap_password,
-                        ssl=True, ip=server.ip, )
+        adminOlc = LdapOLC('ldaps://{}:1636'.format(server.hostname), 
+                        'cn=directory manager',
+                        server.ldap_password)
+        adminOlc.connect()
     except Exception as e:
         wlogger.log(tid, "Couldn't connect to LDAP. Error: {0}".format(e),
                     "error", server_id=server.id)
@@ -485,15 +488,15 @@ def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE', 
                          "connections from outside", "debug",
                     server_id=server.id)
         return
-    entry = dbm.get_appliance_attributes('oxCacheConfiguration')
-    cache_conf = json.loads(entry.oxCacheConfiguration.value)
-    cache_conf['cacheProviderType'] = 'REDIS'
-    cache_conf['redisConfiguration']['redisProviderType'] = method
-    cache_conf['redisConfiguration']['servers'] = server_string
-    cache_conf['redisConfiguration']['decryptedPassword'] = redis_password
-
-    result = dbm.set_applicance_attribute('oxCacheConfiguration',
-                                          [json.dumps(cache_conf)])
+    
+    result = adminOlc.changeOxCacheConfiguration('REDIS', server_string)
+    
+    #entry = dbm.get_appliance_attributes('oxCacheConfiguration')
+    #cache_conf = json.loads(entry.oxCacheConfiguration.value)
+    #cache_conf['cacheProviderType'] = 'REDIS'
+    #cache_conf['redisConfiguration']['redisProviderType'] = method
+    #cache_conf['redisConfiguration']['servers'] = server_string
+    #cache_conf['redisConfiguration']['decryptedPassword'] = redis_password
     
     if not result:
         wlogger.log(tid, "oxCacheConfigutaion update failed", "fail",
