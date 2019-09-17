@@ -48,8 +48,6 @@ def index():
 
     cache_servers = get_cache_servers()
 
-    print cache_servers
-
     return render_template('cache_index.html', 
                            servers=servers, 
                            form=form,
@@ -124,6 +122,8 @@ def add_cache_server():
 
         if not cid:
             cacheserver = CacheServer()
+            if not CacheServer.query.first():
+                cacheserver.id = 100000
             db.session.add(cacheserver)
 
         cacheserver.hostname = hostname
