@@ -120,7 +120,7 @@ class LdapOLC(object):
                             {"oxIDPAuthentication": [MODIFY_REPLACE, oxidp_s]}
                             )
 
-    def changeOxCacheConfiguration(self, method, server_string):
+    def changeOxCacheConfiguration(self, method, server_string, redis_password):
         result=self.conn.search(
                         search_base="ou=configuration,o=gluu",
                         search_scope=BASE,
@@ -131,6 +131,9 @@ class LdapOLC(object):
             oxCacheConfiguration = json.loads(self.conn.response[0]['attributes']['oxCacheConfiguration'][0])
             oxCacheConfiguration['cacheProviderType'] = method
             oxCacheConfiguration['redisConfiguration']['servers'] = server_string
+            if not redis_password:
+                redis_password = None
+            oxCacheConfiguration['redisConfiguration']['decryptedPassword'] = redis_password
             oxCacheConfiguration_js = json.dumps(oxCacheConfiguration, indent=2)
             dn = self.conn.response[0]['dn']
             

@@ -237,7 +237,7 @@ def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
 
         if server.primary_server:
             
-            server_string = 'localhost:{0}'.format(primary_cache_server.stunnel_port)
+            server_string = 'localhost:6379'
             __update_LDAP_cache_method(task_id, server, server_string, redis_password=primary_cache_server.redis_password)
 
         wlogger.log(task_id, "Restarting Gluu Server", "info",
@@ -273,15 +273,8 @@ def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE', 
                     server_id=server.id)
         return
     
-    result = adminOlc.changeOxCacheConfiguration('REDIS', server_string)
-    
-    #entry = dbm.get_appliance_attributes('oxCacheConfiguration')
-    #cache_conf = json.loads(entry.oxCacheConfiguration.value)
-    #cache_conf['cacheProviderType'] = 'REDIS'
-    #cache_conf['redisConfiguration']['redisProviderType'] = method
-    #cache_conf['redisConfiguration']['servers'] = server_string
-    #cache_conf['redisConfiguration']['decryptedPassword'] = redis_password
-    
+    result = adminOlc.changeOxCacheConfiguration('REDIS', server_string, redis_password)
+
     if not result:
         wlogger.log(tid, "oxCacheConfigutaion update failed", "fail",
                     server_id=server.id)
