@@ -84,17 +84,29 @@ def install():
     if not servers:
         return redirect(url_for('cache_mgr.index'))
 
+    steps = ['Install Redis Server and Stunnel on Cache Server', 'Setup stunnel on Gluu Server Nodes']
 
+    title = "Setting Up Cache Management"
+    whatNext = "Cache Management Home"
+    nextpage = url_for('cache_mgr.index')
+    servers = Server.query.all()
+    
     task = install_cache_cluster.delay(
                                 [server.id for server in servers],
                                 [server.id for server in cache_servers],
                                 )
 
-    return render_template( 'cache_install_logger.html',
-                            servers=cache_servers+servers,
-                            step=1,
-                            task_id=task.id,
-                            server_id=server_id,
+    
+    return render_template('logger_single.html',
+                           title=title,
+                           steps=steps,
+                           task=task,
+                           cur_step=1,
+                           auto_next=True,
+                           multistep=True,
+                           multiserver=cache_servers+servers,
+                           nextpage=nextpage,
+                           whatNext=whatNext
                            )
 
 @cache_mgr.route('/addcacheserver/', methods=['GET', 'POST'])

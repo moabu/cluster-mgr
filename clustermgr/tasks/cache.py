@@ -222,7 +222,7 @@ def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
                 print "Can't retreive server certificate from primary cache server"
                 return False
 
-    wlogger.log(task_id, "2", "set_step")
+    wlogger.log(task_id, "2", "setstep")
 
     for server in servers:
         installer =  Installer(
@@ -245,9 +245,8 @@ def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
 
         installer.restart_gluu()
 
-    wlogger.log(task_id, "3", "set_step")
-
-
+    wlogger.log(task_id, "3", "setstep")
+    return True
 
 def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE', redis_password=''):
     """Connects to LDAP and updathe cache method and the cache servers
