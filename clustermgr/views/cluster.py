@@ -12,7 +12,7 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
 from flask_login import login_required
 from flask import current_app as app
 
-from clustermgr.core.ldap_functions import LdapOLC, getLdapConn
+from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cluster import setup_ldap_replication, \
     installNGINX, \
