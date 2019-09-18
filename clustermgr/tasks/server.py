@@ -492,7 +492,7 @@ def install_gluu_server(task_id, server_id):
         if installer.clone_type == 'deb':
             install_command = 'dpkg -i /root/{}'.format(gluu_archive_fn)
         else:
-            install_command = 'rpm -i root/{}'.format(gluu_archive_fn)
+            install_command = 'rpm -i /root/{}'.format(gluu_archive_fn)
 
         installer.run(install_command, inside=False, error_exception='__ALL__')
 
