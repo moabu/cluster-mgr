@@ -61,7 +61,7 @@ class Installer:
             self.init_command = '/sbin/gluu-serverd {0}'
             self.service_script = 'systemctl {1} {0}'
         else:
-            self.init_command = '/etc/init.d/gluu-server'
+            self.init_command = '/etc/init.d/gluu-server {0}'
             self.service_script = 'service {0} {1}'
 
 
@@ -353,7 +353,7 @@ class Installer:
         return result
 
     def do_init(self, cmd):
-        cmd=self.init_command.format(cmd)
+        cmd = self.init_command.format(cmd)
         print "Installer> executing: {}".format(cmd)
         self.log_command(cmd)
         result = self.conn.run(cmd)

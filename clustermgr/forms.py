@@ -1,3 +1,6 @@
+import glob
+import os
+
 try:
     from flask_wtf import FlaskForm
 except ImportError:
@@ -9,6 +12,7 @@ from wtforms.validators import DataRequired, AnyOf, \
     ValidationError, URL, IPAddress, Email, Length, Optional
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 
+from clustermgr.config import Config
 
 class AppConfigForm(FlaskForm):
     versions = [
@@ -50,7 +54,7 @@ class AppConfigForm(FlaskForm):
     update = SubmitField("Update Configuration")
     offline = BooleanField('Offline installation')
     gluu_archive = SelectField('Gluu archive',
-            choices = []
+            choices = [ (f,os.path.split(f)[1]) for f in glob.glob(os.path.join(Config.GLUU_REPO,'gluu-server-*')) ]
             )
 
 class SchemaForm(FlaskForm):

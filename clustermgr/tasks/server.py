@@ -190,6 +190,78 @@ def task_install_gluu_server(self, server_id):
     except:
         raise Exception(traceback.format_exc())
 
+def checkOfflineRequirements(installer, server, appconf):
+    os_type, os_version = server.os.split()
+
+    wlogger.log(installer.logger_task_id, "Checking if dependencies were installed")
+
+    #Check if archive type and os type matches    
+    if not appconf.gluu_archive.endswith('.'+installer.clone_type):
+        wlogger.log(installer.logger_task_id,
+                    "Os type does not match gluu archive type", 'error')
+        return False
+
+    wlogger.log(installer.logger_task_id,
+                    "Os type matches with gluu archive", 'success')
+
+    #Determine gluu version
+    a_path, a_fname = os.path.split(appconf.gluu_archive)
+    m=re.search('gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+)(\.\d+)?)',a_fname)
+    if m:
+        gv = m.group('gluu_version')
+        gv = gv.split('_')[0]
+        appconf.gluu_version = gv
+        db.session.commit()
+        wlogger.log(
+            installer.logger_task_id,
+            "Gluu version was determined as {0} from gluu archive".format(gv),
+            'success'
+            )
+    else:
+        wlogger.log(installer.logger_task_id,
+                    "Gluu version could not be determined from gluu archive", 
+                    'error')
+        return False
+
+
+    #Check if python is installed
+    if installer.conn.exists('/usr/bin/python'):
+        wlogger.log(installer.logger_task_id, "Python was installed",'success')
+    else:
+        wlogger.log(
+            installer.logger_task_id, 
+            'python was not installed. Please install python on the host '
+            'system (outside of the container) and retry.', 
+            'error'
+            )
+        return False
+
+    #Check if ntp was installed
+    if installer.conn.exists('/usr/sbin/ntpdate'):
+        wlogger.log(installer.logger_task_id, "ntpdate was installed", 'success')
+    else:
+        wlogger.log(
+            installer.logger_task_id, 
+            'ntpdate was not installed. Please install ntpdate on the host '
+            'system (outside of the container) and retry.', 
+            'error'
+            )
+        return False
+
+    #Check if stunnel was installed
+    if installer.conn.exists('/usr/bin/stunnel') or installer.conn.exists('/bin/stunnel'):
+        wlogger.log(installer.logger_task_id, "stunnel was installed", 'success')
+    else:
+        wlogger.log(
+            installer.logger_task_id, 
+            'stunnel was not installed. Please install stunnel on the host '
+            'system (outside of the container) and retry.', 
+            'error'
+            )
+        return False
+
+    return True
+    
 
 def make_opendj_listen_world(server, installer):
         
@@ -241,7 +313,6 @@ def install_gluu_server(task_id, server_id):
         wlogger.log(task_id, "OS type has not been identified.", 'fail')
         return False
 
-
     # If this is not primary server, we will download setup.properties
     # file from primary server
     if not server.primary_server:
@@ -266,7 +337,6 @@ def install_gluu_server(task_id, server_id):
             else:
                 wlogger.log(task_id, "Primary server is installed.", "success")
 
-
     wlogger.log(task_id, "Preparing Server for installation", 'head')
                 
     installer = Installer(
@@ -280,91 +350,92 @@ def install_gluu_server(task_id, server_id):
         return False
 
 
-    #nc is required for dyr run
-    netcat_package = 'nc'
-    if installer.clone_type == 'deb':
-        netcat_package = 'netcat'
-    
-    installer.install(netcat_package, inside=False)
+    if app_conf.offline:
+        if not checkOfflineRequirements(installer, server, app_conf):
+            return False
 
-    if not installer.conn.exists('/usr/bin/python'):
-        installer.install('python', inside=False)
-
-    #add gluu server repo and imports signatures
-    if ('Ubuntu' in server.os) or ('Debian' in server.os):
-
-        if server.os == 'Ubuntu 14':
-            dist = 'trusty'
-        elif server.os == 'Ubuntu 16':
-            dist = 'xenial'
-
-
-        if 'Ubuntu' in server.os:
-            cmd_list = (
-                'curl https://repo.gluu.org/ubuntu/gluu-apt.key | '
-                'apt-key add -',
-                'echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" '
-                '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist)
-                )
-        elif 'Debian' in server.os:
-            cmd_list = (
-                'curl https://repo.gluu.org/debian/gluu-apt.key | '
-                'apt-key add -',
-                'echo "deb https://repo.gluu.org/debian/ stable main" '
-               '> /etc/apt/sources.list.d/gluu-repo.list'
-                )
-
-
-        for cmd in cmd_list:
-            installer.run(cmd, inside=False, error_exception='Xferd')
-
-        cmd = 'DEBIAN_FRONTEND=noninteractive apt-get update'
-        cin, cout, cerr = installer.run(cmd, inside=False)
+    if not app_conf.offline:
         
-        if 'dpkg --configure -a' in cerr:
-            cmd = 'dpkg --configure -a'
-            wlogger.log(task_id, cmd, 'debug')
-            installer.run(cmd, inside=False)
-
-    elif 'CentOS' in server.os or 'RHEL' in server.os:
-        if not installer.conn.exists('/usr/bin/wget'):
-            installer.install('wget', inside=False, error_exception='warning: /var/cache/')
-
-        if server.os == 'CentOS 6':
-            cmd = (
-              'wget https://repo.gluu.org/centos/Gluu-centos6.repo -O '
-              '/etc/yum.repos.d/Gluu.repo')
-        elif server.os == 'CentOS 7':
+        #nc is required for dyr run
+        netcat_package = 'nc'
+        if installer.clone_type == 'deb':
+            netcat_package = 'netcat'
+        installer.install(netcat_package, inside=False)
             
-            cmd = (
-              'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo -O ' #testing repo
-              #'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O '
-              '/etc/yum.repos.d/Gluu.repo'
-              )
-            enable_command  = '/sbin/gluu-serverd enable'
+        if not installer.conn.exists('/usr/bin/python'):
+            installer.install('python', inside=False)
+
+        #add gluu server repo and imports signatures
+        if ('Ubuntu' in server.os) or ('Debian' in server.os):
+
+            if server.os == 'Ubuntu 16':
+                dist = 'xenial'
+            elif server.os == 'Ubuntu 18':
+                dist = 'bionic'
+
+            if 'Ubuntu' in server.os:
+                cmd_list = (
+                    'curl https://repo.gluu.org/ubuntu/gluu-apt.key | '
+                    'apt-key add -',
+                    'echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" '
+                    '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist)
+                    )
             
-        elif server.os == 'RHEL 7':
+            elif 'Debian' in server.os:
+                cmd_list = (
+                    'curl https://repo.gluu.org/debian/gluu-apt.key | '
+                    'apt-key add -',
+                    'echo "deb https://repo.gluu.org/debian/ stable main" '
+                   '> /etc/apt/sources.list.d/gluu-repo.list'
+                    )
+
+
+            for cmd in cmd_list:
+                installer.run(cmd, inside=False, error_exception='Xferd')
+
+            cmd = 'DEBIAN_FRONTEND=noninteractive apt-get update'
+            cin, cout, cerr = installer.run(cmd, inside=False)
+            
+            if 'dpkg --configure -a' in cerr:
+                cmd = 'dpkg --configure -a'
+                wlogger.log(task_id, cmd, 'debug')
+                installer.run(cmd, inside=False)
+
+        elif 'CentOS' in server.os or 'RHEL' in server.os:
+            if not installer.conn.exists('/usr/bin/wget'):
+                installer.install('wget', inside=False, error_exception='warning: /var/cache/')
+
+            if server.os == 'CentOS 7':
+                
+                cmd = (
+                  'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo -O ' #testing repo
+                  #'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O '
+                  '/etc/yum.repos.d/Gluu.repo'
+                  )
+                enable_command  = '/sbin/gluu-serverd enable'
+                
+            elif server.os == 'RHEL 7':
+                cmd = (
+                  'wget https://repo.gluu.org/rhel/Gluu-rhel7.repo -O '
+                  '/etc/yum.repos.d/Gluu.repo'
+                  )
+                enable_command  = '/sbin/gluu-serverd enable'
+
+            installer.run(cmd, inside=False, error_exception='__ALL__')
+
             cmd = (
-              'wget https://repo.gluu.org/rhel/Gluu-rhel7.repo -O '
-              '/etc/yum.repos.d/Gluu.repo'
+              'wget https://repo.gluu.org/centos/RPM-GPG-KEY-GLUU -O '
+              '/etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'
               )
-            enable_command  = '/sbin/gluu-serverd enable'
+            installer.run(cmd, inside=False, error_exception='__ALL__')
 
-        installer.run(cmd, inside=False, error_exception='__ALL__')
+            cmd = 'rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'
+            installer.run(cmd, inside=False, error_exception='__ALL__')
 
-        cmd = (
-          'wget https://repo.gluu.org/centos/RPM-GPG-KEY-GLUU -O '
-          '/etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'
-          )
-        installer.run(cmd, inside=False, error_exception='__ALL__')
+            cmd = 'yum clean all'
+            installer.run(cmd, inside=False, error_exception='__ALL__')
 
-        cmd = 'rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'
-        installer.run(cmd, inside=False, error_exception='__ALL__')
-
-        cmd = 'yum clean all'
-        installer.run(cmd, inside=False, error_exception='__ALL__')
-
-    wlogger.log(task_id, "Check if Gluu Server was installed", 'action')
+        wlogger.log(task_id, "Check if Gluu Server was installed", 'action')
 
     gluu_installed = False
 
@@ -406,27 +477,46 @@ def install_gluu_server(task_id, server_id):
     time.sleep(1)
 
     wlogger.log(task_id, "Installing Gluu Server: " + gluu_server)
+
+
+    if app_conf.offline:
+
+        gluu_archive_fn = os.path.split(app_conf.gluu_archive)[1]
+        wlogger.log(task_id, "Uploading {}".format(gluu_archive_fn))
+
+        cmd = 'scp {} root@{}:/root'.format(app_conf.gluu_archive, server.hostname)
+        wlogger.log(task_id, cmd,'debug')
+        time.sleep(1)
+        os.system(cmd)
+        
+        if installer.clone_type == 'deb':
+            install_command = 'dpkg -i /root/{}'.format(gluu_archive_fn)
+        else:
+            install_command = 'rpm -i root/{}'.format(gluu_archive_fn)
+
+        installer.run(install_command, inside=False, error_exception='__ALL__')
+
+    else:
     
-    cmd = installer.get_install_cmd(gluu_server, inside=False)
+        cmd = installer.get_install_cmd(gluu_server, inside=False)
 
-    ubuntu_re = re.compile('\[(\s|\w|%|/|-|\.)*\]')
-    ubuntu_re_2 = re.compile('\(Reading database ... \d*')
-    centos_re = re.compile(' \[(=|-|#|\s)*\] ')
-    
-    re_list = [ubuntu_re, ubuntu_re_2, centos_re]
-    
-    all_cout = installer.run_channel_command(cmd, re_list)
+        ubuntu_re = re.compile('\[(\s|\w|%|/|-|\.)*\]')
+        ubuntu_re_2 = re.compile('\(Reading database ... \d*')
+        centos_re = re.compile(' \[(=|-|#|\s)*\] ')
+        
+        re_list = [ubuntu_re, ubuntu_re_2, centos_re]
+        
+        all_cout = installer.run_channel_command(cmd, re_list)
 
-    #If previous installation was broken, make a re-installation. 
-    #This sometimes occur on ubuntu installations
-    if 'half-installed' in all_cout:
-        if ('Ubuntu' in server.os) or ('Debian' in server.os):
-            cmd = 'DEBIAN_FRONTEND=noninteractive  apt-get install --reinstall -y '+ gluu_server
-            installer.run_channel_command(cmd, re_list)
+        #If previous installation was broken, make a re-installation. 
+        #This sometimes occur on ubuntu installations
+        if 'half-installed' in all_cout:
+            if ('Ubuntu' in server.os) or ('Debian' in server.os):
+                cmd = 'DEBIAN_FRONTEND=noninteractive  apt-get install --reinstall -y '+ gluu_server
+                installer.run_channel_command(cmd, re_list)
 
-
-    if enable_command:
-        installer.run(enable_command, inside=False, error_exception='__ALL__')
+        if enable_command:
+            installer.run(enable_command, inside=False, error_exception='__ALL__')
 
     installer.start_gluu()
 
