@@ -281,7 +281,8 @@ def app_configuration():
         conf_form.nginx_ip.data = config.nginx_ip
         conf_form.external_load_balancer.data = config.external_load_balancer
         conf_form.use_ldap_cache.data = config.use_ldap_cache
-        
+        conf_form.offline.data =  config.offline
+
         if config.external_load_balancer:
             conf_form.cache_host.data = config.cache_host
             conf_form.cache_ip.data = config.cache_ip

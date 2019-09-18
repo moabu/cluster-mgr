@@ -909,27 +909,49 @@ def installNGINX(self, nginx_host):
     if not nginx_installer.conn:
         return False
 
-
-    
-
     #nc is required for dyr run
+    
     netcat_package = 'nc'
     if nginx_installer.clone_type == 'deb':
         netcat_package = 'netcat'
     
-    nginx_installer.install(netcat_package, inside=False)
+    
+    if not nginx_installer.conn.exists('/bin/' + netcat_package):
+        if app_conf.offline:
+            wlogger.log(
+                task_id, 
+                '{0} was not installed. Please install {0} and retry.'.format(netcat_package), 
+                'error'
+                )
+            return False
+
+        nginx_installer.install(netcat_package, inside=False)
 
     if not nginx_installer.conn.exists('/usr/bin/python'):
+        
+        if app_conf.offline:
+            wlogger.log(
+                task_id, 
+                'python was not installed. Please install python and retry.', 
+                'error'
+                )
+            return False
+
         nginx_installer.install('python', inside=False)
 
     #check if nginx was installed on this server
     wlogger.log(task_id, "Check if NGINX installed")
 
-    result = nginx_installer.conn.exists("/usr/sbin/nginx")
+    if not nginx_installer.conn.exists("/usr/sbin/nginx"):
 
-    if result:
-        wlogger.log(task_id, "nginx allready exists")
-    else:
+        if app_conf.offline:
+            wlogger.log(
+                task_id, 
+                'nginx was not installed. Please install nginx and retry.', 
+                'error'
+                )
+            return False
+
         nginx_installer.epel_release()
         nginx_installer.install('nginx', inside=False)
 
@@ -1004,7 +1026,6 @@ def installNGINX(self, nginx_host):
     # write nginx os type to database
     app_conf.nginx_os_type = nginx_installer.server_os
     db.session.commit()
-
 
     wlogger.log(task_id, "NGINX successfully installed")
 

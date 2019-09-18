@@ -176,7 +176,7 @@ def install_nginx():
     task = installNGINX.delay(app_conf.nginx_host)
 
     print "Install NGINX TASK STARTED", task.id
-    head = "Installing NGINX Server on {0}".format(app_conf.nginx_host)
+    head = "Configuring NGINX Load Balancer on {0}".format(app_conf.nginx_host)
     nextpage = url_for('index.multi_master_replication')
     whatNext = "LDAP Replication"
 
