@@ -233,8 +233,17 @@ def setup_filesystem_replication_do(task_id):
         
         modify_hosts(installer, cysnc_hosts)
 
-
         if not installer.conn.exists(os.path.join(installer.container, 'usr/sbin/csync2')): 
+
+            if app_conf.offline:
+                wlogger.log(
+                        task_id, 
+                        'csync2 was not installed. Please install csync2 and retry.', 
+                        'error',
+                        server_id=server.id
+                    )
+                return False
+                
 
             if installer.clone_type == 'deb':
                 for cmd in (
@@ -251,12 +260,9 @@ def setup_filesystem_replication_do(task_id):
 
                 csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos{}.x86_64.rpm'.format(server.os[-1])
                 installer.install(csync_rpm)
-                
+
         else:
             wlogger.log(task_id, "csync2 was allready installed on this serevr.", server_id=server.id)
-
-        if server.os == 'CentOS 6':
-            installer.install('crontabs')
 
         installer.run('rm -f /var/lib/csync2/*.db3')
         installer.run('rm -f /etc/csync2*')
