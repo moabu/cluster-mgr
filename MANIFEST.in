@@ -1,3 +1,5 @@
 graft clustermgr/templates
 graft clustermgr/static
+include clustermgr/setup/*
+include clustermgr/scripts/*
 recursive-include clustermgr/migrations *.py *.ini *.mako
