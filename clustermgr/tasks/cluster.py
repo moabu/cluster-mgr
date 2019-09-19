@@ -128,7 +128,7 @@ def get_csync2_config(exclude=None):
     exclude_files = [
         '/etc/gluu/conf/ox-ldap.properties',
         '/etc/gluu/conf/oxTrustLogRotationConfiguration.xml',
-        '/etc/gluu/conf/openldap/salt',
+        '/etc/gluu/conf/salt',
         ]
 
     csync2_config = ['group gluucluster','{']
@@ -415,18 +415,6 @@ def remove_filesystem_replication(self):
         if not r:
             return r
 
-@celery.task(bind=True)
-def setup_ldap_replication(self, server_id):
-    """Deploys ldap replicaton
-
-    Args:
-        server_id (integer): id of server to be deployed replication
-    """
-
-    #MB: removed until openldap replication is validated
-
-    pass
-
 
 def modify_hosts(installer, hosts, inside=True, server_host=None):
     wlogger.log(installer.logger_task_id, "Modifying /etc/hosts", server_id=installer.server_id)
@@ -443,82 +431,7 @@ def modify_hosts(installer, hosts, inside=True, server_host=None):
         wlogger.log(installer.logger_task_id, "{} was modified".format(hosts_file), 'success', server_id=installer.server_id)
 
 
-def download_and_upload_custom_schema(tid, pc, c, ldap_type, gluu_server):
-    """Downloads custom ldap schema from primary server and 
-        uploads to current server represented by c
-    Args:
-        tid (string): id of the task running the command,
-        pc (:object:`clustermgr.core.remote.RemoteClient`): client to be used
-            for the SSH communication, representing primary server
 
-        c (:object:`clustermgr.core.remote.RemoteClient`): client to be used
-            for the SSH communication, representing current server
-        ldap_type (string): type of ldapserver, either openldap or opendj
-        gluu_server: Gluu server name
-    """
-    
-    wlogger.log(tid, 'Downloading custom schema files' 
-                    'from primary server and upload to this server')
-    custom_schema_files = pc.listdir("/opt/{}/opt/gluu/schema/{}/".format(
-                                                    gluu_server, ldap_type))
-
-    if custom_schema_files[0]:
-        
-        schema_folder = '/opt/{}/opt/gluu/schema/{}'.format(
-                        gluu_server, ldap_type)
-        if not c.exists(schema_folder):
-            c.run('mkdir -p {}'.format(schema_folder))
-        
-        for csf in custom_schema_files[1]:
-            schema_filename = '/opt/{0}/opt/gluu/schema/{2}/{1}'.format(
-                                                gluu_server, csf, ldap_type)
-                                                
-            stat, schema = pc.get_file(schema_filename)
-            if stat:
-                c.put_file(schema_filename, schema.read())
-                wlogger.log(tid, 
-                    '{0} dowloaded from from primary and uploaded'.format(
-                                                            csf), 'debug')
-
-                if ldap_type == 'opendj':
-
-                    opendj_path = ('/opt/{}/opt/opendj/config/schema/'
-                                '999-clustmgr-{}').format(gluu_server, csf)
-                    c.run('cp {} {}'.format(schema_filename, opendj_path))
-                    
-            
-def upload_custom_schema(tid, c, ldap_type, gluu_server):
-    """Uploads custom ldap schema to server
-    Args:
-        tid (string): id of the task running the command,
-        c (:object:`clustermgr.core.remote.RemoteClient`): client to be used
-            for the SSH communication
-        ldap_type (string): type of ldapserver, either openldap or opendj
-        gluu_server: Gluu server name
-    """
-    
-    custom_schema_dir = os.path.join(Config.DATA_DIR, 'schema')
-    custom_schemas = os.listdir(custom_schema_dir)
-
-    if custom_schemas:
-        schema_folder = '/opt/{}/opt/gluu/schema/{}'.format(
-                        gluu_server, ldap_type)
-        if not c.exists(schema_folder):
-            c.run('mkdir -p {}'.format(schema_folder))
-
-        for sf in custom_schemas:
-            
-            local = os.path.join(custom_schema_dir, sf)
-            remote = '/opt/{0}/opt/gluu/schema/{2}/{1}'.format(
-                gluu_server, sf, ldap_type)
-            r = c.upload(local, remote)
-            if r[0]:
-                wlogger.log(tid, 'Custom schame file {0} uploaded'.format(
-                        sf), 'success')
-            else:
-                wlogger.log(tid,
-                    "Can't upload custom schame file {0}: ".format(sf,
-                                                            r[1]), 'error')
 
 def do_disable_replication(task_id, server, primary_server, app_conf):
 

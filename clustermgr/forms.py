@@ -72,14 +72,6 @@ class SetupPropertiesLastForm(FlaskForm):
     upload = SubmitField("Upload Setup Properties")
 
 
-class LDIFForm(FlaskForm):
-    ldif = FileField(validators=[
-        FileRequired(),
-        FileAllowed(
-            ['ldif'], 'Upload OpenLDAP slapcat exported ldif files only!')
-    ])
-
-
 class KeyRotationForm(FlaskForm):
     interval = IntegerField("Rotation Interval", validators=[DataRequired()])
     enabled = RadioField(

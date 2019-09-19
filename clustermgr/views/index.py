@@ -458,7 +458,7 @@ def get_log(task_id):
 
 @index.route('/mmr/')
 def multi_master_replication():
-    """Multi Master Replication view for OpenLDAP"""
+    """Multi Master Replication view for OpenDJ"""
 
     # Check if replication user (dn) and password has been configured
     app_config = AppConfiguration.query.first()

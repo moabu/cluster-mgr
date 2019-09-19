@@ -58,7 +58,6 @@ def collect_server_details(server_id):
     components = {
         'oxAuth': 'opt/gluu/jetty/oxauth',
         'oxTrust': 'opt/gluu/jetty/identity',
-        'OpenLDAP': 'opt/symas/etc/openldap',
         'Shibboleth': 'opt/shibboleth-idp',
         'oxAuthRP': 'opt/gluu/jetty/oxauth-rp',
         'Asimba': 'opt/gluu/jetty/asimba',
@@ -118,7 +117,7 @@ def download_and_upload_custom_schema(task_id, primary_conn, conn, ldap_type, gl
 
         conn (:object:`clustermgr.core.remote.RemoteClient`): client to be used
             for the SSH communication, representing current server
-        ldap_type (string): type of ldapserver, either openldap or opendj
+        ldap_type (string): type of ldapserver, currently opendj
         gluu_server: Gluu server name
     """
     

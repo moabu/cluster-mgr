@@ -14,8 +14,7 @@ from flask import current_app as app
 
 from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.models import Server, AppConfiguration
-from clustermgr.tasks.cluster import setup_ldap_replication, \
-    installNGINX, \
+from clustermgr.tasks.cluster import installNGINX, \
     setup_filesystem_replication, opendjenablereplication, \
     remove_server_from_cluster, remove_filesystem_replication, \
     opendj_disable_replication_task

@@ -1,4 +1,0 @@
-https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/slapd_conf_script/create_slapd_conf.py
-https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/slapd_conf_script/syncrepl.cfg
-https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/slapd_conf_script/ldap_templates/slapd.conf
-https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/manual_install/slapd_conf_script/ldap_templates/syncrepl.temp
