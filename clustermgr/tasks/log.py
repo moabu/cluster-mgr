@@ -183,15 +183,6 @@ def setup_filebeat(self, force_install=False):
     print "TASK", task_id
 
     for server in servers:
-        print server
-        if server.filebeat and force_install is False:
-            wlogger.log(
-                task_id,
-                "filebeat has been installed ... skipping task",
-                "info",
-                server_id=server.id,
-            )
-            continue
 
         installer = Installer(
             server,
@@ -200,8 +191,20 @@ def setup_filebeat(self, force_install=False):
             server_os=server.os
             )
 
-        # installs filebeat
-        _install_filebeat(installer)
+        fb_installed = installer.conn.exists('/usr/bin/filebeat')
+
+        if app_conf.offline:
+            if not fb_installed:
+                wlogger.log(
+                        task_id, 
+                        "Filebeat was not installed on this server. Please"
+                        " install and retry", "error", server_id=server.id)
+                return False
+                
+        else:
+            if (not fb_installed) or force_install:
+                # installs filebeat
+                _install_filebeat(installer)
 
         # renders filebeat config
         _render_filebeat_config(installer)
