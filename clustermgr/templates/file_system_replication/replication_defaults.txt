@@ -1,3 +1,5 @@
+/opt/gluu/jetty/oxauth/custom/
+/opt/gluu/jetty/identity/custom/
 /opt/gluu/jetty/identity/conf/shibboleth3/idp/
 /opt/gluu/jetty/identity/conf/shibboleth3/sp/
 /opt/shibboleth-idp/conf

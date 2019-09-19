@@ -243,7 +243,7 @@ def setup_filesystem_replication_do(task_id):
                         server_id=server.id
                     )
                 return False
-                
+
 
             if installer.clone_type == 'deb':
                 for cmd in (
@@ -354,7 +354,7 @@ def setup_filesystem_replication_do(task_id):
         #run time sync in every minute
         cron_file = os.path.join(installer.container, 'etc', 'cron.d', 'csync2')
         installer.put_file(cron_file,
-            '{}-59/2 * * * *    root    {} -N csync{}.gluu -xv 2>/var/log/csync2.log\n'.format(
+            '{}-59/2 * * * *    root    {} -N csync{}.gluu -xvv 2>/var/log/csync2.log\n'.format(
             server_counter, csync2_path, server.id))
 
         server_counter += 1
