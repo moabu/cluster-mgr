@@ -222,6 +222,23 @@ def checkOfflineRequirements(installer, server, appconf):
                     'error')
         return False
 
+    #check if curl exists on the system
+    cmd = 'which curl'
+    result = installer.run(cmd, inside=False)
+
+    curlexist = False if not 'curl' in result[1] else True
+
+    if result[1]:
+        wlogger.log(installer.logger_task_id, "curl was installed",'success')
+    else:
+        wlogger.log(
+            installer.logger_task_id, 
+            'curl was not installed. Please install curl on the host '
+            'system (outside of the container) and retry.', 
+            'error'
+            )
+        return False
+        
 
     #Check if python is installed
     if installer.conn.exists('/usr/bin/python'):
@@ -354,6 +371,13 @@ def install_gluu_server(task_id, server_id):
             return False
 
     if not app_conf.offline:
+        
+        #check if curl exists on the system
+        cmd = 'which curl'
+        result = installer.run(cmd, inside=False)
+        if not result[1]:
+            installer.install('curl', inside=False)
+        
         
         #nc is required for dyr run
         netcat_package = 'nc'
