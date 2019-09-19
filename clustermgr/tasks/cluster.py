@@ -369,6 +369,12 @@ def setup_filesystem_replication_do(task_id):
             installer.restart_service('cron')
             installer.restart_service('openbsd-inetd')
 
+        if server.os == 'Ubuntu 16':
+            pids = installer.run('pidof inetd')
+            if pids[1].strip():
+                cmd = 'kill -9 {0}'.format( pids[1].strip())
+                installer.run(cmd, error_exception='__ALL__')
+
     return True
 
 def remove_filesystem_replication_do(server, app_config, task_id):
