@@ -7,6 +7,8 @@ import requests
 
 from flask import Blueprint, render_template, redirect, url_for, flash, \
     request, jsonify
+from flask_login import login_required
+
 # from flask import current_app as app
 from influxdb import InfluxDBClient
 from clustermgr.core.remote import RemoteClient
@@ -365,6 +367,7 @@ def home():
 
 
 @monitoring.route('/setup')
+@login_required
 def setup_index():
     
     """This view provides setting up monitoring"""
@@ -375,6 +378,7 @@ def setup_index():
 
 
 @monitoring.route('/setuplocal')
+@login_required
 def setup_local():
     
     """This view provides setting up monitoring components on local machine"""
@@ -401,6 +405,7 @@ def setup_local():
 
 
 @monitoring.route('/setupservers')
+@login_required
 def setup():
     
     """This view provides setting up monitoring components on remote servers"""
@@ -437,6 +442,7 @@ def setup():
                            )
 
 @monitoring.route('/system/<item>')
+@login_required
 def system(item):
 
     """This view displays system related statistics"""
@@ -517,6 +523,7 @@ def system(item):
                         )
 
 @monitoring.route('/replicationstatus')
+@login_required
 def replication_status():
 
     """This view displays replication status of ldap servers"""
@@ -539,12 +546,14 @@ def replication_status():
 
 
 @monitoring.route('/allldap/<item>')
+@login_required
 def ldap_all(item):
     """This view will displaye selected ldap statistics on a single page"""
     return "Not Implemented"
 
 
 @monitoring.route('/ldap/<item>/')
+@login_required
 def ldap_single(item):
 
     """This view displays ldap statistics"""
@@ -567,6 +576,7 @@ def ldap_single(item):
                             )
 
 @monitoring.route('/remove')
+@login_required
 def remove():
     """This view will remove monitoring components"""
     
@@ -597,6 +607,7 @@ def remove():
                            )
 
 @monitoring.route('/serverstat')
+@login_required
 def get_server_status():
 
     servers = Server.query.all()
@@ -618,15 +629,30 @@ def get_server_status():
     if prop['installPassport']:
         active_services.append('passport')
 
+    cmd =  '''python -c "import urllib2,ssl; print urllib2.urlopen('https://localhost/{}', context= ssl._create_unverified_context()).getcode()"'''
+
 
     for server in servers:
         status[server.id] = {}
+        
+        c = RemoteClient(server.hostname)
+        c.ok = False
+        try:
+            c.startup()
+            c.ok = True
+        except Exception as e:
+            pass
+        
         for service in active_services:
-            try:
-                url = 'https://{0}/{1}'.format(server.hostname, services[service])
-                r = requests.get(url, verify=False)
-                status[server.id][service]=r.ok
-            except:
-                pass
-
+            status[server.id][service] = False
+            
+            if c.ok:
+                try:
+                    run_cmd = cmd.format(service)
+                    result = c.run(run_cmd)            
+                    if result[1].strip() == '200':
+                        status[server.id][service] = True
+                except Exception as e:
+                    print "Error getting service status of {0} for {1}. ERROR: {2}".format(server.hostname,service, e)
+                    
     return jsonify(status)
