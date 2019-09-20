@@ -248,11 +248,11 @@ class LicenseManager(object):
         app = self._get_app()
         data = {"valid": False, "metadata": {}}
 
-        public_key = public_key.replace(" ", "").replace("\n", "")
+        if public_key:
+            public_key = public_key.replace(" ", "").replace("\n", "")
 
         # shell out and get the license data (if any)
-        out, err, code = exec_cmd(
-            "java -jar {} {} {} {} {} {} {}".format(
+        cmd = "java -jar {} {} {} {} {} {} {}".format(
                 app.config["LICENSE_VALIDATOR"],
                 signed_license,
                 public_key,
@@ -261,7 +261,8 @@ class LicenseManager(object):
                 app.config["LICENSE_PRODUCT_NAME"],
                 current_date_millis(),
             )
-        )
+            
+        out, err, code = exec_cmd(cmd)
 
         if code != 0:
             return data, err
@@ -384,6 +385,15 @@ def license_required():
     invalid = license_data["valid"] is not True
     expired = now > license_data["metadata"].get("expiration_date")
     inactive = license_data["metadata"].get("active", False) is False
+
+    license_date_left = (60*aday - (time.time() - \
+            license_data["metadata"].get("expiration_date",0)/1000)) // aday
+
+    if license_date_left <= 60:
+        current_app.jinja_env.globals['evaluation_period'] = ("Your license "
+         "will expire in {} days. To renew your license key, "
+         "contact sales@gluu.org".format(int(license_date_left))
+         )
 
     if any([err, invalid, expired, inactive]):
         flash("The previously requested URL ({}) requires a valid license. "
