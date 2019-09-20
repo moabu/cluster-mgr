@@ -329,6 +329,10 @@ def install_gluu_server(task_id, server_id):
         wlogger.log(task_id, "OS type has not been identified.", 'fail')
         return False
 
+    if server.os != primary_server.os:
+        wlogger.log(task_id, "OS type is not the same as primary server.", 'fail')
+        return False
+
     # If this is not primary server, we will download setup.properties
     # file from primary server
     if not server.primary_server:
