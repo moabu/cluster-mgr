@@ -523,13 +523,6 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
     
 
     if not app_conf.use_ldap_cache:
-
-        # Update Twemproxy
-        wlogger.log(task_id, "Updating Twemproxy configuration",'debug')
-        twemproxy_conf = make_twem_proxy_conf(exception=server_id)
-        nginx_installer.put_file('/etc/nutcracker/nutcracker.yml', twemproxy_conf)
-        nginx_installer.restart_service('nutcracker', inside=False)
-
         # Update stunnel
         proxy_stunnel_conf = make_proxy_stunnel_conf(exception=server_id)
         proxy_stunnel_conf = '\n'.join(proxy_stunnel_conf)
