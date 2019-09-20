@@ -5,6 +5,10 @@ import re
 import time
 import subprocess
 import traceback
+import uuid
+import select
+import requests
+
 from flask import current_app as app
 
 from clustermgr.models import Server, AppConfiguration
@@ -15,8 +19,6 @@ from clustermgr.core.utils import get_setup_properties, modify_etc_hosts, \
         make_nginx_proxy_conf, make_twem_proxy_conf, make_proxy_stunnel_conf
 from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.config import Config
-import uuid
-import select
 
 
 def modifyOxLdapProperties(server, installer, task_id, pDict):
@@ -1050,7 +1052,7 @@ def check_latest_version():
     app_conf = AppConfiguration.query.first()
     if app_conf:
         print "Checking latest version from github"
-        result = requests.get('https://raw.githubusercontent.com/GluuFederation/cluster-mgr/master/clustermgr/__init__.py')
+        result = requests.get('https://raw.githubusercontent.com/GluuFederation/cluster-mgr/4.0/clustermgr/__init__.py')
         text = result.text.strip()
         latest_version = text.split('=')[1].strip().strip('"').strip("'")        
         app_conf.latest_version = latest_version
