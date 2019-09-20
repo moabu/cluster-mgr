@@ -72,11 +72,10 @@ def get_servers_and_list():
 def install():
 
     server_id = request.args.get('server')
-    
+
     if server_id:
         cache_servers = []
         servers = [ Server.query.get(int(server_id)) ]
-
     else:
         cache_servers = get_cache_servers()
         servers = Server.query.all()
@@ -89,14 +88,12 @@ def install():
     title = "Setting Up Cache Management"
     whatNext = "Cache Management Home"
     nextpage = url_for('cache_mgr.index')
-    servers = Server.query.all()
     
     task = install_cache_cluster.delay(
                                 [server.id for server in servers],
                                 [server.id for server in cache_servers],
                                 )
 
-    
     return render_template('logger_single.html',
                            title=title,
                            steps=steps,
