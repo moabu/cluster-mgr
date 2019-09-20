@@ -248,6 +248,8 @@ class LicenseManager(object):
         app = self._get_app()
         data = {"valid": False, "metadata": {}}
 
+        public_key = public_key.replace(" ", "").replace("\n", "")
+
         # shell out and get the license data (if any)
         out, err, code = exec_cmd(
             "java -jar {} {} {} {} {} {} {}".format(
