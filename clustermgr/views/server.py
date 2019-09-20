@@ -106,7 +106,7 @@ def index():
                     'warning')
             elif str(e) == 'Could not deserialize key data.':
                 ask_passphrase = True
-                flash("Password your provided for pubkey did not work. "
+                flash("Password you provided for pubkey did not work. "
                     "After setting your passphrase re-submit this form.",
                     'warning')
             else:

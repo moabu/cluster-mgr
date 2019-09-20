@@ -31,7 +31,6 @@ class Installer:
                         'action',
                         server_id=self.server_id,
                         )
-            
             try:
                 print "Installer> Establishing SSH connection to host {}".format(conn.hostname)
                 self.conn.startup()
@@ -41,11 +40,23 @@ class Installer:
                         'success',
                         server_id=self.server_id,
                         )
-            except:
+    
+            except Exception as e:
+                print e
                 self.conn = None
+                if str(e) == 'Pubkey is encrypted.':
+                    error_msg = ("Pubkey seems to password protected. "
+                        "After setting your passphrase re-submit this form.")
+                        
+                elif str(e) == 'Could not deserialize key data.':
+                    error_msg = ("Password you provided for pubkey did not work. "
+                        "After setting your passphrase re-submit this form.")
+                else:
+                    error_msg = str(e)
+            
                 wlogger.log(
                         self.logger_task_id, 
-                        "Can't make SSH connection to {}".format(conn.hostname),
+                        "Can't make SSH connection to {}. Reason: {}".format(conn.hostname, error_msg),
                         'fail',
                         server_id=self.server_id,
                     )
