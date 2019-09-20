@@ -408,6 +408,7 @@ def app_configuration():
 
 
 @index.route('/log/<task_id>')
+@login_required
 def get_log(task_id):
     
     global msg_text
@@ -457,6 +458,7 @@ def get_log(task_id):
 
 
 @index.route('/mmr/')
+@login_required
 def multi_master_replication():
     """Multi Master Replication view for OpenDJ"""
 
@@ -495,6 +497,7 @@ def multi_master_replication():
                            )
 
 @index.route('/removecustomschema/<schema_file>')
+@login_required
 def remove_custom_schema(schema_file):
     """This view deletes custom schema file"""
 
@@ -506,6 +509,7 @@ def remove_custom_schema(schema_file):
 
 
 @index.route('/upgrade')
+@login_required
 def upgrade_clustermgr():
     """Initiates upgrading of clustermgr"""
 
