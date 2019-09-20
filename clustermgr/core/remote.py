@@ -102,7 +102,7 @@ class RemoteClient(object):
         self.sftpclient = None
         self.client.set_missing_host_key_policy(AutoAddPolicy())
         self.client.load_system_host_keys()
-        logging.debug("RemoteClient created for host: %s", host)
+        logging.debug("RemoteClient created for host: {}", host)
 
     def startup(self):
         """Function that starts SSH connection and makes client available for
@@ -132,7 +132,7 @@ class RemoteClient(object):
 
     def _try_with_ip(self):
         try:
-            logging.debug("Connecting to IP:%s User:%s", self.ip, self.user )
+            logging.debug("Connecting to IP:%s User:%s" % (self.ip, self.user))
             self.client.connect(self.ip, port=22, username=self.user,
                                 passphrase=self.passphrase)
             self.sftpclient = self.client.open_sftp()
