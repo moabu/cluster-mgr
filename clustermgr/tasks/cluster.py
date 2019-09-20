@@ -950,7 +950,7 @@ def exec_cmd(command):
 def upgrade_clustermgr_task(self):
     task_id = self.request.id
     
-    cmd = '/usr/bin/sudo pip install --upgrade https://github.com/GluuFederation/cluster-mgr/archive/master.zip'
+    cmd = '/usr/bin/sudo pip install --upgrade https://github.com/GluuFederation/cluster-mgr/archive/4.0.zip'
 
     wlogger.log(task_id, cmd)
 
