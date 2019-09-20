@@ -139,7 +139,7 @@ class LicenseManager(object):
             # error message returned from decode_signed_license is a long
             # java program errors, hence replace them with user-friendly
             # message
-            err = "Unable to validate the license."
+            err = "Your license is invalid. Try again, or contact sales@gluu.org for assistance."
         return license_data, err
 
     def dump_license_config(self, data):
@@ -311,6 +311,10 @@ def license_reminder():
         if now > exp_date:
             # license has been expired
             msg = "Your license has been expired since {} GMT.".format(exp_date_str)
+            current_app.jinja_env.globals['evaluation_period'] = (
+                "Your license has expired. Contact sales@gluu.org to "
+                "renew your license."
+            )
         elif now > exp_threshold:
             # license will be expired soon
             msg = "Your license will be expired at {} GMT.".format(exp_date_str)
@@ -370,16 +374,13 @@ def license_required():
             return redirect(url_for("license.settings"))
 
         else:
-            current_app.jinja_env.globals['evaluation_period'] = ("Thanks "
-            "for trying Cluster Manager! This trial will expire in {} days. "
-            "To obtain a license key, contact sales@gluu.org".format(
-                int(date_left))
-            )
-
+            current_app.jinja_env.globals['evaluation_period'] = (
+               "Thanks for trying Cluster Manager! Your evaluation period "
+               "expires in {} days. Contact sales@gluu.org to purchase a "
+               "license." .format(int(date_left))
+               )
             return
-            
-    
-    
+
     now = current_date_millis()
 
     invalid = license_data["valid"] is not True
@@ -390,9 +391,9 @@ def license_required():
             license_data["metadata"].get("expiration_date",0)/1000)) // aday
 
     if license_date_left <= 60:
-        current_app.jinja_env.globals['evaluation_period'] = ("Your license "
-         "will expire in {} days. To renew your license key, "
-         "contact sales@gluu.org".format(int(license_date_left))
+        current_app.jinja_env.globals['evaluation_period'] = (
+            "Your license will expire in {x} days. Contact sales@gluu.org to "
+            "renew your license.".format(int(license_date_left))
          )
 
     if any([err, invalid, expired, inactive]):
