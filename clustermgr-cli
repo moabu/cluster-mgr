@@ -5,7 +5,7 @@ CELERY_PID="$HOME/.clustermgr/celery.pid"
 CELERY_BEAT_PID="$HOME/.clustermgr/celery-beat.pid"
 GUNICORN_PID="$HOME/.clustermgr/gunicorn.pid"
 PW_FILE="$HOME/.clustermgr/.pw"
-NEW_UUID=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1`
+NEW_UUID=`head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1`
 app=`which clusterapp.py`
 
 if ! java -version 2>&1 >/dev/null | grep -q "version"; then
