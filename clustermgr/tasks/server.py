@@ -466,6 +466,7 @@ def install_gluu_server(task_id, server_id):
 
     gluu_installed = False
 
+
     #Determine if a version of gluu server was installed.
     
     if installer.conn.exists('/opt/gluu-server'):
@@ -571,24 +572,90 @@ def install_gluu_server(task_id, server_id):
         remote_file = '/opt/gluu-server/install/community-edition-setup/setup.properties.last'.format(gluu_server)
         wlogger.log(task_id, 'Downloading setup.properties.last from primary server', 'debug')
 
+        prop_list = ['passport_rp_client_jks_pass', 
+                     'application_max_ram',
+                     'encoded_ldap_pw',
+                     'ldapPass',
+                     'state',
+                     'defaultTrustStorePW',
+                     'passport_rs_client_jks_pass_encoded',
+                     'passportSpJksPass',
+                     'pairwiseCalculationSalt',
+                     'installAsimba',
+                     'installLdap',
+                     'oxauth_client_id',
+                     'oxTrust_log_rotation_configuration',
+                     'scim_rs_client_jks_pass_encoded',
+                     'encoded_openldapJksPass',
+                     'inumApplianceFN',
+                     'inumAppliance',
+                     'oxauthClient_pw',
+                     'opendj_p12_pass',
+                     'passportSpKeyPass',
+                     'scim_rs_client_jks_pass',
+                     'inumOrgFN',
+                     'scim_rs_client_id',
+                     'default_key_algs',
+                     'installOxTrust',
+                     'ldap_port',
+                     'encoded_shib_jks_pw',
+                     'orgName',
+                     'openldapKeyPass',
+                     'city',
+                     'oxVersion',
+                     'baseInum',
+                     'asimbaJksPass',
+                     'oxTrustConfigGeneration',
+                     'passport_rp_client_id',
+                     'pairwiseCalculationKey',
+                     'scim_rp_client_jks_pass',
+                     'encoded_opendj_p12_pass',
+                     'httpdKeyPass',
+                     'installOxAuth',
+                     'admin_email',
+                     'passport_rs_client_jks_pass',
+                     'oxauth_openid_jks_pass',
+                     'countryCode',
+                     'installSaml',
+                     'installJce',
+                     'encoded_ldapTrustStorePass',
+                     'encode_salt',
+                     'inumOrg',
+                     'openldapJksPass',
+                     'encoded_ox_ldap_pw',
+                     'installHttpd',
+                     'passport_rs_client_id',
+                     'scim_rp_client_id',
+                     'ldap_hostname',
+                     'oxauthClient_encoded_pw',
+                     'shibJksPass',
+                     'installPassport',
+                     'installOxAuthRP',
+                     ]
+
        #get setup.properties.last from primary server.
         result = primary_server_installer.conn.get_file(remote_file)
         if result[0]:
-            new_setup_properties=''
+            new_setup_properties = [ 
+                                    'ip={0}\n'.format(server.ip),
+                                    "ldap_type=opendj\n",
+                                    'hostname={0}\n'.format(app_conf.nginx_host)
+                                ]
+
             setup_properties = result[1].readlines()
             #replace ip with address of this server
             for l in setup_properties:
-                if l.startswith('ip='):
-                    l = 'ip={0}\n'.format(server.ip)
-                elif l.startswith('ldapPass='):
-                    ldap_passwd = l.split('=')[1].strip()
-                elif l.startswith('hostname='):
-                    l = 'hostname={0}\n'.format(app_conf.nginx_host)
-                new_setup_properties += l
+                n = l.find('=')
+                prop_name = l[:n]
+                if prop_name in prop_list:
+                    new_setup_properties.append(l)
+
+                if prop_name == 'ldapPass':
+                    ldap_passwd = l.strip()[n+1:]
 
             #put setup.properties to server
             remote_file_new = '/opt/gluu-server/root/setup.properties'
-            installer.put_file(remote_file_new,  new_setup_properties)
+            installer.put_file(remote_file_new,  ''.join(new_setup_properties))
 
             if ldap_passwd:
                 server.ldap_password = ldap_passwd
