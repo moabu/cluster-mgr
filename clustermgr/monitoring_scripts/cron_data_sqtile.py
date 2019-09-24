@@ -25,11 +25,10 @@ def get_ldap_admin_password():
     Returns:
         string: ldap directory manager password
     """
-    
-    gluu_version = open(os.path.join(data_path, 'scripts', 'gluu_version.txt')).read().strip()
-    salt_file = open('/opt/gluu-server-{0}/etc/gluu/conf/salt'.format(gluu_version)).read()
+
+    salt_file = open('/opt/gluu-server/etc/gluu/conf/salt').read()
     salt = salt_file.split('=')[1].strip()
-    ox_ldap_properties_file = '/opt/gluu-server-{0}/etc/gluu/conf/ox-ldap.properties'.format(gluu_version)
+    ox_ldap_properties_file = '/opt/gluu-server/etc/gluu/conf/gluu-ldap.properties'
     for l in open(ox_ldap_properties_file):
         if l.startswith('bindPassword'):
             s = l.split(':')[1].strip()
