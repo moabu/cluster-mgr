@@ -5,6 +5,8 @@ import re
 import time
 import subprocess
 import requests
+import StringIO
+from jproperties import Properties
 
 from flask import current_app as app
 
@@ -1098,7 +1100,6 @@ def installGluuServer(self, server_id):
         stop_command    = '/sbin/gluu-serverd-{0} stop'
         start_command   = '/sbin/gluu-serverd-{0} start'
 
-
     if appconf.offline:
         gluu_archive_fn = os.path.split(appconf.gluu_archive)[1]
         wlogger.log(tid, "Uploading {}".format(gluu_archive_fn))
@@ -1320,6 +1321,7 @@ def installGluuServer(self, server_id):
 
     run_command(tid, c, start_command.format(appconf.gluu_version))
 
+
     #Since we will make ssh inot centos container, we need to wait ssh server to
     #be started properly
     if server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
@@ -1357,26 +1359,28 @@ def installGluuServer(self, server_id):
         wlogger.log(tid, 'Downloading setup.properties.last from primary server', 'debug')
 
         prop_list = ['passport_rp_client_jks_pass', 'application_max_ram', 'encoded_ldap_pw', 'ldapPass', 'state', 'defaultTrustStorePW', 'passport_rs_client_jks_pass_encoded', 'passportSpJksPass', 'pairwiseCalculationSalt', 'installAsimba', 'installLdap', 'oxauth_client_id', 'oxTrust_log_rotation_configuration', 'scim_rs_client_jks_pass_encoded', 'encoded_openldapJksPass', 'inumApplianceFN', 'inumAppliance', 'oxauthClient_pw', 'opendj_p12_pass', 'passportSpKeyPass', 'scim_rs_client_jks_pass', 'inumOrgFN', 'scim_rs_client_id', 'default_key_algs', 'installOxTrust', 'ldap_port', 'encoded_shib_jks_pw', 'orgName', 'openldapKeyPass', 'city', 'oxVersion', 'baseInum', 'asimbaJksPass', 'oxTrustConfigGeneration', 'passport_rp_client_id', 'pairwiseCalculationKey', 'scim_rp_client_jks_pass', 'encoded_opendj_p12_pass', 'httpdKeyPass', 'installOxAuth', 'admin_email', 'passport_rs_client_jks_pass', 'oxauth_openid_jks_pass', 'countryCode', 'installSaml', 'installJce', 'encoded_ldapTrustStorePass', 'encode_salt', 'inumOrg', 'openldapJksPass', 'encoded_ox_ldap_pw', 'installHttpd', 'passport_rs_client_id', 'scim_rp_client_id', 'ldap_hostname', 'oxauthClient_encoded_pw', 'shibJksPass', 'installPassport', 'installOxAuthRP']
-
+        prop = Properties()
+        
        #get setup.properties.last from primary server.
         r=pc.get_file(remote_file)
         if r[0]:
-            new_setup_properties = [ 'ip={0}\n'.format(server.ip), "ldap_type=opendj\n", 'hostname={0}\n'.format(appconf.nginx_host)]
-            setup_properties = r[1].readlines()
-            #replace ip with address of this server
-            for l in setup_properties:
-                n = l.find('=')
-                prop_name = l[:n]
-                
-                    
-                if prop_name in prop_list:
-                    if prop_name == 'ldap_type':
-                        new_setup_properties.append('ldap_type=opendj\n')
-                    else:
-                        new_setup_properties.append(l)
+            prop.load(r[1], encoding='utf-8')
+            
+            print prop.properties
+            
+            for p in prop.properties.keys():
+                if not p in prop_list:
+                    del prop[p]
+            
+            prop['ip'] = server.ip
+            prop['ldap_type'] = 'opendj'
+            prop['hostname'] = appconf.nginx_host
+            ldap_passwd = prop['ldapPass'].data
 
-                if prop_name == 'ldapPass':
-                    ldap_passwd = l.strip()[n+1:]
+            new_setup_properties_io = StringIO.StringIO()
+            prop.store(new_setup_properties_io, encoding='utf-8')
+            new_setup_properties_io.seek(0)
+            new_setup_properties = new_setup_properties_io.read()
 
             #put setup.properties to server
             remote_file_new = '/opt/{}/install/community-edition-setup/setup.properties'.format(gluu_server)

@@ -9,6 +9,7 @@ import uuid
 import base64
 import zipfile
 
+from jproperties import Properties
 from cryptography.hazmat.primitives.ciphers import Cipher
 from cryptography.hazmat.primitives.ciphers import algorithms
 from cryptography.hazmat.primitives.ciphers import modes
@@ -179,36 +180,27 @@ def get_inums():
     inum_appliance = '%s!0002!%s' % (base_inum, appliance_two_quads)
     return inum_org, inum_appliance
 
-def parse_setup_properties(content):
-    setup_prop = dict()
-    for l in content:
-        ls = l.strip()
-        if ls:
-            if not ls[0] == '#':
-                eq_loc = ls.find('=')
+def parse_setup_properties(prop_file):
+    prop = Properties()
 
-                if eq_loc > 0:
-                    k = ls[:eq_loc]
-                    v = ls[eq_loc+1:]
-                    v=v.replace('\\=','=')
-                    v=v.replace("\\'","'")
-                    v=v.replace('\\"','"')
-                    if v == 'True':
-                        v = True
-                    elif v == 'False':
-                        v = False
-                    setup_prop[k] = v
+    with open(prop_file) as f:
+        prop.load(f, encoding='utf-8')
 
-    return setup_prop
+    return prop.properties
 
 def write_setup_properties_file(setup_prop):
-
     setup_properties_file = os.path.join(Config.DATA_DIR,
                                          'setup.properties')
-
-    with open(setup_properties_file, 'w') as f:
-        for k, v in setup_prop.items():
-            f.write('{0}={1}\n'.format(k, v))
+    prop = Properties()
+    str_types = (type(u''), type(''))
+    for k in setup_prop:
+        val = setup_prop[k]
+        if not type(val) in str_types:
+            val = unicode(val) 
+        prop[k] = val
+    
+    with open(setup_properties_file, 'w') as w:
+        prop.store(w, encoding="utf-8")
 
 def get_setup_properties(createNew=False):
     """This fucntion returns properties for setup.properties file."""
@@ -242,10 +234,11 @@ def get_setup_properties(createNew=False):
     setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
 
     if os.path.exists(setup_properties_file):
-        setup_prop_f = parse_setup_properties(
-                                open(setup_properties_file).readlines())
-
+        prop = Properties()
+        setup_prop_f = parse_setup_properties(setup_properties_file)
         setup_prop.update(setup_prop_f)
+
+    return setup_prop
 
     if createNew:
         #Every time this function is called, create new inum
