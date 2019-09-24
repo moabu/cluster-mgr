@@ -7,7 +7,6 @@ import subprocess
 import uuid
 import traceback
 import StringIO
-from jproperties import Properties
 
 from flask import current_app as app
 
@@ -21,7 +20,7 @@ from clustermgr.config import Config
 
 from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.core.utils import get_setup_properties, modify_etc_hosts
-
+from clustermgr.core.Properties import Properties
 
 @celery.task
 def collect_server_details(server_id):
@@ -642,13 +641,12 @@ def install_gluu_server(task_id, server_id):
         result = primary_server_installer.conn.get_file(remote_file)
         prop = Properties()
         if result[0]:
-            prop.load(result[1], encoding='utf-8')
-            
-            for p in prop.properties.keys():
+            prop.load(result[1])
+
+            for p in prop.getPropertyDict():
                 if not p in prop_list:
                     del prop[p]
-            
-            
+
             prop['ip'] = server.ip
             prop['ldap_type'] = 'opendj'
             prop['hostname'] = app_conf.nginx_host
@@ -657,12 +655,11 @@ def install_gluu_server(task_id, server_id):
             new_setup_properties_io = StringIO.StringIO()
             prop.store(new_setup_properties_io, encoding='utf-8')
             new_setup_properties_io.seek(0)
-
             new_setup_properties = new_setup_properties_io.read()
 
             #put setup.properties to server
             remote_file_new = '/opt/gluu-server/root/setup.properties'
-            installer.put_file(remote_file_new,  ''.join(new_setup_properties))
+            installer.put_file(remote_file_new, new_setup_properties)
 
             if ldap_passwd:
                 server.ldap_password = ldap_passwd

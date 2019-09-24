@@ -29,7 +29,6 @@ setup(
     include_package_data=True,
     install_requires=[
         "vine",
-        "jproperties==2.0.0",
         "more_itertools==5.0.0",
         "MarkupSafe>=0.23",
         "kombu==4.5",

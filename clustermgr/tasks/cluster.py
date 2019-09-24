@@ -15,8 +15,8 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import wlogger, db, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import LdapOLC, getLdapConn
-from clustermgr.core.utils import get_setup_properties, modify_etc_hosts, \
-        make_nginx_proxy_conf, make_twem_proxy_conf, make_proxy_stunnel_conf
+from clustermgr.core.utils import modify_etc_hosts, make_nginx_proxy_conf,\
+        make_twem_proxy_conf, make_proxy_stunnel_conf
 from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.config import Config
 
