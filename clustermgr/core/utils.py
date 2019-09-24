@@ -9,12 +9,12 @@ import uuid
 import base64
 import zipfile
 
-from jproperties import Properties
 from cryptography.hazmat.primitives.ciphers import Cipher
 from cryptography.hazmat.primitives.ciphers import algorithms
 from cryptography.hazmat.primitives.ciphers import modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
+from clustermgr.core.Properties import Properties
 
 from clustermgr.config import Config
 
@@ -184,23 +184,22 @@ def parse_setup_properties(prop_file):
     prop = Properties()
 
     with open(prop_file) as f:
-        prop.load(f, encoding='utf-8')
+        prop.load(f)
 
-    return prop.properties
+    return prop.getPropertyDict()
 
 def write_setup_properties_file(setup_prop):
     setup_properties_file = os.path.join(Config.DATA_DIR,
                                          'setup.properties')
     prop = Properties()
-    str_types = (type(u''), type(''))
     for k in setup_prop:
         val = setup_prop[k]
-        if not type(val) in str_types:
-            val = unicode(val) 
+        if not isinstance(val, str):
+            val = str(val) 
         prop[k] = val
     
     with open(setup_properties_file, 'w') as w:
-        prop.store(w, encoding="utf-8")
+        prop.store(w)
 
 def get_setup_properties(createNew=False):
     """This fucntion returns properties for setup.properties file."""

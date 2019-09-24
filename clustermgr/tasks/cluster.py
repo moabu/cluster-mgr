@@ -6,7 +6,6 @@ import time
 import subprocess
 import requests
 import StringIO
-from jproperties import Properties
 
 from flask import current_app as app
 
@@ -17,7 +16,10 @@ from clustermgr.core.ldap_functions import LdapOLC, getLdapConn
 from clustermgr.core.utils import get_setup_properties, modify_etc_hosts, \
         make_nginx_proxy_conf, make_twem_proxy_conf, make_proxy_stunnel_conf
 from clustermgr.core.clustermgr_installer import Installer
+from clustermgr.core.Properties import Properties
+
 from clustermgr.config import Config
+
 import uuid
 import select
 
@@ -1364,28 +1366,30 @@ def installGluuServer(self, server_id):
        #get setup.properties.last from primary server.
         r=pc.get_file(remote_file)
         if r[0]:
-            prop.load(r[1], encoding='utf-8')
-            
-            print prop.properties
-            
-            for p in prop.properties.keys():
+            prop.load(r[1])
+
+            prop_keys = prop.keys()
+
+            for p in prop_keys[:]:
                 if not p in prop_list:
                     del prop[p]
             
-            prop['ip'] = server.ip
+            print "SERVER IP", server.ip
+            
+            prop['ip'] = str(server.ip)
             prop['ldap_type'] = 'opendj'
-            prop['hostname'] = appconf.nginx_host
-            ldap_passwd = prop['ldapPass'].data
+            prop['hostname'] = str(appconf.nginx_host)
+            ldap_passwd = prop['ldapPass']
 
             new_setup_properties_io = StringIO.StringIO()
-            prop.store(new_setup_properties_io, encoding='utf-8')
+            prop.store(new_setup_properties_io)
             new_setup_properties_io.seek(0)
             new_setup_properties = new_setup_properties_io.read()
 
             #put setup.properties to server
             remote_file_new = '/opt/{}/install/community-edition-setup/setup.properties'.format(gluu_server)
             wlogger.log(tid, 'Uploading setup.properties', 'debug')
-            c.put_file(remote_file_new,  ''.join(new_setup_properties))
+            c.put_file(remote_file_new, new_setup_properties)
 
             if ldap_passwd:
                 server.ldap_password = ldap_passwd
