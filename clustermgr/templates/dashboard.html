@@ -125,17 +125,9 @@
                                 Currently Cluster Manager<br>
                                 supports {{', '.join(SUPPORTED_OS)}}
                             </div>
-
-
                                 <span  {% if (not server.os) or (not server.os in SUPPORTED_OS) %}style="display:none"{% endif %} id="serverhide-{{server.id}}"></span>
-
-
-                            
                                 <a id="drybutton{{server.id}}" class="btn btn-default btn-xs" href="#" onClick="dryRun({{server.id}})" class="btn btn-info btn-block">
-                                    
                                     <i id="dryicon{{server.id}}" class="fa fa-spinner"></i> Dry-run
-                                
-                                
                                 </a>
                             <a class="btn btn-default btn-xs" href="{{ url_for('server.edit', server_id=server.id) }}">Edit</a>
                             <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal"
