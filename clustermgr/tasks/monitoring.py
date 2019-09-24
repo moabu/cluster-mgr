@@ -233,12 +233,8 @@ def install_monitoring(self):
 
             if not installer.upload_file(local_file, remote_file):
                 return False
-        
-        # 4. Upload gluu version, no need to determine gluu version each time
-        
-        installer.put_file('/var/monitoring/scripts/gluu_version.txt', app_conf.gluu_version)
-        
-        # 5. Upload crontab entry to collect data in every 5 minutes
+                
+        # 4. Upload crontab entry to collect data in every 5 minutes
         crontab_entry = (
                         '*/5 * * * *    root    python '
                         '/var/monitoring/scripts/cron_data_sqtile.py\n'
@@ -264,14 +260,14 @@ def install_monitoring(self):
         else:
             installer.epel_release()
 
-            # 6. Installing packages. 
-            # 6a. First determine commands for each OS type
+            # 5. Installing packages. 
+            # 5a. First determine commands for each OS type
             packages = ['gcc', 'python-dev', 'python-pip']
 
             for package in packages:
                 installer.install(package, inside=False, error_exception='warning:')
 
-            # 6b. These commands are common for all OS types 
+            # 5b. These commands are common for all OS types 
             commands = [
                             'pip install ldap3', 
                             'pip install psutil',
@@ -285,7 +281,7 @@ def install_monitoring(self):
             else:
                 commands.append('service crond restart')
 
-            # 6c. Executing commands
+            # 5c. Executing commands
             wlogger.log(task_id, "Installing Packages and Running Commands", 
                                 "info", server_id=server.id)
             
