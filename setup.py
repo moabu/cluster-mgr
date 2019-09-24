@@ -28,6 +28,7 @@ setup(
     zip_safe=False,
     include_package_data=True,
     install_requires=[
+        "more_itertools==5.0.0",
         "vine",
         "MarkupSafe>=0.23",
         "kombu==4.5",
