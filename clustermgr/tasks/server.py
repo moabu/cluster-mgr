@@ -6,6 +6,8 @@ import time
 import subprocess
 import uuid
 import traceback
+import StringIO
+from jproperties import Properties
 
 from flask import current_app as app
 
@@ -504,6 +506,7 @@ def install_gluu_server(task_id, server_id):
     #JavaScript on logger duplicates next log if we don't add this
     time.sleep(1)
 
+
     wlogger.log(task_id, "Installing Gluu Server: " + gluu_server)
 
 
@@ -553,6 +556,8 @@ def install_gluu_server(task_id, server_id):
     if server.os == 'CentOS 7' or server.os == 'RHEL 7':
         wlogger.log(task_id, "Sleeping 10 secs to wait for gluu server start properly.")
         time.sleep(10)
+
+
 
     # If this server is primary, upload local setup.properties to server
     if server.primary_server:
@@ -635,25 +640,25 @@ def install_gluu_server(task_id, server_id):
 
        #get setup.properties.last from primary server.
         result = primary_server_installer.conn.get_file(remote_file)
+        prop = Properties()
         if result[0]:
-            new_setup_properties = [ 
-                                    'ip={0}\n'.format(server.ip),
-                                    "ldap_type=opendj\n",
-                                    'hostname={0}\n'.format(app_conf.nginx_host)
-                                ]
+            prop.load(result[1], encoding='utf-8')
+            
+            for p in prop.properties.keys():
+                if not p in prop_list:
+                    del prop[p]
+            
+            
+            prop['ip'] = server.ip
+            prop['ldap_type'] = 'opendj'
+            prop['hostname'] = app_conf.nginx_host
+            ldap_passwd = prop['ldapPass'].data
 
-            setup_properties = result[1].readlines()
-            #replace ip with address of this server
-            for l in setup_properties:
-                n = l.find('=')
-                prop_name = l[:n]
-                if prop_name == 'ldap_type':
-                    new_setup_properties.append('ldap_type=opendj\n')
-                else:
-                    new_setup_properties.append(l)
+            new_setup_properties_io = StringIO.StringIO()
+            prop.store(new_setup_properties_io, encoding='utf-8')
+            new_setup_properties_io.seek(0)
 
-                if prop_name == 'ldapPass':
-                    ldap_passwd = l.strip()[n+1:]
+            new_setup_properties = new_setup_properties_io.read()
 
             #put setup.properties to server
             remote_file_new = '/opt/gluu-server/root/setup.properties'
@@ -669,7 +674,7 @@ def install_gluu_server(task_id, server_id):
                         "Ending server installation process.",
                         "error")
             return
-    
+
     wlogger.log(task_id, "3", "setstep")
     #JavaScript on logger duplicates next log if we don't add this
     time.sleep(1)
@@ -693,14 +698,8 @@ def install_gluu_server(task_id, server_id):
 
     if app_conf.modify_hosts:
         all_server = Server.query.all()
-        
-        host_ip = []
-        
-        for ship in all_server:
-            host_ip.append((ship.hostname, ship.ip))
-
+        host_ip = [ (ship.hostname, ship.ip) for ship in all_server ]
         modify_hosts(task_id, installer.conn, host_ip, '/opt/gluu-server/', server.hostname)
-
 
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
