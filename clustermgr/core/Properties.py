@@ -309,6 +309,15 @@ class Properties(object):
             if hasattr(self._props,name):
                 return getattr(self._props, name)
 
+    #added by mbaser
+    def __delitem__(self, name):
+        if name in self._props:
+            self._props.pop(name)
+        if name in self._origprops:
+            self._origprops.pop(name)
+        if name in self._keymap:
+            self._keymap.pop(name)
+
 if __name__=="__main__":
     p = Properties()
     p.load(open('test2.properties'))

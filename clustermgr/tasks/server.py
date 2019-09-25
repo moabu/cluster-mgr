@@ -642,18 +642,19 @@ def install_gluu_server(task_id, server_id):
         prop = Properties()
         if result[0]:
             prop.load(result[1])
-
-            for p in prop.getPropertyDict():
+            prop_keys = prop.keys()
+            
+            for p in prop_keys[:]:
                 if not p in prop_list:
                     del prop[p]
 
-            prop['ip'] = server.ip
+            prop['ip'] = str(server.ip)
             prop['ldap_type'] = 'opendj'
-            prop['hostname'] = app_conf.nginx_host
-            ldap_passwd = prop['ldapPass'].data
+            prop['hostname'] = str(app_conf.nginx_host)
+            ldap_passwd = prop['ldapPass']
 
             new_setup_properties_io = StringIO.StringIO()
-            prop.store(new_setup_properties_io, encoding='utf-8')
+            prop.store(new_setup_properties_io)
             new_setup_properties_io.seek(0)
             new_setup_properties = new_setup_properties_io.read()
 
