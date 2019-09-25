@@ -77,20 +77,16 @@ class LdapOLC(object):
         return self.conn.delete(dn)
 
 
-    def checkBaseDN(self):
-        """Checks id base dn exists. If not creates
+    def checkBaseDN(self, dn='o=gluu', attributes={'objectClass': ['top', 'organization'],'o': 'gluu'}):
+        """Checks if base dn exists. If not creates
 
         Returns:
             ldap add result
         """
-        r = self.conn.search(search_base="o=gluu", search_filter='(objectClass=top)', search_scope=BASE)
-        if not self.conn.search(search_base="o=gluu", search_filter='(objectClass=top)', search_scope=BASE):
-            logger.info("Adding base DN")
-            self.conn.add('o=gluu', attributes={
-                'objectClass': ['organization'],
-                'o': 'gluu',
-            }
-            )
+        if not self.conn.search(search_base=dn, search_filter='(objectClass=top)', search_scope=BASE):
+            logger.info("Adding base DN: " + dn)
+            self.conn.add(dn, attributes=attributes)
+            return True
 
     def configureOxIDPAuthentication(self, servers):
         """Makes gluu server aware of all ldap servers in the cluster

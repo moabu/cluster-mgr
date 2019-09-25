@@ -22,6 +22,8 @@ from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.core.utils import get_setup_properties, modify_etc_hosts
 from clustermgr.core.Properties import Properties
 
+from clustermgr.core.ldap_functions import LdapOLC
+
 @celery.task
 def collect_server_details(server_id):
     print "Start collecting server details task"
@@ -203,7 +205,7 @@ def checkOfflineRequirements(installer, server, appconf):
 
     wlogger.log(installer.logger_task_id,
                     "Os type matches with gluu archive", 'success')
-
+    
     #Determine gluu version
     a_path, a_fname = os.path.split(appconf.gluu_archive)
     m=re.search('gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+)(\.\d+)?)',a_fname)
@@ -466,7 +468,6 @@ def install_gluu_server(task_id, server_id):
         wlogger.log(task_id, "Check if Gluu Server was installed", 'action')
 
     gluu_installed = False
-
 
     #Determine if a version of gluu server was installed.
     
@@ -742,6 +743,44 @@ def install_gluu_server(task_id, server_id):
                                             installer.conn, 
                                             'opendj', gluu_server
                                         )
+                                        
+        #create base dn for o=metric backend    
+        wlogger.log(task_id, "Creating base dn for o=metric backend")
+        
+        ldapc = LdapOLC(
+                    'ldaps://{}:1636'.format(server.hostname),
+                    'cn=Directory Manager',
+                    server.ldap_password
+                     )
+        
+        if not ldapc.connect():
+            wlogger.log(task_id, "Cannot connect to ldap server. Failed to "
+                            "create base dn for o=metric backend", 'warning')
+        else:
+            r = ldapc.checkBaseDN(dn='o=metric', 
+                                attributes={
+                                    'objectClass': ['top', 'organization'],
+                                    'o': 'site'
+                                        }
+                                )
+            if r:
+                wlogger.log(task_id, "o=metric created", 'success')
+                            
+            r = ldapc.checkBaseDN(dn='ou=statistic,o=metric', 
+                                attributes={
+                                  'objectClass': ['top', 'organizationalUnit'],
+                                  'ou': 'statistic'
+                                      }
+                                )
+            if r:
+                wlogger.log(task_id, "ou=statistic,o=metric created", 'success')
+
+        server.gluu_server = True
+        db.session.commit()
+        wlogger.log(task_id, "Gluu Server successfully installed")
+    
+        
+        
     else:
         #this is primary server so we need to upload local custom schemas if any
         custom_schema_dir = os.path.join(Config.DATA_DIR, 'schema')
@@ -782,25 +821,6 @@ def install_gluu_server(task_id, server_id):
         installer.restart_service('cron')
 
 
-    if app_conf.gluu_version < '3.1.4':
-
-        #We need to fix opendj initscript
-        wlogger.log(task_id, 'Uploading fixed opendj init.d script')
-        opendj_init_script = os.path.join(app.root_path, "templates",
-                               "opendj", "opendj")
-        remote_opendj_init_script = '/opt/{0}/etc/init.d/opendj'.format(gluu_server)
-        
-        result = installer.upload_file(opendj_init_script, remote_opendj_init_script)
-
-        if not result:
-            return False
-
-        cmd = 'chmod +x {}'.format(remote_opendj_init_script)
-        installer.run(cmd, inside=False)
-
-    server.gluu_server = True
-    db.session.commit()
-    wlogger.log(task_id, "Gluu Server successfully installed")
     
     wlogger.log(task_id, "5", "setstep")
     return True
