@@ -196,7 +196,7 @@ def get_status():
                 
                 if stunnel_port:
 
-                    r = c.run(check_cmd.format('localhost', stunnel_port))
+                    r = c.run(check_cmd.format('localhost', '6379'))
                     stat = r[1].strip()
 
                     if stat == '0':
