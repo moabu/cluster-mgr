@@ -469,7 +469,7 @@ def do_disable_replication(task_id, server, primary_server, app_conf):
 
     cmd = ( 'OPENDJ_JAVA_HOME=/opt/jre '
             '/opt/opendj/bin/dsreplication status -n -X -h {} '
-            '-p 1444 -I admin -w $\'{}\'').format(
+            '-p 4444 -I admin -w $\'{}\'').format(
                     primary_server.hostname,
                     app_conf.replication_pw)
 
@@ -784,7 +784,7 @@ def opendjenablereplication(self, server_id):
 
     cmd = ( "OPENDJ_JAVA_HOME=/opt/jre "
             "/opt/opendj/bin/dsreplication status -n -X -h {} "
-            "-p 1444 -I admin -w $'{}'").format(
+            "-p 4444 -I admin -w $'{}'").format(
                     primary_server.hostname,
                     app_conf.replication_pw.replace("'","\\'"))
 
