@@ -1373,9 +1373,7 @@ def installGluuServer(self, server_id):
             for p in prop_keys[:]:
                 if not p in prop_list:
                     del prop[p]
-            
-            print "SERVER IP", server.ip
-            
+
             prop['ip'] = str(server.ip)
             prop['ldap_type'] = 'opendj'
             prop['hostname'] = str(appconf.nginx_host)
