@@ -36,7 +36,7 @@ from clustermgr.core.remote import RemoteClient, FakeRemote, ClientNotSetupExcep
 from clustermgr.core.clustermgr_installer import Installer
 
 from clustermgr.core.utils import get_setup_properties, \
-    get_opendj_replication_status
+    get_opendj_replication_status, as_boolean
 
 from clustermgr.core.ldifschema_utils import OpenDjSchema
 
@@ -119,10 +119,10 @@ def home():
     services = ['oxauth', 'identity']
     prop = get_setup_properties()
 
-    if prop['installSaml']:
+    if as_boolean(prop['installSaml']):
         services.append('shib')
 
-    if prop['installPassport']:
+    if as_boolean(prop['installPassport']):
         services.append('passport')
 
 
