@@ -41,10 +41,11 @@ def modify_etc_hosts(host_ip, old_hosts, old_host):
         if h in hosts['ipv4']['127.0.0.1']:
             hosts['ipv4']['127.0.0.1'].remove(h)
 
-    for h,i in host_ip:
-        if h in hosts['ipv6']['::1']:
-            hosts['ipv6']['::1'].remove(h)
-            
+    if '::1' in hosts['ipv6']:
+        for h,i in host_ip:
+            if h in hosts['ipv6']['::1']:
+                hosts['ipv6']['::1'].remove(h)
+
     for h,i in host_ip:
         if i in hosts['ipv4']:
             if not h in hosts['ipv4'][i]:
