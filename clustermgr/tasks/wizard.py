@@ -72,32 +72,29 @@ def wizard_step1(self):
                 
                 oxauth_path = '/opt/gluu-server-{0}/opt/gluu/jetty/oxauth/webapps/oxauth.war'.format(gluu_path_version)
                 
-                result = c.run('''python -c "import zipfile;zf=zipfile.ZipFile('{}','r');print zf.read('META-INF/MANIFEST.MF')"'''.format(oxauth_path))
+                try:
+                    result = c.run('''python -c "import zipfile;zf=zipfile.ZipFile('{}','r');print zf.read('META-INF/MANIFEST.MF')"'''.format(oxauth_path))
                 
-                menifest = result[1]
+                    menifest = result[1]
 
-                for l in menifest.split('\n'):
-                    ls = l.strip()
-                    if 'Implementation-Version:' in ls:
-                        version = ls.split(':')[1].strip()
-                        oxauth_version = '.'.join(version.split('.')[:3])
-                        
-                        wlogger.log(tid, "oxauth version was determined as {}".format(
-                                                            oxauth_version), 'debug')
-                
-                        break
-                else:
-                    wlogger.log(tid, "Error determining oxauth version", 'error')
-            
-            
-                app_conf.gluu_version = oxauth_version
-                #else:
-                #    wlogger.log(tid, "Error retreiving oxauth.war", 'error')
-                
-                
-                #app_conf.gluu_version = gluu_version
-                #wlogger.log(tid, "Gluu version was determined as {}".format(
-                #                                        gluu_version), 'debug')
+                    for l in menifest.split('\n'):
+                        ls = l.strip()
+                        if 'Implementation-Version:' in ls:
+                            version = ls.split(':')[1].strip()
+                            oxauth_version = '.'.join(version.split('.')[:3])
+                            
+                            wlogger.log(tid, "oxauth version was determined as {}".format(
+                                                                oxauth_version), 'debug')
+                            app_conf.gluu_version = oxauth_version
+                            break
+                except:
+                    pass
+
+                if not oxauth_version:
+                    wlogger.log(tid, "Error determining oxauth version.", 'debug')
+                    wlogger.log(tid, "Setting gluu version to path version", 'debug')            
+                    app_conf.gluu_version = gluu_path_version
+
     
     if not gluu_path_version:
         wlogger.log(tid, "Gluu server was not installed on this server",'fail')
