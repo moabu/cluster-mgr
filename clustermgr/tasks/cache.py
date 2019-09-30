@@ -46,8 +46,14 @@ def install_stunnel(installer, app_conf, is_cache):
             return False
             
         if installer.clone_type == 'rpm':
-            si.upload_service_file()
-        
+            local_service_file = os.path.join(app.root_path, 'templates', 
+                            'stunnel', 'stunnel.service')
+            remote_service_file = '/lib/systemd/system/stunnel.service'
+            wlogger.log(installer.logger_task_id, "Uploading systemd file", "info",
+                    server_id=installer.server_id)
+            installer.upload_file(local_service_file, remote_service_file)
+            installer.run("mkdir -p /var/log/stunnel4", inside=False)
+
         if installer.clone_type == 'deb':
             wlogger.log(installer.logger_task_id, "Enabling stunnel", "debug", server_id=installer.server_id)
             installer.run("sed -i 's/ENABLED=0/ENABLED=1/g' /etc/default/stunnel4", inside=False)
