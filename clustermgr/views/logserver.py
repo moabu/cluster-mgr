@@ -109,7 +109,11 @@ def index():
 def setup():
     servers = Server.query.all()
     app_conf = AppConfiguration.query.first()
-    return render_template("log_setup.html", servers=servers, offline=app_conf.offline)
+    if app_conf:
+        offline = app_conf.offline
+    else:
+        offline = False
+    return render_template("log_setup.html", servers=servers, offline=offline)
 
 
 @log_mgr.route("/install_filebeat/")
@@ -161,7 +165,7 @@ def collect():
         return redirect(url_for('index.home'))
 
     task = group([
-        collect_logs.s(server, "/tmp/gluu-filebeat")
+        collect_logs.s(server.id, "/tmp/gluu-filebeat")
         for server in servers
     ])
     task.apply_async()

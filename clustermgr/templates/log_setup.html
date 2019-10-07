@@ -50,11 +50,6 @@
                 <a class="btn btn-success btn-block" href="{{ url_for('log_mgr.install_filebeat')}}">
                     <i class="fa fa-cloud"></i> {% if offline %} Configure Filebeat {% else %} Install & Configure Filebeat {% endif %}
                 </a>
-                {% if not offline %}
-                <a class="btn btn-success btn-block" href="{{ url_for('log_mgr.install_filebeat')}}?force_install=true">
-                    <i class="fa fa-cloud"></i> Force-install Filebeat
-                </a>
-                {% endif %}
                 <a class="btn btn-danger btn-block" href="{{ url_for('log_mgr.uninstall_filebeat')}}">
                     <i class="fa fa-cloud"></i> Uninstall Filebeat
                 </a>

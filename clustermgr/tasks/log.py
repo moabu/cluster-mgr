@@ -83,10 +83,10 @@ def parse_log(log, influx_fmt=True, hostname=""):
 
 
 @celery.task(bind=True)
-def collect_logs(self, server, path, influx_fmt=True):
+def collect_logs(self, server_id, path, influx_fmt=True):
     """Collects logs from a server.
 
-    :params server: Server instance.
+    :params server_id: ID of a server.
     :params path: Absolute path to file contains logs.
     :params influx_fmt: Whether to use influxdb format or not.
     :returns: A boolean whether logs are saved successfully to database or not.
@@ -95,24 +95,26 @@ def collect_logs(self, server, path, influx_fmt=True):
     app_conf = AppConfiguration.query.first()
     dbname = current_app.config["INFLUXDB_LOGGING_DB"]
     logs = []
+    server = Server.query.get(server_id)
 
     installer = Installer(
         server,
         app_conf.gluu_version,
         logger_task_id=task_id,
         server_os=server.os,
+        server_id=server_id,
     )
 
     try:
-        _, stdout, stderr = installer.run("cat {}".format(path))
+        _, stdout, stderr = installer.run("cat {}".format(path), inside=False)
         if not stderr:
             logs = filter(
                 None,
-                [parse_log(log, hostname=server.host) for log in stdout.splitlines()],
+                [parse_log(log, hostname=server.hostname) for log in stdout.splitlines()],
             )
         else:
             task_logger.warn("Unable to collect logs from remote server {}/{}; "
-                             "reason={}".format(server.host, server.ip, stderr))
+                             "reason={}".format(server.hostname, server.ip, stderr))
     except Exception as exc:
         task_logger.warn("Unable to collect logs from remote server; "
                          "reason={}".format(exc))
@@ -196,11 +198,11 @@ def setup_filebeat(self, force_install=False):
         if app_conf.offline:
             if not fb_installed:
                 wlogger.log(
-                        task_id, 
+                        task_id,
                         "Filebeat was not installed on this server. Please"
                         " install and retry", "error", server_id=server.id)
                 return False
-                
+
         else:
             if (not fb_installed) or force_install:
                 # installs filebeat
