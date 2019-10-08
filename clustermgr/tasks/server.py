@@ -293,7 +293,7 @@ def make_opendj_listen_world(server, installer):
             "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-connection-handler-prop --handler-name 'LDAPS Connection Handler' --set enabled:true --set listen-address:0.0.0.0 -X".format(server.ldap_password),
             ]
 
-    if server.os == 'RHEL 7':
+    if server.os in ('RHEL 7', 'Ubuntu 18'):
         opendj_commands.append('systemctl stop opendj')
         opendj_commands.append('systemctl start opendj')
     else:
@@ -553,7 +553,7 @@ def install_gluu_server(task_id, server_id):
 
     #Since we will make ssh inot centos container, we need to wait ssh server to
     #be started properly
-    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+    if server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
         wlogger.log(task_id, "Sleeping 10 secs to wait for gluu server start properly.")
         time.sleep(10)
 
@@ -775,12 +775,8 @@ def install_gluu_server(task_id, server_id):
             if r:
                 wlogger.log(task_id, "ou=statistic,o=metric created", 'success')
 
-        server.gluu_server = True
-        db.session.commit()
         wlogger.log(task_id, "Gluu Server successfully installed")
-    
-        
-        
+
     else:
         #this is primary server so we need to upload local custom schemas if any
         custom_schema_dir = os.path.join(Config.DATA_DIR, 'schema')
@@ -799,6 +795,8 @@ def install_gluu_server(task_id, server_id):
                 result = installer.upload_file(local, remote)
 
 
+    server.gluu_server = True
+    db.session.commit()
 
     #ntp is required for time sync, since ldap replication will be
     #done by time stamp. If not isntalled, install and configure crontab
@@ -807,7 +805,7 @@ def install_gluu_server(task_id, server_id):
     if installer.conn.exists('/usr/sbin/ntpdate'):
         wlogger.log(task_id, "ntp was installed", 'success')
     else:
-        installer.install('ntpdate')
+        installer.install('ntpdate', inside=False)
 
     #run time sync an every minute
     installer.put_file('/etc/cron.d/setdate',

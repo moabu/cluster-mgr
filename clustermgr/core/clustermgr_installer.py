@@ -68,7 +68,7 @@ class Installer:
     
     def settings(self):
 
-        if self.server_os == 'CentOS 7' or self.server_os == 'RHEL 7':
+        if self.server_os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
             self.init_command = '/sbin/gluu-serverd {0}'
             self.service_script = 'systemctl {1} {0}'
         else:
@@ -86,16 +86,20 @@ class Installer:
 
         if self.conn.__class__.__name__ != 'FakeRemote':
             self.container = '/opt/gluu-server'
-            if self.clone_type == 'deb':
-                self.run_command = 'chroot {} /bin/bash -c "{}"'.format(self.container,'{}')
-                self.install_command = 'chroot {} /bin/bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y {}"'.format(self.container,'{}')
-            elif self.clone_type == 'rpm':                
+
+            if self.server_os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
                 self.run_command = (
                         'ssh -q -o IdentityFile=/etc/gluu/keys/gluu-console '
                         '-o UserKnownHostsFile=/dev/null '
                         '-o Port=60022 -o StrictHostKeyChecking=no '
                         '-o PubkeyAuthentication=yes root@localhost  "{0}"'
                         )
+            else:
+                self.run_command = 'chroot {} /bin/bash -c "{}"'.format(self.container,'{}')
+            
+            if self.clone_type == 'deb':
+                self.install_command = self.run_command.format('DEBIAN_FRONTEND=noninteractive apt-get install -y {}')
+            elif self.clone_type == 'rpm':
 
                 self.install_command = self.run_command.format('yum install -y {}')
         else:
@@ -236,13 +240,17 @@ class Installer:
         print "Installer> Retreiving remote file {}".format(remote)
         wlogger.log(self.logger_task_id, "Getting file {0} from {1}".format(remote, self.hostname), "debug", server_id=self.server_id)
         result = self.conn.get_file(remote)
-        if not result[0]:
+
+        if result[0] is False:
             wlogger.log(self.logger_task_id, "Can't retreive file {0} from server {1}".format(remote,result[1]), "error", server_id=self.server_id)
             wlogger.log(self.logger_task_id, "Ending up current process.", "error", server_id=self.server_id)
             return False
+
         wlogger.log(self.logger_task_id, "File {} was retreived.".format(remote), "success", server_id=self.server_id)
         
-        return result[1].read()
+        content = result[1].read()
+
+        return content
     
     def put_file(self, remote, content):
         print "Installer> Writing remote file {}".format(remote)

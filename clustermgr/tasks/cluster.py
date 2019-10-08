@@ -309,6 +309,9 @@ def setup_filesystem_replication_do(task_id):
             new_inet_conf_file_content = []
             inet_conf_file = os.path.join(installer.container, 'etc','inetd.conf')
             inet_conf_file_content = installer.get_file(inet_conf_file)
+            
+            print "File content", inet_conf_file_content
+            
             csync_line = 'csync2\tstream\ttcp\tnowait\troot\t/usr/sbin/csync2\tcsync2 -i -l -N csync{}.gluu\n'.format(server.id) 
             csync_line_exists = False
             for line in inet_conf_file:
@@ -319,9 +322,12 @@ def setup_filesystem_replication_do(task_id):
             if not csync_line_exists:
                 new_inet_conf_file_content.append(csync_line)
             new_inet_conf_file_content = ''.join(new_inet_conf_file_content)
+            
+            print new_inet_conf_file_content
+            
             installer.put_file(inet_conf_file, new_inet_conf_file_content)
 
-            installer.run('/etc/init.d/openbsd-inetd restart')
+            installer.restart_service('openbsd-inetd')
 
         elif installer.clone_type == 'rpm':
             inetd_conf = (

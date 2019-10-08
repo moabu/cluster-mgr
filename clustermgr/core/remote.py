@@ -256,6 +256,7 @@ class RemoteClient(object):
             file_obj.seek(0)
             return result, file_obj
         except Exception as err:
+            print err
             return False, err
     
     def put_file(self,  filename, filecontent):
