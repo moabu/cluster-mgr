@@ -14,10 +14,10 @@ class Installer:
         self.server_os = server_os
         self.server_id = server_id
         self.repo_updated = {False:False, True:False}
-        
+
         self.clone_type = None
         self.hostname = ''
-        
+
         if conn.__class__.__name__ != "RemoteClient" and conn.__class__.__name__ != 'FakeRemote':
             self.server_os = conn.os
             self.server_id = conn.id
