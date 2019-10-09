@@ -182,7 +182,7 @@ def _rotate_keys(kr, javalibs_dir, jks_path, task_id):
 
 @celery.task
 def schedule_key_rotation():
-    task_id = self.request.id
+
     kr = KeyRotation.query.first()
 
     if not kr:
