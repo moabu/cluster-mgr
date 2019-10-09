@@ -109,6 +109,11 @@ def index():
 def setup():
     servers = Server.query.all()
     app_conf = AppConfiguration.query.first()
+    
+    if not app_conf.monitoring:
+        return render_template("log_setup_error.html")
+    
+    
     if app_conf:
         offline = app_conf.offline
     else:

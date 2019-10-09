@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="box">
+    <div class="box-body jumbotron">
+        <h1>Logging Management</h1>
+        <p>
+            Monitoring should be setup before setting up Logging Management.
+            Click <a href="{{ url_for('monitoring.setup_index') }}">here</a> to setup monitoring.
+            
+        </p>
+        
+
+    </div>
+</div>
+
+{% endblock %}
