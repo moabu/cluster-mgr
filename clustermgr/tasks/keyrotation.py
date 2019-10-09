@@ -52,9 +52,9 @@ def get_props(server, gluu_version, task_id):
     props_fn = os.path.join(installer.container, 
                     'install/community-edition-setup/setup.properties.last')
 
-    props_content = installer.get_file(props_fn)
+    props_content = installer.get_file(props_fn, asio=True)
     
-    props = parse_setup_properties(props_content.split('\n'))
+    props = parse_setup_properties(props_content)
     return props
 
 def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass="", task_id=None):

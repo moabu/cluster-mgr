@@ -236,7 +236,7 @@ class Installer:
         return True
 
 
-    def get_file(self, remote):
+    def get_file(self, remote, asio=False):
         print "Installer> Retreiving remote file {}".format(remote)
         wlogger.log(self.logger_task_id, "Getting file {0} from {1}".format(remote, self.hostname), "debug", server_id=self.server_id)
         result = self.conn.get_file(remote)
@@ -248,9 +248,10 @@ class Installer:
 
         wlogger.log(self.logger_task_id, "File {} was retreived.".format(remote), "success", server_id=self.server_id)
         
-        content = result[1].read()
+        if asio:
+            return result[1]
 
-        return content
+        return result[1].read()
     
     def put_file(self, remote, content):
         print "Installer> Writing remote file {}".format(remote)
