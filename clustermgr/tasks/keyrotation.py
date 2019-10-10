@@ -8,6 +8,7 @@ from ldap3 import BASE
 from ldap3 import MODIFY_REPLACE
 from ldap3 import Server as Ldap3Server
 from ldap3.core.exceptions import LDAPSocketOpenError
+from clustermgr.core.Properties import Properties
 
 from ..core.clustermgr_installer import Installer
 from ..core.utils import random_chars
@@ -54,8 +55,10 @@ def get_props(server, gluu_version, task_id):
 
     props_content = installer.get_file(props_fn, asio=True)
     
-    props = parse_setup_properties(props_content)
-    return props
+    props = Properties()
+    props.load(props_content)
+
+    return props.getPropertyDict()
 
 def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass="", task_id=None):
     pub_keys = pub_keys or []
@@ -80,8 +83,6 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass="", task_id=None):
         oxauth_base = ",".join([
             "ou=oxauth",
             "ou=configuration",
-            "inum={}".format(props.get("inumAppliance")),
-            "ou=appliances",
             "o=gluu",
         ])
 
@@ -101,7 +102,7 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass="", task_id=None):
         # update public keys if necessary
         keys_conf = json.loads(entry['oxAuthConfWebKeys'].values[0])
         keys_conf["keys"] = pub_keys
-        serialized_keys_conf = json.dumps(keys_conf)
+        serialized_keys_conf = json.dumps(keys_conf, indent=2)
 
         dyn_conf = json.loads(entry["oxAuthConfDynamic"].values[0])
         dyn_conf.update({
@@ -114,7 +115,7 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass="", task_id=None):
             "webKeysStorage": "keystore",
             "keyStoreSecret": openid_jks_pass,
         })
-        serialized_dyn_conf = json.dumps(dyn_conf)
+        serialized_dyn_conf = json.dumps(dyn_conf, indent=2)
 
         # update the attributes
         task_logger.info("Modifying oxAuth configuration.")
@@ -182,7 +183,6 @@ def _rotate_keys(kr, javalibs_dir, jks_path, task_id):
 
 @celery.task
 def schedule_key_rotation():
-
     kr = KeyRotation.query.first()
 
     if not kr:
@@ -203,4 +203,4 @@ def schedule_key_rotation():
     # do the key rotation background task
     javalibs_dir = celery.conf["JAVALIBS_DIR"]
     jks_path = celery.conf["JKS_PATH"]
-    _rotate_keys(kr, javalibs_dir, jks_path)
+    _rotate_keys(kr, javalibs_dir, jks_path, None)
