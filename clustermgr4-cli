@@ -1,10 +1,10 @@
 #!/bin/sh
 
 export PYTHONPATH=/usr/local/bin:/usr/bin
-CELERY_PID="$HOME/.clustermgr/celery.pid"
-CELERY_BEAT_PID="$HOME/.clustermgr/celery-beat.pid"
-GUNICORN_PID="$HOME/.clustermgr/gunicorn.pid"
-PW_FILE="$HOME/.clustermgr/.pw"
+CELERY_PID="$HOME/.clustermgr4/celery.pid"
+CELERY_BEAT_PID="$HOME/.clustermgr4/celery-beat.pid"
+GUNICORN_PID="$HOME/.clustermgr4/gunicorn.pid"
+PW_FILE="$HOME/.clustermgr4/.pw"
 NEW_UUID=`head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1`
 app=`which clusterapp.py`
 
@@ -17,17 +17,17 @@ start() {
     echo "Upgrading Database"
     $app db upgrade
 
-    if [ ! -f "$HOME/.clustermgr/instance" ]
+    if [ ! -f "$HOME/.clustermgr4/instance" ]
     then
-        mkdir -p "$HOME/.clustermgr/instance/"
+        mkdir -p "$HOME/.clustermgr4/instance/"
         
     fi
 
-    printf "DEBUG = False\nSECRET_KEY = '$NEW_UUID'\nLICENSE_ENFORCEMENT_ENABLED = True" > "$HOME/.clustermgr/instance/config.py"
+    printf "DEBUG = False\nSECRET_KEY = '$NEW_UUID'\nLICENSE_ENFORCEMENT_ENABLED = True" > "$HOME/.clustermgr4/instance/config.py"
 
-    if [ ! -f "$HOME/.clustermgr/.start" ]
+    if [ ! -f "$HOME/.clustermgr4/.start" ]
     then
-        echo `date +%s` > $HOME/.clustermgr/.start
+        echo `date +%s` > $HOME/.clustermgr4/.start
     fi
 
     echo "Starting Celery Worker"
@@ -35,7 +35,7 @@ start() {
     then
         echo "Celery Worker pid file $CELERY_PID exists, not starting"
     else
-        NEW_UUID=$NEW_UUID celery multi start worker -A clusterapp.celery --pidfile=$CELERY_PID --logfile="$HOME/.clustermgr/logs/celery.log" --detach
+        NEW_UUID=$NEW_UUID celery multi start worker -A clusterapp.celery --pidfile=$CELERY_PID --logfile="$HOME/.clustermgr4/logs/celery.log" --detach
     fi
     
     echo "Starting Celery Beat"
@@ -43,7 +43,7 @@ start() {
     then
         echo "Celery Beat pid file $CELERY_BEAT_PID exists, not starting"
     else
-        NEW_UUID=$NEW_UUID celery beat -A clusterapp.celery --pidfile=$CELERY_BEAT_PID --logfile="$HOME/.clustermgr/logs/celery-beat.log" -s "$HOME/.clustermgr/celerybeat-schedule" --detach
+        NEW_UUID=$NEW_UUID celery beat -A clusterapp.celery --pidfile=$CELERY_BEAT_PID --logfile="$HOME/.clustermgr4/logs/celery-beat.log" -s "$HOME/.clustermgr4/celerybeat-schedule" --detach
     fi
 
     echo "Starting Gunicorn Web Server"
@@ -51,7 +51,7 @@ start() {
     then
         echo "Gunicorn pid file $GUNICORN_PID exists, not starting"
     else
-        NEW_UUID=$NEW_UUID gunicorn --daemon --pid $GUNICORN_PID  --error-logfile "$HOME/.clustermgr/logs/gunicorn_error.log"   -w 2 -b 127.0.0.1:5000 clusterapp:app
+        NEW_UUID=$NEW_UUID gunicorn --daemon --pid $GUNICORN_PID  --error-logfile "$HOME/.clustermgr4/logs/gunicorn_error.log"   -w 2 -b 127.0.0.1:5000 clusterapp:app
     fi
 }
 

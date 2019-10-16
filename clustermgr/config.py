@@ -17,7 +17,7 @@ class Config(object):
     OX11_PORT = '8190'
     DATA_DIR = os.environ.get(
         "DATA_DIR",
-        os.path.join(os.path.expanduser("~"), ".clustermgr"),
+        os.path.join(os.path.expanduser("~"), ".clustermgr4"),
     )
     
     LOGS_DIR = os.path.join(DATA_DIR, 'logs')

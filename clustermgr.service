@@ -3,7 +3,7 @@ Description=Gluu Cluster Manager Service
 
 [Service]
 Type=forking
-ExecStart=/usr/local/bin/clustermgr-cli start
+ExecStart=/usr/local/bin/clustermgr4-cli start
 User=root
 Group=root
 
