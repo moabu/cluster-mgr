@@ -61,7 +61,7 @@ setup(
         'gunicorn',
         'psutil',
     ],
-    scripts=['clusterapp.py', 'clustermgr-cli'],
+    scripts=['clusterapp.py', 'clustermgr4-cli'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Web Environment',
