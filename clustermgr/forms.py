@@ -157,7 +157,7 @@ class InstallServerForm(FlaskForm):
     installOxAuth = BooleanField('Install oxAuth', default=True)
     installOxTrust = BooleanField('Install oxTrust', default=True)
     installHTTPD = BooleanField('Install Apache 2 web server', default=True)
-    installJce = BooleanField('Install JCE 1.8')
+    installJce = BooleanField('Install Amazon-Corretto Java')
     installSaml = BooleanField('Install Shibboleth SAML IDP')
     installOxAuthRP = BooleanField('Install oxAuth RP')
     installPassport = BooleanField('Install Passport')

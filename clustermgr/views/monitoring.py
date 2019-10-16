@@ -454,6 +454,8 @@ def system(item):
         flash("Error getting data from InfluxDB")
         return render_template( 'monitoring_error.html')
 
+    print data
+
     #Default template is 'monitoring_graphs.html'
     temp = 'monitoring_graphs.html'
     title= item.replace('_', ' ').title()

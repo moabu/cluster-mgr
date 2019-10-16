@@ -17,10 +17,10 @@ def find_version(*file_paths):
 
 
 setup(
-    name='clustermgr',
+    name='clustermgr4',
     author="Gluu",
     author_email="support@gluu.org",
-    url="https://github.com/GluuFederation/cluster-mgr/",
+    url="https://github.com/GluuFederation/cluster-mgr/tree/4.0/clustermgr",
     description="Tool to facilitate LDAP replication, key management and log centralization for the Gluu Server",
     long_description="See project `README <https://github.com/GluuFederation/cluster-mgr>`_ for details.",
     version=find_version("clustermgr", "__init__.py"),
