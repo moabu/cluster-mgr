@@ -144,4 +144,4 @@ def get_remote_stats():
                         get_remote_data(server.hostname, t, c)
                         get_age(server.hostname, c)
                 except Exception as e:
-                    print "Monitoring: An error occurred while retreiveing monitoring data from server {}. Error {e}".format(server.hostname, e)
+                    print "Monitoring: An error occurred while retreiveing monitoring data from server {}. Error {}".format(server.hostname, e)
