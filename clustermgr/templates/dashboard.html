@@ -467,18 +467,12 @@ function dryRun(server_id) {
             if (data['server']['port_status'][ports[i]]) {
                 $('#sport_' + ports[i]).addClass("fa fa-check");
                 $('#sport_'+ ports[i]).addClass("text-success");
-            } else {
-                $('#sport_'+ ports[i]).addClass("fa fa-times");
-                $('#sport_'+ ports[i]).addClass("text-danger");
             }
 
             if (data['nginx']['port_status'][ports[i]]) {
                 $('#nport_' + ports[i]).addClass("fa fa-check");
                 $('#nport_'+ ports[i]).addClass("text-success");
-            } else {
-                $('#nport_'+ ports[i]).addClass("fa fa-times");
-                $('#nport_'+ ports[i]).addClass("text-danger");
-                }
+            }
 
         }
         
