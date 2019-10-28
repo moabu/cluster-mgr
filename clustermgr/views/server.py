@@ -515,20 +515,24 @@ def get_ldap_stat(server_id):
     return "0"
 
 
+
+port_status_cmd = '''python -c "import socket;sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM); socket.setdefaulttimeout(2.0); print sock.connect_ex(('{}', {}))"'''
+
 def test_port(server, client, port):
     try:
         channel = server.client.get_transport().open_session()
         channel.get_pty()
-        cmd = 'netcat -l -p {}'.format(port)
+        cmd = '''python -c "import time, socket;sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM); sock.bind(('{}', {})); sock.listen(5); time.sleep(20)"'''.format(server.ip, port)
+
         channel.exec_command(cmd)
         i = 1
         while True:
             if channel.exit_status_ready():
                 break
             time.sleep(0.1)
-            cmd2 = 'nc -zv {} {}'.format(server.ip, port)
+            cmd2 = port_status_cmd.format(server.ip, port)
             r = client.run(cmd2)
-            if r[2].strip().endswith('open') or r[2].strip().endswith('succeeded!'):
+            if r[1].strip()=='0':
                 return True
             i += 1
             if i > 5:
@@ -544,7 +548,7 @@ def dry_run(server_id):
     
     
     result = {'server':{'ssh':False, 'port_status':{}}, 'nginx':{'ssh':False, 'port_status':{}}}
-    server_ports = [1689, 443, 4444, 1636, 80, 8989, 7777, 30865]
+    server_ports = [16379, 443, 4444, 1636, 80, 8989, 7777, 30865]
     
     for p in server_ports:
         result['nginx']['port_status'][p] = False
@@ -553,38 +557,36 @@ def dry_run(server_id):
     server = Server.query.get(server_id)
     appconf = AppConfiguration.query.first()
 
-
     c = RemoteClient(server.hostname, server.ip)
-    
+
     try:
         c.startup()
         result['server']['ssh']=True
     except:
         pass
-    
+
     if result['server']['ssh']:
         #Test is any process listening ports that will be used by gluu-server
         for p in server_ports:
-            cmd = 'nc -zv {} {}'.format(server.ip, p)
+            cmd = port_status_cmd.format(server.ip, p)
             r = c.run(cmd)
-            if r[2].strip().endswith('open') or r[2].strip().endswith('succeeded!') or 'Connected to' in r[2]:
+            if r[1].strip()=='0':
                 result['server']['port_status'][p] = True
-    
-    
+
         if appconf.external_load_balancer:
             c_host = appconf.cache_host
             c_ip = appconf.cache_ip
         else:
             c_host = appconf.nginx_host
             c_ip = appconf.nginx_ip
-    
+
         c_nginx = RemoteClient(c_host, c_ip)
         try:
             c_nginx.startup()
             result['nginx']['ssh']=True
         except:
             pass
-            
+
         if result['nginx']['ssh']:
             for p in server_ports:
                 if not result['server']['port_status'][p]:
@@ -592,11 +594,11 @@ def dry_run(server_id):
                     if r:
                         result['nginx']['port_status'][p] = True
                 else:
-                    cmd = 'nc -zv {} {}'.format(server.ip, p)
+                    cmd = port_status_cmd.format(server.ip, p)
                     r = c_nginx.run(cmd)
-                    if r[2].strip().endswith('open') or r[2].strip().endswith('succeeded!') or 'Connected to' in r[2]:
+                    if r[1].strip()=='0':
                         result['nginx']['port_status'][p] = True
-    
+
     return jsonify(result)
     
 @server_view.route('/makeprimary/<int:server_id>/', methods=['GET'])
