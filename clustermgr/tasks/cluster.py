@@ -1039,7 +1039,7 @@ def update_httpd_certs_task(self, httpd_key, httpd_crt):
             installer.run('service nginx restart', False, error_exception='Redirecting to')
         else:
             installer.delete_key('httpd', app_conf.nginx_host)
-            installer.import_key('httpd', app_conf.hostname)
+            installer.import_key('httpd', app_conf.nginx_host)
             installer.restart_gluu()
 
     return True
