@@ -712,9 +712,9 @@ def install_gluu_server(task_id, server_id):
 
         cmd = ('tar -zcf {0} /opt/{1}/etc/certs/ '
                 '/opt/{1}/install/community-edition-setup/output/scim-rp.jks '
-                '/etc/gluu/conf/passport-config.json'
+                '/opt/{1}/etc/gluu/conf/passport-config.json'
                 ).format(certs_remote_tmp, gluu_server)
-        
+
         primary_server_installer.run(cmd,inside=False, error_exception='Removing leading')
 
         primary_server_installer.download_file(certs_remote_tmp, certs_local_tmp)
