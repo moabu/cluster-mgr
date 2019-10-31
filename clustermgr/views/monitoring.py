@@ -645,7 +645,6 @@ def get_server_status():
             pass
         
         for service in active_services:
-            print "Checking server status", service
             status[server.id][service] = False
             
             if c.ok:
