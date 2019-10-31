@@ -26,7 +26,7 @@ from ..core.license import license_reminder
 from ..core.license import prompt_license
 
 from clustermgr.core.utils import parse_setup_properties, \
-    write_setup_properties_file, get_setup_properties
+    write_setup_properties_file, get_setup_properties, port_status_cmd
 
 from clustermgr.core.ldap_functions import getLdapConn
 
@@ -514,9 +514,6 @@ def get_ldap_stat(server_id):
             pass
     return "0"
 
-
-
-port_status_cmd = '''python -c "import socket;sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM); socket.setdefaulttimeout(2.0); print sock.connect_ex(('{}', {}))"'''
 
 def test_port(server, client, port):
     try:

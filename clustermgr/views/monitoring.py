@@ -26,7 +26,7 @@ from clustermgr.tasks.monitoring import install_monitoring, install_local, \
 from clustermgr.monitoring_defs import left_menu, items, periods
 
 from clustermgr.core.utils import get_setup_properties, \
-    get_opendj_replication_status
+    get_opendj_replication_status, port_status_cmd
 
 monitoring = Blueprint('monitoring', __name__)
 monitoring.before_request(prompt_license)
@@ -618,7 +618,6 @@ def get_server_status():
                 'oxauth': '.well-known/openid-configuration',
                 'identity': 'identity/restv1/scim-configuration',
                 'shib': 'idp/shibboleth',
-                'passport': 'passport'
             }
 
     status = {}
@@ -646,15 +645,23 @@ def get_server_status():
             pass
         
         for service in active_services:
+            print "Checking server status", service
             status[server.id][service] = False
             
             if c.ok:
-                try:
-                    run_cmd = cmd.format(service)
-                    result = c.run(run_cmd)            
-                    if result[1].strip() == '200':
+                if service == 'passport':
+                    passport_cmd = port_status_cmd.format('localhost', 8090)
+                    r = c.run(passport_cmd)
+                    if r[1].strip()=='0':
                         status[server.id][service] = True
-                except Exception as e:
-                    print "Error getting service status of {0} for {1}. ERROR: {2}".format(server.hostname,service, e)
+                else:
+                    try:
+                        run_cmd = cmd.format(services[service])
+                        print "Running command", run_cmd
+                        result = c.run(run_cmd)            
+                        if result[1].strip() == '200':
+                            status[server.id][service] = True
+                    except Exception as e:
+                        print "Error getting service status of {0} for {1}. ERROR: {2}".format(server.hostname,service, e)
                     
     return jsonify(status)
