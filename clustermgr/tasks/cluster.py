@@ -382,29 +382,31 @@ def remove_filesystem_replication_do(server, app_config, task_id):
         if not installer.conn:
             return False
         
+        csync_enabled = False
+        
         if installer.conn.exists('/etc/cron.d/csync2'):
             installer.run('rm /etc/cron.d/csync2')
+            csync_enabled = True
         
         if installer.conn.exists('/var/lib/csync2/'):
             installer.run('rm /var/lib/csync2/*.*')
             
         if installer.conn.exists('/etc/csync2.cfg'):
             installer.run('rm -f /etc/csync2.cfg')
-        
-        if 'CentOS' in server.os or 'RHEL' in server.os :
-            if installer.conn.exists('/etc/xinetd.d/csync2'):
-                installer.run('rm /etc/xinetd.d/csync2')
-            services = ['xinetd', 'crond']
-            
-        else:
-            installer.run("sed 's/^csync/#&/' -i /etc/inetd.conf")
-            services = ['openbsd-inetd', 'cron']
-            
-        for s in services:
-            installer.restart_service(s)
 
+        if csync_enabled:
+            if 'CentOS' in server.os or 'RHEL' in server.os :
+                if installer.conn.exists('/etc/xinetd.d/csync2'):
+                    installer.run('rm /etc/xinetd.d/csync2')
+                services = ['xinetd', 'crond']
+                
+            else:
+                installer.run("sed 's/^csync/#&/' -i /etc/inetd.conf")
+                services = ['openbsd-inetd', 'cron']
+                
+            for s in services:
+                installer.restart_service(s)
 
-        
         return True
 
 

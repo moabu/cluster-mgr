@@ -65,10 +65,7 @@ def remove_server_from_cluster_view(server_id):
     disable_replication = True if request.args.get(
                                     'disablereplication',''
                                     ).lower() == 'true' else False
-    
-    
-    print request.args.get('disablereplication'), disable_replication
-    
+
     #Start non-gluu ldap server installation celery task
     server = Server.query.get(server_id)
     task = remove_server_from_cluster.delay(

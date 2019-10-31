@@ -656,7 +656,6 @@ def get_server_status():
                 else:
                     try:
                         run_cmd = cmd.format(services[service])
-                        print "Running command", run_cmd
                         result = c.run(run_cmd)            
                         if result[1].strip() == '200':
                             status[server.id][service] = True

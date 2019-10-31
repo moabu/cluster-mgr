@@ -208,21 +208,22 @@ def remove_server(server_id):
     if request.args.get('removefromdashboard') == 'true':
         db.session.delete(server)
         db.session.commit()
+        flash("Server {0} is removed.".format(server.hostname), "success")
         return redirect(url_for('index.home'))
-    
-    
-    provider_addr = server.ip if appconfig.use_ip else server.hostname
-
-    setup_prop = get_setup_properties()
 
     disable_replication = True if request.args.get('disablereplication') == \
                                'true' else False
 
+    return redirect(url_for('cluster.remove_server_from_cluster_view',
+                                server_id=server_id, removeserver=True,
+                                disablereplication=disable_replication,
+                                next='dashboard',
+                                ))
 
  
     # TODO LATER perform checks on ther flags and add their cleanup tasks
 
-    flash("Server {0} is removed.".format(server.hostname), "success")
+    
     return redirect(url_for('index.home'))
 
 
