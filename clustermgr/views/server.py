@@ -191,40 +191,6 @@ def edit(server_id):
     return render_template('new_server.html', form=form, header=header)
 
 
-def remove_provider_from_consumer_f(consumer_id, provider_addr):
-    server = Server.query.get(consumer_id)
-
-    # Make ldap connection
-    ldp = getLdapConn(server.hostname, "cn=config", server.ldap_password)
-
-    success = False
-
-    # If connection was established try to delete provider
-    if ldp:
-        r = ldp.removeProvider("ldaps://{0}:1636".format(provider_addr))
-        if r:
-            if ldp.conn.result['description'] == 'success':
-                flash('Provder {0} from {1} is removed'.format(
-                    provider_addr, server.hostname), 'success')
-                success = True
-
-    if not success:
-        if ldp:
-            flash("Removing provider was failed: {0}".format(
-                  ldp.conn.result['description']), "danger")
-        else:
-            flash("Can't connect to LDAP server", "danger")
-
-
-@server_view.route('/removeprovider/<consumer_id>/<provider_addr>')
-def remove_provider_from_consumer(consumer_id, provider_addr):
-    """This view delates provider from consumer"""
-
-    remove_provider_from_consumer_f(consumer_id, provider_addr)
-
-    return redirect(url_for('index.multi_master_replication'))
-
-
 @server_view.route('/remove/<int:server_id>')
 @login_required
 def remove_server(server_id):
