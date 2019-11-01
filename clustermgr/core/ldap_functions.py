@@ -54,7 +54,7 @@ class LdapOLC(object):
         Returns:
             the ldap connection result
         """
-        logger.debug("Making Ldap Connection")
+        logger.debug("Making Ldap Connection to " + self.addr)
         self.server = Server(self.addr, use_ssl=True)
         self.conn = Connection(
             self.server, user=self.binddn, password=self.passwd)

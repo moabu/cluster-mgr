@@ -2,7 +2,7 @@
 
 import os
 import time
-# import uuid
+import socket
 
 from flask import Blueprint, render_template, redirect, url_for, \
     flash, request, jsonify, current_app
@@ -71,15 +71,23 @@ def index():
     else:
         header = "New Server - Primary Server"
 
-        
-    
-
-
     if form.validate_on_submit():
         
         server = Server()
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
+        
+        if not is_hostname_resolved(server.hostname):
+            flash("Unable to resolve hostname {}. Please check the DNS record, "
+                  "or add the hostname to /etc/hosts of the cluster "
+                  "manager machine.".format(server.hostname), 
+                  "danger")
+                
+            return render_template('new_server.html',
+                           form=form,
+                           header=header,
+                           server_id=None)
+        
         server.mmr = False
         ask_passphrase = False
 
@@ -153,6 +161,14 @@ def index():
                            server_id=None)
 
 
+def is_hostname_resolved(hostname):
+    try:
+        socket.gethostbyname(hostname)
+    except:
+        return False
+
+    return True
+
 @server_view.route('/edit/<int:server_id>/', methods=['GET', 'POST'])
 @login_required
 def edit(server_id):
@@ -175,6 +191,15 @@ def edit(server_id):
     if form.validate_on_submit():
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
+        
+        if not is_hostname_resolved(server.hostname):
+            flash("Unable to resolve hostname {}. Please check the DNS record, "
+                  "or add the hostname to /etc/hosts of the cluster "
+                  "manager machine.".format(server.hostname), 
+                  "danger")
+                
+            return render_template('new_server.html', form=form, header=header)
+        
         if server.primary_server and form.ldap_password.data != '**dummy**':
             server.ldap_password = form.ldap_password.data.strip()
             sync_ldap_passwords(server.ldap_password)
