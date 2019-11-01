@@ -25,8 +25,7 @@ from ..core.license import license_reminder
 from ..core.license import prompt_license
 
 from clustermgr.core.utils import parse_setup_properties, \
-    write_setup_properties_file, get_setup_properties, port_status_cmd, \
-    is_hostname_resolved
+    write_setup_properties_file, get_setup_properties, port_status_cmd
 
 from clustermgr.core.ldap_functions import getLdapConn
 
@@ -76,34 +75,22 @@ def index():
         server = Server()
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
-        
-        host_resolved = is_hostname_resolved(server.hostname)
-        
-        if host_resolved:
-            flash(host_resolved, "danger")
-                
-            return render_template('new_server.html',
-                           form=form,
-                           header=header,
-                           server_id=None)
-        
+
         server.mmr = False
         ask_passphrase = False
 
         server_exist = Server.query.filter_by(
                     hostname=server.hostname).first()
-                    
+
         if server_exist:
             flash("Server with hostname {} is already in cluster".format(
                 server_exist.hostname), "warning")
             return redirect(url_for('index.home'))
 
-
-        
         c = RemoteClient(server.hostname, server.ip)
         try:
             c.startup()
-        
+
         except ClientNotSetupException as e:
 
             if str(e) == 'Pubkey is encrypted.':
@@ -183,11 +170,6 @@ def edit(server_id):
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
 
-        host_resolved = is_hostname_resolved(server.hostname)
-
-        if host_resolved:
-            flash(host_resolved, "danger")
-            return render_template('new_server.html', form=form, header=header)
         
         if server.primary_server and form.ldap_password.data != '**dummy**':
             server.ldap_password = form.ldap_password.data.strip()

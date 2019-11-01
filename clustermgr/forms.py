@@ -14,6 +14,8 @@ from flask_wtf.file import FileField, FileRequired, FileAllowed
 
 from clustermgr.config import Config
 
+from clustermgr.core.utils import is_hostname_resolved
+
 class AppConfigForm(FlaskForm):
     versions = [
                 '4.0', 
@@ -56,6 +58,11 @@ class AppConfigForm(FlaskForm):
     gluu_archive = SelectField('Gluu archive',
             choices = [ (f,os.path.split(f)[1]) for f in glob.glob(os.path.join(Config.GLUU_REPO,'gluu-server-*')) ]
             )
+
+    def validate_nginx_host(form, field):
+        is_resolved = is_hostname_resolved(field.data)
+        if is_resolved:
+            raise ValidationError(is_resolved)
 
 class SchemaForm(FlaskForm):
     schema = FileField(validators=[
@@ -128,6 +135,10 @@ class ServerForm(FlaskForm):
     ldap_password_confirm = PasswordField(
         'Re-enter LDAP Admin Password *', validators=[DataRequired()])
 
+    def validate_hostname(form, field):
+        is_resolved = is_hostname_resolved(field.data)
+        if is_resolved:
+            raise ValidationError(is_resolved)
 
 class TestUser(FlaskForm):
     first_name = StringField('First Name', validators=[DataRequired()])
