@@ -7,7 +7,7 @@ import shlex
 import subprocess
 import uuid
 import base64
-
+import socket
 
 from cryptography.hazmat.primitives.ciphers import Cipher
 from cryptography.hazmat.primitives.ciphers import algorithms
@@ -469,3 +469,15 @@ def get_cache_servers():
     cache_servers = CacheServer.query.all()
     
     return cache_servers
+
+
+def is_hostname_resolved(hostname):
+    result = ''
+    try:
+        print socket.gethostbyname(hostname)
+    except:
+        result = ("Unable to resolve hostname {}. Please check the DNS record, "
+                  "or add the hostname to /etc/hosts of the cluster "
+                  "manager machine.").format(hostname)
+
+    return result

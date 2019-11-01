@@ -2,7 +2,6 @@
 
 import os
 import time
-import socket
 
 from flask import Blueprint, render_template, redirect, url_for, \
     flash, request, jsonify, current_app
@@ -26,7 +25,8 @@ from ..core.license import license_reminder
 from ..core.license import prompt_license
 
 from clustermgr.core.utils import parse_setup_properties, \
-    write_setup_properties_file, get_setup_properties, port_status_cmd
+    write_setup_properties_file, get_setup_properties, port_status_cmd, \
+    is_hostname_resolved
 
 from clustermgr.core.ldap_functions import getLdapConn
 
@@ -77,11 +77,10 @@ def index():
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
         
-        if not is_hostname_resolved(server.hostname):
-            flash("Unable to resolve hostname {}. Please check the DNS record, "
-                  "or add the hostname to /etc/hosts of the cluster "
-                  "manager machine.".format(server.hostname), 
-                  "danger")
+        host_resolved = is_hostname_resolved(server.hostname)
+        
+        if host_resolved:
+            flash(host_resolved, "danger")
                 
             return render_template('new_server.html',
                            form=form,
@@ -161,14 +160,6 @@ def index():
                            server_id=None)
 
 
-def is_hostname_resolved(hostname):
-    try:
-        socket.gethostbyname(hostname)
-    except:
-        return False
-
-    return True
-
 @server_view.route('/edit/<int:server_id>/', methods=['GET', 'POST'])
 @login_required
 def edit(server_id):
@@ -191,13 +182,11 @@ def edit(server_id):
     if form.validate_on_submit():
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
-        
-        if not is_hostname_resolved(server.hostname):
-            flash("Unable to resolve hostname {}. Please check the DNS record, "
-                  "or add the hostname to /etc/hosts of the cluster "
-                  "manager machine.".format(server.hostname), 
-                  "danger")
-                
+
+        host_resolved = is_hostname_resolved(server.hostname)
+
+        if host_resolved:
+            flash(host_resolved, "danger")
             return render_template('new_server.html', form=form, header=header)
         
         if server.primary_server and form.ldap_password.data != '**dummy**':
