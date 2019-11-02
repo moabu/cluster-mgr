@@ -780,6 +780,22 @@ def opendjenablereplication(self, server_id):
                 if not result:
                     return False
 
+            #sometimes we need re-initialization
+            wlogger.log(task_id, "Re-initialization replication")
+            for base in ['gluu', 'site']:
+                cmd = ( "OPENDJ_JAVA_HOME=/opt/jre /opt/opendj/bin/dsreplication "
+                        "initialize --adminUID admin "
+                        "--adminPassword $'{}' --baseDN o={} --hostSource {} "
+                        "--portSource 4444 --hostDestination {} "
+                        "--portDestination 4444 --trustAll --no-prompt"
+                        ).format(
+                                app_conf.replication_pw.replace("'","\\'"),
+                                base,
+                                primary_server.ip,
+                                server.ip,
+                                )
+                node_installer.run(cmd)
+
         node_installer.restart_gluu()
 
     installer.restart_gluu()
