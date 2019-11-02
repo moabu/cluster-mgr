@@ -844,24 +844,6 @@ def installNGINX(self, nginx_host):
     if not nginx_installer.conn:
         return False
 
-    #nc is required for dyr run
-    
-    netcat_package = 'nc'
-    if nginx_installer.clone_type == 'deb':
-        netcat_package = 'netcat'
-    
-    
-    if not nginx_installer.conn.exists('/bin/' + netcat_package):
-        if app_conf.offline:
-            wlogger.log(
-                task_id, 
-                '{0} was not installed. Please install {0} and retry.'.format(netcat_package), 
-                'error'
-                )
-            return False
-
-        nginx_installer.install(netcat_package, inside=False)
-
     if not nginx_installer.conn.exists('/usr/bin/python'):
         
         if app_conf.offline:
@@ -895,7 +877,7 @@ def installNGINX(self, nginx_host):
     if not result:
         wlogger.log(task_id, "/etc/nginx/ssl/ does not exists. Creating ...",
                             "debug")
-        result = nginx_installer.conn.mkdir("/etc/nginx/ssl/")
+        result = nginx_installer.run("mkdir -p /etc/nginx/ssl/", inside=False)
         if result:
             wlogger.log(task_id, "/etc/nginx/ssl/ was created", "success")
         else:
