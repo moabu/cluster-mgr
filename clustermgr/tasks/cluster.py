@@ -252,8 +252,21 @@ def setup_filesystem_replication_do(task_id):
             elif installer.clone_type == 'rpm':
                 installer.epel_release(True)
 
+                if installer.server_os == 'RHEL 7':
+                    centos_base_repo_file = os.path.join(
+                                            app.root_path, 'templates',
+                                            'centos-repo',
+                                            'CentOS-Base.repo')
+
+                    installer.upload_file(centos_base_repo_file, 
+                            '/opt/gluu-server/etc/yum.repos.d/CentOS-Base.repo')
+                    
+                installer.epel_release(True)
+
+                installer.run('curl http://mirror.centos.org/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7 >/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7', inside=True, error_exception= '__ALL__')
+
                 csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos{}.x86_64.rpm'.format(server.os[-1])
-                installer.install(csync_rpm)
+                installer.install(csync_rpm, inside=True, error_exception= '__ALL__')
 
         else:
             wlogger.log(task_id, "csync2 was allready installed on this serevr.", server_id=server.id)
