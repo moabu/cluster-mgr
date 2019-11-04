@@ -16,10 +16,9 @@ http {
     return       301 https://{#NGINX#}$request_uri;
    }
   server {
-    listen 443;
+    listen 443 ssl;
     server_name {#NGINX#};
 
-    ssl on;
     ssl_certificate         /etc/nginx/ssl/httpd.crt;
     ssl_certificate_key     /etc/nginx/ssl/httpd.key;
 

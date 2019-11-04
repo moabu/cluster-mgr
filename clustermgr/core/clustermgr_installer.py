@@ -204,7 +204,7 @@ class Installer:
     def epel_release(self, inside=False):
         if self.clone_type == 'rpm':
             wlogger.log(self.logger_task_id, "Installing epel-release", server_id=self.server_id)
-            self.install('epel-release', inside=inside, error_exception='__ALL__')
+            self.run('yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm', inside=inside, error_exception='__ALL__')
             self.run('yum repolist', inside=inside)
 
     def upload_file(self, local, remote):

@@ -883,7 +883,7 @@ def installNGINX(self, nginx_host):
             return False
 
         nginx_installer.epel_release()
-        nginx_installer.install('nginx', inside=False)
+        nginx_installer.install('nginx', inside=False, error_exception= '__ALL__')
 
     #Check if ssl certificates directory exist on this server
     result = nginx_installer.conn.exists("/etc/nginx/ssl/")
