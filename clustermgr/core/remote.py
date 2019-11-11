@@ -163,6 +163,9 @@ class RemoteClient(object):
         Returns:
             True if rename successful else False
         """
+        
+        logger.debug("[%s] Renaming file %s to %s", self.host, oldpath, newpath)
+        
         try:
             r = self.sftpclient.rename(oldpath, newpath)
             return True
@@ -180,12 +183,16 @@ class RemoteClient(object):
             raise ClientNotSetupException(
                 'Cannot download file. Client not initialized')
 
+        logger.debug("[%s] Downloading file %s", self.host, remote)
+
         try:
             self.sftpclient.get(remote, local)
             return True, local
         except OSError:
+            logger.debug("[%s] ERROR %s", self.host, OSError)
             return False, "Error: Local file %s doesn't exist." % local
         except IOError:
+            logger.debug("[%s] ERROR %s", self.host, IOError)
             return False, "Error: Remote location %s doesn't exist." % remote
 
     def upload(self, local, remote):
@@ -198,13 +205,15 @@ class RemoteClient(object):
         if not self.sftpclient:
             raise ClientNotSetupException(
                 'Cannot upload file. Client not initialized')
-
+        logger.debug("[%s] Uploading file %s", self.host, remote)
         try:
             self.sftpclient.put(local, remote)
             return True, remote
         except OSError:
+            logger.debug("[%s] ERROR %s", self.host, OSError)
             return False, "Error: Local file %s doesn't exist." % local
         except IOError:
+            logger.debug("[%s] ERROR %s", self.host, IOError)
             return False, "Error: Remote location %s doesn't exist." % remote
 
     def exists(self, filepath):
@@ -219,6 +228,8 @@ class RemoteClient(object):
         if not self.client:
             raise ClientNotSetupException(
                 'Cannot run procedure. Client not initialized')
+                
+        logger.debug("[%s] Echecking existence of  file %s", self.host, filepath)
         try:
             self.sftpclient.stat(filepath)
             return True
@@ -237,6 +248,9 @@ class RemoteClient(object):
         if not self.client:
             raise ClientNotSetupException(
                 'Cannot run procedure. Client not initialized')
+
+
+        logger.debug("[%s] Running command %s", self.host, command)
 
         #buffers = self.client.exec_command(command, timeout=30)
         buffers = self.client.exec_command(command)
@@ -258,6 +272,9 @@ class RemoteClient(object):
         Returns:
             tuple: True/False, file like object / error
         """
+        
+        logger.debug("[%s] Getting file %s", self.host, filename)
+        
         file_obj = StringIO.StringIO()
         try:
             result = self.sftpclient.getfo(filename, file_obj)
@@ -277,6 +294,9 @@ class RemoteClient(object):
         Returns:
             tuple: True/False, file size / error
         """
+
+        logger.debug("[%s] Putting file %s", self.host, filename)
+
         file_obj = StringIO.StringIO()
         file_obj.write(filecontent)
         file_obj.seek(0)
@@ -298,6 +318,9 @@ class RemoteClient(object):
             a tuple containing the success or failure of operation and dirname
                 on success and error on failure
         """
+        
+        logger.debug("[%s] Creating directory %s", self.host, dirname)
+        
         try:
             self.sftpclient.mkdir(dirname)
             return True, dirname
@@ -314,6 +337,9 @@ class RemoteClient(object):
         Returns:
             a list of the files and folders in the directory
         """
+        
+        logger.debug("[%s] Getting directory listing of %s", self.host, dirname)
+        
         try:
             result = self.sftpclient.listdir(dirname)
             return True, result
