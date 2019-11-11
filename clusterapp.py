@@ -21,8 +21,6 @@ from flask import request, render_template
 
 app = create_app()
 
-app.clustermgrlogger = logger
-
 init_celery(app, celery)
 
 def create_cluster_app(info):

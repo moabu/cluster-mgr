@@ -158,15 +158,9 @@ def app_configuration():
             conf_form.replication_pw.validators = []
             conf_form.replication_pw_confirm.validators = []
             
-        if not conf_form.external_load_balancer.data:
-            conf_form.cache_host.validators = []
-            conf_form.cache_ip.validators= []
-        else:
-            #external_lb_checked = True
+        if conf_form.external_load_balancer.data:
             conf_form.nginx_ip.validators= []
-        if  conf_form.use_ldap_cache.data:
-            conf_form.cache_host.validators = []
-            conf_form.cache_ip.validators= []
+
 
         if not conf_form.offline.data:
             del conf_form._fields['gluu_archive']
@@ -177,10 +171,10 @@ def app_configuration():
         config = AppConfiguration()
         db.session.add(config)
 
+    print conf_form.update.data, conf_form.validate_on_submit(),  conf_form.errors
 
     # If form is submitted and validated process it
     if conf_form.update.data and conf_form.validate_on_submit():
-        
         if config.replication_pw:
             new_replication_passwd = conf_form.replication_pw.data.strip()
             if conf_form.replication_pw.data:
@@ -230,6 +224,7 @@ def app_configuration():
         config.ldap_update_period_unit = 's'
         config.external_load_balancer = conf_form.external_load_balancer.data
         config.use_ldap_cache = conf_form.use_ldap_cache.data
+
 
         if conf_form.offline.data:
             config.offline = True
@@ -283,9 +278,9 @@ def app_configuration():
         conf_form.use_ldap_cache.data = config.use_ldap_cache
         conf_form.offline.data =  config.offline
 
-        if config.external_load_balancer:
-            conf_form.cache_host.data = config.cache_host
-            conf_form.cache_ip.data = config.cache_ip
+        #if config.external_load_balancer:
+        #    conf_form.cache_host.data = config.cache_host
+        #    conf_form.cache_ip.data = config.cache_ip
         
         
         service_status_update_period = config.ldap_update_period

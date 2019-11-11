@@ -13,13 +13,10 @@ from flask import current_app
 from clustermgr.extensions import wlogger
 from clustermgr.config import Config
 
-
-
 handler = RotatingFileHandler(Config.SSH_LOG_FILE, maxBytes= 5*1024*1024, backupCount=3)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.ERROR)
 logger.addHandler(handler)
-
 
 
 def decode(key, enc):

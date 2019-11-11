@@ -50,8 +50,8 @@ class AppConfigForm(FlaskForm):
                                 '/etc/hosts file on each server')
 
     external_load_balancer = BooleanField('This is external load balancer')
-    cache_host = StringField('Cache Proxy Hostname', validators=[DataRequired()])
-    cache_ip = StringField('Cache Proxy IP Address', validators=[DataRequired()])
+    #cache_host = StringField('Cache Proxy Hostname', validators=[DataRequired()])
+    #cache_ip = StringField('Cache Proxy IP Address', validators=[DataRequired()])
     use_ldap_cache = BooleanField('Use LDAP Cache')
     update = SubmitField("Update Configuration")
     offline = BooleanField('Offline installation')
