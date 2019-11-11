@@ -3,11 +3,25 @@
 
 If you don't have registered RHEL7 repo, write the following content to `/etc/yum.repos.d/centos7.repo`
 
+```
+[centos]
+name=CentOS-7
+baseurl=http://ftp.heanet.ie/pub/centos/7/os/x86_64/
+enabled=1
+gpgcheck=1
+gpgkey=http://ftp.heanet.ie/pub/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7
+
+```
+
 `# rpm -i https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm`
 
 `# yum repolist`
 
-`# yum install -y java redis python-ldap python-ldap3`
+`# yum install gcc gcc-c++ make python-devel  openldap-devel python-pip`
+
+`# yum install -y java-1.8.0-openjdk-headless redis`
+
+`# pip install python-ldap`
 
 `# pip install clustermgr4` [ If from github then: `pip install https://github.com/GluuFederation/cluster-mgr/archive/4.0.zip` ] 
 
@@ -22,13 +36,13 @@ If you don't have registered RHEL7 repo, write the following content to `/etc/yu
 
 `# yum repolist`
 
-`# yum install gcc gcc-c++ make python-devel  openldap-devel python-pip`
+`# yum install gcc gcc-c++ make python-devel  openldap-devel python-pip java-1.8.0-openjdk-headless`
 
 `# yum install -y redis`
 
 `# pip install python-ldap`
 
-`# pip install clustermgr`
+`# pip install clustermgr4`
 
 `# systemctl enable redis`
 
