@@ -17,7 +17,6 @@ from cryptography.hazmat.backends import default_backend
 
 from clustermgr.config import Config
 
-from clustermgr.core.remote import RemoteClient
 from clustermgr.models import Server, AppConfiguration, CacheServer
 from clustermgr.extensions import wlogger
 from flask import current_app as app
@@ -38,7 +37,6 @@ handler = RotatingFileHandler(Config.LOG_FILE, maxBytes= 5*1024*1024, backupCoun
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.ERROR)
 logger.addHandler(handler)
-
 
 def ldap_encode(password):
     salt = os.urandom(4)

@@ -1,14 +1,25 @@
 import StringIO
 import socket
-import logging
 import os
 import base64
+import logging
 
+from logging.handlers import RotatingFileHandler
 from paramiko import SSHException
 from paramiko.client import SSHClient, AutoAddPolicy
 from paramiko.ssh_exception import PasswordRequiredException 
 from flask import current_app
+
 from clustermgr.extensions import wlogger
+from clustermgr.config import Config
+
+
+
+handler = RotatingFileHandler(Config.SSH_LOG_FILE, maxBytes= 5*1024*1024, backupCount=3)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.ERROR)
+logger.addHandler(handler)
+
 
 
 def decode(key, enc):
@@ -102,7 +113,7 @@ class RemoteClient(object):
         self.sftpclient = None
         self.client.set_missing_host_key_policy(AutoAddPolicy())
         self.client.load_system_host_keys()
-        logging.debug("RemoteClient created for host: {}", host)
+        logger.debug("RemoteClient created for host: {}", host)
 
     def startup(self):
         """Function that starts SSH connection and makes client available for
@@ -110,7 +121,7 @@ class RemoteClient(object):
         it tries with the IP address if supplied
         """
         try:
-            logging.debug("Trying to connect to remote server %s", self.host)
+            logger.debug("Trying to connect to remote server %s", self.host)
             self.client.connect(self.host, port=22, username=self.user, 
                                     passphrase=self.passphrase)
             self.sftpclient = self.client.open_sftp()
@@ -122,17 +133,17 @@ class RemoteClient(object):
         
         except:
             if self.ip:
-                logging.warning("Connection with hostname failed. Retrying "
+                logger.warning("Connection with hostname failed. Retrying "
                                 "with IP")
                 self._try_with_ip()
             else:
-                logging.error("Connection to %s failed.", self.host)
+                logger.error("Connection to %s failed.", self.host)
                 raise ClientNotSetupException('Could not connect to the host.')
 
 
     def _try_with_ip(self):
         try:
-            logging.debug("Connecting to IP:%s User:%s" % (self.ip, self.user))
+            logger.debug("Connecting to IP:%s User:%s" % (self.ip, self.user))
             self.client.connect(self.ip, port=22, username=self.user,
                                 passphrase=self.passphrase)
             self.sftpclient = self.client.open_sftp()
@@ -143,7 +154,7 @@ class RemoteClient(object):
             raise ClientNotSetupException(e)
 
         except socket.error:
-            logging.error("Connection with IP (%s) failed.", self.ip)
+            logger.error("Connection with IP (%s) failed.", self.ip)
             raise ClientNotSetupException('Could not connect to the host.')
 
     def rename(self, oldpath, newpath):
