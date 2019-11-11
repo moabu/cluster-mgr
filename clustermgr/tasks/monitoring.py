@@ -26,10 +26,14 @@ def fix_influxdb_config():
     for l in conf:
         if l.startswith('[http]'):
             http = True
-            
+        elif l.strip().startswith('[') and l.strip().endswith(']'):
+            http = False
+        
         if http:
-            if l.strip().startswith('bind-address'):
+            if 'bind-address' in l:
                 l = '  bind-address = "localhost:8086"\n'
+            elif '#enabled' in l.replace(' ',''):
+                l = '  enabled = true\n'
 
         new_conf.append(l)
 
@@ -135,7 +139,7 @@ def install_local(self):
                     'sudo pip install psutil',
                     ]
 
-            elif localos == 'CentOS 7':
+            elif localos in ('CentOS 7', 'RHEL 7'):
                 influx_cmd = [
                                 'sudo yum install -y epel-release',
                                 'sudo yum repolist',
@@ -164,7 +168,7 @@ def install_local(self):
     fix_influxdb_config()
     installer.start_service('influxdb', inside=False)
     #wait influxdb to start
-    time.sleep(10)
+    time.sleep(20)
     
     #Statistics will be written to 'gluu_monitoring' on local influxdb server,
     #so we should crerate it.
