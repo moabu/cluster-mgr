@@ -410,7 +410,7 @@ def install_gluu_server(task_id, server_id):
                 cmd_list = (
                     'curl https://repo.gluu.org/ubuntu/gluu-apt.key | '
                     'apt-key add -',
-                    'echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" '
+                    'echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
                     '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist)
                     )
             
@@ -441,8 +441,7 @@ def install_gluu_server(task_id, server_id):
             if server.os == 'CentOS 7':
                 
                 cmd = (
-                  'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo -O ' #testing repo
-                  #'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O '
+                  'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O '
                   '/etc/yum.repos.d/Gluu.repo'
                   )
                 enable_command  = '/sbin/gluu-serverd enable'
