@@ -49,7 +49,7 @@ setup(
         "requests>=2.20.0",
         "Flask-Migrate",
         "ldap3",
-        "paramiko>=2.4.0",
+        "paramiko==2.4.2",
         "pyOpenSSL==19.0.0",
         "Flask-Login",
         "Flask-Mail",
