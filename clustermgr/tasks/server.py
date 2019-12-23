@@ -230,7 +230,7 @@ def checkOfflineRequirements(installer, server, appconf):
 
     #check if curl exists on the system
     cmd = 'which curl'
-    result = installer.run(cmd, inside=False)
+    result = installer.run(cmd, inside=False, error_exception='no curl in')
 
     curlexist = False if not 'curl' in result[1] else True
 
@@ -283,7 +283,7 @@ def checkOfflineRequirements(installer, server, appconf):
         return False
 
     return True
-    
+
 
 def make_opendj_listen_world(server, installer):
         
@@ -439,11 +439,13 @@ def install_gluu_server(task_id, server_id):
                 installer.install('wget', inside=False, error_exception='warning: /var/cache/')
 
             if server.os == 'CentOS 7':
-                
+
                 cmd = (
-                  'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O '
+                  #'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O '
+                  'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo  -O '
                   '/etc/yum.repos.d/Gluu.repo'
                   )
+
                 enable_command  = '/sbin/gluu-serverd enable'
                 
             elif server.os == 'RHEL 7':
@@ -530,8 +532,8 @@ def install_gluu_server(task_id, server_id):
         installer.run(install_command, inside=False, error_exception='__ALL__')
 
     else:
-    
-        cmd = installer.get_install_cmd(gluu_server, inside=False)
+
+        cmd = installer.get_install_cmd(gluu_server + '-' + app_conf.gluu_version, inside=False)
 
         ubuntu_re = re.compile('\[(\s|\w|%|/|-|\.)*\]')
         ubuntu_re_2 = re.compile('\(Reading database ... \d*')
@@ -575,8 +577,7 @@ def install_gluu_server(task_id, server_id):
         # ldap_paswwrod of this server should be the same with primary server
         ldap_passwd = None
 
-
-        remote_file = '/opt/gluu-server/install/community-edition-setup/setup.properties.last'.format(gluu_server)
+        remote_file = '/opt/gluu-server/install/community-edition-setup/setup.properties.last'
         wlogger.log(task_id, 'Downloading setup.properties.last from primary server', 'debug')
 
         prop_list = ['passport_rp_client_jks_pass', 
@@ -640,11 +641,21 @@ def install_gluu_server(task_id, server_id):
                      'installOxAuthRP',
                      ]
 
-       #get setup.properties.last from primary server.
-        result = primary_server_installer.conn.get_file(remote_file)
+        prop_io = None
+
+        #get setup.properties.last from primary server.
+        if primary_server_installer.conn.exists(remote_file):
+            result = primary_server_installer.conn.get_file(remote_file)
+            prop_io = result[1]
+        else:
+            cmd_unenc = 'openssl enc -d -aes-256-cbc -in /install/community-edition-setup/setup.properties.last.enc -k {}'.format(server.ldap_password)
+            result = primary_server_installer.run(cmd_unenc, inside=True)
+            prop_io = StringIO.StringIO(result[1])
+            prop_io.seek(0)
+
         prop = Properties()
-        if result[0]:
-            prop.load(result[1])
+        if prop_io:
+            prop.load(prop_io)
             prop_keys = prop.keys()
             
             for p in prop_keys[:]:
@@ -679,6 +690,10 @@ def install_gluu_server(task_id, server_id):
     wlogger.log(task_id, "3", "setstep")
     #JavaScript on logger duplicates next log if we don't add this
     time.sleep(1)
+
+    #installer.run('wget https://raw.githubusercontent.com/GluuFederation/community-edition-setup/version_4.1.0/setup.py -O /install/community-edition-setup/setup.py',
+    #                inside=True, error_exception='__ALL__')
+    #installer.run('chmod +x /install/community-edition-setup/setup.py', inside=True, error_exception='__ALL__')
 
     setup_cmd = '/install/community-edition-setup/setup.py -f /root/setup.properties --listen_all_interfaces -n'
 

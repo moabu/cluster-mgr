@@ -289,9 +289,12 @@ class Installer:
         check_file = ('/opt/gluu-server/install/community-edition-setup/'
                   'setup.properties.last')
 
+        check_file_enc = ('/opt/gluu-server/install/community-edition-setup/'
+                    'setup.properties.last.enc')
+
         print "Installer> Checking existence of file {} for gluu installation".format(check_file)
 
-        return self.conn.exists(check_file)
+        return self.conn.exists(check_file) or self.conn.exists(check_file_enc)
 
     def get_gluu_version(self, installed=False):
         gluu_version = None
