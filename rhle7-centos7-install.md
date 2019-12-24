@@ -37,6 +37,8 @@ gpgkey=http://ftp.heanet.ie/pub/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7
 
 `# yum repolist`
 
+`# yum install java-1.7.0-openjdk-headles`
+
 `# yum install gcc gcc-c++ make python-devel  openldap-devel python-pip`
 
 `# yum install -y redis`
