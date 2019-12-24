@@ -128,12 +128,9 @@ class LdapOLC(object):
             oxCacheConfiguration['cacheProviderType'] = method
             if server_string:
                 oxCacheConfiguration['redisConfiguration']['servers'] = server_string
-            if not redis_password:
-                redis_password = None
-            
-            if redis_password:
-                oxCacheConfiguration['redisConfiguration']['decryptedPassword'] = redis_password
-            
+
+            oxCacheConfiguration['redisConfiguration']['decryptedPassword'] = redis_password
+
             oxCacheConfiguration_js = json.dumps(oxCacheConfiguration, indent=2)
             dn = self.conn.response[0]['dn']
             

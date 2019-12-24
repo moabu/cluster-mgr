@@ -119,8 +119,11 @@ def add_cache_server():
         if not cacheserver:
             return "<h2>No such Cache Server</h2>"
     else:
-        form.redis_password.data = random_chars(20)
-        form.stunnel_port.data = 16379
+        if request.method == "GET":
+            form.redis_password.data = random_chars(20)
+            form.stunnel_port.data = 16379
+
+    print form.redis_password.data
 
     if request.method == "POST" and form.validate_on_submit():
         hostname = form.hostname.data
@@ -148,7 +151,7 @@ def add_cache_server():
             flash("Cache server was updated","success")
 
         return jsonify( {"result": True, "message": "Cache server was added"})
-    
+
     return render_template( 'cache_server.html', form=form)
 
 @cache_mgr.route('/status/')
