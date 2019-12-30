@@ -18,6 +18,9 @@ gpgkey=http://ftp.heanet.ie/pub/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7
 
 `# yum repolist`
 
+!!! Note
+    If your Gluu Server nodes will be Red Hat 7, please enable epel release each node (by repeating above steps) before attempting to install Gluu Server via CM. 
+
 `# yum install gcc gcc-c++ make python-devel  openldap-devel python-pip`
 
 `# yum install -y redis`
