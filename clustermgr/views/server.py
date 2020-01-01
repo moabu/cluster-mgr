@@ -290,20 +290,18 @@ def install_gluu(server_id):
                   'installOxTrust',
                   'installLdap',
                   'installHTTPD',
-                  'installJce',
                   'installSaml',
                   'installOxAuthRP',
                   'installPassport',
                   'application_max_ram',
                   ):
             setup_prop[o] = getattr(form, o).data
-            setup_prop['ldap_type'] = 'opendj'
-            setup_prop['opendj_type'] = 'wrends'
-            setup_prop['installLdap'] = True
-
+        setup_prop['ldap_type'] = 'opendj'
+        setup_prop['opendj_type'] = 'wrends'
+        setup_prop['installJce'] = True
+        setup_prop['installLdap'] = True
 
         write_setup_properties_file(setup_prop)
-
 
         # Redirect to cluster.install_gluu_server to start installation.
         
@@ -327,7 +325,6 @@ def install_gluu(server_id):
                   'installOxTrust',
                   'installLdap',
                   'installHTTPD',
-                  'installJce',
                   'installSaml',
                   'installOxAuthRP',
                   'installPassport',
