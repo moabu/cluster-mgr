@@ -189,6 +189,9 @@ def getData(item, step=None):
 
         result = client.query(query, epoch='s')
 
+        print result.raw
+
+
         data_dict = {}
 
         data = []
@@ -453,8 +456,6 @@ def system(item):
     except:
         flash("Error getting data from InfluxDB")
         return render_template( 'monitoring_error.html')
-
-    print data
 
     #Default template is 'monitoring_graphs.html'
     temp = 'monitoring_graphs.html'

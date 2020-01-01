@@ -3,7 +3,16 @@
 
 import redis
 import json
+import logging
 
+from logging.handlers import RotatingFileHandler
+from clustermgr.config import Config
+
+handler = RotatingFileHandler(Config.WEBLOGGER_LOG_FILE, maxBytes= 5*1024*1024, backupCount=3)
+handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+logger.addHandler(handler)
 
 class WebLogger(object):
     """WebLogger is a Redis wrapper to store task logs for flask view access.
@@ -72,6 +81,7 @@ class WebLogger(object):
         return "{0}:{1}".format(self.prefix, taskid)
 
     def log(self, taskid, message, level=None, **kwargs):
+        logger.debug(message.strip())
         """R Pushes the message into REDIS as a list for that task id with the key
         <app.name>:<taskid>.
 
@@ -99,6 +109,7 @@ class WebLogger(object):
 
         self.r.rpush(self.__key(taskid), json.dumps(logitem))
         self.r.expire(self.__key(taskid), 86400)  # TODO make this configurable
+
 
     def get_messages(self, taskid):
         """Returns all the messages pushed by a task.

@@ -31,6 +31,7 @@ class Config(object):
     
     LOG_FILE = os.path.join(LOGS_DIR, 'clustermgr.log')
     SSH_LOG_FILE = os.path.join(LOGS_DIR, 'ssh.log')
+    WEBLOGGER_LOG_FILE = os.path.join(LOGS_DIR, 'weblogger.log')
     JAVALIBS_DIR = os.path.join(DATA_DIR, "javalibs")
     APP_INSTANCE_DIR = os.path.join(DATA_DIR, "instance")
     SCHEMA_DIR = os.path.join(DATA_DIR, "schema")
