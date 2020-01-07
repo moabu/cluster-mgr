@@ -23,11 +23,13 @@ gpgkey=http://ftp.heanet.ie/pub/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7
 
 `# yum install gcc gcc-c++ make python-devel  openldap-devel python-pip`
 
+`# yum install java-1.8.0-openjdk`
+
 `# yum install -y redis`
 
 `# pip install python-ldap`
 
-`# pip install clustermgr` [ If from github then: `pip install https://github.com/GluuFederation/cluster-mgr/archive/master.zip` ] 
+`# pip install clustermgr4` [ If from github then: `# pip install https://github.com/GluuFederation/cluster-mgr/archive/4.0.zip` ] 
 
 `# systemctl enable redis`
 
@@ -40,7 +42,7 @@ gpgkey=http://ftp.heanet.ie/pub/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7
 
 `# yum repolist`
 
-`# yum install java-1.7.0-openjdk-headles`
+`# yum install java-1.8.0-openjdk`
 
 `# yum install gcc gcc-c++ make python-devel  openldap-devel python-pip`
 
@@ -48,7 +50,7 @@ gpgkey=http://ftp.heanet.ie/pub/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7
 
 `# pip install python-ldap`
 
-`# pip install clustermgr`
+`# pip install clustermgr4` [ If from github then: `# pip install https://github.com/GluuFederation/cluster-mgr/archive/4.0.zip` ] 
 
 `# systemctl enable redis`
 
