@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from 'macros.html' import render_field, render_checkbox_field, render_form %}
+
+{% block header %}
+    <h1>Load Balancer Setup</h1>
+{% endblock %}
+
+{% block  content %}
+<div class="box box-primary">
+
+    <form id="cform" action="{{ url_for('loadbalancer.setup_nginx', next=next) }}" method="POST" class="form-horizontal">
+        <div class="box-body">
+            {{ cform.csrf_token }}
+
+                <div class="form-group {{ 'has-error' if cform.nginx_host.errors else '' }}">
+                    {{ cform.nginx_host.label(class="control-label col-md-3") }}
+                    <div class="col-md-9">
+                        {{ cform.nginx_host(class="form-control", disabled=is_primary_deployed) }}
+                        <p class="form-text text-warning">
+                            {{cform.nginx_host.description}}
+                        </p>
+                        {% for error in cform.nginx_host.errors %}
+                            <p class="help-block">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="form-group {{ 'has-error' if cform.nginx_ip.errors else '' }}" id="external_ip_group" {% if cform.external_load_balancer.data %}style="display: none"{% endif %} >
+                    {{ cform.nginx_ip.label(class="control-label col-md-3") }}
+                    <div class="col-md-9">
+                        {% if cform.external_load_balancer.data %}
+                            {{ cform.nginx_ip(class="form-control", required=False) }}
+                        {%else%}
+                            {{ cform.nginx_ip(class="form-control") }}
+                        {%endif%}
+                        {% for error in cform.nginx_ip.errors %}
+                            <p class="help-block">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="col-md-offset-3 col-md-9">
+                        {{ render_checkbox_field(cform.external_load_balancer, checked=cform.external_load_balancer.data) }}
+                    </div>
+                </div>
+        
+        <div class="box-footer">
+            <input class="btn btn-primary pull-right" id="submit" name="submit" type="submit" value="{{submit_text}} Configuration">
+        </div>
+
+    </div>
+    </form>
+
+</div>
+{% endblock %}
+{% block js %}
+<script>
+
+$('#external_load_balancer').change(function() {
+    if(this.checked) {
+        $('#external_ip_group').attr('style',  'display: none');
+        $('#nginx_ip').removeAttr('required');
+
+    } else {
+        $('#external-load-balancer-box').attr('style',  'display: none');
+        $('#external_ip_group').removeAttr('style');
+        $('#nginx_ip').prop('required',true);
+    }
+
+});
+</script>
+{% endblock %}

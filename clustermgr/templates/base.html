@@ -65,121 +65,49 @@
       {% if current_user.is_authenticated %}
         <section class="sidebar">
           <ul class="sidebar-menu" data-widget="tree">
-            <li><a href="/"><i class="fa fa-dashboard"></i><span>Dashboard</span></a></li>
-
-            <li class="treeview">
-              <a href="#">
-                <i class="fa fa-cubes"></i><span>Cluster</span>
-                <span class="pull-right-container">
-                  <i class="fa fa-angle-left pull-right"></i>
-                </span>
-              </a>
-
-              <ul class="treeview-menu">
-                <li><a href="{{ url_for('server.index') }}"><i class="fa fa-plus-square"></i>Add Server</a></li>
-                {% if not external_load_balancer %}
-                <li><a href="{{ url_for('cluster.install_nginx') }}"><i class="fa fa-plus-square"></i>Install Nginx</a></li>
-                {% endif %}
-              </ul>
-
-            
-            </li>
-
-            
-            <!-------replication tree----------------->
-            <li class="treeview">
-              <a href="#">
-                <i class="fa fa-refresh"></i><span>Replication</span>
-                <span class="pull-right-container">
-                  <i class="fa fa-angle-left pull-right"></i>
-                </span>
-              </a>
-              <ul class="treeview-menu">
-                <li><a href="{{ url_for('index.multi_master_replication') }}"> <i class="fa fa-database"></i><span>LDAP</span></a> </li>
-                <li><a href="{{ url_for('cluster.file_system_replication') }}"> <i class="fa fa-file"></i><span>File System</span></a> </li>
-              </ul>
-            </li>
-            <!---------end of replication tree----------->
-
-            {% if not use_ldap_cache %}
-
-            <li><a href="{{ url_for('cache_mgr.index') }}">
-              <i class="fa fa-microchip"></i><span>Cache Management</span></a>
-            </li>
-
-            {% endif %}
-
-            <!-------Monitoring tree----------------->
-            <li class="treeview">
-              <a href="#">
-                <i class="fa fa-eye"></i><span>Monitoring</span>
-                <span class="pull-right-container">
-                  <i class="fa fa-angle-left pull-right"></i>
-                </span>
-              </a>
-              <ul class="treeview-menu">
-                <li><a href="{{ url_for('monitoring.home') }}"> <i class="fa fa-bar-chart"></i><span>Statistics</span></a> </li>
-                <li><a href="{{ url_for('monitoring.setup_index') }}"> <i class="fa fa-wrench"></i><span>Setup Monitoring</span></a> </li>
-              </ul>
-            </li>
-            <!---------end of replication tree----------->
-
-            <li class="treeview">
-              <a href="#">
-                <i class="fa fa-file-text-o"></i><span>Logging Management</span>
-                <span class="pull-right-container">
-                  <i class="fa fa-angle-left pull-right"></i>
-                </span>
-              </a>
-              <ul class="treeview-menu">
-                <li><a href="{{ url_for('log_mgr.index') }}"> <i class="fa fa-bar-chart"></i><span>Logs</span></a> </li>
-                <li><a href="{{ url_for('log_mgr.setup') }}"><i class="fa fa-wrench"></i><span>Setup Logging</span></a></li>
-              </ul>
-            </li>
-
-            {% if config["LICENSE_ENFORCEMENT_ENABLED"] %}
-            <li>
-                <a href="{{ url_for('license.index') }}">
-                    <i class="fa fa-drivers-license-o"></i><span>License</span>
+              
+              {% for cluster in current_menu.children %}
+                <li class="treeview {% if cluster.has_active_child %}active menu-open{% endif %}">
+                  
+                <a href="#">
+                    <i class="{{cluster.icon}}"></i>{{cluster.text}}
+                    <i class="fa fa-angle-left pull-right"></i>
                 </a>
-            </li>
-            {% endif %}
+                
+                <ul class="treeview-menu">
+                {% for menu in cluster.children %}
+                  {% if not menu.children %}
+                    {% if menu.visible %}
+                    <li {% if menu.active %}class="active"{% endif %}><a href="{{menu.url}}"><i class="{{menu.icon}}"></i><span>{{menu.text}}</span></a></li>
+                    {% endif %}
+                  {% else %}
+                
+                    <li class="treeview {% if menu.active_item %}active menu-open{% endif %}">
+                      <a href="#">
+                        <i class="{{menu.icon}}"></i><span>{{menu.text}}</span>
+                        <span class="pull-right-container"><i class="fa fa-angle-left"></i></span>
+                     </a>
+                   
+                     <ul class="treeview-menu">
+                      {% for submenu in menu.children %}
+                        {% if submenu.visible %}
+                          <li {% if submenu.active %}class="active"{% endif %}><a href="{{ submenu.url}}"> <i class="fa fa-angle-right"></i><span>{{submenu.text}}</span></a> </li>
+                        {% endif %}
+                      {% endfor %}
+                     </ul>
+                   </li>
 
+                  {% endif %}
 
-            <li>
-                <a href="{{ url_for('keyrotation.index') }}">
-                    <i class="fa fa-key"></i><span>Key Rotation</span>
-                </a>
-            </li>
-
-            <li><a href="{{ url_for('index.app_configuration') }}">
-              <i class="fa fa-cog"></i><span>Settings</span></a></li>
-            <!--
-            <li><a href="{{ url_for('attributes.home') }}">
-              <i class="fa fa-edit"></i><span>Custom Attributes</span></a></li>
-            -->
-
-            <li class="treeview">
-              <a href="#">
-                <i class="fa fa-cogs"></i><span>Operations</span>
-                <span class="pull-right-container">
-                  <i class="fa fa-angle-left pull-right"></i>
-                </span>
-              </a>
-              <ul class="treeview-menu">
-                <li><a href="{{ url_for('operations.httpd_certs') }}"> <i class="fa fa-certificate"></i><span>Certificates</span></a> </li>
-
+                {% endfor %}
+                
               </ul>
-            </li>
+              </li>
+              {% endfor %}
+              
 
 
 
-
-          </ul>
-
-
-          
-          
         </section>
       {% endif %}
       </aside>
@@ -242,6 +170,7 @@
 
     {% block js %} {% endblock js %}
 
-
+{{cmgr_path}}
+L:{{cmgr_path.__len__()}}
   </body>
 </html>

@@ -1,9 +1,7 @@
 {% extends "base.html" %}
 {% block header %}
-<h1>Dashboard</h1>
-  <ol class="breadcrumb">
-    <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home / Dashboard</a></li>
-  </ol>
+<h1>Gluu Servers</h1>
+
 {% endblock %}
 {% block content %}
 <style>
@@ -40,31 +38,19 @@
                 <p>Gluu Version</p>
             </div>
             <div class="icon">
-                <i class="fa fa-code-fork"></i>
+                {% if app_conf.offline %}
+                  <i class="fa fa-hdd-o"></i>
+                {% else %}
+                  <i class="fa fa-cloud"></i>
+                {% endif %}
             </div>
-            <a href="{{ url_for('index.app_configuration') }}" class="small-box-footer">
-                Change
+            <a href="#" id="change-version" class="small-box-footer">
+                Change Settings
                 <i class="fa fa-arrow-circle-right"></i>
             </a>
         </div>
     </div>
 
-    {% else %}
-     <div class="col-xs-12 col-sm-6 col-md-3">
-        <div class="small-box bg-orange">
-            <div class="inner">
-                <h3>No</h3>
-                <p>Application Configuration</p>
-            </div>
-            <div class="icon">
-                <i class="fa fa-cogs"></i>
-            </div>
-            <a href="{{ url_for('index.app_configuration') }}" class="small-box-footer">
-                Setup Application
-                <i class="fa fa-arrow-circle-right"></i>
-            </a>
-        </div>
-    </div>
     {% endif %}
 
 </div>
@@ -292,6 +278,34 @@
 </div><!-- /.modal -->
 
 
+<!-- Settings Modal Begin-->
+<div id="changeVersionModal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+  <form class="form-horizontal" id="form" action="{{ url_for('server.settings') }}" method="POST">
+
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title" id="modal-title">Settings</h4>
+      </div>
+      <div class="modal-body" id="change-version-modal-body">
+
+
+        <p>Loading ...</p>
+        
+        
+      </div>
+      <div class="modal-footer">
+        <a href="#" class="btn btn-default" data-dismiss="modal">Close</a> <input type="submit" class="btn btn-primary" value="Save">
+      </div>
+    </div>
+    
+  </form>
+ </div>
+</div>
+<!-- Settings Modal End-->
+
+
 {% endblock %}
 
 {% block js %}
@@ -509,6 +523,14 @@ setTimeout(function() {
 
 },15000);
 
+
+$("#change-version").click(function(e){
+
+$('#change-version-modal-body').html('<p>Loading ...</p>')
+  e.preventDefault();
+  $('#changeVersionModal').modal('show').find('.modal-body').load("{{request.host_url}}{{url_for('server.settings')[1:]}}");
+
+});
 
 </script>
 {% endblock %}

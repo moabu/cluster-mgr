@@ -2,6 +2,8 @@
 
 import os
 import time
+import glob
+import ldap3
 
 from flask import Blueprint, render_template, redirect, url_for, \
     flash, request, jsonify, current_app
@@ -11,13 +13,14 @@ from flask_login import login_required
 from clustermgr.extensions import db
 from clustermgr.models import Server, AppConfiguration
 
-import ldap3
 
 from clustermgr.forms import ServerForm, InstallServerForm, \
-    SetupPropertiesLastForm
-from clustermgr.tasks.server import collect_server_details
+    SetupPropertiesLastForm, GluuVersionForm
 
-from clustermgr.tasks.server import task_install_gluu_server, task_test
+from clustermgr.tasks.server import collect_server_details, \
+    task_install_gluu_server, task_test
+from clustermgr.config import Config
+
 
 from clustermgr.core.remote import RemoteClient, ClientNotSetupException
 from ..core.license import license_required
@@ -607,10 +610,58 @@ def install_gluu_server(server_id):
                            whatNext=whatNext
                            )
 
+@server_view.route('/settings', methods=['GET','POST'])
+@login_required
+def settings():
+    cform = GluuVersionForm()
+    
+    cform.gluu_archive.choices = [ (f,os.path.split(f)[1]) for f in glob.glob(os.path.join(Config.GLUU_REPO,'gluu-server*')) ]
+    
+    primary_server = Server.query.filter_by(primary_server=True).first()
+    is_primary_deployed = True if primary_server and primary_server.gluu_server else False
+    app_config = AppConfiguration.query.first()
+
+    if not app_config:
+        app_config = AppConfiguration()
+        db.session.add(app_config)
+
+    if request.method == 'GET':
+        if app_config.gluu_version:
+            cform.gluu_version.data = app_config.gluu_version
+
+        if app_config.gluu_archive:
+            cform.gluu_archive.data = app_config.gluu_archive
+
+        cform.offline.data = app_config.offline
+        cform.ldap_update_period.data = str(app_config.ldap_update_period)
+        cform.modify_hosts.data = app_config.modify_hosts
+
+        print "LP", cform.ldap_update_period.data
+
+    else:
+        if not app_config.gluu_version:
+            app_config.gluu_version = cform.gluu_version.data
+
+        app_config.offline = cform.offline.data
+        app_config.gluu_archive = cform.gluu_archive.data if app_config.offline else ''
+        
+        app_config.ldap_update_period = cform.ldap_update_period.data
+        app_config.ldap_update_period_unit = 's'
+        app_config.modify_hosts = cform.modify_hosts.data
+
+        db.session.commit()
+        flash("Settings saved", "success")
+
+        return redirect(url_for('index.home'))
+
+    return render_template("settings.html",
+                            cform=cform,
+                            is_primary_deployed=is_primary_deployed,
+                            repo_dir = Config.GLUU_REPO,
+                            )
 
 @server_view.route('/test', methods=['GET'])
 def test_view():
-    print "Test View"
     
     task = task_test.delay()
     

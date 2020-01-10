@@ -7,6 +7,7 @@ from flask import request
 from flask import url_for
 from flask import flash
 from flask_login import login_required
+from flask_menu import register_menu
 
 from ..core.license import license_reminder
 from ..core.license import prompt_license
@@ -22,17 +23,16 @@ keyrotation_bp = Blueprint("keyrotation", __name__)
 keyrotation_bp.before_request(prompt_license)
 keyrotation_bp.before_request(license_reminder)
 
-
-@keyrotation_bp.route("/")
-@login_required
-def index():
+def isKEyRatationMenuVisible():
     keygen_file = os.path.join(celery.conf["JAVALIBS_DIR"], 'keygen.jar')
     
-    if not os.path.exists(keygen_file):
-        flash("Key generator {} was not found. Key rotation will not work unless the instructions are followed {}".format(
-               keygen_file, 'https://gluu.org/docs/cm/installation/#add-key-generator'), 'danger')
-        
-        return redirect(url_for('index.home'))
+    print "KR", os.path.isfile(keygen_file)
+    return os.path.isfile(keygen_file)
+
+@keyrotation_bp.route("/")
+@register_menu(keyrotation_bp, '.gluuServerCluster.keyRotation', 'Key Rotation', order=7, icon='fa fa-key', visible_when=isKEyRatationMenuVisible)
+@login_required
+def index():
     kr = KeyRotation.query.first()
     return render_template("keyrotation_index.html", kr=kr)
 

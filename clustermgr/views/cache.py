@@ -6,6 +6,7 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
     jsonify, request, session
 
 from flask_login import login_required
+from flask_menu import register_menu
 
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cache import install_cache_cluster
@@ -27,17 +28,23 @@ cache_mgr.before_request(license_required)
 cache_mgr.before_request(license_reminder)
 
 
+
 @cache_mgr.route('/')
+@register_menu(cache_mgr, '.gluuServerCluster.cacheManagement', 'Cache Management', order=4, icon='fa fa-microchip')
 @login_required
 def index():
     servers = Server.query.all()
     appconf = AppConfiguration.query.first()
+    
+    cachetype = request.args.get('cachetype')
 
-    if not appconf:
-        flash("The application needs to be configured first. Kindly set the "
-              "values before attempting clustering.", "warning")
-        return redirect(url_for("index.app_configuration"))
-
+    if cachetype == 'redis':
+        appconf.use_ldap_cache = False
+        db.session.commit()
+    elif cachetype == 'ldap':
+        appconf.use_ldap_cache = True
+        db.session.commit()
+        
     if not servers:
         flash("Add servers to the cluster before attempting to manage cache",
               "warning")
@@ -52,6 +59,7 @@ def index():
                            servers=servers, 
                            form=form,
                            cache_servers=cache_servers,
+                           use_ldap_cache=appconf.use_ldap_cache,
                            )
 
 

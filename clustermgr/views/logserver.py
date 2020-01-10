@@ -10,6 +10,8 @@ from flask import flash
 from flask import redirect
 from flask import url_for
 from flask_login import login_required
+from flask_menu import register_menu
+
 from influxdb import InfluxDBClient
 from influxdb.exceptions import InfluxDBClientError
 from requests.exceptions import ConnectionError
@@ -70,8 +72,14 @@ def search_by_filters(dbname, type_="", message="", host="",
     rs = influx.query(" ".join(qs))
     return rs.get_points(tags=tags)
 
+@log_mgr.route('/menuindex')
+@register_menu(log_mgr, '.gluuServerCluster.logging', 'Logging Management', order=5, icon='fa fa-file-text-o')
+def menuIndex():
+    return redirect(url_for('log_mgr.index'))
 
-@log_mgr.route("/")
+
+@register_menu(log_mgr, '.gluuServerCluster.logging.logs', 'Logs', order=1)
+@log_mgr.route("/logs")
 @login_required
 def index():
     err = ""
@@ -103,7 +111,7 @@ def index():
     return render_template("log_index.html", form=form, logs=logs,
                            err=err, page=page)
 
-
+@register_menu(log_mgr, '.gluuServerCluster.logging.setup', 'Setup', order=2)
 @log_mgr.route("/setup/")
 @login_required
 def setup():
@@ -121,7 +129,7 @@ def setup():
     return render_template("log_setup.html", servers=servers, offline=offline)
 
 
-@log_mgr.route("/install_filebeat/")
+@log_mgr.route("/setup/install_filebeat/")
 @login_required
 def install_filebeat():
     # checks for existing app config
@@ -152,7 +160,7 @@ def install_filebeat():
                            task=task, multiserver=servers)
 
 
-@log_mgr.route("/collect/")
+@log_mgr.route("/logs/collect/")
 @login_required
 def collect():
     # checks for existing app config
@@ -181,7 +189,7 @@ def collect():
     return redirect(url_for(".index"))
 
 
-@log_mgr.route("/uninstall_filebeat")
+@log_mgr.route("/setup/uninstall_filebeat")
 @login_required
 def uninstall_filebeat():
     servers = Server.query.all()

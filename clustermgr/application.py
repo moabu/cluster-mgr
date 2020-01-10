@@ -6,6 +6,8 @@ from flask import Flask
 from flask import url_for
 from flask import request
 
+from flask_menu import Menu
+
 from clustermgr.extensions import db, csrf, migrate, wlogger, \
     login_manager, mailer
 from .core.license import license_manager
@@ -29,6 +31,8 @@ def init_celery(app, celery):
 
 def create_app():
     app = Flask(__name__)
+
+    Menu(app=app)
 
     # Configure the flask application
     cfg = "clustermgr.config.DevelopmentConfig"  # default
@@ -70,7 +74,7 @@ def create_app():
     # register blueprints
     from clustermgr.views.index import index
     from clustermgr.views.server import server_view
-    from clustermgr.views.cluster import cluster
+    from clustermgr.views.replication import replication
     from clustermgr.views.monitoring import monitoring
     from clustermgr.views.cache import cache_mgr
     from clustermgr.views.license import license_bp
@@ -80,10 +84,13 @@ def create_app():
     from clustermgr.views.wizard import wizard
     from clustermgr.views.attributes import attributes
     from clustermgr.views.operations import operations
+    from clustermgr.views.load_balancer import load_balancer
+    
 
     app.register_blueprint(index, url_prefix="")
     app.register_blueprint(server_view, url_prefix="/server")
-    app.register_blueprint(cluster, url_prefix="/cluster")
+    app.register_blueprint(load_balancer, url_prefix="/loadbalancer")
+    app.register_blueprint(replication, url_prefix="/replication")
     app.register_blueprint(log_mgr, url_prefix="/logging")
     app.register_blueprint(cache_mgr, url_prefix="/cache")
     app.register_blueprint(license_bp, url_prefix="/license")
@@ -133,6 +140,7 @@ def create_app():
             page = 2
         args['page'] = page - 1
         return url_for(request.endpoint, **args)
+    
 
     app.jinja_env.globals['url_for_next_page'] = url_for_next_page
     app.jinja_env.globals['url_for_prev_page'] = url_for_prev_page
@@ -156,5 +164,13 @@ def create_app():
 
         app.jinja_env.globals['use_ldap_cache'] = use_ldap_cache
 
+        cmgr_path = request.path.split('/')
+        while '' in cmgr_path:
+            cmgr_path.remove('')
+
+        if (not cmgr_path) or (not cmgr_path[0] in ['oxdcluster']):
+            cmgr_path.insert(0, 'gluucluster')
+
+        app.jinja_env.globals['cmgr_path'] = cmgr_path
 
     return app

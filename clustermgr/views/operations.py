@@ -7,6 +7,8 @@ from flask import Blueprint, render_template, redirect, url_for, flash, \
 from flask import current_app as app
 from flask_login import login_required
 from flask_login import current_user
+from flask_menu import register_menu
+
 from celery.result import AsyncResult
 from clustermgr.models import AppConfiguration, Server
 
@@ -15,7 +17,7 @@ from clustermgr.core.license import license_reminder
 from clustermgr.core.license import prompt_license
 
 
-from clustermgr.forms import httpdCertificatesForm
+from clustermgr.forms import httpdCertificatesForm, SchemaForm
 from clustermgr.core.clustermgr_installer import Installer
 
 from clustermgr.tasks.cluster import update_httpd_certs_task
@@ -26,7 +28,14 @@ operations.before_request(license_reminder)
 
 msg_text = ''
 
+@operations.route('/menuindex')
+@register_menu(operations, '.gluuServerCluster.operations', 'Operations', order=8, icon='fa fa-cogs')
+def menuIndex():
+    return redirect(url_for('operations.httpd_certs'))
+
+@login_required
 @operations.route('/httpdcerts')
+@register_menu(operations, '.gluuServerCluster.operations.httpdCertificates', 'Web Certificates', order=1)
 def httpd_certs():
 
     app_config = AppConfiguration.query.first()
@@ -44,7 +53,7 @@ def httpd_certs():
     
     return render_template('httpd_certificates.html', cert_form=cert_form)
 
-
+@login_required
 @operations.route('/updatehttpdcertificate', methods=['POST'])
 def update_httpd_certificate():
     cert_form = httpdCertificatesForm()
@@ -58,3 +67,34 @@ def update_httpd_certificate():
     whatNext = "Go to Dashboard"
     return render_template("logger_single.html", heading=head, server="",
                            task=task, nextpage=nextpage, whatNext=whatNext)
+
+@login_required
+@register_menu(operations, '.gluuServerCluster.operations.customSchema', 'Custom Schema', order=2)
+@operations.route('/customschema', methods=['GET', 'POST'])
+def custom_schema():
+    sform = SchemaForm()
+    schemafiles = os.listdir(app.config['SCHEMA_DIR'])
+    return render_template("custom_schema.html",
+                schemafiles=schemafiles,
+                sform=sform
+                )
+
+@login_required
+@operations.route('/removecustomschema/<schema_file>')
+def remove_custom_schema(schema_file):
+    """This view deletes custom schema file"""
+
+    file_path = os.path.join(app.config['SCHEMA_DIR'], schema_file)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    return redirect(url_for('index.app_configuration'))
+
+
+def isUpgradeAvailable():
+    return True
+
+@login_required
+@register_menu(operations, '.gluuServerCluster.operations.upgrade', 'Upgrade', order=3, visible_when=isUpgradeAvailable)
+@operations.route('/upgrade', methods=['GET'])
+def upgrade():
+    return "Uprade Cluster Managaer"

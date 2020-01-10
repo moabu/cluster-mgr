@@ -8,6 +8,7 @@ import requests
 from flask import Blueprint, render_template, redirect, url_for, flash, \
     request, jsonify
 from flask_login import login_required
+from flask_menu import register_menu
 
 # from flask import current_app as app
 from influxdb import InfluxDBClient
@@ -298,8 +299,15 @@ def check_data(hostname):
 
     return True
 
+@monitoring.route('/menuindex')
+@register_menu(monitoring, '.gluuServerCluster.monitoring', 'Monitoring', order=5, icon='fa fa-eye')
+def menuIndex():
+    return redirect(url_for('monitoring.home'))
 
-@monitoring.route('/')
+
+@register_menu(monitoring, '.gluuServerCluster.monitoring.statistics', 'Statistics', order=1)
+@monitoring.route('/statistics')
+@login_required
 def home():
     
     """This view provides home page of monitoring."""
@@ -369,6 +377,7 @@ def home():
                             )
 
 
+@register_menu(monitoring, '.gluuServerCluster.monitoring.setup', 'Setup', order=2)
 @monitoring.route('/setup')
 @login_required
 def setup_index():
@@ -380,7 +389,7 @@ def setup_index():
 
 
 
-@monitoring.route('/setuplocal')
+@monitoring.route('/setup/setuplocal')
 @login_required
 def setup_local():
     
@@ -407,7 +416,7 @@ def setup_local():
                            )
 
 
-@monitoring.route('/setupservers')
+@monitoring.route('/setup/setupservers')
 @login_required
 def setup():
     
@@ -444,7 +453,7 @@ def setup():
                            whatNext=whatNext
                            )
 
-@monitoring.route('/system/<item>')
+@monitoring.route('/statistics/system/<item>')
 @login_required
 def system(item):
 
@@ -555,7 +564,7 @@ def ldap_all(item):
     return "Not Implemented"
 
 
-@monitoring.route('/ldap/<item>/')
+@monitoring.route('/statistics/ldap/<item>/')
 @login_required
 def ldap_single(item):
 
@@ -578,7 +587,7 @@ def ldap_single(item):
                             periods=periods,
                             )
 
-@monitoring.route('/remove')
+@monitoring.route('/setup/uninstall')
 @login_required
 def remove():
     """This view will remove monitoring components"""

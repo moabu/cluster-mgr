@@ -11,6 +11,7 @@ from flask_login import login_required
 from flask_login import current_user
 from werkzeug.utils import secure_filename
 from celery.result import AsyncResult
+from flask_menu import register_menu
 
 
 from clustermgr.extensions import db, wlogger, csrf
@@ -49,7 +50,14 @@ index.before_request(license_required)
 
 msg_text = ''
 
+@index.route('/gluuServerCluster')
+@register_menu(index, '.gluuServerCluster', 'Gluu Server Cluster', order=0, icon='fa fa-folder')
+def menuIndex():
+    return redirect(url_for('index.home'))
+
+
 @index.route('/')
+@register_menu(index, '.gluuServerCluster.servers', 'Gluu Servers', order=0, icon='fa fa-server')
 def home():
     cfg_file = app.config["AUTH_CONFIG_FILE"]
     oxd_file_config = app.config["OXD_CLIENT_CONFIG_FILE"]
@@ -452,54 +460,9 @@ def get_log(task_id):
     return jsonify(log)
 
 
-@index.route('/mmr/')
-@login_required
-def multi_master_replication():
-    """Multi Master Replication view for OpenDJ"""
-
-    # Check if replication user (dn) and password has been configured
-    app_config = AppConfiguration.query.first()
-    ldaps = Server.query.all()
-    primary_server = Server.query.filter_by(primary_server=True).first()
-    if not app_config:
-        flash("Repication user and/or password has not been defined."
-              " Please go to 'Configuration' and set these before proceed.",
-              "warning")
-        return redirect(url_for('index.home'))
-
-    if not ldaps:
-        flash("Servers has not been added. "
-              "Please add servers",
-              "warning")
-        return redirect(url_for('index.home'))
 
 
-    ldap_errors = []
 
-    prop = get_setup_properties()
-
-    rep_status = get_opendj_replication_status()
-
-    stat = ''
-    if not rep_status[0]:
-        flash(rep_status[1], "warning")
-    else:
-        stat = rep_status[1]
-    return render_template('opendjmmr.html',
-                           servers=ldaps,
-                           stat = stat,
-                           app_conf=app_config,
-                           )
-
-@index.route('/removecustomschema/<schema_file>')
-@login_required
-def remove_custom_schema(schema_file):
-    """This view deletes custom schema file"""
-
-    file_path = os.path.join(app.config['SCHEMA_DIR'], schema_file)
-    if os.path.exists(file_path):
-        os.remove(file_path)
-    return redirect(url_for('index.app_configuration'))
 
 
 

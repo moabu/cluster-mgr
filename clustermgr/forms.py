@@ -16,6 +16,48 @@ from clustermgr.config import Config
 
 from clustermgr.core.utils import is_hostname_resolved
 
+class LoadBalancerForm(FlaskForm):
+    nginx_host = StringField('Load Balancer Hostname', validators=[DataRequired()],
+            description="You can't change hostname after you deployed primary server.")
+    nginx_ip = StringField('Load Balancer IP Address', validators=[DataRequired()])
+    external_load_balancer = BooleanField('This is external load balancer')
+
+    def validate_nginx_host(form, field):
+        is_resolved = is_hostname_resolved(field.data)
+        if is_resolved:
+            raise ValidationError(is_resolved)
+
+class GluuVersionForm(FlaskForm):
+    versions = [
+                '4.0', 
+                '4.1.0',
+                ]
+    gluu_version = SelectField('Gluu Server Version',
+                        choices=[(v, v) for v in versions],
+                        description="You can't change version after deploying primary server."
+                        )
+
+    offline = BooleanField('Offline installation')
+    gluu_archive = SelectField('Gluu Archive',
+            choices = []
+            )
+
+    ldap_update_period = SelectField('Service Liveness Status Polling Period',
+            choices=[
+            
+                ('5', '5 secs'), ('10', '10 secs'), 
+                ('20', '20 secs'), ('30', '30 secs'),
+                ('60', '1 min'), ('120', '2 mins'),
+                ('300', '5 mins'), ('600', '10 mins'),
+                ('900', '15 mins'), ('1200', '20 mins'),
+                
+            ],
+            default = '300',
+            )
+
+    modify_hosts =  BooleanField('Add IP Addresses and hostnames to '
+                                '/etc/hosts file on each server')
+
 class AppConfigForm(FlaskForm):
     versions = [
                 '4.0', 

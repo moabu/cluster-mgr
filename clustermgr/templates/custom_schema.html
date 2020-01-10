@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% from 'macros.html' import render_field, render_checkbox_field, render_form %}
+
+{% block header %}
+    <h1>Application Settings</h1>
+    <ol class="breadcrumb">
+        <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+        <li class="active">Settings</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+
+<div class="box box-primary">
+
+    <div class="panel-heading">
+        <h3 class="panel-title">
+            Custom Schema Files
+        </h3>
+    </div>
+    
+    
+    <div class="panel-body">
+        <ul class="list-group">
+            {% for sf in schemafiles %}
+            <li class="list-group-item">{{ sf }} <a href="{{ url_for('index.remove_custom_schema', schema_file=sf) }}"><span class="glyphicon glyphicon-trash"></span></a></li>
+            {% endfor %}
+        </ul>
+        <form id="sform" action="" method="POST" enctype="multipart/form-data">
+            {{ sform.csrf_token }}
+            <div class="row">
+                <div class="col-md-3">
+                    {{ sform.schema }}
+                </div>
+                <div class="col-md-6">
+                    {{ sform.upload(class="btn btn-success") }}
+                </div>
+            </div>
+            {% if sform.schema.errors %}
+            {% for e in sform.schema.errors %}
+            <p class="text-danger">{{ e }}</p>
+            {% endfor %}
+            {% endif %}
+        </form>
+    </div>
+
+{% endblock %}
+
+{% block js %}
+{% endblock %}
+

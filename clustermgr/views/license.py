@@ -9,6 +9,7 @@ from flask import render_template
 from flask import request
 from flask import url_for
 from flask_login import login_required
+from flask_menu import register_menu
 
 from ..core.license import license_manager, prompt_license
 from ..forms import LicenseSettingsForm
@@ -29,16 +30,15 @@ def _humanize_timestamp(ts, date_fmt="%Y:%m:%d %H:%M:%S GMT"):
     dt = datetime.utcfromtimestamp(ts / 1000)
     return dt.strftime(date_fmt)
 
+def isLicenseMenuVisible():
+    return os.path.isfile(current_app.config["LICENSE_VALIDATOR"])
 
-def check_license_validator():
-    if not os.path.isfile(current_app.config["LICENSE_VALIDATOR"]):
-        flash("License validator is missing; please download it first.", "warning")
-
+@license_bp.route('/menuindex')
+@register_menu(license_bp, '.gluuServerCluster.license', 'License', order=6, icon='fa fa-drivers-license-o', visible_when=isLicenseMenuVisible)
 @license_bp.route("/")
 @login_required
 def index():
-    check_license_validator()
-    
+
     license_data, err = license_manager.validate_license()
 
     if "creation_date" in license_data["metadata"]:
@@ -59,7 +59,6 @@ def index():
 @license_bp.route("/settings/", methods=["GET", "POST"])
 @login_required
 def settings():
-    check_license_validator()
 
     form = LicenseSettingsForm()
     cfg = license_manager.load_license_config()
