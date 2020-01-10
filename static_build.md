@@ -31,6 +31,11 @@ gpgkey=http://ftp.heanet.ie/pub/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7
 
 `# yum install gcc gcc-c++ libffi-devel make python-devel openssl-devel openldap-devel python-pip`
 
+Update pip and setuptools
+
+`# pip install --upgrade pip`
+
+`# pip install --upgrade setuptools`
 
 ### Build Cluster Manager
 
