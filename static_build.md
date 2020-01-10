@@ -1,6 +1,6 @@
 # Building Claster Manager Statically on RHEL7
 
-In this guid we will explain how to create static Cluster Manager package that
+In this guide we will explain how to create static Cluster Manager package that
 can run on a machine that has no internet connection. For this you need a REHEL machine
 (or VM) that has internet access.
 
@@ -53,7 +53,7 @@ Now you can copy `clustermgr4.tgz` to RHEL7 that has no internet access.
 
 ## On RHEL7 Machine Has no Internet Access
 
-On this machine you need to java-1.8 and redis installed. Extract `clustermgr4.tgz` package:
+On this machine you need java-1.8 and redis installed. Extract `clustermgr4.tgz` package:
 
 `# tar -zxf clustermgr4.tgz -C /`
 
