@@ -66,3 +66,4 @@ You can stop as follows:
 
 `# PYTHONPATH=/opt/clustermgr/clustermgr:/opt/clustermgr/bin PATH=$PATH:/opt/clustermgr/bin /opt/clustermgr/bin/clustermgr4-cli stop`
 
+Please follow [these instuctions](./offline_install.md) for offline installation
