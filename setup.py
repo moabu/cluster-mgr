@@ -43,7 +43,7 @@ setup(
         "WTForms",
         "Flask",
         "Flask-WTF",
-        "celery",
+        "celery==4.2.1",
         "Flask-SQLAlchemy",
         "redis==3.2.0",
         "requests>=2.20.0",
