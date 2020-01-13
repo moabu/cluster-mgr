@@ -84,7 +84,8 @@
           <ul class="sidebar-menu" data-widget="tree">
               
               {% for cluster in current_menu.children %}
-                <li class="treeview {% if cluster.has_active_child %}active menu-open{% endif %}">
+              
+                <li class="treeview {% if cluster.has_active_child() %}active menu-open{% endif %}">
                   
                 <a href="#">
                     <i class="{{cluster.icon}}"></i>{{cluster.text}}

@@ -92,7 +92,7 @@ def create_app():
     from clustermgr.views.attributes import attributes
     from clustermgr.views.operations import operations
     from clustermgr.views.load_balancer import load_balancer
-    
+    from clustermgr.views.oxd_cluster import oxd_cluster
 
     app.register_blueprint(index, url_prefix="")
     app.register_blueprint(server_view, url_prefix="/server")
@@ -107,6 +107,7 @@ def create_app():
     app.register_blueprint(wizard, url_prefix="/wizard")
     app.register_blueprint(attributes, url_prefix="/attributes")
     app.register_blueprint(operations, url_prefix="/operations")
+    app.register_blueprint(oxd_cluster, url_prefix="/oxd")
 
     @app.context_processor
     def hash_processor():
