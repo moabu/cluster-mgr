@@ -142,6 +142,8 @@ def app_configuration():
     config = AppConfiguration.query.first()
     schemafiles = os.listdir(app.config['SCHEMA_DIR'])
 
+    prop = get_setup_properties()
+    
     conf_form.gluu_archive.choices = [
             (f,os.path.split(f)[1]) for f in glob.glob(
             os.path.join(app.config['GLUU_REPO'],'gluu-server-*')) ]
@@ -313,6 +315,7 @@ def app_configuration():
                         config=config, schemafiles=schemafiles, localos=localos,
                         external_lb_checked=external_lb_checked,
                         repo_dir = app.config['GLUU_REPO'],
+                        installSaml=as_boolean(prop['installSaml']),
                         next=request.args.get('next'))
 
 

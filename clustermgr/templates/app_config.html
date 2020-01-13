@@ -100,9 +100,9 @@
 
             </div>
 
-            <div id="ldap-cache-div" class="form-group">
+            <div id="ldap-cache-div" class="form-group"{% if installSaml %} style="display: none" {% endif %}>
                 <div class="col-md-offset-3 col-md-9">
-                    {{ render_checkbox_field(cform.use_ldap_cache) }}
+                    {{ render_checkbox_field(cform.use_ldap_cache) }}  
                 </div>
             </div>
 
