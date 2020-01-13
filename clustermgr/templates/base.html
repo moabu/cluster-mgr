@@ -24,6 +24,23 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
     {% block css %}{% endblock css %}
   </head>
+  <style>
+  .blink {
+      color: #ffcc00;
+      animation: blink 2s steps(5, start) infinite;
+      -webkit-animation: blink 1s steps(5, start) infinite;
+    }
+    @keyframes blink {
+      to {
+        visibility: hidden;
+      }
+    }
+    @-webkit-keyframes blink {
+      to {
+        visibility: hidden;
+      }
+    }
+  </style>
   <body class="hold-transition skin-blue layout-top-nav mini-sidebar">
   <div class="wrapper">
       <header class="main-header">
@@ -91,7 +108,7 @@
                      <ul class="treeview-menu">
                       {% for submenu in menu.children %}
                         {% if submenu.visible %}
-                          <li {% if submenu.active %}class="active"{% endif %}><a href="{{ submenu.url}}"> <i class="fa fa-angle-right"></i><span>{{submenu.text}}</span></a> </li>
+                          <li {% if submenu.active %}class="active"{% endif %}><a href="{{ submenu.url}}" {% if submenu.warning %}title="{{submenu.warning}}"{% endif %}{{submenu.text}}> <i class="fa {% if submenu.warning %}fa-info-circle blink {% else %}fa-angle-right{% endif %}"></i><span>{{submenu.text}}</span></a> </li>
                         {% endif %}
                       {% endfor %}
                      </ul>

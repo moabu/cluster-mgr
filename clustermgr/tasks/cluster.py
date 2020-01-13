@@ -20,7 +20,6 @@ from clustermgr.core.utils import modify_etc_hosts, make_nginx_proxy_conf,\
 from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.config import Config
 
-
 def modifyOxLdapProperties(server, installer, task_id, pDict):
     """Modifes /etc/gluu/conf/ox-ldap.properties file for gluu server to look
     all ldap server.
@@ -969,8 +968,8 @@ def exec_cmd(command):
 @celery.task(bind=True)
 def upgrade_clustermgr_task(self):
     task_id = self.request.id
-    
-    cmd = '/usr/bin/sudo pip install --upgrade https://github.com/GluuFederation/cluster-mgr/archive/4.0.zip'
+    app_main_version = app.config['APP_VERSION'].split('-')[0]
+    cmd = '/usr/bin/sudo pip install --upgrade https://github.com/GluuFederation/cluster-mgr/archive/{}.zip'.format(app_main_version)
 
     wlogger.log(task_id, cmd)
 
@@ -1063,9 +1062,10 @@ def update_httpd_certs_task(self, httpd_key, httpd_crt):
 @celery.task
 def check_latest_version():
     app_conf = AppConfiguration.query.first()
+    app_main_version = app.config['APP_VERSION'].split('-')[0]
     if app_conf:
         print "Checking latest version from github"
-        result = requests.get('https://raw.githubusercontent.com/GluuFederation/cluster-mgr/4.0/clustermgr/__init__.py')
+        result = requests.get('https://raw.githubusercontent.com/GluuFederation/cluster-mgr/{}/clustermgr/__init__.py'.format(app_main_version))
         text = result.text.strip()
         latest_version = text.split('=')[1].strip().strip('"').strip("'")        
         app_conf.latest_version = latest_version

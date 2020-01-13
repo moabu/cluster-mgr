@@ -1,12 +1,16 @@
 import os
 from datetime import timedelta
 import uuid
+from . import __version__
+
 
 class Config(object):
+    
     DEBUG = False
     TESTING = False
     SQLALCHEMY_DATABASE_URI = ''
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    APP_VERSION = __version__
     SECRET_KEY = 'prettysecret'
     BASE_DN = 'o=gluu'
     CELERY_BROKER_URL = 'redis://localhost:6379'

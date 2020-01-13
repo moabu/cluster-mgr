@@ -13,7 +13,7 @@ from clustermgr.extensions import db, csrf, migrate, wlogger, \
 from .core.license import license_manager
 from clustermgr.models import AppConfiguration
 from . import __version__
-
+from clustermgr.core.remote import FakeRemote
 
 def init_celery(app, celery):
     celery.conf.update(app.config)
@@ -70,6 +70,13 @@ def create_app():
         os.makedirs(app.instance_path)
     if not os.path.isdir(app.config['GLUU_REPO']):
         os.makedirs(app.config['GLUU_REPO'])
+
+    #create fake remote class that provides the same interface with RemoteClient
+    fc = FakeRemote()
+    
+    #Getermine local OS type
+    localos = fc.get_os_type()
+    app.config['LOCAL_OS'] = localos
 
     # register blueprints
     from clustermgr.views.index import index

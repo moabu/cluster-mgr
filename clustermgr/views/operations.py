@@ -20,11 +20,15 @@ from clustermgr.core.license import prompt_license
 from clustermgr.forms import httpdCertificatesForm, SchemaForm
 from clustermgr.core.clustermgr_installer import Installer
 
-from clustermgr.tasks.cluster import update_httpd_certs_task
+from clustermgr.tasks.cluster import update_httpd_certs_task, upgrade_clustermgr_task
+
 
 operations = Blueprint('operations', __name__)
 operations.before_request(prompt_license)
 operations.before_request(license_reminder)
+
+from flask_menu import current_menu
+
 
 msg_text = ''
 
@@ -90,11 +94,44 @@ def remove_custom_schema(schema_file):
     return redirect(url_for('index.app_configuration'))
 
 
-def isUpgradeAvailable():
-    return True
+def check_version():
+    app_conf = AppConfiguration.query.first()
+    if app.config['LOCAL_OS'] != 'Alpine' and app_conf and app_conf.latest_version > app.config['APP_VERSION']:
+        upgrade_menu = current_menu.submenu('.gluuServerCluster.operations.upgrade')
+        upgrade_menu.warning = 'New version is available'
+        return True
 
 @login_required
-@register_menu(operations, '.gluuServerCluster.operations.upgrade', 'Upgrade', order=3, visible_when=isUpgradeAvailable)
+@register_menu(operations, '.gluuServerCluster.operations.upgrade', 'Upgrade', order=3, visible_when=check_version, active_when=check_version)
 @operations.route('/upgrade', methods=['GET'])
 def upgrade():
-    return "Uprade Cluster Managaer"
+    app_conf = AppConfiguration.query.first()
+
+    return render_template('upgrade.html', 
+                    latest_version = app_conf.latest_version,
+                    current_version = app.config['APP_VERSION'],
+                )
+
+
+@operations.route('/doupgrade')
+@login_required
+def upgrade_clustermgr():
+    """Initiates upgrading of clustermgr"""
+
+    task = upgrade_clustermgr_task.delay()
+    print "TASK STARTED", task.id
+    title = "Upgrading clustermgr"
+    nextpage = url_for("index.home")
+    whatNext = "Go to Dashboard"
+    
+    return render_template('logger_single.html',
+                           server_id=0,
+                           title=title,
+                           steps=[],
+                           task=task,
+                           cur_step=1,
+                           auto_next=False,
+                           multistep=False,
+                           nextpage=nextpage,
+                           whatNext=whatNext
+                           )

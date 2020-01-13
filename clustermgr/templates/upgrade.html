@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block header %}
+  <h1>Upgrade Gluu Cluster Managaer</h1>
+{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <div class="box-body jumbotron">
+        
+        <p><span class="text-warning">Version {{latest_version}} is available!</span> Upgrade Cluster Manager from github repository<br> https://github.com/GluuFederation/cluster-mgr/archive/{{latest_version.split('-')[0]}}.zip<br>
+        <br>
+        <a class="btn btn-primary pull-right" href="{{ url_for('operations.upgrade_clustermgr') }}">Upgrade</a>
+
+    </div>
+</div>
+
+
+{% endblock %}
+
+
+{% block js %}
+{% endblock %}
+
+

@@ -461,36 +461,6 @@ def get_log(task_id):
     return jsonify(log)
 
 
-
-
-
-
-
-
-@index.route('/upgrade')
-@login_required
-def upgrade_clustermgr():
-    """Initiates upgrading of clustermgr"""
-
-    task = upgrade_clustermgr_task.delay()
-    print "TASK STARTED", task.id
-    title = "Upgrading clustermgr"
-    nextpage = url_for("index.home")
-    whatNext = "Go to Dashboard"
-    
-    return render_template('logger_single.html',
-                           server_id=0,
-                           title=title,
-                           steps=[],
-                           task=task,
-                           cur_step=1,
-                           auto_next=False,
-                           multistep=False,
-                           nextpage=nextpage,
-                           whatNext=whatNext
-                           )
-
-
 @index.route('/setpassphrase/', methods=['POST','GET'])
 @login_required
 @csrf.exempt
