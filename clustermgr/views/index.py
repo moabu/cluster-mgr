@@ -140,6 +140,7 @@ def home():
                         )
 
 @index.route('/configuration/', methods=['GET', 'POST'])
+@register_menu(index, '.gluuServerCluster.settings', 'Settings', order=12, icon='fa fa-server')
 @login_required
 def app_configuration():
     """This view provides application configuration forms"""

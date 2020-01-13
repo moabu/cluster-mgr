@@ -239,6 +239,9 @@ def get_opendj_replication_status():
     primary_server = Server.query.filter_by(primary_server=True).first()
     app_conf = AppConfiguration.query.first()
 
+    if not app_conf.replication_pw:
+        return False, "Replication has not been initialised"
+
     installer = Installer(
                 primary_server,
                 app_conf.gluu_version,

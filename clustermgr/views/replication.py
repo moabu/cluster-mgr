@@ -320,13 +320,13 @@ def multi_master_replication():
 
     # Check if replication user (dn) and password has been configured
     app_config = AppConfiguration.query.first()
+    if not app_config:
+        app_config = AppConfiguration()
+        db.session.add(app_config)
+        db.session.commit()
+
     ldaps = Server.query.all()
     primary_server = Server.query.filter_by(primary_server=True).first()
-    if not app_config:
-        flash("Repication user and/or password has not been defined."
-              " Please go to 'Configuration' and set these before proceed.",
-              "warning")
-        return redirect(url_for('index.home'))
 
     if not ldaps:
         flash("Servers has not been added. "
@@ -344,14 +344,16 @@ def multi_master_replication():
         replication_pw_base64 = base64.encodestring(app_config.replication_pw)
         if replication_pw_base64.endswith('\n'):
             replication_pw_base64 = replication_pw_base64[:-1]
-    
 
-    rep_status = get_opendj_replication_status()
+    if app_config.replication_pw:
+        rep_status = get_opendj_replication_status()
 
-    if not rep_status[0]:
-        flash(rep_status[1], "warning")
+        if not rep_status[0]:
+            flash(rep_status[1], "warning")
+        else:
+            stat = rep_status[1]
     else:
-        stat = rep_status[1]
+        rep_status = None
 
     return render_template('opendjmmr.html',
                            servers=ldaps,

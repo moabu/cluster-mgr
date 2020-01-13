@@ -1,25 +1,23 @@
 {% extends "base.html" %}
 
 {% block header %}
-    <h1>NGINX is Ready</h1>
+  <h1>About to NGINX</h1>
 {% endblock %}
 
 {% block  content %}
 
 <div class="box box-primary">
     <br>
-    <p>NGINX was installed previously and serves the following Gluu Servers:</p>
+    <p>You are about to install NGINX on server {{app_conf.nginx_host}} with the following Gluu Servers as backends.</p>
     <br>
     <ul class="list-group">
     {% for s in servers %}
-    <li class="list-group-item">{{s}}</li>
+      <li class="list-group-item">{{s.hostname}}</li>
     {%endfor%}
     </ul>
     <br>
     <a href="{{ url_for('loadbalancer.install_nginx', next='install') }}" class="btn btn-block btn-warning">
-            Click Here to Re-Install</a>
-
-    
+            Start NGINX Installation </a>
 </div>
 
 {% endblock %}

@@ -41,17 +41,29 @@ def menuIndex():
     return redirect(url_for('load_balancer.install_nginx'))
 
 
-@load_balancer.route('/lbinstall')
+
+
+
+@load_balancer.route('/install')
 @register_menu(load_balancer, '.gluuServerCluster.loadBalancer.installNginx', 'Install', order=1)
 @login_required
 def install_nginx():
     """Initiates installation of nginx load balancer"""
     app_conf = AppConfiguration.query.first()
 
+    if (not app_conf) or (not app_conf.nginx_host):
+        flash("Please first configure Load Balancer")
+        return redirect(url_for('load_balancer.setup_nginx'))
+
     if not request.args.get('next') == 'install':
         status = checkNginxStatus(app_conf.nginx_host)
         if status[0]:
-            return render_template("load_balancer_install.html", servers=status[1])
+            return render_template("load_balancer_install.html", 
+                                servers=status[1])
+        else:
+            servers = Server.query.all()
+            return render_template("load_balancer_about_to_install.html", 
+                                            servers=servers, app_conf=app_conf)
 
     # Start nginx  installation celery task
     task = installNGINX.delay(app_conf.nginx_host)
@@ -64,8 +76,8 @@ def install_nginx():
     return render_template('logger_single.html', title=head, server=app_conf.nginx_host,
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
-@load_balancer.route('/lbsetup', methods=['GET', 'POST'])
-@register_menu(load_balancer, '.gluuServerCluster.loadBalancer.setupNginx', 'Setup', order=2)
+@load_balancer.route('/configure', methods=['GET', 'POST'])
+@register_menu(load_balancer, '.gluuServerCluster.loadBalancer.setupNginx', 'Configure', order=2)
 @login_required
 def setup_nginx():
     cform = LoadBalancerForm()
@@ -79,8 +91,6 @@ def setup_nginx():
         db.session.add(app_config)
 
     submit_text = "Update" if app_config.nginx_host else "Save"
-
-    print cform.external_load_balancer.data
 
     if request.method == 'GET':
         cform.nginx_host.data = app_config.nginx_host

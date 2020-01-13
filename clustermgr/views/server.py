@@ -636,8 +636,6 @@ def settings():
         cform.ldap_update_period.data = str(app_config.ldap_update_period)
         cform.modify_hosts.data = app_config.modify_hosts
 
-        print "LP", cform.ldap_update_period.data
-
     else:
         if not app_config.gluu_version:
             app_config.gluu_version = cform.gluu_version.data
