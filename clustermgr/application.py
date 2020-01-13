@@ -164,13 +164,4 @@ def create_app():
 
         app.jinja_env.globals['use_ldap_cache'] = use_ldap_cache
 
-        cmgr_path = request.path.split('/')
-        while '' in cmgr_path:
-            cmgr_path.remove('')
-
-        if (not cmgr_path) or (not cmgr_path[0] in ['oxdcluster']):
-            cmgr_path.insert(0, 'gluucluster')
-
-        app.jinja_env.globals['cmgr_path'] = cmgr_path
-
     return app
