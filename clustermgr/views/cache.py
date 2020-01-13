@@ -9,7 +9,7 @@ from flask_login import login_required
 from flask_menu import register_menu
 
 from clustermgr.models import Server, AppConfiguration
-from clustermgr.tasks.cache import install_cache_cluster
+from clustermgr.tasks.cache import install_cache_cluster, uninstall_cache_cluster
 
 
 from ..core.license import license_reminder
@@ -28,22 +28,45 @@ cache_mgr.before_request(license_required)
 cache_mgr.before_request(license_reminder)
 
 
-
 @cache_mgr.route('/')
 @register_menu(cache_mgr, '.gluuServerCluster.cacheManagement', 'Cache Management', order=4, icon='fa fa-microchip')
 @login_required
 def index():
     servers = Server.query.all()
     appconf = AppConfiguration.query.first()
-    
+    cache_servers = get_cache_servers()
     cachetype = request.args.get('cachetype')
 
     if cachetype == 'redis':
         appconf.use_ldap_cache = False
         db.session.commit()
     elif cachetype == 'ldap':
-        appconf.use_ldap_cache = True
-        db.session.commit()
+        if not cache_servers:
+            appconf.use_ldap_cache = True
+            db.session.commit()
+
+        else:
+            steps = ['Disabling Redis Server and Stunnel on Cache Server', 'Disabling stunnel on Gluu Server Nodes']
+            title = "Setting Up Cache Management"
+            whatNext = "Cache Management Home"
+            nextpage = url_for('cache_mgr.index')
+            
+            task = uninstall_cache_cluster.delay(
+                                        [server.id for server in servers],
+                                        [server.id for server in cache_servers],
+                                        )
+
+            return render_template('logger_single.html',
+                                   title=title,
+                                   steps=steps,
+                                   task=task,
+                                   cur_step=1,
+                                   auto_next=True,
+                                   multistep=True,
+                                   multiserver=cache_servers+servers,
+                                   nextpage=nextpage,
+                                   whatNext=whatNext
+                                   )
         
     if not servers:
         flash("Add servers to the cluster before attempting to manage cache",
@@ -52,8 +75,6 @@ def index():
 
 
     form = CacheSettingsForm()
-
-    cache_servers = get_cache_servers()
 
     return render_template('cache_index.html', 
                            servers=servers, 
@@ -130,8 +151,6 @@ def add_cache_server():
         if request.method == "GET":
             form.redis_password.data = random_chars(20)
             form.stunnel_port.data = 16379
-
-    print form.redis_password.data
 
     if request.method == "POST" and form.validate_on_submit():
         hostname = form.hostname.data

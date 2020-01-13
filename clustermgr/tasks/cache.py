@@ -286,3 +286,96 @@ def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE', 
 
 
 
+@celery.task(bind=True)
+def uninstall_cache_cluster(self, servers_id_list, cache_servers_id_list):
+
+    task_id = self.request.id
+
+    servers = [ Server.query.get(id) for id in servers_id_list ]
+    cache_servers = [ CacheServer.query.get(id) for id in cache_servers_id_list ]
+    primary_cache_server = CacheServer.query.first()
+    app_conf = AppConfiguration.query.first()
+    
+
+    
+    for server in cache_servers:
+
+        server.os = None
+        installer =  Installer(
+                        server,
+                        app_conf.gluu_version,
+                        logger_task_id=task_id
+                    )
+
+        if not installer.conn:
+            wlogger.log(task_id, "SSH connection to server failed", "error", server_id=server.id)
+            return False
+
+
+        if installer.clone_type == 'deb':
+            stunnel_package = 'stunnel4'
+            redis_package = 'redis-server'
+        else:
+            stunnel_package = 'stunnel'
+            redis_package = 'redis'
+
+        redis_installed = installer.conn.exists('/usr/bin/redis-server')
+
+        if redis_installed:
+            wlogger.log(task_id, "Disabling Redis Server", "info", server_id=server.id)
+            installer.enable_service(redis_package, inside=False, change='disable')
+            wlogger.log(task_id, "Stopping Redis Server", "info", server_id=server.id)
+            installer.stop_service(redis_package, inside=False)
+        else:
+            wlogger.log(task_id, "Redis Server was not isntalled.", "info", server_id=server.id)
+
+        stunnel_installed = installer.conn.exists('/etc/stunnel/stunnel.conf')
+
+        if stunnel_installed:
+            wlogger.log(task_id, "Disabling Stunnel", "info", server_id=server.id)
+            installer.enable_service(stunnel_package, inside=False, change='disable')
+            wlogger.log(task_id, "Stopping Stunnel", "info", server_id=server.id)
+            installer.stop_service(stunnel_package, inside=False)
+        else:
+            wlogger.log(task_id, "Stunnel not isntalled.", "info", server_id=server.id)
+
+    wlogger.log(task_id, "2", "setstep")
+
+    for server in servers:
+        installer =  Installer(
+                        server,
+                        app_conf.gluu_version,
+                        logger_task_id=task_id
+                    )
+
+        stunnel_installed = installer.conn.exists('/etc/stunnel/stunnel.conf')
+
+        if installer.clone_type == 'deb':
+            stunnel_package = 'stunnel4'
+            redis_package = 'redis-server'
+        else:
+            stunnel_package = 'stunnel'
+            redis_package = 'redis'
+        
+        if stunnel_installed:
+            wlogger.log(task_id, "Disabling Stunnel", "info", server_id=server.id)
+            installer.enable_service(stunnel_package, inside=False, change='disable')
+            wlogger.log(task_id, "Stopping Stunnel", "info", server_id=server.id)
+            installer.stop_service(stunnel_package, inside=False)
+        else:
+            wlogger.log(task_id, "Stunnel not isntalled.", "info", server_id=server.id)
+
+        if server.primary_server:
+            
+            server_string = 'localhost:6379'
+            __update_LDAP_cache_method(task_id, server, server_string, redis_password=primary_cache_server.redis_password)
+
+        wlogger.log(task_id, "Restarting Gluu Server", "info",
+                                server_id=server.id)
+
+        installer.restart_gluu()
+    
+    app_conf.use_ldap_cache = True
+    db.session.commit()
+    wlogger.log(task_id, "3", "setstep")
+    return True

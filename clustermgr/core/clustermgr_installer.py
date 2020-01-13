@@ -264,12 +264,13 @@ class Installer:
             wlogger.log(self.logger_task_id, "Ending up current process.", "error", server_id=self.server_id)
             return False
 
-    def enable_service(self, service, inside=True):
+    def enable_service(self, service, inside=True, change='enable'):
         
         if self.clone_type == 'deb':
-            self.run('update-rc.d {0} enable'.format(service),inside=inside, error_exception='warning:')
+            self.run('update-rc.d {0} {1}'.format(service, change),inside=inside, error_exception='warning:')
         else:
-            self.run(self.service_script.format(service, 'enable'), inside=inside, error_exception='Created symlink from')
+            error_exception = 'Created symlink from' if change=='enable' else 'Removed symlink'
+            self.run(self.service_script.format(service, change), inside=inside, error_exception='Created symlink from')
 
     def stop_service(self, service, inside=True):
         cmd = self.service_script.format(service, 'stop')
