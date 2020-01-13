@@ -59,6 +59,7 @@ setup(
         "oxdpython",
         "influxdb==5.0.0",
         'gunicorn==19.7.1',
+        'Flask-Manual==0.7.1',
         'psutil',
     ],
     scripts=['clusterapp.py', 'clustermgr4-cli'],
