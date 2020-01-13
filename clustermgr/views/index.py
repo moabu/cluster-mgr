@@ -170,7 +170,7 @@ def app_configuration():
     if not config:
         #del conf_form.replication_pw
         #del conf_form.replication_pw_confirm
-        config = AppConfiguration()
+        config = AppConfiguration(use_ldap_cache=True)
         db.session.add(config)
 
     print conf_form.update.data, conf_form.validate_on_submit(),  conf_form.errors
@@ -225,7 +225,11 @@ def app_configuration():
         config.ldap_update_period = conf_form.ldap_update_period.data
         config.ldap_update_period_unit = 's'
         config.external_load_balancer = conf_form.external_load_balancer.data
-        config.use_ldap_cache = conf_form.use_ldap_cache.data
+
+        if as_boolean(prop['installSaml']):
+            config.use_ldap_cache = True
+        else:
+            config.use_ldap_cache = conf_form.use_ldap_cache.data
 
 
         if conf_form.offline.data:
@@ -301,9 +305,6 @@ def app_configuration():
         if config.gluu_version:
             conf_form.gluu_version.data = config.gluu_version
 
-    if not config.id:
-        conf_form.use_ldap_cache.data = True
-        
     #create fake remote class that provides the same interface with RemoteClient
     fc = FakeRemote()
     
