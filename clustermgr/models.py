@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from datetime import timedelta
 
@@ -47,7 +48,7 @@ class Server(db.Model):
 
     # Is monitoring installed
     monitoring = db.Column(db.Boolean)
-    
+
     def __repr__(self):
         return '<Server {} {}>'.format(self.id, self.hostname)
 
@@ -186,3 +187,34 @@ class CacheServer(db.Model):
 
     def __repr__(self):
         return '<Cache Server {} {}>'.format(self.id, self.hostname)
+
+class GServer(db.Model):
+    __tablename__ = "generic_server"
+    id = db.Column(db.Integer, primary_key=True)
+    hostname = db.Column(db.String(250))
+    ip = db.Column(db.String(45))
+    server_type = db.Column(db.String(10))
+    jsondata = db.Column(db.Text)
+
+    @classmethod
+    def get_servers(self, stype):
+        oxd_server_list = GServer.query.filter_by(server_type=stype).all()
+        for oxd in oxd_server_list:
+            if oxd.jsondata:
+                oxd.data = json.loads(oxd.jsondata)
+            else:
+                oxd.data = {}
+        return oxd_server_list
+
+    @classmethod
+    def new(self, stype):
+        gserver_obj = GServer(server_type=stype)
+        gserver_obj.data = {}
+        return gserver_obj
+
+    def save(self):
+        if self.data:
+            self.jsondata = json.dumps(self.data)
+        if not self.id:
+            db.session.add(self)
+        db.session.commit()
