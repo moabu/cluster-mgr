@@ -32,7 +32,7 @@ setup(
         "more_itertools==5.0.0",
         "MarkupSafe>=0.23",
         "kombu==4.5",
-        "billiard==3.6",
+        "billiard==3.5.0.4",
         "cffi",
         "asn1crypto",
         "blinker",
