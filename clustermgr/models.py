@@ -207,6 +207,18 @@ class GServer(db.Model):
         return oxd_server_list
 
     @classmethod
+    def get_server(self, sid):
+        oxd = GServer.query.get(int(sid))
+        if oxd:
+            if oxd.jsondata:
+                oxd.data = json.loads(oxd.jsondata)
+            else:
+                oxd.data = {}
+
+        return oxd
+
+
+    @classmethod
     def new(self, stype):
         gserver_obj = GServer(server_type=stype)
         gserver_obj.data = {}
@@ -230,7 +242,10 @@ class ConfigParam(db.Model):
         param_obj = ConfigParam.query.filter_by(key=key).first()
 
         if param_obj:
-            return json.loads(param_obj.value)
+            try:
+                return json.loads(param_obj.value)
+            except:
+                return param_obj.value
 
         return default
 

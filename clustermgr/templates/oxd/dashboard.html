@@ -88,20 +88,6 @@
                         <td>{{ server.ip }}</td>
                         </td>
                         
-                        {% if servers[0].gluu_server %}
-                        <td>
-                            <center> 
-                                <span class="badge" data-toggle="tooltip" id="ldapstat{{server.id}}" title="">LDAP</span> 
-                                {% for service in services %}
-                                <span  class="badge" data-toggle="tooltip" id="{{server.id}}-{{service}}" title="">{{service}}</span> 
-                                {% endfor %} 
-                                </center>
-                            
-                        
-                        </td>
-                        
-                        {% endif %}
-                        
                         <td id="server_os_{{server.id}}">{{ server.os }}</td>
                         <td>
                             
@@ -115,16 +101,13 @@
                             {% endif %}
                                
                                 <span  {% if (not server.os) or (not server.os in SUPPORTED_OS) %}style="display:none"{% endif %} id="serverhide-{{server.id}}">
-                                <a id="drybutton{{server.id}}" class="btn btn-default btn-xs" href="#" onClick="dryRun({{server.id}})" class="btn btn-info btn-block">
-                                    <i id="dryicon{{server.id}}" class="fa fa-spinner"></i> Dry-run
-                                </a>
-                            <a class="btn btn-default btn-xs" href="{{ url_for('server.edit', server_id=server.id) }}">Edit</a>
+                            <a class="btn btn-default btn-xs" href="{{ url_for('oxd.add_server', sid=server.id) }}">Edit</a>
                             <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal"
                                data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Remove</a>
                             
-                            {% if not server.gluu_server %}
+                            {% if not server.data.get('installed') %}
                             <br>
-                            <a class="btn btn-default btn-xs" href="{{ url_for('server.install_gluu', server_id=server.id) }}">Install Gluu</a>
+                            <a class="btn btn-default btn-xs" href="{{ url_for('server.install_gluu', server_id=server.id) }}">Install Oxd Server</a>
                             {% else %}
                             <br>
                             
@@ -132,12 +115,7 @@
                                data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Re-install</a>
                            
                             {% endif %}
-                            
-                            {% if not server.primary_server %}
-                            <a class="btn btn-default btn-xs" href="#" data-toggle="modal" data-target="#change_primary_server_modal"
-                               data-pserverid="{{server.id}}" data-phostname="{{ server.hostname }}">Make Primary</a>
 
-                            {% endif %}
                             
                         </td>
                     </tr>
@@ -173,7 +151,7 @@
                 <p>This will remove the server from the cluster. Are you sure
                     you want it removed?</p>
                     <div class="radio">
-                        <label><input type="radio" value="1" id="removeOption" checked name="removeOption"> Disable LDAP replication</label>
+                        <label><input type="radio" value="1" id="removeOption" checked name="removeOption"> Reconfigure all servers</label>
                     </div>
                     <div class="radio">
                         <label><input type="radio" value="2" id="removeOption" name="removeOption"> Remove only from dashboard</label>
@@ -210,31 +188,6 @@
                         data-dismiss="modal">Close
                 </button>
                 <a id="reinstall_url" class="btn btn-danger" href="#">Confirm</a>
-            </div>
-        </div><!-- /.modal-content -->
-    </div><!-- /.modal-dialog -->
-</div><!-- /.modal -->
-
-
-
-<!-- Alert before changing primary server -->
-<div id="change_primary_server_modal" class="modal fade" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal"
-                        aria-label="Close"><span
-                        aria-hidden="true">&times;</span></button>
-                <h4 class="modal-title">Changing Primary Server</h4>
-            </div>
-            <div class="modal-body">
-                <p>Are you sure you want to set <b><span id="primary-server-host"></span></b> as Primary Server?</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-default"
-                        data-dismiss="modal">Close
-                </button>
-                <a id="makeprimary_url" class="btn btn-danger" href="#">Confirm</a>
             </div>
         </div><!-- /.modal-content -->
     </div><!-- /.modal-dialog -->

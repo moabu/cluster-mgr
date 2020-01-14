@@ -9,7 +9,7 @@
 {% block  content %}
 <div class="box box-primary">
     <div class="box-body">
-        {{ render_form(form, action_url=url_for('oxd.settings'), btn_class='btn btn-primary pull-right') }}
+        {{ render_form(form, action_url=url_for('oxd.configure', next_url=next_url), btn_class='btn btn-primary pull-right') }}
         
     </div>
 </div>
