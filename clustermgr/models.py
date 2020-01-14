@@ -218,3 +218,29 @@ class GServer(db.Model):
         if not self.id:
             db.session.add(self)
         db.session.commit()
+
+class ConfigParam(db.Model):
+    __tablename__ = "config_param"
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(10))
+    value = db.Column(db.Text)
+
+    @classmethod
+    def get(self, key):
+        param_obj = ConfigParam.query.filter_by(key=key).first()
+        if param_obj:
+            return param_obj.value
+
+    @classmethod
+    def set(self, key, value):
+        param_obj = ConfigParam.query.filter_by(key=key).first()
+        
+        if not param_obj:
+            param_obj = ConfigParam(key=key)
+            db.session.add(param_obj)
+        
+        param_obj.value = value
+        db.session.commit()
+
+    def __repr__(self):
+        return '<Param {} {}>'.format(self.key, self.value)

@@ -24,7 +24,7 @@ def menuIndex():
     return redirect(url_for('oxd_cluster.home'))
 
 
-@oxd_cluster.route('/')
+@oxd_cluster.route('/servers')
 @register_menu(oxd_cluster, '.oxdCluster.servers', 'Servers', order=1, icon='fa fa-server')
 @login_required
 def home():

@@ -1,0 +1,537 @@
+{% extends "base.html" %}
+{% block header %}
+<h1>Gluu Servers</h1>
+
+{% endblock %}
+{% block content %}
+<style>
+
+.inactiveService {
+    text-decoration: line-through; 
+    text-decoration-color: black;
+    }
+
+</style>
+
+<div class="row">
+    <div class="col-xs-12 col-sm-6 col-md-3">
+        <div class="small-box bg-aqua">
+            <div class="inner">
+                <h3>{{ servers | length }}</h3>
+                <p>Servers</p>
+            </div>
+            <div class="icon">
+                <i class="fa fa-server"></i>
+            </div>
+            <a href="{{ url_for('server.index') }}" class="small-box-footer">
+                Add Server
+                <i class="fa fa-arrow-circle-right"></i>
+            </a>
+        </div>
+    </div>
+
+    {% if app_conf %}
+     <div class="col-xs-12 col-sm-6 col-md-3">
+        <div class="small-box bg-yellow">
+            <div class="inner">
+                <h3>{{ app_conf.gluu_version }}</h3>
+                <p>Gluu Version</p>
+            </div>
+            <div class="icon">
+                {% if app_conf.offline %}
+                  <i class="fa fa-hdd-o"></i>
+                {% else %}
+                  <i class="fa fa-cloud"></i>
+                {% endif %}
+            </div>
+            <a href="#" id="change-version" class="small-box-footer">
+                Change Settings
+                <i class="fa fa-arrow-circle-right"></i>
+            </a>
+        </div>
+    </div>
+
+    {% endif %}
+
+</div>
+
+{% if servers %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="box">
+            <div class="box-header with-border">
+                <h3 class="box-title">Servers in the Cluster</h3>
+                <div class="box-tools pull-right">
+                <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i>
+                </button>
+              </div>
+            </div>
+            <div class="box-body no-padding">
+                <table id="servers" class="table table-bordered">
+                    <thead>
+                    <tr>
+                        <th>Server ID</th>
+                        <th>Hostname</th>
+                        <th>IP Address</th>
+                        {% if servers[0].gluu_server %}<th><center>Service Liveness Status</center></th>{% endif %}
+                        <th>OS</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for server in servers %}
+                    <tr>
+                        <td>{{ server.id }}</td>
+                        <td>{{ server.hostname }}
+                            {% if server.primary_server %}
+                                <span class="badge bg-green">Primary</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ server.ip }}</td>
+                        </td>
+                        
+                        {% if servers[0].gluu_server %}
+                        <td>
+                            <center> 
+                                <span class="badge" data-toggle="tooltip" id="ldapstat{{server.id}}" title="">LDAP</span> 
+                                {% for service in services %}
+                                <span  class="badge" data-toggle="tooltip" id="{{server.id}}-{{service}}" title="">{{service}}</span> 
+                                {% endfor %} 
+                                </center>
+                            
+                        
+                        </td>
+                        
+                        {% endif %}
+                        
+                        <td id="server_os_{{server.id}}">{{ server.os }}</td>
+                        <td>
+                            
+                            <div id="serverunsupperted-{{server.id}}" {% if server.os and (server.os in SUPPORTED_OS) %} style="display:none" {% endif %}>
+                                Currently Cluster Manager<br>
+                                supports {{', '.join(SUPPORTED_OS)}}
+                            </div>
+                            {% if not server.os in SUPPORTED_OS %}
+                            <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal"
+                               data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Remove</a>
+                            {% endif %}
+                               
+                                <span  {% if (not server.os) or (not server.os in SUPPORTED_OS) %}style="display:none"{% endif %} id="serverhide-{{server.id}}">
+                                <a id="drybutton{{server.id}}" class="btn btn-default btn-xs" href="#" onClick="dryRun({{server.id}})" class="btn btn-info btn-block">
+                                    <i id="dryicon{{server.id}}" class="fa fa-spinner"></i> Dry-run
+                                </a>
+                            <a class="btn btn-default btn-xs" href="{{ url_for('server.edit', server_id=server.id) }}">Edit</a>
+                            <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal"
+                               data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Remove</a>
+                            
+                            {% if not server.gluu_server %}
+                            <br>
+                            <a class="btn btn-default btn-xs" href="{{ url_for('server.install_gluu', server_id=server.id) }}">Install Gluu</a>
+                            {% else %}
+                            <br>
+                            
+                           <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#reinstall_alert_modal"
+                               data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Re-install</a>
+                           
+                            {% endif %}
+                            
+                            {% if not server.primary_server %}
+                            <a class="btn btn-default btn-xs" href="#" data-toggle="modal" data-target="#change_primary_server_modal"
+                               data-pserverid="{{server.id}}" data-phostname="{{ server.hostname }}">Make Primary</a>
+
+                            {% endif %}
+                            
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+
+    </div>
+
+</div>
+{% endif %}
+
+
+{% endblock %}
+
+{% block modals %}
+
+
+<!-- Alert Modal before a server is removed from the cluster -->
+<div id="remove_alert_modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"
+                        aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">Remove Server</h4>
+            </div>
+            <div class="modal-body">
+                <p>This will remove the server from the cluster. Are you sure
+                    you want it removed?</p>
+                    <div class="radio">
+                        <label><input type="radio" value="1" id="removeOption" checked name="removeOption"> Disable LDAP replication</label>
+                    </div>
+                    <div class="radio">
+                        <label><input type="radio" value="2" id="removeOption" name="removeOption"> Remove only from dashboard</label>
+                    </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close </button>
+                <input type="button" id="remove_url" class="btn btn-danger" value="Confirm">
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+
+
+<!-- Alert Reinstallation before installing Gluu an allready installed server -->
+<div id="reinstall_alert_modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"
+                        aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">Re-install Gluu Server</h4>
+            </div>
+            <div class="modal-body">
+                <p>This will remove existing installation and install a fresh Gluu Server. 
+                You will lose all data on existing Gluu Server container. 
+                Are you sure you want to RE-INSTALL?
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default"
+                        data-dismiss="modal">Close
+                </button>
+                <a id="reinstall_url" class="btn btn-danger" href="#">Confirm</a>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+
+
+<!-- Alert before changing primary server -->
+<div id="change_primary_server_modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"
+                        aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">Changing Primary Server</h4>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to set <b><span id="primary-server-host"></span></b> as Primary Server?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default"
+                        data-dismiss="modal">Close
+                </button>
+                <a id="makeprimary_url" class="btn btn-danger" href="#">Confirm</a>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+
+<!-- Dry-run modal -->
+<div id="dry_run_modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"
+                        aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">Port Status</h4>
+            </div>
+            <div class="modal-body">
+                <p><b>Host reachable via SSH: </b> <span id="host_ssh"></span></p>
+                <p><b>Load Balancer reachable via SSH: </b> <span id="nginx_ssh"></span></p>
+                <table class="table table-bordered">
+                <th>Port</th><th align="center">Current Status</th><th align="center">Accessible</th>
+                {% for p in [16379, 443, 4444, 1636, 80, 8989, 7777, 30865] %}
+                <tr>
+                    <th>{{p}}</th>
+                    <td align="center"><span id="sport_{{p}}"></span></td>
+                    <td align="center"><span id="nport_{{p}}"></span></td>
+                </tr>
+                {% endfor %}
+                </table>
+                
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default"
+                        data-dismiss="modal">Close
+                </button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+
+<!-- Settings Modal Begin-->
+<div id="changeVersionModal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+  <form class="form-horizontal" id="form" action="{{ url_for('server.settings') }}" method="POST">
+
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title" id="modal-title">Settings</h4>
+      </div>
+      <div class="modal-body" id="change-version-modal-body">
+
+
+        <p>Loading ...</p>
+        
+        
+      </div>
+      <div class="modal-footer">
+        <a href="#" class="btn btn-default" data-dismiss="modal">Close</a> <input type="submit" class="btn btn-primary" value="Save">
+      </div>
+    </div>
+    
+  </form>
+ </div>
+</div>
+<!-- Settings Modal End-->
+
+
+{% endblock %}
+
+{% block js %}
+<script>
+    var remove_server_url;
+    
+    $('#remove_alert_modal').on('show.bs.modal', function (event) {
+
+        var button = $(event.relatedTarget);
+        var server_id = button.data('serverid');
+        var hostname = button.data('hostname');
+        
+        remove_server_url = '{{request.host_url}}server/remove/';
+        remove_server_url = remove_server_url + server_id;
+
+        console.log(remove_server_url);
+
+        var modal = $(this);
+        modal.find('.modal-title').text('Remove ' + hostname+'?');
+    });
+
+
+    $('#remove_url').click(function(){
+
+
+        removeOption = $("#removeOption:checked").val();
+
+
+        if(removeOption=='1') {
+            remove_server_url = remove_server_url + '?disablereplication=true';
+            
+        } else {
+            remove_server_url = remove_server_url + '?removefromdashboard=true';
+        }
+        window.location.href = remove_server_url;
+
+    });
+
+
+    $('#reinstall_alert_modal').on('show.bs.modal', function (event) {
+        var button = $(event.relatedTarget);
+        var server_id = button.data('serverid');
+        var hostname = button.data('hostname');
+        var reinstall_server_url = '{{ url_for("server.install_gluu", server_id=9999) }}';
+        reinstall_server_url = reinstall_server_url.replace('9999', server_id);
+        var modal = $(this);
+        modal.find('.modal-title').text('Re-install ' + hostname);
+        $('#reinstall_url').attr('href', reinstall_server_url);
+    });
+
+    $('#change_primary_server_modal').on('show.bs.modal', function (event) {
+        var button = $(event.relatedTarget);
+        var server_id = button.data('pserverid');
+        var hostname = button.data('phostname');
+        
+        $('#primary-server-host').text(hostname);
+        
+        var make_primary_url="{{request.host_url}}server/makeprimary/"
+        
+        make_primary_url += server_id;
+        
+        $('#makeprimary_url').attr('href', make_primary_url);
+        
+    });
+
+
+
+var servers = {{server_id_list|safe}};
+var services = {{services|safe}};
+
+
+function updateStatus() {
+    
+    $.get("{{request.host_url}}monitoring/serverstat", function(data, status) {
+    
+    for (var i = 0; i < servers.length; i++) {
+        for (var j = 0; j < services.length; j++) {
+            var s_element = $('#'+ servers[i]+'-'+services[j]);
+            if (data[servers[i]][services[j]]) {
+                s_element.removeClass("bg-red");
+                s_element.removeClass("inactiveService");
+                s_element.addClass("bg-green");
+                s_element.attr("data-original-title", "This service seems to be working as expected");
+            } else {
+                s_element.addClass("bg-red");
+                s_element.addClass("inactiveService");
+                s_element.removeClass("bg-green");
+                s_element.attr("data-original-title", "This service may be stopped or not working properly");
+               
+            }
+    
+        }
+    
+    }
+    
+    });
+    
+}
+    
+
+
+function showLdapStat() {
+    updateStatus();
+
+{% for server in servers %}
+
+    $.get("{{request.host_url}}server/ldapstat/{{server.id}}/", function(data, status){
+        var ldap_element = $("#ldapstat{{server.id}}");
+        if (data == 1) {
+            ldap_element.addClass("bg-green");
+            ldap_element.removeClass("bg-red");
+            ldap_element.removeClass("inactiveService");
+            ldap_element.attr("data-original-title", "This service seems to be working as expected");
+
+        } else {
+
+            ldap_element.addClass("bg-red");
+            ldap_element.removeClass("bg-green");
+            ldap_element.addClass("inactiveService");
+            ldap_element.attr("data-original-title", "This service may be stopped or not working properly");
+        }
+        
+    
+    });
+    
+{% endfor %}
+
+}
+
+showLdapStat();
+
+
+setInterval(function() {
+    showLdapStat();
+}, {{service_update_period}}*1000);
+
+
+function dryRun(server_id) {
+    
+    
+    if ($("#drybutton").attr("disabled") !== 'disabled') {
+    
+        $("#dryicon"+server_id).addClass("fa-spin"); 
+        $("#drybutton"+server_id).attr('disabled', true);
+    
+    }
+        $.get("{{request.host_url}}server/dryrun/"+server_id, function(data, status) {
+        
+        console.log(data)
+        
+        if (data['server']['ssh']) {
+                
+            $('#host_ssh').addClass("fa fa-check");
+            $('#host_ssh').addClass("text-success");
+        } else {
+            $('#host_ssh').addClass("fa fa-times");
+            $('#host_ssh').addClass("text-danger");
+        }
+        
+        if (data['nginx']['ssh']) {
+                
+            $('#nginx_ssh').addClass("fa fa-check");
+            $('#nginx_ssh').addClass("text-success");
+        } else {
+            $('#nginx_ssh').addClass("fa fa-times");
+            $('#nginx_ssh').addClass("text-danger");
+        }
+
+        var ports = ["16379", "443", "4444", "1636", "80", "8989", "7777", "30865"];
+
+        for (var i = 0; i < ports.length; i++) {
+        
+            if (data['server']['port_status'][ports[i]]) {
+                $('#sport_' + ports[i]).addClass("fa fa-check");
+                $('#sport_'+ ports[i]).addClass("text-success");
+            }
+
+            if (data['nginx']['port_status'][ports[i]]) {
+                $('#nport_' + ports[i]).addClass("fa fa-check");
+                $('#nport_'+ ports[i]).addClass("text-success");
+            }
+
+        }
+        
+        $("#drybutton"+server_id).attr('disabled', false);
+        
+        $("#dryicon"+server_id).removeClass("fa-spin");
+        
+        $("#dry_run_modal").modal("show");
+        
+        });
+    
+    //console.log($("#drybutton").attr("disabled"));
+    
+    }
+    
+$('[data-toggle="tooltip"]').tooltip(); 
+
+
+setTimeout(function() {
+    var supportedOs = {{SUPPORTED_OS|safe}};
+    $.get("{{request.host_url}}server/getostype", function(data, status) {
+        $.each(data, function( key, value ) {
+            $('#server_os_'+key).text(value);
+            if (supportedOs.includes(value)) {
+                $('#serverhide-'+key).show();
+                $('#serverunsupperted-'+key).hide();
+            } else {
+                $('#serverhide-'+key).hide();
+                $('#serverunsupperted-'+key).show();
+            }
+        });
+    });
+    
+
+},15000);
+
+
+$("#change-version").click(function(e){
+
+$('#change-version-modal-body').html('<p>Loading ...</p>')
+  e.preventDefault();
+  $('#changeVersionModal').modal('show').find('.modal-body').load("{{request.host_url}}{{url_for('server.settings')[1:]}}");
+
+});
+
+</script>
+{% endblock %}
+
