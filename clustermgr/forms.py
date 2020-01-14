@@ -364,3 +364,17 @@ class cacheServerForm(FlaskForm):
     install_redis = BooleanField("Install Redis and stunnel", default=True)
     redis_password = StringField("Redis Password")
     stunnel_port = IntegerField("Stunnel Port", validators=[DataRequired()])
+
+class OxdSettingsForm(FlaskForm):
+    versions = [
+                '4.0',
+                ]
+    oxd_version = SelectField('Oxd Version',
+            choices=[(v, v) for v in versions],
+            description="You can't change version after deploying first server."
+            ) 
+    op_host = StringField("OpenID Provider URL", validators=[DataRequired(),
+                                                URL(require_tld=False)])
+    scope = StringField("List of Scopes", validators=[DataRequired()], 
+                default='openid, profile, email')
+    use_gluu_cluster_redis = BooleanField("Use Redis Cluser of Gluu Server cluster")

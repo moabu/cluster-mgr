@@ -26,7 +26,6 @@ keyrotation_bp.before_request(license_reminder)
 def isKEyRatationMenuVisible():
     keygen_file = os.path.join(celery.conf["JAVALIBS_DIR"], 'keygen.jar')
     
-    print "KR", os.path.isfile(keygen_file)
     return os.path.isfile(keygen_file)
 
 @keyrotation_bp.route("/")

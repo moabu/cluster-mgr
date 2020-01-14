@@ -17,7 +17,13 @@
         {% if 'help' in kwargs %}
             <p class="help-block">{{ kwargs.pop('help') }}</p>
         {% endif %}
+
         {{ field(class_='form-control', **kwargs) }}
+
+        {% if field.description %}
+            <span class="form-text text-warning">{{ field.description }}</span>
+        {% endif %}
+
         {% if field.errors %}
             {% for e in field.errors %}
                 <p class="help-block">{{ e }}</p>
@@ -40,6 +46,9 @@
     <div class="checkbox">
         <label>
             {{ field(type='checkbox', **kwargs) }} {{ field.label }}
+            {% if field.description %}
+                <span class="form-text text-warning">{{ field.description }}</span>
+            {% endif %}
         </label>
     </div>
 {%- endmacro %}

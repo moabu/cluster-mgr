@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from 'macros.html' import render_field, render_checkbox_field, render_form %}
+
+{% block header %}
+    <h1> Oxd Settings</h1>
+
+{% endblock header %}
+
+{% block  content %}
+<div class="box box-primary">
+    <div class="box-body">
+        {{ render_form(form, action_url=url_for('oxd.settings'), btn_class='btn btn-primary pull-right') }}
+        
+    </div>
+</div>
+{% endblock %}
+
+
+{% block modals %}
+{% endblock %}
+
+
+{% block js %}
+{% endblock %}
+

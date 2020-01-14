@@ -226,10 +226,13 @@ class ConfigParam(db.Model):
     value = db.Column(db.Text)
 
     @classmethod
-    def get(self, key):
+    def get(self, key, default=None):
         param_obj = ConfigParam.query.filter_by(key=key).first()
+
         if param_obj:
-            return param_obj.value
+            return json.loads(param_obj.value)
+
+        return default
 
     @classmethod
     def set(self, key, value):
@@ -239,7 +242,7 @@ class ConfigParam(db.Model):
             param_obj = ConfigParam(key=key)
             db.session.add(param_obj)
         
-        param_obj.value = value
+        param_obj.value = json.dumps(value)
         db.session.commit()
 
     def __repr__(self):

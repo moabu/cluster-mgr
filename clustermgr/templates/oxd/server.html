@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from 'macros.html' import render_field, render_checkbox_field, render_form %}
+
+{% block header %}
+    <h1> Oxd Server</h1>
+
+{% endblock header %}
+
+{% block  content %}
+<div class="box box-primary">
+    <div class="box-body">
+        {{ render_form(form, action_url='', btn_class='btn btn-primary') }}
+        
+    </div>
+
+
+
+{% endblock %}
+
+
+{% block modals %}
+
+{% include 'passphrase_modal.html' %}
+
+{% endblock %}
+
+
+{% block js %}
+<script>
+{% if ask_passphrase %}
+
+    $("#passphrase_modal").modal("show");
+
+{% endif %}
+
+$('#submit_passphrase').click(function(e){
+      e.preventDefault();
+      $.post('{{request.host_url}}setpassphrase/', 
+         $('#passphrase_form').serialize(), 
+         function(data, status, xhr){
+           console.log("Status: " + status);
+         });
+    $("#passphrase_modal").modal("hide");
+});
+
+</script>
+{% endblock %}
+
