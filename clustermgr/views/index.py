@@ -54,6 +54,9 @@ def home():
     cfg_file = app.config["AUTH_CONFIG_FILE"]
     oxd_file_config = app.config["OXD_CLIENT_CONFIG_FILE"]
     
+    
+    print app.config["LICENSE_ENFORCEMENT_ENABLED"]
+    
     if not os.path.exists(cfg_file):
         if not os.path.exists(oxd_file_config):
             return redirect(url_for('auth.signup'))
