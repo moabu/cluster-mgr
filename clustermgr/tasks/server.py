@@ -533,7 +533,12 @@ def install_gluu_server(task_id, server_id):
 
     else:
 
-        cmd = installer.get_install_cmd(gluu_server + '-' + app_conf.gluu_version, inside=False)
+        if server.os in ('Ubuntu 16', 'Ubuntu 18'):
+            gluu_package_name = gluu_server + '=' + app_conf.gluu_version + '~' + dist
+        else:
+            gluu_package_name = gluu_server + '-' + app_conf.gluu_version
+        
+        cmd = installer.get_install_cmd(gluu_package_name, inside=False)
 
         ubuntu_re = re.compile('\[(\s|\w|%|/|-|\.)*\]')
         ubuntu_re_2 = re.compile('\(Reading database ... \d*')
