@@ -151,7 +151,7 @@ def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
         redis_installed = installer.conn.exists('/usr/bin/redis-server')
         
         if app_conf.offline:
-            if not iredis_installed:
+            if not redis_installed:
                 wlogger.log(
                     task_id, 
                     'Redis Server was not installed. Please install Redis '
