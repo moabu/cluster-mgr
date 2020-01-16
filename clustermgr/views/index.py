@@ -146,7 +146,7 @@ def app_configuration():
     
     conf_form.gluu_archive.choices = [
             (f,os.path.split(f)[1]) for f in glob.glob(
-            os.path.join(app.config['GLUU_REPO'],'gluu-server-*')) ]
+            os.path.join(app.config['GLUU_REPO'],'gluu-server*')) ]
 
     # If the form is submitted and password for replication user was not
     # not supplied, make password "**dummy**", so don't change

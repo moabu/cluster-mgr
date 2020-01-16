@@ -208,10 +208,9 @@ def checkOfflineRequirements(installer, server, appconf):
     
     #Determine gluu version
     a_path, a_fname = os.path.split(appconf.gluu_archive)
-    m=re.search('gluu-server-(?P<gluu_version>(\d+).(\d+)((.\d+)?)(\.\d+)?)',a_fname)
     
-    print "re", m, a_fname
-    
+    m = re.search('gluu-server(_|-)(?P<gluu_version>(\d+).(\d+)((.\d+)?)(\.\d+)?)',a_fname)
+
     if m:
         gv = m.group('gluu_version')
         gv = gv.split('_')[0]
