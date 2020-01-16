@@ -17,7 +17,7 @@ pip install pyDes
 
 # csync2 Installation
 
-##cysnc2 installation (CentOS 7):
+## cysnc2 installation (CentOS 7):
 
 
 Obtain csync2 from https://raw.githubusercontent.com/mbaser/gluu/master/csync2-2.0-3.gluu.centos7.x86_64.rpm
