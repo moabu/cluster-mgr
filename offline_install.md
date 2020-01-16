@@ -14,6 +14,11 @@ pip install pyDes
 
 ```
 
+and install the following pacakges (on host system):
+ * curl
+ * python2
+ * ntpdate
+ * stunnel
 
 # csync2 Installation
 
