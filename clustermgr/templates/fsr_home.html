@@ -7,6 +7,8 @@
     <li><a href="{{ url_for('cluster.file_system_replication') }}">File System Replication</a></li>
     <li class="active">Setup</li>
 </ol>
+
+
 {% endblock %}
 
 {% block content %}
@@ -21,6 +23,7 @@
                         <th>Hostname</th>
                         <th>IP Address</th>
                         <th>File System Replication Installed</th>
+                        <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -29,13 +32,14 @@
                         <td class="id">{{server.id}}</td>
                         <td class="hostname">{{server.hostname}}</td>
                         <td class="ip">{{server.ip}}</td>
-                        <td class="filebeat">
+                        <td class="filebeat" align="center">
                             {% if server.csync %}
                             <span class="glyphicon glyphicon-ok text-success"></span>
                             {% else %}
                             <span class="glyphicon glyphicon-remove text-danger"></span>
                             {% endif %}
                         </td>
+                        <td align="center"><span id="csync2-stat-{{server.id}}" class="glyphicon text-success"></span></td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -48,7 +52,7 @@
         <div class="box box-widget">
             <div class="box-body">
                 <a class="btn btn-success btn-block" href="{{ url_for('cluster.file_system_replication', install='yes') }}">
-                    <i class="fa fa-wrench"></i> Install File System Replication
+                    <i class="fa fa-wrench"></i> {%if csync %} Re-install {% else %} Install {% endif %} File System Replication
                 </a>
                 {% if csync %}
                     <a class="btn btn-danger btn-block" href="{{ url_for('cluster.remove_file_system_replication')}}">
@@ -62,4 +66,22 @@
 {% endblock %}
 
 {% block js %}
+
+<script>
+    $.get("{{request.host_url}}cluster/fsrep/status", function(data, status) {
+
+    $.each( data, function( key, value ) {
+        span_e = $('#csync2-stat-' + key);
+        if (value) {
+            span_e.addClass("glyphicon-ok");
+        } else {
+            span_e.removeClass("glyphicon-ok");
+            }
+        
+    });
+    
+    });
+
+</script>
+
 {% endblock %}

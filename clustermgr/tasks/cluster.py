@@ -384,39 +384,44 @@ def setup_filesystem_replication_do(task_id):
             installer.restart_service('xinetd')
             installer.restart_service('crond')
         else:
+            if server.os == 'Ubuntu 16':
+                pids = installer.run('pidof inetd')
+                if pids[1].strip():
+                    cmd = 'kill -9 {0}'.format( pids[1].strip())
+                    installer.run(cmd, error_exception='__ALL__')
+                    
             installer.restart_service('cron')
             installer.restart_service('openbsd-inetd')
 
-        if server.os == 'Ubuntu 16':
-            pids = installer.run('pidof inetd')
-            if pids[1].strip():
-                cmd = 'kill -9 {0}'.format( pids[1].strip())
-                installer.run(cmd, error_exception='__ALL__')
+
+                
 
     return True
 
 def remove_filesystem_replication_do(server, app_config, task_id):
 
         installer = Installer(server, app_config.gluu_version, logger_task_id=task_id)
+
         if not installer.conn:
             return False
         
         csync_enabled = False
         
-        if installer.conn.exists('/etc/cron.d/csync2'):
+        
+        if installer.conn.exists('/opt/gluu-server/etc/cron.d/csync2'):
             installer.run('rm /etc/cron.d/csync2')
             csync_enabled = True
         
-        if installer.conn.exists('/var/lib/csync2/'):
-            installer.run('rm /var/lib/csync2/*.*')
+        if installer.conn.exists('/opt/gluu-server/var/lib/csync2/'):
+            installer.run('rm -f /var/lib/csync2/*.*')
             
-        if installer.conn.exists('/etc/csync2.cfg'):
+        if installer.conn.exists('/opt/gluu-server/etc/csync2.cfg'):
             installer.run('rm -f /etc/csync2.cfg')
 
         if csync_enabled:
             if 'CentOS' in server.os or 'RHEL' in server.os :
-                if installer.conn.exists('/etc/xinetd.d/csync2'):
-                    installer.run('rm /etc/xinetd.d/csync2')
+                if installer.conn.exists('/opt/gluu-server/etc/xinetd.d/csync2'):
+                    installer.run('rm /opt/gluu-server/etc/xinetd.d/csync2')
                 services = ['xinetd', 'crond']
                 
             else:

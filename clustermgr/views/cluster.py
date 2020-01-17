@@ -8,7 +8,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 http_requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 from flask import Blueprint, render_template, url_for, flash, redirect, \
-    session, request
+    session, request, jsonify
 from flask_login import login_required
 from flask import current_app as app
 
@@ -18,6 +18,8 @@ from clustermgr.tasks.cluster import installNGINX, \
     setup_filesystem_replication, opendjenablereplication, \
     remove_server_from_cluster, remove_filesystem_replication, \
     opendj_disable_replication_task
+
+from clustermgr.core.utils import port_status_cmd
 
 from clustermgr.core.remote import RemoteClient
 
@@ -34,8 +36,8 @@ cluster.before_request(prompt_license)
 cluster.before_request(license_required)
 cluster.before_request(license_reminder)
 
-
 @cluster.route('/opendjdisablereplication/<int:server_id>/')
+@login_required
 def opendj_disable_replication(server_id):
     server = Server.query.get(server_id)
     task = opendj_disable_replication_task.delay(
@@ -53,8 +55,8 @@ def opendj_disable_replication(server_id):
 
 
 
-
 @cluster.route('/removeserverfromcluster/<int:server_id>/')
+@login_required
 def remove_server_from_cluster_view(server_id):
     """Initiates removal of replications"""
     remove_server = False
@@ -181,6 +183,7 @@ def install_nginx():
 
 
 @cluster.route('/opendjenablereplication/<server_id>')
+@login_required
 def opendj_enable_replication(server_id):
 
     nextpage = url_for('index.multi_master_replication')
@@ -201,6 +204,7 @@ def opendj_enable_replication(server_id):
 
 
 def chekFSR(server, gluu_version):
+    print "Checking File System Replication"
     c = RemoteClient(server.hostname, ip=server.ip)
     try:
         c.startup()
@@ -209,7 +213,7 @@ def chekFSR(server, gluu_version):
               "warning")
         return False, []
     
-    csync_config = '/opt/gluu-server-{}/etc/csync2.cfg'.format(gluu_version)
+    csync_config = '/opt/gluu-server/etc/csync2.cfg'
     result = c.get_file(csync_config)
     
     if result[0]:
@@ -227,7 +231,27 @@ def chekFSR(server, gluu_version):
 
     return False, []
 
+@cluster.route('/fsrep/status', methods=['GET'])
+@login_required
+def fsrep_health():
+    servers = Server.query.all()
+    status = {}
+    for server in servers:
+        status[server.id]= False
+        c = RemoteClient(server.hostname, ip=server.ip)
+        try:
+            c.startup()
+        except Exception as e:
+            print "Can't establish SSH connection to", server.hostname, "Reason:", e
+    
+        csyncs2_cmd = port_status_cmd.format('localhost', 30865)
+        r = c.run(csyncs2_cmd)
+        if r[1].strip()=='0':
+            status[server.id]= True
+    return jsonify(status)
+
 @cluster.route('/fsrep', methods=['GET', 'POST'])
+@login_required
 def file_system_replication():
     """File System Replication view"""
 
@@ -303,13 +327,14 @@ def file_system_replication():
                            
 
 @cluster.route('/removefsrep')
+@login_required
 def remove_file_system_replication():
     servers = Server.query.all()
     task = remove_filesystem_replication.delay()
 
     title = "Uninstalling File System Replication"
-    nextpage=url_for('index.home')
-    whatNext="Dashboard"
+    nextpage=url_for('cluster.file_system_replication')
+    whatNext="File System Replication Home"
     
     return render_template('logger_single.html',
                            task_id=task.id, title=title,
