@@ -118,7 +118,7 @@ class KeyRotation(db.Model):
     # rotation type based on available backends (oxeleven or jks)
     type = db.Column(db.String(16))
 
-    # inum appliance, useful for searching oxAuth config in LDAP
+    # we keep json data in this field
     inum_appliance = db.Column(db.String(255))
 
     # whether rotation is enabled or not

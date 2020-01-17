@@ -86,6 +86,8 @@ class KeyRotationForm(FlaskForm):
         "Enable Rotation",
         choices=[("true", "Yes"), ("false", "No")],
     )
+    backup =  BooleanField('Backup old keys', default=True)
+    
     # type = RadioField(
     #     "Backend Type",
     #     choices=[("jks", "JKS")],

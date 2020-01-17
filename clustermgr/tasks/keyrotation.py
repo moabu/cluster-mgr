@@ -2,6 +2,8 @@ import json
 import os
 from datetime import datetime
 
+from flask import current_app as app
+
 from celery.utils.log import get_task_logger
 from ldap3 import Connection
 from ldap3 import BASE
@@ -68,6 +70,15 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass="", task_id=None):
 
     appconf = AppConfiguration.query.first()
 
+    kr = KeyRotation.query.first()
+    backup = False
+    if kr.inum_appliance:
+        try:
+            jdata = json.loads(kr.inum_appliance)
+            backup = jdata.get('backup')
+        except:
+            pass
+
     for server in Server.query:
         props = get_props(server, appconf.gluu_version, task_id)
         binddn = "cn=Directory Manager"
@@ -96,6 +107,14 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass="", task_id=None):
 
         entry = conn.entries[0]
 
+        if backup:
+            backup_dir = os.path.join(app.config["DATA_DIR"], 'backup_oxAuthConfWebKeys')
+            if not os.path.exists(backup_dir):
+                os.mkdir(backup_dir)
+            backup_fn = os.path.join(backup_dir, '{}_{}'.format(server.id, datetime.now().strftime('%Y-%m-%d_%H.%M.%S')))
+            with open(backup_fn, 'w') as w:
+                w.write(entry['oxAuthConfWebKeys'].values[0])
+    
         # oxRevision is increased to make update
         ox_rev = str(int(entry['oxRevision'].values[0]) + 1)
 

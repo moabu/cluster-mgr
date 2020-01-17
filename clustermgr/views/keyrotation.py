@@ -1,4 +1,5 @@
 import os
+import json
 
 from flask import Blueprint
 from flask import render_template
@@ -41,24 +42,38 @@ def index():
 @login_required
 def settings():
     kr = KeyRotation.query.first()
-    form = KeyRotationForm()
-
-    if request.method == "GET" and kr is not None:
-        form.interval.data = kr.interval
-        form.enabled.data = "true" if kr.enabled else "false"
-        # form.type.data = kr.type
-
-    if form.validate_on_submit():
-        if not kr:
-            kr = KeyRotation()
-
-        kr.interval = form.interval.data
-        kr.enabled = as_boolean(form.enabled.data)
-        # kr.type = form.type.data
-        kr.type = "jks"
+    if not kr:
+        kr = KeyRotation()
         db.session.add(kr)
         db.session.commit()
 
+    kr.jdata = {'backup': True}
+    
+    if kr.inum_appliance:
+        try:
+            kr.jdata = json.loads(kr.inum_appliance)
+        except:
+            pass
+
+    form = KeyRotationForm()
+
+    if request.method == "GET":
+        form.interval.data = kr.interval
+        form.enabled.data = "true" if kr.enabled else "false"
+        form.backup.data = kr.jdata.get('backup')
+        # form.type.data = kr.type
+
+    if form.validate_on_submit():
+
+        kr.interval = form.interval.data
+        kr.enabled = as_boolean(form.enabled.data)
+        kr.jdata['backup'] = as_boolean(form.backup.data)
+        kr.inum_appliance = json.dumps(kr.jdata)
+        # kr.type = form.type.data
+        kr.type = "jks"
+        
+        db.session.commit()
+        
         if kr.enabled:
             # rotate the keys immediately
             rotate_keys.delay()
