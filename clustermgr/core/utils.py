@@ -387,60 +387,6 @@ def get_redis_config(f):
 
     return addr_list
 
-def make_proxy_stunnel_conf(exception=None):
-
-    tmp_conf = [
-        'cert = /etc/stunnel/cert.pem',
-        'pid = /var/run/stunnel.pid',
-        'output = /var/log/stunnel4/stunnel.log',
-        ]
-
-    servers = Server.query.all()
-    app_config = AppConfiguration.query.first()
-    
-    if app_config.external_load_balancer:
-        cache_ip = app_config.cache_ip
-    else:
-        cache_ip = app_config.nginx_ip
-    
-    
-    for server in servers:
-        if (server.id != exception) and server.redis:
-            tmp_conf += [
-                            '[redis{}]'.format(server.id),
-                            'client = yes',
-                            'accept = 127.0.0.1:700{}'.format(server.id),
-                            'connect = {}:7777'.format(server.ip),
-                        ]
-
-    tmp_conf += [
-                    '[twemproxy]',
-                    'client = no',
-                    'accept = {}:8888'.format(cache_ip),
-                    'connect = 127.0.0.1:2222',
-                ]
-    
-    return tmp_conf
-    
-def make_twem_proxy_conf(exception=None):
-    
-    twemproxy_conf_tmp_file = os.path.join(
-                                    app.root_path,
-                                    'templates',
-                                    'stunnel',
-                                    'nutcracker.yml'
-                                )
-
-    twemproxy_conf = open(twemproxy_conf_tmp_file).read()
-
-    servers = Server.query.all()
-
-    for server in servers:
-        if (server.id != exception) and server.redis:
-            twemproxy_conf += '   - 127.0.0.1:{0}:1\n'.format(7000+server.id)
-    
-    
-    return twemproxy_conf
     
 def make_nginx_proxy_conf(exception=None):
     servers = Server.query.all()

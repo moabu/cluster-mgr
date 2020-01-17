@@ -15,8 +15,8 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import wlogger, db, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import LdapOLC, getLdapConn
-from clustermgr.core.utils import modify_etc_hosts, make_nginx_proxy_conf,\
-        make_twem_proxy_conf, make_proxy_stunnel_conf
+from clustermgr.core.utils import modify_etc_hosts, make_nginx_proxy_conf
+
 from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.config import Config
 
@@ -115,6 +115,11 @@ def get_csync2_config(exclude=None):
                                 app.config['DATA_DIR'], 
                                 'replication_defaults.txt'
                             )
+
+    if not os.path.exists(replication_user_file):
+        replication_user_file = os.path.join(app.root_path, 'templates',
+                                    'file_system_replication',
+                                    'replication_defaults.txt')
 
     for l in open(replication_user_file).readlines():
         sync_directories.append(l.strip())
@@ -541,18 +546,6 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
         nginx_config = make_nginx_proxy_conf(exception=server_id)
         nginx_installer.put_file('/etc/nginx/nginx.conf', nginx_config)
         nginx_installer.restart_service('nginx', inside=False)
-    
-
-    if not app_conf.use_ldap_cache:
-        # Update stunnel
-        proxy_stunnel_conf = make_proxy_stunnel_conf(exception=server_id)
-        proxy_stunnel_conf = '\n'.join(proxy_stunnel_conf)
-        nginx_installer.put_file('/etc/stunnel/stunnel.conf', proxy_stunnel_conf)
-
-        if nginx_installer.clone_type == 'rpm':
-            nginx_installer.restart_service('stunnel', inside=False)
-        else:
-            nginx_installer.restart_service('stunnel4', inside=False)
 
 
     if disable_replication:
