@@ -1,5 +1,7 @@
 Offline Installations
 ----------------------
+!!! Note
+    If your Cluster Manager VM has no internet access, please follow [these instructons for static build](./static_build.md)
 
 To enable offline installation, you need to put gluu-server package under `~/.clustermgr/gluu_repo`, you can download packages from https://repo.gluu.org/
 
