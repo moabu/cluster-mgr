@@ -56,6 +56,8 @@ If you built Cluster Manager before and there is an update, you can upgrade curr
 
 `# pip install --upgrade --force-reinstall  --no-deps --no-cache-dir https://github.com/GluuFederation/cluster-mgr/archive/4.0.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr`
 
+You need to create new `clustermgr4.tgz` and copy to RHEL7 that has no internet access.
+
 ## On RHEL7 Machine Has no Internet Access
 
 On this machine you need java-1.8 and redis installed. Extract `clustermgr4.tgz` package:
