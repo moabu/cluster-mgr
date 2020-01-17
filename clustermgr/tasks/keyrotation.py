@@ -26,7 +26,7 @@ task_logger = get_task_logger(__name__)
 
 
 def generate_jks(passwd, javalibs_dir, jks_path, exp=365,
-                 alg="RS256 RS384 RS512 ES256 ES384 ES512"):
+    alg="RS256 RS384 RS512 ES256 ES384 ES512 PS256 PS384 PS512 RSA1_5 RSA-OAEP"):
     if os.path.exists(jks_path):
         os.unlink(jks_path)
 
