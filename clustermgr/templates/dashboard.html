@@ -94,6 +94,8 @@
                     </thead>
                     <tbody>
                     {% for server in servers %}
+                    
+                    {% set remove_button = False %}
                     <tr>
                         <td>{{ server.id }}</td>
                         <td>{{ server.hostname }}
@@ -128,6 +130,7 @@
                             {% if not server.os in SUPPORTED_OS %}
                             <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal"
                                data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Remove</a>
+                               {% set remove_button = True %}
                             {% endif %}
                                
                                 <span  {% if (not server.os) or (not server.os in SUPPORTED_OS) %}style="display:none"{% endif %} id="serverhide-{{server.id}}">
@@ -135,8 +138,11 @@
                                     <i id="dryicon{{server.id}}" class="fa fa-spinner"></i> Dry-run
                                 </a>
                             <a class="btn btn-default btn-xs" href="{{ url_for('server.edit', server_id=server.id) }}">Edit</a>
-                            <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal"
+                            
+                            {% if not remove_button %}
+                              <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal"
                                data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Remove</a>
+                            {% endif %}
                             
                             {% if not server.gluu_server %}
                             <br>
