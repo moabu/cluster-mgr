@@ -56,9 +56,7 @@ class AppConfigForm(FlaskForm):
     use_ldap_cache = BooleanField('Use LDAP Cache')
     update = SubmitField("Update Configuration")
     offline = BooleanField('Offline installation')
-    gluu_archive = SelectField('Gluu archive',
-            choices = [ (f,os.path.split(f)[1]) for f in glob.glob(os.path.join(Config.GLUU_REPO,'gluu-server-*')) ]
-            )
+    gluu_archive = SelectField('Gluu archive', choices = [])
 
     def validate_nginx_host(form, field):
         is_resolved = is_hostname_resolved(field.data)

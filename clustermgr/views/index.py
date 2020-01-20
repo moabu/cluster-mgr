@@ -23,7 +23,7 @@ from ldap.schema import AttributeType, ObjectClass, LDAPSyntax
 from clustermgr.core.utils import get_setup_properties, logger, encode
 from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.core.ldifschema_utils import OpenDjSchema
-
+from wtforms.validators import DataRequired
 
 
 from clustermgr.tasks.cluster import upgrade_clustermgr_task
@@ -144,10 +144,16 @@ def app_configuration():
 
     prop = get_setup_properties()
     
-    conf_form.gluu_archive.choices = [
-            (f,os.path.split(f)[1]) for f in glob.glob(
-            os.path.join(app.config['GLUU_REPO'],'gluu-server*')) ]
-
+    repo_list = glob.glob(os.path.join(app.config['GLUU_REPO'],'gluu-server*'))
+    
+    if repo_list:
+        conf_form.gluu_archive.choices = [ ('', ' -- Select -- ')]
+        for f in repo_list:
+            conf_form.gluu_archive.choices.append((f,os.path.split(f)[1]))
+    
+        if request.method == 'GET':
+            conf_form.gluu_archive.data = config.gluu_archive
+    
     # If the form is submitted and password for replication user was not
     # not supplied, make password "**dummy**", so don't change
     # what we have before
@@ -156,6 +162,9 @@ def app_configuration():
     external_lb_checked = conf_form.external_load_balancer.data
     
     if request.method == 'POST':
+        if conf_form.offline.data:
+            conf_form.gluu_archive.validators = [ DataRequired() ]        
+
         if config and not conf_form.replication_pw.data.strip():
             conf_form.replication_pw.validators = []
             conf_form.replication_pw_confirm.validators = []
