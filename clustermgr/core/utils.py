@@ -30,7 +30,7 @@ from logging.handlers import RotatingFileHandler
 
 DEFAULT_CHARSET = string.ascii_uppercase + string.digits + string.lowercase
 
-port_status_cmd = '''python -c "import socket;sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM); socket.setdefaulttimeout(2.0); print sock.connect_ex(('{}', {}))"'''
+port_status_cmd = '''python -c "import socket;sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM); socket.setdefaulttimeout(2.0); print (sock.connect_ex(('{}', {})))"'''
 
 
 handler = RotatingFileHandler(Config.LOG_FILE, maxBytes= 5*1024*1024, backupCount=3)

@@ -475,32 +475,41 @@ def get_ldap_stat(server_id):
     return "0"
 
 
-def test_port(server, client, port):
+def test_port(server, client, port, port_status_cmd):
+    
     try:
         channel = server.client.get_transport().open_session()
         channel.get_pty()
         cmd = '''python -c "import time, socket;sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM); sock.bind(('{}', {})); sock.listen(5); time.sleep(20)"'''.format(server.ip, port)
 
+        if server.use_py3:
+            cmd = cmd.replace('python', 'python3')
+
         channel.exec_command(cmd)
+
         i = 1
         while True:
             if channel.exit_status_ready():
                 break
             time.sleep(0.1)
             cmd2 = port_status_cmd.format(server.ip, port)
+            if client.use_py3:
+                cmd2 = cmd2.replace('python', 'python3')
+
             r = client.run(cmd2)
             if r[1].strip()=='0':
                 return True
             i += 1
             if i > 5:
                 break
-    except:
+    except Exception as e:
+        print e
         return False
 
 
 @server_view.route('/dryrun/<int:server_id>')
 def dry_run(server_id):
-    
+
     #return jsonify({'nginx': {'port_status': {7777: True, 1636: True, 80: True, 30865: True, 1689: True, 443: True, 4444: False, 8989: True}, 'ssh': True}, 'server': {'port_status': {7777: True, 1636: True, 80: True, 30865: True, 1689: True, 443: True, 4444: False, 8989: False}, 'ssh': True}})
     
     
@@ -519,13 +528,20 @@ def dry_run(server_id):
     try:
         c.startup()
         result['server']['ssh']=True
-    except:
+    except Exception as e:
+        print e
         pass
+
+    c.use_py3 = False
+    if c.run('which python3')[1].strip():
+        c.use_py3 = True
 
     if result['server']['ssh']:
         #Test is any process listening ports that will be used by gluu-server
         for p in server_ports:
             cmd = port_status_cmd.format(server.ip, p)
+            if c.use_py3:
+                cmd = cmd.replace('python', 'python3')
             r = c.run(cmd)
             if r[1].strip()=='0':
                 result['server']['port_status'][p] = True
@@ -541,17 +557,23 @@ def dry_run(server_id):
         try:
             c_nginx.startup()
             result['nginx']['ssh']=True
-        except:
-            pass
+        except Exception as e:
+            print e
+
+        c_nginx.use_py3 = False
+        if c_nginx.run('which python3')[1].strip():
+            c_nginx.use_py3 = True
 
         if result['nginx']['ssh']:
             for p in server_ports:
                 if not result['server']['port_status'][p]:
-                    r = test_port(c, c_nginx, p)
+                    r = test_port(c, c_nginx, p, port_status_cmd=port_status_cmd)
                     if r:
                         result['nginx']['port_status'][p] = True
                 else:
                     cmd = port_status_cmd.format(server.ip, p)
+                    if c_nginx.use_py3:
+                        cmd = cmd.replace('python', 'python3')
                     r = c_nginx.run(cmd)
                     if r[1].strip()=='0':
                         result['nginx']['port_status'][p] = True
