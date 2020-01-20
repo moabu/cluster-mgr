@@ -200,12 +200,16 @@ def remove_server(server_id):
             flash("Please first remove non-primary servers ", "danger")
             return redirect(url_for('index.home'))
             
-    
-    if request.args.get('removefromdashboard') == 'true':
+
+    if (not server.gluu_server) or (request.args.get('removefromdashboard') == 'true'):
         db.session.delete(server)
         db.session.commit()
         flash("Server {0} is removed.".format(server.hostname), "success")
         return redirect(url_for('index.home'))
+
+
+    
+        
 
     disable_replication = True if request.args.get('disablereplication') == \
                                'true' else False
