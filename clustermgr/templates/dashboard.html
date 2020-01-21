@@ -277,10 +277,10 @@
                 <p><b>Host reachable via SSH: </b> <span id="host_ssh"></span></p>
                 <p><b>Load Balancer reachable via SSH: </b> <span id="nginx_ssh"></span></p>
                 <table class="table table-bordered">
-                <th>Port</th><th align="center">Current Status</th><th align="center">Accessible</th>
-                {% for p in [16379, 443, 4444, 1636, 80, 8989, 30865] %}
+                <th>Port</th><th>Description</th><th align="center">Current Status</th><th align="center">Accessible</th>
+                {% for p, d  in ((16379, 'Stunnel'), (443, 'HTTPS'), (4444, 'LDAP Administration'), (1636, 'LDAPS'), (80, 'HTTP'), (8989, 'LDAP Replication'), (30865, 'Csync2')) %}
                 <tr>
-                    <th>{{p}}</th>
+                    <th>{{p}}</th><th>{{d}}</th>
                     <td align="center"><span id="sport_{{p}}"></span></td>
                     <td align="center"><span id="nport_{{p}}"></span></td>
                 </tr>
