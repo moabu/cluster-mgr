@@ -278,7 +278,7 @@
                 <p><b>Load Balancer reachable via SSH: </b> <span id="nginx_ssh"></span></p>
                 <table class="table table-bordered">
                 <th>Port</th><th align="center">Current Status</th><th align="center">Accessible</th>
-                {% for p in [16379, 443, 4444, 1636, 80, 8989, 7777, 30865] %}
+                {% for p in [16379, 443, 4444, 1636, 80, 8989, 30865] %}
                 <tr>
                     <th>{{p}}</th>
                     <td align="center"><span id="sport_{{p}}"></span></td>

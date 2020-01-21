@@ -518,7 +518,7 @@ def dry_run(server_id):
     
     
     result = {'server':{'ssh':False, 'port_status':{}}, 'nginx':{'ssh':False, 'port_status':{}}}
-    server_ports = [16379, 443, 4444, 1636, 80, 8989, 7777, 30865]
+    server_ports = [16379, 443, 4444, 1636, 80, 8989, 30865]
     
     for p in server_ports:
         result['nginx']['port_status'][p] = False
