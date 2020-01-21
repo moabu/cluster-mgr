@@ -9,7 +9,7 @@ import traceback
 import StringIO
 
 from flask import current_app as app
-
+from ldap3 import SUBTREE
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import wlogger, db, celery
 import re
@@ -22,7 +22,7 @@ from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.core.utils import get_setup_properties, modify_etc_hosts
 from clustermgr.core.Properties import Properties
 
-from clustermgr.core.ldap_functions import LdapOLC
+from clustermgr.core.ldap_functions import LdapOLC, getLdapConn
 
 @celery.task
 def collect_server_details(server_id):
@@ -846,6 +846,33 @@ def install_gluu_server(task_id, server_id):
                 '/opt/gluu/jetty/oxauth/webapps/oxauth.war')
         installer.run(cmd)
 
+    # set keyRegenerationEnabled to False
+    if server.primary_server:
+        
+        wlogger.log(task_id, 'Setting keyRegenerationEnabled to False',
+                     'debug')
+        
+        ldp = getLdapConn(server.ip, 'cn=directory manager', server.ldap_password)
+        if ldp:
+
+            if ldp.conn.search(
+                            search_base='ou=oxauth,ou=configuration,o=gluu', 
+                            search_scope=BASE,
+                            search_filter='(objectclass=*)',
+                            attributes=["oxAuthConfDynamic"]):
+
+                search_result = ldp.conn.response
+
+                oxAuthConfDynamic_s = search_result[0]["attributes"]["oxAuthConfDynamic"][0]
+                oxAuthConfDynamic = json.loads(oxAuthConfDynamic_s)
+                oxAuthConfDynamic['keyRegenerationEnabled'] = False
+                oxAuthConfDynamic_s = json.dumps(oxAuthConfDynamic, indent=2)
+
+                r = ldp.conn.modify(
+                            search_result[0]['dn'], 
+                            {"oxAuthConfDynamic": [MODIFY_REPLACE, oxAuthConfDynamic_s]}
+                            )
+                            
     wlogger.log(task_id, "5", "setstep")
     return True
 
