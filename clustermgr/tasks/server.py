@@ -7,9 +7,10 @@ import subprocess
 import uuid
 import traceback
 import StringIO
+import json
 
 from flask import current_app as app
-from ldap3 import SUBTREE
+from ldap3 import SUBTREE, BASE, MODIFY_REPLACE
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import wlogger, db, celery
 import re
@@ -844,7 +845,7 @@ def install_gluu_server(task_id, server_id):
         cmd = ('wget https://ox.gluu.org/maven/org/gluu/oxauth-server/'
                 '4.0.Final.patch1/oxauth-server-4.0.Final.patch1.war -O '
                 '/opt/gluu/jetty/oxauth/webapps/oxauth.war')
-        installer.run(cmd)
+        installer.run(cmd, error_exception='__ALL__')
 
     # set keyRegenerationEnabled to False
     if server.primary_server:
