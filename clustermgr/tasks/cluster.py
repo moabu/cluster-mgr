@@ -937,9 +937,6 @@ def installNGINX(self, nginx_host):
     if not result:
         return False
 
-    nginx_installer.enable_service('nginx', inside=False)
-    nginx_installer.restart_service('nginx', inside=False)
-    
     if app_conf.modify_hosts:
         
         host_ip = []
@@ -951,6 +948,9 @@ def installNGINX(self, nginx_host):
         host_ip.append((app_conf.nginx_host, app_conf.nginx_ip))
         modify_hosts(nginx_installer, host_ip, inside=False)
 
+    nginx_installer.enable_service('nginx', inside=False)
+    nginx_installer.restart_service('nginx', inside=False)
+    
     # write nginx os type to database
     app_conf.nginx_os_type = nginx_installer.server_os
     db.session.commit()
