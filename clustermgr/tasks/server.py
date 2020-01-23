@@ -853,7 +853,7 @@ def install_gluu_server(task_id, server_id):
         wlogger.log(task_id, 'Setting keyRegenerationEnabled to False',
                      'debug')
         
-        ldp = getLdapConn(server.ip, 'cn=directory manager', server.ldap_password)
+        ldp = getLdapConn('localhost', 'cn=directory manager', server.ldap_password)
         if ldp:
 
             if ldp.conn.search(

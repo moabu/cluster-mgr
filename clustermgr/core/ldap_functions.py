@@ -2,6 +2,7 @@ import re
 import time
 import logging
 import json
+from flask import flash
 
 from ldap3 import Server, Connection, SUBTREE, BASE, LEVEL, \
     MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
