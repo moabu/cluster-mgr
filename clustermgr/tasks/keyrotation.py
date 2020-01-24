@@ -79,77 +79,74 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass="", task_id=None):
         except:
             pass
 
-    for server in Server.query:
-        props = get_props(server, appconf.gluu_version, task_id)
-        binddn = "cn=Directory Manager"
+    server = Server.query.filter_by(primary_server=True).first()
+    props = get_props(server, appconf.gluu_version, task_id)
+    binddn = "cn=Directory Manager"
 
-        s = Ldap3Server(host=server.ip, port=1636, use_ssl=True)
-        try:
-            conn = Connection(s, user=binddn, password=server.ldap_password, auto_bind=True)
-        except LDAPSocketOpenError:
-            task_logger.warn("Unable to connecto to LDAP at {}; trying other server (if possible).".format(server.hostname))
-            continue
+    s = Ldap3Server(host=server.ip, port=1636, use_ssl=True)
+    try:
+        conn = Connection(s, user=binddn, password=server.ldap_password, auto_bind=True)
+    except LDAPSocketOpenError:
+        task_logger.warn("Unable to connecto to LDAP at {}; trying other server (if possible).".format(server.hostname))
+        return False
 
-        # base DN for oxAuth config
-        oxauth_base = ",".join([
-            "ou=oxauth",
-            "ou=configuration",
-            "o=gluu",
-        ])
+    # base DN for oxAuth config
+    oxauth_base = ",".join([
+        "ou=oxauth",
+        "ou=configuration",
+        "o=gluu",
+    ])
 
-        conn.search(search_base=oxauth_base, search_filter="(objectClass=*)",
-                    search_scope=BASE, attributes=['*'])
+    conn.search(search_base=oxauth_base, search_filter="(objectClass=*)",
+                search_scope=BASE, attributes=['*'])
 
-        if not conn.entries:
-            # search failed due to missing entry
-            task_logger.warn("Unable to find oxAuth config.")
-            continue
+    if not conn.entries:
+        # search failed due to missing entry
+        task_logger.warn("Unable to find oxAuth config.")
+        return False
 
-        entry = conn.entries[0]
+    entry = conn.entries[0]
 
-        if backup:
-            backup_dir = os.path.join(app.config["DATA_DIR"], 'backup_oxAuthConfWebKeys')
-            if not os.path.exists(backup_dir):
-                os.mkdir(backup_dir)
-            backup_fn = os.path.join(backup_dir, '{}_{}'.format(server.id, datetime.now().strftime('%Y-%m-%d_%H.%M.%S')))
-            with open(backup_fn, 'w') as w:
-                w.write(entry['oxAuthConfWebKeys'].values[0])
-    
-        # oxRevision is increased to make update
-        ox_rev = str(int(entry['oxRevision'].values[0]) + 1)
+    if backup:
+        backup_dir = os.path.join(app.config["DATA_DIR"], 'backup_oxAuthConfWebKeys')
+        if not os.path.exists(backup_dir):
+            os.mkdir(backup_dir)
+        backup_fn = os.path.join(backup_dir, '{}_{}'.format(server.id, datetime.now().strftime('%Y-%m-%d_%H.%M.%S')))
+        with open(backup_fn, 'w') as w:
+            w.write(entry['oxAuthConfWebKeys'].values[0])
 
-        # update public keys if necessary
-        keys_conf = json.loads(entry['oxAuthConfWebKeys'].values[0])
-        keys_conf["keys"] = pub_keys
-        serialized_keys_conf = json.dumps(keys_conf, indent=2)
+    # oxRevision is increased to make update
+    ox_rev = str(int(entry['oxRevision'].values[0]) + 1)
 
-        dyn_conf = json.loads(entry["oxAuthConfDynamic"].values[0])
-        dyn_conf.update({
-            "keyRegenerationEnabled": False,  # always set to False
-            "keyRegenerationInterval": kr.interval,
-            "defaultSignatureAlgorithm": "RS512",
-        })
+    # update public keys if necessary
+    keys_conf = json.loads(entry['oxAuthConfWebKeys'].values[0])
+    keys_conf["keys"] = pub_keys
+    serialized_keys_conf = json.dumps(keys_conf, indent=2)
 
-        dyn_conf.update({
-            "webKeysStorage": "keystore",
-            "keyStoreSecret": openid_jks_pass,
-        })
-        serialized_dyn_conf = json.dumps(dyn_conf, indent=2)
+    dyn_conf = json.loads(entry["oxAuthConfDynamic"].values[0])
+    dyn_conf.update({
+        "keyRegenerationEnabled": False,  # always set to False
+        "keyRegenerationInterval": kr.interval,
+        "defaultSignatureAlgorithm": "RS256",
+    })
 
-        # update the attributes
-        task_logger.info("Modifying oxAuth configuration.")
-        conn.modify(entry.entry_dn, {
-            'oxRevision': [(MODIFY_REPLACE, [ox_rev])],
-            'oxAuthConfWebKeys': [(MODIFY_REPLACE, [serialized_keys_conf])],
-            'oxAuthConfDynamic': [(MODIFY_REPLACE, [serialized_dyn_conf])],
-        })
+    dyn_conf.update({
+        "webKeysStorage": "keystore",
+        "keyStoreSecret": openid_jks_pass,
+    })
+    serialized_dyn_conf = json.dumps(dyn_conf, indent=2)
 
-        result = conn.result["description"]
-        conn.unbind()
-        return result == "success"
+    # update the attributes
+    task_logger.info("Modifying oxAuth configuration.")
+    conn.modify(entry.entry_dn, {
+        'oxRevision': [(MODIFY_REPLACE, [ox_rev])],
+        'oxAuthConfWebKeys': [(MODIFY_REPLACE, [serialized_keys_conf])],
+        'oxAuthConfDynamic': [(MODIFY_REPLACE, [serialized_dyn_conf])],
+    })
 
-    # default return value
-    return False
+    result = conn.result["description"]
+    conn.unbind()
+    return result == "success"
 
 
 @celery.task(bind=True)
@@ -182,15 +179,13 @@ def _rotate_keys(kr, javalibs_dir, jks_path, task_id):
         task_logger.warn("Unable to generate keys; reason={}".format(err))
 
     # update LDAP entry
-    if pub_keys and modify_oxauth_config(kr, pub_keys, openid_jks_pass, ):
+    if pub_keys:
         task_logger.info("Keys have been updated.")
-        kr.rotated_at = datetime.utcnow()
-        db.session.add(kr)
-        db.session.commit()
 
         app_conf = AppConfiguration.query.first()
 
         for server in Server.query:
+
             installer = Installer(server, 
                                   app_conf.gluu_version, 
                                   logger_task_id=task_id)
@@ -198,6 +193,13 @@ def _rotate_keys(kr, javalibs_dir, jks_path, task_id):
             remote_jks_path = os.path.join(installer.container, 
                                                 'etc/certs/oxauth-keys.jks')
             installer.upload_file(jks_path, remote_jks_path)
+
+        mod_oxauth = modify_oxauth_config(kr, pub_keys, openid_jks_pass)
+        if mod_oxauth:
+            kr.rotated_at = datetime.utcnow()
+            db.session.add(kr)
+            db.session.commit()
+    
 
 
 @celery.task
