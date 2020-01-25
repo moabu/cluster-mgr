@@ -1,4 +1,5 @@
 import json
+import time
 import os
 from datetime import datetime
 
@@ -139,10 +140,20 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass="", task_id=None):
     # update the attributes
     task_logger.info("Modifying oxAuth configuration.")
     conn.modify(entry.entry_dn, {
-        'oxRevision': [(MODIFY_REPLACE, [ox_rev])],
         'oxAuthConfWebKeys': [(MODIFY_REPLACE, [serialized_keys_conf])],
         'oxAuthConfDynamic': [(MODIFY_REPLACE, [serialized_dyn_conf])],
+        #'oxRevision': [(MODIFY_REPLACE, [ox_rev])],
     })
+
+
+    time.sleep(1)
+
+    conn.modify(entry.entry_dn, {
+        #'oxAuthConfWebKeys': [(MODIFY_REPLACE, [serialized_keys_conf])],
+        #'oxAuthConfDynamic': [(MODIFY_REPLACE, [serialized_dyn_conf])],
+        'oxRevision': [(MODIFY_REPLACE, [ox_rev])],
+    })
+
 
     result = conn.result["description"]
     conn.unbind()
