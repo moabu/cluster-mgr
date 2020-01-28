@@ -23,7 +23,7 @@ start() {
         
     fi
 
-    printf "DEBUG = False\nSECRET_KEY = '$NEW_UUID'\nLICENSE_ENFORCEMENT_ENABLED = True" > "$HOME/.clustermgr/instance/config.py"
+    printf "DEBUG = False\nSECRET_KEY = '$NEW_UUID'\nLICENSE_ENFORCEMENT_ENABLED = False" > "$HOME/.clustermgr/instance/config.py"
 
     if [ ! -f "$HOME/.clustermgr/.start" ]
     then
