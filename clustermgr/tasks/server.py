@@ -843,7 +843,7 @@ def install_gluu_server(task_id, server_id):
     # we need to download pathced oxauth.war for key rotation for version 4.0
     if (app_conf.gluu_version == '4.0') and (not app_conf.offline):
         cmd = ('wget https://ox.gluu.org/maven/org/gluu/oxauth-server/'
-                '4.0.Final.patch1/oxauth-server-4.0.Final.patch1.war -O '
+                '4.0.sp1/oxauth-server-4.0.sp1.war -O '
                 '/opt/gluu/jetty/oxauth/webapps/oxauth.war')
         installer.run(cmd, error_exception='__ALL__')
 
