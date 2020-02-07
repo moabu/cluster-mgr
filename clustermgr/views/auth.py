@@ -107,13 +107,13 @@ def logout():
     logout_user()
 
     pw_file = os.path.join(current_app.config['DATA_DIR'], '.pw')
-        
+
     if os.path.exists(pw_file):
             os.remove(pw_file)
 
     if session.get('oxd_session'):
         oxd_config = get_oxd_config()
-
+        oxd_access_token = get_client_token(oxd_config)
         post_logout_redirect_uri = urljoin(request.host_url, url_for('auth.oxd_logout_callback'))
 
         data = {
@@ -124,15 +124,14 @@ def logout():
         result = post_data(
                 urljoin(oxd_config['oxd_server'], 'get-logout-uri'), 
                 data, 
-                session['access_token']
+                oxd_access_token
             )
+
         logout_redirect_uri = result['uri']
         session.clear()
         return redirect(result['uri'])
 
     else:
-
-
 
         return redirect(url_for("auth.login"))
 
@@ -165,13 +164,7 @@ def post_data(end_point, data, access_token=''):
 
     return result.json()
 
-@auth_bp.route("/oxd/authorization_url/")
-def oxd_login():
-    if current_user.is_authenticated:
-        return redirect(url_for("index.home"))
-
-    oxd_config = get_oxd_config()
-    
+def get_client_token(oxd_config):
     data = {
       "op_host": oxd_config['op_host'],
       "scope": ["openid", "oxd", "profile", "user_name", "permission"],
@@ -187,7 +180,15 @@ def oxd_login():
                 data
             )
 
-    oxd_access_token = result['access_token']
+    return result['access_token']
+
+@auth_bp.route("/oxd/authorization_url/")
+def oxd_login():
+    if current_user.is_authenticated:
+        return redirect(url_for("index.home"))
+
+    oxd_config = get_oxd_config()
+    oxd_access_token = get_client_token(oxd_config)
     session['access_token'] = oxd_access_token
 
     data = {
