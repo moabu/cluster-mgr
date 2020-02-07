@@ -51,14 +51,15 @@ msg_text = ''
 
 @index.route('/')
 def home():
-    cfg_file = app.config["AUTH_CONFIG_FILE"]
-    oxd_file_config = app.config["OXD_CLIENT_CONFIG_FILE"]
-
-    if not os.path.exists(cfg_file):
-        if not os.path.exists(oxd_file_config):
-            return redirect(url_for('auth.signup'))
     
     if not current_user.is_authenticated:
+        cfg_file = app.config["AUTH_CONFIG_FILE"]
+        oxd_file_config = app.config["OXD_CLIENT_CONFIG_FILE"]
+
+        if not os.path.exists(cfg_file):
+            if not os.path.exists(oxd_file_config):
+                return redirect(url_for('auth.signup'))
+    
         return redirect(url_for("auth.login", next='/'))
 
     """This is the home view --dashboard--"""
@@ -182,8 +183,6 @@ def app_configuration():
         config = AppConfiguration(use_ldap_cache=True)
         db.session.add(config)
 
-    print conf_form.update.data, conf_form.validate_on_submit(),  conf_form.errors
-
     # If form is submitted and validated process it
     if conf_form.update.data and conf_form.validate_on_submit():
         if config.replication_pw:
@@ -299,9 +298,7 @@ def app_configuration():
         
         
         service_status_update_period = config.ldap_update_period
-        
-        print(service_status_update_period)
-        
+
         if service_status_update_period and config.ldap_update_period_unit != 's':
                 service_status_update_period = service_status_update_period * 60         
         

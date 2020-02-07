@@ -2,6 +2,9 @@ import ConfigParser
 import os
 import socket
 import hashlib
+import requests
+import json
+from urlparse import urljoin
 
 from flask import current_app, make_response
 from flask import Blueprint
@@ -10,6 +13,7 @@ from flask import url_for
 from flask import redirect
 from flask import render_template
 from flask import flash
+from flask import session
 from flask_login import UserMixin
 from flask_login import login_user
 from flask_login import logout_user
@@ -18,7 +22,7 @@ from oxdpython import Client
 from oxdpython.exceptions import OxdServerError
 
 from ..extensions import login_manager
-from ..forms import LoginForm, SignUpForm
+from ..forms import LoginForm, SignUpForm, OxdConfigForm
 from ..models import Server
 
 
@@ -92,136 +96,185 @@ def login():
         flash("Invalid username or password.", "warning")
 
     server_num = Server.query.count()
-    return render_template('auth_login.html', form=form, server_num=server_num)
+    
+    if os.path.exists(os.path.join(current_app.config['DATA_DIR'], 'oxd_config.json')):
+        oxd_login = url_for("auth.oxd_login")
+    else:
+        oxd_login = None
+    
+    return render_template('auth_login.html', form=form, server_num=server_num,
+        oxd_login = oxd_login
+    )
 
 
 @auth_bp.route("/logout/")
 def logout():
     logout_user()
-    
-    
-    if os.path.exists(current_app.config["OXD_CLIENT_CONFIG_FILE"]):
-    
-        config = current_app.config["OXD_CLIENT_CONFIG_FILE"]
-        oxc = Client(config)
 
-        # If site is not registered, first register it
-        if not oxc.config.get('oxd','id'):
-            oxc.register_site()
-    
-        logout_url = oxc.get_logout_uri()
-        return redirect(logout_url)
+    if session.get('oxd_session'):
+        oxd_config = get_oxd_config()
+
+        post_logout_redirect_uri = urljoin(request.host_url, url_for('auth.oxd_logout_callback'))
+
+        data = {
+            "oxd_id": oxd_config['oxd_id'],
+            "post_logout_redirect_uri": post_logout_redirect_uri,
+        }
+
+        result = post_data(
+                urljoin(oxd_config['oxd_server'], 'get-logout-uri'), 
+                data, 
+                session['access_token']
+            )
+        logout_redirect_uri = result['uri']
+        session.clear()
+        return redirect(result['uri'])
+
+    else:
+
+        if os.path.exists(current_app.config["OXD_CLIENT_CONFIG_FILE"]):
         
-    pw_file = os.path.join(current_app.config['DATA_DIR'], '.pw')
+            config = current_app.config["OXD_CLIENT_CONFIG_FILE"]
+            oxc = Client(config)
+
+            # If site is not registered, first register it
+            if not oxc.config.get('oxd','id'):
+                oxc.register_site()
+        
+            logout_url = oxc.get_logout_uri()
+            return redirect(logout_url)
+            
+        pw_file = os.path.join(current_app.config['DATA_DIR'], '.pw')
+        
+        if os.path.exists(pw_file):
+            os.remove(pw_file)
+
+        return redirect(url_for("auth.login"))
+
+
+def get_oxd_config():
     
-    if os.path.exists(pw_file):
-        os.remove(pw_file)
+    oxd_config_json_fn = os.path.join(current_app.config['DATA_DIR'], 'oxd_config.json')
+    
+    if not os.path.exists(oxd_config_json_fn):
+        return {}
+    
+    with open(oxd_config_json_fn) as f:
+        oxd_config = json.load(f)
 
-    return redirect(url_for("auth.login"))
+    return oxd_config
+    
+def post_data(end_point, data, access_token=''):
+    """Posts data to oxd server"""
+    headers = {
+                'Content-type': 'application/json', 
+                'Authorization': "Bearer " + access_token
+        }
 
+    result = requests.post(
+                    end_point, 
+                    data=json.dumps(data), 
+                    headers=headers, 
+                    verify=False
+                    )
 
-@auth_bp.route("/oxd_login/")
+    return result.json()
+
+@auth_bp.route("/oxd/authorization_url/")
 def oxd_login():
     if current_user.is_authenticated:
         return redirect(url_for("index.home"))
 
     config = current_app.config["OXD_CLIENT_CONFIG_FILE"]
 
-    if not os.path.exists(config):
-        flash("Unable to locate oxd client config file.".format(config),
-              "warning")
-        return redirect(url_for("index.home"))
+    oxd_config = get_oxd_config()
+    
+    data = {
+      "op_host": oxd_config['op_host'],
+      "scope": ["openid", "oxd", "profile", "user_name", "permission"],
+      "client_id": oxd_config['client_id'],
+      "client_secret": oxd_config['client_secret'],
+      "authentication_method": "",
+      "algorithm": "",
+      "key_id": ""
+    }
+
+    result = post_data(
+                urljoin(oxd_config['oxd_server'], 'get-client-token'), 
+                data
+            )
+
+    oxd_access_token = result['access_token']
+    session['access_token'] = oxd_access_token
+
+    data = {
+      "oxd_id": oxd_config['oxd_id'],
+      "scope": ["openid", "oxd", "profile", "user_name", "permission"],
+      "acr_values": [],
+    }
+
+    result = post_data(
+                urljoin(oxd_config['oxd_server'], 'get-authorization-url'),
+                data, 
+                oxd_access_token
+            )
+
+    return redirect(result['authorization_url'])
 
 
-    oxc = Client(config)
+@auth_bp.route("/oxd/login")
+def oxd_login_callback():
+    oxd_config = get_oxd_config()
+    data = {
+        "oxd_id": oxd_config['oxd_id'],
+        "code": request.args['code'],
+        "state": request.args['state']
+    }
 
-    try:
-        auth_url = oxc.get_authorization_url()
-    except OxdServerError as exc:
-        print exc  # TODO: use logging
-        flash("Failed to process the request due to error in OXD server.",
-              "warning")
-    except socket.error as exc:
-        print exc  # TODO: use logging
-        flash("Unable to connect to OXD server.", "warning")
+    result = post_data(
+            urljoin(oxd_config['oxd_server'], 'get-tokens-by-code'), 
+            data, 
+            session['access_token']
+            )
+
+    data = {
+        "oxd_id": oxd_config['oxd_id'],
+        "access_token": result['access_token']
+    }
+
+    result = post_data(
+            urljoin(oxd_config['oxd_server'], 'get-user-info'),
+            data, 
+            session['access_token']
+            )
+
+    if result.get('user_name'):
+        username = result['user_name']
+    elif result.get('preferred_username'):
+        username = result['preferred_username']
     else:
-        return redirect(auth_url)
+        username = None
+
+    if result.get('sub') and username:
+        if result['user_name'] == 'admin' or 'clusteradmin' in result.get('role', []):
+            user = User(result['user_name'], None)
+            login_user(user)
+            session['oxd_session'] = result
+            next_ = request.values.get('next','').strip()
+            if next_:
+                return redirect(next_)
+
+            return redirect(url_for('index.home'))
+
+    
+    logout_user()
+    flash("Invalid username or password.", "warning")
     return redirect(url_for("index.home"))
 
 
-@auth_bp.route("/oxd_login_callback/")
-def oxd_login_callback():
-    """Callback for OXD authorization_callback.
-    """
-    config = current_app.config["OXD_CLIENT_CONFIG_FILE"]
-    oxc = Client(config)
-    code = request.args.get('code')
-    state = request.args.get('state')
-
-
-    try:
-        # these following API calls may raise RuntimeError caused by internal
-        # error in oxd server.
-        tokens = oxc.get_tokens_by_code(code, state)
-        resp = oxc.get_user_info(tokens["access_token"])
-
-        # ``user_name`` item is in ``user_name`` scope, hence
-        # accessing this attribute may raise KeyError
-        username = resp["user_name"][0]
-
-        # ``role`` item is in ``permission`` scope, hence
-        # accessing this attribute may raise KeyError
-        role = ''
-        if 'role' in resp:
-            role = resp["role"][0].strip("[]")
-
-        # disallow role other than ``cluster_manager``
-        if username == 'admin' or role == "cluster_manager":
-            user = User(username, "")
-            login_user(user)
-            return redirect(url_for("index.home"))
-            
-        else:
-            flash("Invalid user's role.", "warning")
-
-    except KeyError as exc:
-        print exc  # TODO: use logging
-        if exc.message == "user_name":
-            msg = "user_name scope is not enabled in OIDC client"
-        elif exc.message == "role":
-            msg = "permission scope is not enabled in OIDC client " \
-                  "or missing role attribute in user's info"
-        flash(msg, "warning")
-    except OxdServerError as exc:
-        print exc  # TODO: use logging
-        flash("Failed to process the request due to error in OXD server.",
-              "warning")
-    except socket.error as exc:
-        print exc  # TODO: use logging
-        flash("Unable to connect to OXD server.", "warning")
-
-
-    logout_user()
-    logout_resp  = make_response(render_template("invalid_login.html"))
-    logout_resp.set_cookie('sub', 'null', expires=0)
-    logout_resp.set_cookie('JSESSIONID', 'null', expires=0)
-    logout_resp.set_cookie('session_state', 'null', expires=0)
-    logout_resp.set_cookie('session_id', 'null', expires=0)
-    return logout()
-    return render_template('invalid_login.html')
-
-@auth_bp.route("/oxd_logout_callback")
+@auth_bp.route("/oxd/logout")
 def oxd_logout_callback():
     """Callback for OXD client_frontchannel.
-    """
-    # TODO: decide whether we need this callback
-    logout_user()
-    return redirect(url_for("index.home"))
-
-
-@auth_bp.route("/oxd_post_logout")
-def oxd_post_logout():
-    """Callback for OXD post_logout.
     """
     # TODO: decide whether we need this callback
     logout_user()
@@ -239,7 +292,7 @@ def signup():
 
             username = form.username.data.strip()
             password = form.password.data.strip()
-            
+
             enc_password = hashlib.sha224(form.password.data).hexdigest()
 
             config = ConfigParser.RawConfigParser()
@@ -261,3 +314,79 @@ def signup():
         form = SignUpForm(request.form)
 
     return render_template('auth_signup.html', form=form)
+
+@auth_bp.route("/oxd/configuration/", methods=['GET', 'POST'])
+def oxd_login_configuration():
+    form = OxdConfigForm()
+    oxd_config_json_fn = os.path.join(current_app.config['DATA_DIR'], 'oxd_config.json')
+    register_client = not os.path.exists(oxd_config_json_fn)
+
+    if register_client:
+        form.oxd_id.validators = []
+        form.client_id.validators = []
+        form.client_secret.validators = []
+
+        del form._fields['oxd_id']
+        del form._fields['client_id']
+        del form._fields['client_secret']
+    else:
+        oxd_config = get_oxd_config()
+        form.op_host.data = oxd_config['op_host']
+        form.oxd_server.data = oxd_config['oxd_server']
+        form.oxd_id.data = oxd_config['oxd_id']
+        form.client_id.data = oxd_config['client_id']
+        form.client_secret.data = oxd_config['client_secret']
+        
+    if request.method == 'POST':
+        if request.form.get('register_client'):
+
+            data = {
+                  "redirect_uris": [ 
+                                urljoin(request.host_url, "auth/oxd/login"),
+                                request.host_url
+                            ],
+                  "op_host": form['op_host'].data,
+                  "post_logout_redirect_uris": [urljoin(request.host_url, "auth/oxd/logout")],
+                  "application_type": "web",
+                  "response_types": ["code"],
+                  "grant_types": ["authorization_code", "client_credentials"],
+                  "scope": ["openid", "oxd", "user_name", "permission"],
+                  "acr_values": [""],
+                  "client_name": "Cluster Manager Oxd Client",
+                  "client_jwks_uri": "",
+                  "client_token_endpoint_auth_method": "",
+                  "client_request_uris": [""],
+                  "client_frontchannel_logout_uris": [""],
+                  "client_sector_identifier_uri": "",
+                  "contacts": [""],
+                  "ui_locales": [""],
+                  "claims_locales": [""],
+                  "claims_redirect_uri": [],
+                  "client_id": "",
+                  "client_secret": "",
+                  "trusted_client": True
+                }
+
+            result = post_data(
+                urljoin(form['oxd_server'].data, 'register-site'), 
+                data, 
+                ''
+            )
+            
+            if 'client_secret' in result:
+                result['oxd_server'] = form['oxd_server'].data
+                with open(oxd_config_json_fn, 'w') as w:
+                    w.write(json.dumps(result, indent=2))
+            
+                flash("Oxd client successfully registered", 'success')
+            
+                return redirect(url_for('index.home'))
+            else:
+                flash(
+                    "An error ocurred while registerin client. oxd response: {}".format(json.dumps(result)),
+                    'warning'
+                    )
+                
+    return render_template('oxd_config.html', form=form, register_client=register_client)
+    
+

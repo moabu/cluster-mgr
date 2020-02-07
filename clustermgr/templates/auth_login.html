@@ -52,8 +52,8 @@ body {
         </div>
         <input type="hidden" value="{{ request.values.get('next') }}" name="next">
         <div class="box-footer">
-            {% if server_num %}
-            <a href="{{ url_for('auth.oxd_login') }}">Login with Gluu Server</a>
+            {% if oxd_login %}
+            <a href="{{ oxd_login }}">Login with Gluu Server</a>
             {% endif %}
             {{ form.login(class="btn btn-primary pull-right") }}
         </div>

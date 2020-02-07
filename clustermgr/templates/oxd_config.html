@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% from 'macros.html' import render_field, render_checkbox_field, render_form %}
+
+{% block header %}
+    <h1>Oxd Settings</h1>
+    <ol class="breadcrumb">
+        <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+        <li>Operations</li>
+        <li class="active">Oxd Login</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+
+<div class="box box-primary">
+    <form action="{{ url_for("auth.oxd_login_configuration") }}" method="POST" class="form-horizontal">
+
+        <div class="box-body">
+            {{ form.csrf_token }}
+
+
+            {% for f in form %}
+                {% if f.type == 'CSRFTokenField' %} 
+                    {{f}}
+                {% else %}
+            
+
+
+                    <div class="form-group {{ 'has-error' if f.errors else '' }}">
+                        {{ f.label(class="control-label col-md-3") }}
+                        <div class="col-md-9">
+                            {{ f(class="form-control") }}
+                            {% for error in f.errors %}
+                                <p class="help-block">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+            {% endif %}
+           {% endfor %}
+
+
+        {% if register_client %} 
+        
+            <input type="submit" name="register_client" value="Regiser Client" class="btn btn-primary pull-right">
+            
+        
+        {% else %}
+
+            <input type="submit" name="save_settings" value="Save Settings" class="btn btn-primary pull-right">
+        {% endif %}
+
+
+    </form>
+</div>
+
+{% endblock %}
+
+
+{% block js %}
+
+
+</script>
+{% endblock %}

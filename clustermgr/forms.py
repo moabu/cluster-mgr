@@ -322,3 +322,12 @@ class cacheServerForm(FlaskForm):
     install_redis = BooleanField("Install Redis and stunnel", default=True)
     redis_password = StringField("Redis Password")
     stunnel_port = IntegerField("Stunnel Port", validators=[DataRequired()])
+
+
+class OxdConfigForm(FlaskForm):
+    oxd_server = StringField("Oxd Server", validators=[DataRequired()])
+    op_host = StringField("OP Host", validators=[DataRequired()])
+    oxd_id = StringField("Oxd ID", validators=[DataRequired()])
+    client_id = StringField("Client ID", validators=[DataRequired()])
+    client_secret = StringField("Client Secret", validators=[DataRequired()])
+        
