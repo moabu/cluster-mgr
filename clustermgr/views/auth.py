@@ -65,12 +65,7 @@ def load_user(username):
 
 @auth_bp.route("/login/", methods=["GET", "POST"])
 def login():
-    
-    oxd_config = current_app.config["OXD_CLIENT_CONFIG_FILE"]
 
-    if os.path.exists(oxd_config):
-        return redirect(url_for("auth.oxd_login"))
-    
     cfg_file = current_app.config["AUTH_CONFIG_FILE"]
 
     if not os.path.exists(cfg_file):
@@ -111,6 +106,11 @@ def login():
 def logout():
     logout_user()
 
+    pw_file = os.path.join(current_app.config['DATA_DIR'], '.pw')
+        
+    if os.path.exists(pw_file):
+            os.remove(pw_file)
+
     if session.get('oxd_session'):
         oxd_config = get_oxd_config()
 
@@ -132,22 +132,7 @@ def logout():
 
     else:
 
-        if os.path.exists(current_app.config["OXD_CLIENT_CONFIG_FILE"]):
-        
-            config = current_app.config["OXD_CLIENT_CONFIG_FILE"]
-            oxc = Client(config)
 
-            # If site is not registered, first register it
-            if not oxc.config.get('oxd','id'):
-                oxc.register_site()
-        
-            logout_url = oxc.get_logout_uri()
-            return redirect(logout_url)
-            
-        pw_file = os.path.join(current_app.config['DATA_DIR'], '.pw')
-        
-        if os.path.exists(pw_file):
-            os.remove(pw_file)
 
         return redirect(url_for("auth.login"))
 
@@ -184,8 +169,6 @@ def post_data(end_point, data, access_token=''):
 def oxd_login():
     if current_user.is_authenticated:
         return redirect(url_for("index.home"))
-
-    config = current_app.config["OXD_CLIENT_CONFIG_FILE"]
 
     oxd_config = get_oxd_config()
     

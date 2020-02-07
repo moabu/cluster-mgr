@@ -52,14 +52,7 @@ msg_text = ''
 @index.route('/')
 def home():
     
-    if not current_user.is_authenticated:
-        cfg_file = app.config["AUTH_CONFIG_FILE"]
-        oxd_file_config = app.config["OXD_CLIENT_CONFIG_FILE"]
-
-        if not os.path.exists(cfg_file):
-            if not os.path.exists(oxd_file_config):
-                return redirect(url_for('auth.signup'))
-    
+    if not current_user.is_authenticated:    
         return redirect(url_for("auth.login", next='/'))
 
     """This is the home view --dashboard--"""
