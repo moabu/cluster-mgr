@@ -18,8 +18,6 @@ from flask_login import UserMixin
 from flask_login import login_user
 from flask_login import logout_user
 from flask_login import current_user
-from oxdpython import Client
-from oxdpython.exceptions import OxdServerError
 
 from ..extensions import login_manager
 from ..forms import LoginForm, SignUpForm, OxdConfigForm

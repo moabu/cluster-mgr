@@ -56,7 +56,6 @@ setup(
         "cryptography",
         "ipaddress",
         "enum34",
-        "oxdpython",
         "influxdb==5.0.0",
         'gunicorn==19.7.1',
         'psutil',
