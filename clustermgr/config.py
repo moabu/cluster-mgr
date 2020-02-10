@@ -7,6 +7,8 @@ class Config(object):
     TESTING = False
     SQLALCHEMY_DATABASE_URI = ''
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    #SQLALCHEMY_ECHO = True
+    #SQLALCHEMY_RECORD_QUERIES = True
     SECRET_KEY = 'prettysecret'
     BASE_DN = 'o=gluu'
     CELERY_BROKER_URL = 'redis://localhost:6379'
@@ -31,6 +33,7 @@ class Config(object):
     
     LOG_FILE = os.path.join(LOGS_DIR, 'clustermgr.log')
     SSH_LOG_FILE = os.path.join(LOGS_DIR, 'ssh.log')
+    SQL_LOG_FILE = os.path.join(LOGS_DIR, 'sql.log')
     WEBLOGGER_LOG_FILE = os.path.join(LOGS_DIR, 'weblogger.log')
     JAVALIBS_DIR = os.path.join(DATA_DIR, "javalibs")
     APP_INSTANCE_DIR = os.path.join(DATA_DIR, "instance")

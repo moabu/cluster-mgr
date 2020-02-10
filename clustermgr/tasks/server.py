@@ -25,8 +25,8 @@ from clustermgr.core.Properties import Properties
 
 from clustermgr.core.ldap_functions import LdapOLC, getLdapConn
 
-@celery.task
-def collect_server_details(server_id):
+@celery.task(bind=True)
+def collect_server_details(self, server_id):
     print "Start collecting server details task"
     app_conf = AppConfiguration.query.first()
     

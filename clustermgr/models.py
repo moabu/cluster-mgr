@@ -1,7 +1,29 @@
+import json
+import copy
 from datetime import datetime
 from datetime import timedelta
 
 from clustermgr.extensions import db
+from sqlalchemy import event, inspect
+
+import logging
+from logging.handlers import RotatingFileHandler
+from clustermgr.config import Config
+from flask_login import current_user
+
+class ContextFilter(logging.Filter):
+    def filter(self, record):
+        record.current_user = current_user.username
+        return True
+
+
+handler = RotatingFileHandler(Config.SQL_LOG_FILE, maxBytes= 5*1024*1024, backupCount=3)
+formatter = logging.Formatter('%(asctime)s - %(current_user)s - %(message)s')
+handler.setFormatter(formatter)
+logger = logging.getLogger(__name__)
+logger.addFilter(ContextFilter())
+logger.setLevel(logging.DEBUG)
+logger.addHandler(handler)
 
 
 class Server(db.Model):
@@ -186,3 +208,30 @@ class CacheServer(db.Model):
 
     def __repr__(self):
         return '<Cache Server {} {}>'.format(self.id, self.hostname)
+
+
+def dbLogger(target, op):
+    data_ = {}
+    mapper = inspect(target)
+    for column in mapper.attrs:
+        data_[column.key] = getattr(target, column.key)
+
+    logger.debug("%s[%s]: %s", op, target.__class__.__name__, json.dumps(data_))
+
+def dbLoggerUpdate(mapper, connection, target):
+    dbLogger(target, 'UPDTE')
+
+def dbLoggerDelete(mapper, connection, target):
+    dbLogger(target, 'DELETE')
+
+def dbLoggerInsert(mapper, connection, target):
+    dbLogger(target, 'INSERT')
+
+for objs in dir():
+    obj = locals()[objs]
+    if type(obj) == type(db.Model):
+        event.listen(obj, 'after_update', dbLoggerUpdate)
+        event.listen(obj, 'after_delete', dbLoggerDelete)
+        event.listen(obj, 'after_insert', dbLoggerInsert)
+        
+

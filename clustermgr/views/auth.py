@@ -18,6 +18,7 @@ from flask_login import UserMixin
 from flask_login import login_user
 from flask_login import logout_user
 from flask_login import current_user
+from flask import g
 
 from ..extensions import login_manager
 from ..forms import LoginForm, SignUpForm, OxdConfigForm
@@ -51,7 +52,7 @@ def user_from_config(cfg_file, username):
     if username != cfg["username"]:
         return
 
-    user = User(cfg["username"], cfg["password"])
+    user = User(cfg["username"]+'@local', cfg["password"])
     return user
 
 
@@ -239,7 +240,7 @@ def oxd_login_callback():
 
     if result.get('sub') and username:
         if result['user_name'] == 'admin' or 'clusteradmin' in result.get('role', []):
-            user = User(result['user_name'], None)
+            user = User(result['user_name']+'@openid', None)
             login_user(user)
             session['oxd_session'] = result
             next_ = request.values.get('next','').strip()
