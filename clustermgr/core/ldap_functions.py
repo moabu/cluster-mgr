@@ -2,7 +2,7 @@ import re
 import time
 import logging
 import json
-from flask import flash
+from flask import flash, has_request_context
 
 from ldap3 import Server, Connection, SUBTREE, BASE, LEVEL, \
     MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
@@ -344,13 +344,12 @@ def getLdapConn(addr, dn, passwd):
     try:
         r = ldp.connect()
     except Exception as e:
-        flash("Connection to LDAPserver {0} at port 1636 failed: {1}".format(
-            addr, e), "danger")
+        logger.error("Unable to connect LDAP server %s:", str(e))
+        if has_request_context():
+            flash("Connection to LDAPserver {0} at port 1636 failed: {1}".format(
+                addr, e), "danger")
         return
-    if not r:
-        flash("Connection to LDAPserver {0} at port 1636 failed: {1}".format(
-            addr, ldp.conn.result['description']), "danger")
-        return
+
     return ldp
 
 class DBManager:
