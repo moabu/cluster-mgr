@@ -842,7 +842,7 @@ def install_gluu_server(task_id, server_id):
 
     # we need to download pathced oxauth.war for key rotation for version 4.0
     if (app_conf.gluu_version == '4.0') and (not app_conf.offline):
-        cmd = ('wget https://ox.gluu.org/maven/org/gluu/oxauth-server/'
+        cmd = ('wget -nv https://ox.gluu.org/maven/org/gluu/oxauth-server/'
                 '4.0.sp1/oxauth-server-4.0.sp1.war -O '
                 '/opt/gluu/jetty/oxauth/webapps/oxauth.war')
         installer.run(cmd, error_exception='__ALL__')
@@ -853,7 +853,7 @@ def install_gluu_server(task_id, server_id):
         wlogger.log(task_id, 'Setting keyRegenerationEnabled to False',
                      'debug')
         
-        ldp = getLdapConn('localhost', 'cn=directory manager', server.ldap_password)
+        ldp = getLdapConn(server.hostname, 'cn=directory manager', server.ldap_password)
         if ldp:
 
             if ldp.conn.search(
@@ -873,7 +873,12 @@ def install_gluu_server(task_id, server_id):
                             search_result[0]['dn'], 
                             {"oxAuthConfDynamic": [MODIFY_REPLACE, oxAuthConfDynamic_s]}
                             )
-                            
+        else:
+            wlogger.log(task_id, 
+                        "LDAP Connection failed.",
+                        "error")
+            return
+
     wlogger.log(task_id, "5", "setstep")
     return True
 
