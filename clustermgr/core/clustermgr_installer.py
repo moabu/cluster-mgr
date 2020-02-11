@@ -334,8 +334,8 @@ class Installer:
 
         if not self.repo_updated[inside]:
             if self.clone_type == 'rpm':
+                self.run('yum makecache fast', inside)
                 self.run('yum clean all', inside)
-                #self.run('yum makecache fast') Not sure if necassary
                 self.run('yum repolist', inside)
             else:
                 self.run('DEBIAN_FRONTEND=noninteractive apt-get update', inside)
