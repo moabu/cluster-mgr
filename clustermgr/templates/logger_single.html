@@ -412,7 +412,7 @@ function updateLog(){
                 if(errors || warnings) {
                     $.notify({
                         title: '<h5><i class="glyphicon glyphicon-warning-sign"></i> Problems Found! Review Logs</h5>',
-                        message: errors.toString()+' Errors and '+warnings+' Warnings were encountered during the process. Kindly review the log of each server before restarting the process.',
+                        message: errors.toString()+' Errors and '+warnings+' Warnings were encountered during the process. Kindly review logs on this screen (in all accordions) and logs in <code>{{LOG_DIR}}</code> before restarting the process.',
                     },{
                         type: "warning",
                         placement: {from: "bottom", align: "center"},

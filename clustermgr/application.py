@@ -155,6 +155,7 @@ def create_app():
             app.jinja_env.globals['latest_version'] = appconfig.latest_version
 
         app.jinja_env.globals['use_ldap_cache'] = use_ldap_cache
-
+        
+        app.jinja_env.globals['LOG_DIR'] = app.config['LOGS_DIR']
 
     return app

@@ -531,6 +531,7 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
     remove_filesystem_replication_do(server, app_conf, task_id)
 
     nginx_installer = None
+  
 
     #mock server
     nginx_server = Server(
