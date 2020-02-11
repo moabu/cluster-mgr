@@ -549,6 +549,14 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
     if not app_conf.external_load_balancer:
         # Update nginx
         nginx_config = make_nginx_proxy_conf(exception=server_id)
+        if not nginx_installer.conn:
+            wlogger.log(
+                task_id, 
+                'ssh connection to nginx failed', 
+                'error'
+                )
+            return
+                
         nginx_installer.put_file('/etc/nginx/nginx.conf', nginx_config)
         nginx_installer.restart_service('nginx', inside=False)
 

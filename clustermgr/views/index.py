@@ -20,7 +20,10 @@ from clustermgr.forms import AppConfigForm, SchemaForm, \
 
 from celery.result import AsyncResult
 from ldap.schema import AttributeType, ObjectClass, LDAPSyntax
-from clustermgr.core.utils import get_setup_properties, logger, encode
+from clustermgr.core.utils import get_setup_properties, encode
+
+from clustermgr.core.clustermgr_logging import sys_logger as logger
+
 from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.core.ldifschema_utils import OpenDjSchema
 from wtforms.validators import DataRequired

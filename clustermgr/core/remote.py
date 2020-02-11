@@ -12,12 +12,7 @@ from flask import current_app
 
 from clustermgr.extensions import wlogger
 from clustermgr.config import Config
-
-handler = RotatingFileHandler(Config.SSH_LOG_FILE, maxBytes= 5*1024*1024, backupCount=3)
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.ERROR)
-logger.addHandler(handler)
-
+from clustermgr.core.clustermgr_logging import remote_logger as logger
 
 def decode(key, enc):
     dec = []
@@ -110,7 +105,7 @@ class RemoteClient(object):
         self.sftpclient = None
         self.client.set_missing_host_key_policy(AutoAddPolicy())
         self.client.load_system_host_keys()
-        logger.debug("RemoteClient created for host: {}", host)
+        logger.debug("RemoteClient created for host: %s", host)
 
     def startup(self):
         """Function that starts SSH connection and makes client available for

@@ -12,12 +12,11 @@ from celery.bin import worker
 from clustermgr.application import create_app, init_celery
 from clustermgr.extensions import celery
 
-
-from clustermgr.core.utils import logger
 from time import strftime
 from clustermgr.models import AppConfiguration
 
 from flask import request, render_template
+from clustermgr.core.clustermgr_logging import sys_logger as logger
 
 app = create_app()
 

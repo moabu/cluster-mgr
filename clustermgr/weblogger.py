@@ -3,16 +3,9 @@
 
 import redis
 import json
-import logging
 
-from logging.handlers import RotatingFileHandler
-from clustermgr.config import Config
+from clustermgr.core.clustermgr_logging import web_logger as logger
 
-handler = RotatingFileHandler(Config.WEBLOGGER_LOG_FILE, maxBytes= 5*1024*1024, backupCount=3)
-handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logger.addHandler(handler)
 
 class WebLogger(object):
     """WebLogger is a Redis wrapper to store task logs for flask view access.

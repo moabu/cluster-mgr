@@ -23,20 +23,12 @@ from flask import current_app as app
 from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.core.Properties import Properties
 
-import logging
 import traceback
-from logging.handlers import RotatingFileHandler
 
 
 DEFAULT_CHARSET = string.ascii_uppercase + string.digits + string.lowercase
 
 port_status_cmd = '''python -c "import socket;sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM); socket.setdefaulttimeout(2.0); print (sock.connect_ex(('{}', {})))"'''
-
-
-handler = RotatingFileHandler(Config.LOG_FILE, maxBytes= 5*1024*1024, backupCount=3)
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.ERROR)
-logger.addHandler(handler)
 
 def ldap_encode(password):
     salt = os.urandom(4)
