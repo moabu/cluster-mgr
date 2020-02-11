@@ -13,7 +13,8 @@ from flask_login import current_user
 
 class ContextFilter(logging.Filter):
     def filter(self, record):
-        record.current_user = current_user.username
+        username = current_user.username if current_user else username = 'SYS'
+        record.current_user = username
         return True
 
 
