@@ -531,7 +531,6 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
     remove_filesystem_replication_do(server, app_conf, task_id)
 
     nginx_installer = None
-  
 
     #mock server
     nginx_server = Server(
@@ -546,7 +545,7 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
                     logger_task_id=task_id, 
                     server_os=nginx_server.os
                     )
-                        
+
     if not app_conf.external_load_balancer:
         # Update nginx
         nginx_config = make_nginx_proxy_conf(exception=server_id)
@@ -837,12 +836,13 @@ def opendjenablereplication(self, server_id):
 
 
 @celery.task(bind=True)
-def installNGINX(self, nginx_host):
+def installNGINX(self, nginx_host, session_type):
     """Installs nginx load balancer
 
     Args:
         nginx_host: hostname of server on which we will install nginx
     """
+
     task_id = self.request.id
     app_conf = AppConfiguration.query.first()
     primary_server = Server.query.filter_by(primary_server=True).first()
@@ -890,7 +890,39 @@ def installNGINX(self, nginx_host):
             return False
 
         nginx_installer.epel_release()
-        nginx_installer.install('nginx', inside=False, error_exception= '__ALL__')
+
+        if session_type == 'ip_hash':
+            nginx_installer.install('nginx', inside=False, error_exception= '__ALL__')
+
+        else:
+            if 'ubuntu' in nginx_installer.server_os.lower():
+                ubuntu_sticky_packages = {
+                        '18': [ 
+                                'nginx-common_1.14.0-0ubuntu1.7_all.deb',
+                                'libnginx-mod-http-geoip_1.14.0-0ubuntu1.7_amd64.deb',
+                                'libnginx-mod-http-image-filter_1.14.0-0ubuntu1.7_amd64.deb',
+                                'libnginx-mod-http-xslt-filter_1.14.0-0ubuntu1.7_amd64.deb',
+                                'libnginx-mod-mail_1.14.0-0ubuntu1.7_amd64.deb',
+                                'libnginx-mod-stream_1.14.0-0ubuntu1.7_amd64.deb',
+                                'nginx-core_1.14.0-0ubuntu1.7_amd64.deb'
+                                ],
+                        '16': [
+                                'nginx-common_1.10.3-0ubuntu0.16.04.5_all.deb',
+                                'nginx-core_1.10.3-0ubuntu0.16.04.5_amd64.deb'
+                                ]
+                        }
+                ubuntu_ver = nginx_installer.server_os.split()[1]
+                for package in ubuntu_sticky_packages[ubuntu_ver]:
+                    wlogger.log(task_id, "Download and Install" + package, "debug")
+                    package_url = 'http://162.243.99.240/icrby8xcvbcv/nginx/ubuntu{}/{}'.format(ubuntu_ver, package)
+                    nginx_installer.run('wget -nv {} -O /tmp/{} 2>&1'.format(package_url, package), inside=False)
+                    nginx_installer.run('DEBIAN_FRONTEND=noninteractive dpkg -i /tmp/{} 2>&1'.format(package), inside=False)
+                    nginx_installer.run('DEBIAN_FRONTEND=noninteractive apt-get install -y -f 2>&1', inside=False)
+            elif nginx_installer.server_os == 'CentOS 7':
+                nginx_installer.run('yum install -y http://162.243.99.240/icrby8xcvbcv/nginx/centos7/nginx-1.14.2-1.gluu.centos7.x86_64.rpm 2>&1', inside=False)
+            elif nginx_installer.server_os == 'RHEL 7':
+                nginx_installer.run('yum install -y http://162.243.99.240/icrby8xcvbcv/nginx/rhel7/nginx-1.14.2-1.gluu.rhel7.x86_64.rpm 2>&1', inside=False)
+
 
     #Check if ssl certificates directory exist on this server
     result = nginx_installer.conn.exists("/etc/nginx/ssl/")

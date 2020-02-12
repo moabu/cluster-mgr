@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from 'macros.html' import render_form %}
+
+{% block header %}
+    <h1>Nginx is Ready</h1>
+{% endblock %}
+
+{% block  content %}
+
+<div class="box box-primary">
+    <br>
+    <p>Nginx was installed previously and serves the following Gluu Servers:</p>
+    <br>
+    <ul class="list-group">
+    {% for s in servers %}
+    <li class="list-group-item">{{s}}</li>
+    {%endfor%}
+    </ul>
+</div>
+
+<a href="{{ url_for('cluster.do_install_nginx') }}" id="install-url" class="btn btn-block btn-warning">
+            Click Here to Re-Install</a>
+
+{% endblock %}
+
+{% block js %}
+{% endblock %}

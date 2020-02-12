@@ -4,10 +4,11 @@ events {
 
 http {
   upstream backend_id {
-  ip_hash;
+  {#SESSIONTYPE#};
 {#SERVERS#}
   }
   upstream backend {
+  {#SESSIONTYPE#};
 {#SERVERS#}
   }
   server {

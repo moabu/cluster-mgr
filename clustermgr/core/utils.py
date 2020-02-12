@@ -388,6 +388,9 @@ def make_nginx_proxy_conf(exception=None):
                            "nginx.temp")
     nginx_tmp = open(nginx_tmp_file).read()
 
+    session_type_fn = os.path.join(app.config['DATA_DIR'], 'nginx_session_type')
+    session_type = open(session_type_fn).read().strip()
+
     #add all gluu servers to nginx.conf
     for s in servers:
         if s.id != exception:
@@ -397,6 +400,7 @@ def make_nginx_proxy_conf(exception=None):
     nginx_tmp = nginx_tmp.replace('{#NGINX#}', app_config.nginx_host)
     nginx_tmp = nginx_tmp.replace('{#SERVERS#}', '\n'.join(nginx_backends))
     nginx_tmp = nginx_tmp.replace('{#PINGSTRING#}', ' '.join(server_list))
+    nginx_tmp = nginx_tmp.replace('{#SESSIONTYPE#}', session_type)
 
     return nginx_tmp
 

@@ -2,30 +2,52 @@
 {% from 'macros.html' import render_form %}
 
 {% block header %}
-    <h1>Nginx is Ready</h1>
+    <h1>Nginx installation</h1>
 {% endblock %}
 
 {% block  content %}
 
-<div class="box box-primary">
-    <br>
-    <p>Nginx was installed previously and serves the following Gluu Servers:</p>
-    <br>
-    <ul class="list-group">
-    {% for s in servers %}
-    <li class="list-group-item">{{s}}</li>
-    {%endfor%}
-    </ul>
-    <br>
-    <a href="{{ url_for('cluster.install_nginx', next='install') }}" class="btn btn-block btn-warning">
-            Click Here to Re-Install</a>
+<div class="box">
+    <div class="box-body jumbotron">
+        <h1>Gluu Cluster Load Balancer</h1>
+        <p>Nginx is used as Load Balancer for Gluu Cluster.</p>
 
-    
+        <div class="checkbox">
+          <label><input type="checkbox" id="nginx-sticky"> Install sticky session enabled binaries from gluu repository</label>
+        <br>
+        <div class="alert alert-warning" role="alert">
+            <i class="glyphicon glyphicon-warning-sign"></i>
+            This option is available only install time. If you are going to use casa and/or passport we advice to install sticky session enabled binaries.
+        </div>
+        </div>
+        <br>
+
+        <p>Click <a href="" id="install-url"> here </a> to start installing nginx load balancer.</p>
+
+    </div>
 </div>
-
 
 
 {% endblock %}
 {% block js %}
+
+<script>
+
+  function modify_url(val) {
+    if (val) {
+        session_type = 'sticky';
+    } else {
+        session_type = 'ip_hash';
+    }
+    $('#install-url').attr("href", "{{ url_for('cluster.do_install_nginx') }}?session_type=" + session_type);
+  }
+
+  $('#nginx-sticky').change(
+    function(){
+        modify_url($(this).is(':checked'))
+  });
+
+modify_url(false);
+</script>
 
 {% endblock %}

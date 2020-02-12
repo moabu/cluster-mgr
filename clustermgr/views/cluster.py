@@ -159,19 +159,45 @@ def checkNginxStatus(nginxhost):
     return False, []
 
 
-@cluster.route('/installnginx')
+@cluster.route('/nginx')
 @login_required
 def install_nginx():
     """Initiates installation of nginx load balancer"""
     app_conf = AppConfiguration.query.first()
+    status = checkNginxStatus(app_conf.nginx_host)
 
-    if not request.args.get('next') == 'install':
+    if status:
         status = checkNginxStatus(app_conf.nginx_host)
         if status[0]:
-            return render_template("nginx_home.html", servers=status[1])
+            return render_template("nginx_reinstall.html", servers=status[1])
+
+    return render_template("nginx_home.html")
+
+
+@cluster.route('/nginx/install')
+@login_required
+def do_install_nginx():
+    app_conf = AppConfiguration.query.first()
+    session_type = request.args.get('session_type')
+    if session_type and not session_type in ('ip_hash', 'sticky'):
+        flash("Session type should be either ip_hash or sticky", 'warning')
+        return render_template("nginx_home.html")
+
+    session_type_fn = os.path.join(app.config['DATA_DIR'], 'nginx_session_type')
+
+    if session_type:
+        with open(session_type_fn, 'w') as w:
+            w.write(session_type)
+    else:
+        if os.path.exists(session_type_fn):
+            session_type = open(session_type_fn).read().strip()
+        else:
+            session_type = 'ip_hash'
+            with open(session_type_fn, 'w') as w:
+                w.write(session_type)
 
     # Start nginx  installation celery task
-    task = installNGINX.delay(app_conf.nginx_host)
+    task = installNGINX.delay(app_conf.nginx_host, session_type)
 
     print "Install NGINX TASK STARTED", task.id
     head = "Configuring NGINX Load Balancer on {0}".format(app_conf.nginx_host)
