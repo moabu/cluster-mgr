@@ -169,6 +169,18 @@ def _render_filebeat_config(installer):
             "input_shibboleth": "",
         }
 
+
+        if installer.server_os in ('CentOS 7', 'RHEL 7'):
+            ctx['apache_paths'] = ('    - %(chroot_path)s/var/log/httpd/access_log\n'
+                                   '    - %(chroot_path)s/var/log/httpd/error_log'
+                                   ) % ctx
+
+        else:
+            ctx['apache_paths'] = ('    - %(chroot_path)s/var/log/apache2/access.log\n'
+                                   '    - %(chroot_path)s/var/log/apache2/error.log\n'
+                                   '    - %(chroot_path)s/var/log/apache2/other_vhosts_access.log'
+                                   ) % ctx
+
         prop = parse_setup_properties(
                 os.path.join(current_app.config['DATA_DIR'], 'setup.properties')
             )
@@ -210,13 +222,8 @@ def _render_filebeat_config(installer):
                         })
             ctx['input_shibboleth'] = input_tmp % ctx_
 
-        src = "filebeat.yml"
-
-        if installer.clone_type == 'rpm':
-            src += ".centos"
-
-        txt = render_template("filebeat/{}".format(src), **ctx)
-        installer.put_file("/etc/filebeat/filebeat.yml", txt)
+        yml = render_template("filebeat/filebeat.yml", **ctx)
+        installer.put_file("/etc/filebeat/filebeat.yml", yml)
 
 
 @celery.task(bind=True)
