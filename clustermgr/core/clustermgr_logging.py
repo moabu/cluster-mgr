@@ -8,7 +8,10 @@ from flask import has_request_context, request
 
 class ContextFilter(logging.Filter):
     def filter(self, record):
-        username = current_user.username if current_user else 'SYS'
+        try:
+            username = current_user.username
+        except:
+            username = 'SYS'
         record.current_user = username
         return True
 
