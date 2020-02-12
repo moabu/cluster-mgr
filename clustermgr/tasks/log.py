@@ -172,7 +172,7 @@ def _render_filebeat_config(installer):
 
         if installer.server_os in ('CentOS 7', 'RHEL 7'):
             ctx['apache_paths'] = ('    - %(chroot_path)s/var/log/httpd/access_log\n'
-                                   '    - %(chroot_path)s/var/log/httpd/error_log'
+                                   '    - %(chroot_path)s/var/log/httpd/error_log\n'
                                    ) % ctx
 
         else:
@@ -270,7 +270,6 @@ def setup_filebeat(self, force_install=False):
 
         # update the model
         server.filebeat = True
-        db.session.add(server)
         db.session.commit()
 
 
