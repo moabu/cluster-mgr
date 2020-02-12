@@ -1,4 +1,5 @@
 import json
+import os
 
 from celery.utils.log import get_task_logger
 from flask import current_app
@@ -11,6 +12,7 @@ from ..extensions import db
 from ..extensions import wlogger
 from ..models import AppConfiguration
 from ..models import Server
+from ..core.utils import as_boolean, parse_setup_properties
 
 task_logger = get_task_logger(__name__)
 
@@ -163,7 +165,50 @@ def _render_filebeat_config(installer):
             "chroot": "true" if installer.is_gluu_installed() else "",
             "chroot_path": installer.container,
             "gluu_version": installer.gluu_version,
+            "input_passport": "",
+            "input_shibboleth": "",
         }
+
+        prop = parse_setup_properties(
+                os.path.join(current_app.config['DATA_DIR'], 'setup.properties')
+            )
+        
+        input_tmp = (
+                '- input_type: log\n'
+                '  paths:\n'
+                '%(log_files)s'
+                '  multiline.pattern: \'^[0-9]{4}-[0-9]{2}-[0-9]{2}\'\n'
+                '  multiline.negate: true\n'
+                '  multiline.match: after\n'
+                '  fields:\n'
+                '    gluu:\n'
+                '      version: %(gluu_version)s\n'
+                '      chroot: %(chroot)s\n'
+                '    ip: %(ip)s\n'
+                '    os: %(os)s\n'
+                '    type: %(type)s\n'
+                )
+                
+        
+        if as_boolean(prop['installPassport']):
+            ctx_ = ctx.copy()
+            ctx_.update({
+                        'type': 'passport', 
+                        'log_files': '    - /opt/{}/opt/gluu/node/passport/server/logs/passport.log\n'.format(installer.container)
+                        })
+            ctx['input_passport'] = input_tmp % ctx_
+
+    
+        if as_boolean(prop['installSaml']):
+            ctx_ = ctx.copy()
+            ctx_.update({
+                        'type': 'shibboleth', 
+                        'log_files': ('    - /opt/{0}/opt/shibboleth-idp/logs/idp-process.log\n'
+                                      '    - /opt/{0}/opt/shibboleth-idp/logs/idp-warn.log\n'
+                                      '    - /opt/{0}/opt/shibboleth-idp/logs/idp-audit.log\n'
+                                     ).format(installer.container)
+                        })
+            ctx['input_shibboleth'] = input_tmp % ctx_
 
         src = "filebeat.yml"
 

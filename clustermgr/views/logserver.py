@@ -1,6 +1,8 @@
 """A Flask blueprint with the views and the business logic dealing with
 the logging server managed in the cluster-manager
 """
+import os
+
 from celery import group
 from flask import Blueprint
 from flask import render_template
@@ -17,7 +19,7 @@ from requests.exceptions import ConnectionError
 from ..core.license import license_reminder
 from ..core.license import prompt_license
 from ..core.license import license_required
-from ..core.utils import as_boolean
+from ..core.utils import as_boolean, parse_setup_properties
 from ..forms import LogSearchForm
 from ..models import Server
 from ..models import AppConfiguration
@@ -84,6 +86,16 @@ def index():
         servers.append((server.ip, "{}/{}".format(server.hostname, server.ip)))
 
     form = LogSearchForm()
+    prop = parse_setup_properties(
+            os.path.join(current_app.config['DATA_DIR'], 'setup.properties')
+        )
+
+    if as_boolean(prop['installPassport']):
+        form.type.choices.append(("passport", "Passport"))
+    
+    if as_boolean(prop['installSaml']):
+        form.type.choices.append(("shibboleth", "Shibboleth IDP"))
+    
     form.host.choices = servers
     form.message.data = request.values.get("message")
     form.type.data = request.values.get("type")

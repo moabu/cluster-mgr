@@ -66,6 +66,10 @@ filebeat.prospectors:
     os: {{ os }}
     type: opendj
 
+{{ input_passport }}
+
+{{ input_shibboleth }}
+
 output.file:
   path: "/tmp"
   filename: gluu-filebeat
