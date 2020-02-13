@@ -58,7 +58,7 @@
                 <a class="btn btn-warning btn-block" href="{{ url_for('cluster.do_install_nginx', next='this')}}">
                    <i class="fa fa-wrench"></i> Click Here to Re-Configure
                 </a>
-                <a class="btn btn-danger btn-block" href="{{ url_for('cluster.do_uninstall_nginx')}}">
+                <a class="btn btn-danger btn-block" onClick="showConfirmModal('{{ url_for('cluster.do_uninstall_nginx')}}')" href"#">
                     <i class="fa fa-trash"></i> Uninstall Nginx Load Balancer
                 </a>
             </div>
@@ -66,8 +66,10 @@
     </div>
 </div>
 
+{% include 'confirm_modal.html' %}
 
 {% endblock %}
 
 {% block js %}
+
 {% endblock %}
