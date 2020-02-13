@@ -17,7 +17,7 @@ from clustermgr.models import Server, AppConfiguration
 from clustermgr.tasks.cluster import installNGINX, \
     setup_filesystem_replication, opendjenablereplication, \
     remove_server_from_cluster, remove_filesystem_replication, \
-    opendj_disable_replication_task
+    opendj_disable_replication_task, uninstallNGINX
 
 from clustermgr.core.utils import port_status_cmd
 
@@ -148,15 +148,31 @@ def remove_deployment(server_id):
                        )
 
 def checkNginxStatus(nginxhost):
+    
+    servers = {}
+    status = False
+    
     try:
-        r=  http_requests.get('https://{}/clustermgrping'.format(nginxhost),
+        r =  http_requests.get('https://{}/clustermgrping'.format(nginxhost),
                                                         verify=False)
         if r.status_code == 200:
-            return True, r.text.split()
+            status = True
+            for server in r.text.split():
+                server_status = False
+                try:
+                    r_identity = http_requests.get(
+                                        'https://{}/identity/'.format(server),
+                                        verify=False)
+                
+                    if r_identity.status_code == 200:
+                        server_status = True
+                except:
+                    pass
+                servers[server] = server_status
     except:
         pass
 
-    return False, []
+    return status, servers
 
 
 @cluster.route('/nginx')
@@ -179,6 +195,7 @@ def install_nginx():
 def do_install_nginx():
     app_conf = AppConfiguration.query.first()
     session_type = request.args.get('session_type')
+
     if session_type and not session_type in ('ip_hash', 'sticky'):
         flash("Session type should be either ip_hash or sticky", 'warning')
         return render_template("nginx_home.html")
@@ -201,12 +218,33 @@ def do_install_nginx():
 
     print "Install NGINX TASK STARTED", task.id
     head = "Configuring NGINX Load Balancer on {0}".format(app_conf.nginx_host)
-    nextpage = url_for('index.multi_master_replication')
-    whatNext = "LDAP Replication"
+
+    if request.args.get('next') == 'this':
+        nextpage = url_for('cluster.install_nginx')
+        whatNext = "Nginx Home"
+    else:
+        nextpage = url_for('index.multi_master_replication')
+        whatNext = "LDAP Replication"
 
     return render_template('logger_single.html', title=head, server=app_conf.nginx_host,
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
+
+@cluster.route('/nginx/uninstall')
+@login_required
+def do_uninstall_nginx():
+    app_conf = AppConfiguration.query.first()
+    
+    # Start nginx  uninstallation celery task
+    task = uninstallNGINX.delay()
+    print "Uninstall NGINX TASK STARTED", task.id
+    head = "Uninstalling NGINX Load Balancer on {0}".format(app_conf.nginx_host)
+
+    nextpage = url_for('cluster.install_nginx')
+    whatNext = "Nginx Home"
+
+    return render_template('logger_single.html', title=head, server=app_conf.nginx_host,
+                           task=task, nextpage=nextpage, whatNext=whatNext)
 
 @cluster.route('/opendjenablereplication/<server_id>')
 @login_required

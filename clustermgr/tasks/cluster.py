@@ -517,6 +517,7 @@ def opendj_disable_replication_task(self, server_id):
     result = do_disable_replication(task_id, server, primary_server, app_conf)
     return result
 
+
 @celery.task(bind=True)
 def remove_server_from_cluster(self, server_id, remove_server=False, 
                                                 disable_replication=True):
@@ -530,21 +531,7 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
 
     remove_filesystem_replication_do(server, app_conf, task_id)
 
-    nginx_installer = None
-
-    #mock server
-    nginx_server = Server(
-                        hostname=app_conf.nginx_host, 
-                        ip=app_conf.nginx_ip,
-                        os=app_conf.nginx_os
-                        )
-
-    nginx_installer = Installer(
-                    nginx_server, 
-                    app_conf.gluu_version, 
-                    logger_task_id=task_id, 
-                    server_os=nginx_server.os
-                    )
+    nginx_installer = get_nginx_installer(app_conf, task_id)
 
     if not app_conf.external_load_balancer:
         # Update nginx
@@ -835,18 +822,7 @@ def opendjenablereplication(self, server_id):
     return True
 
 
-@celery.task(bind=True)
-def installNGINX(self, nginx_host, session_type):
-    """Installs nginx load balancer
-
-    Args:
-        nginx_host: hostname of server on which we will install nginx
-    """
-
-    task_id = self.request.id
-    app_conf = AppConfiguration.query.first()
-    primary_server = Server.query.filter_by(primary_server=True).first()
-
+def get_nginx_installer(app_conf, task_id):
     #mock server
     nginx_server = Server(
                         hostname=app_conf.nginx_host, 
@@ -860,6 +836,22 @@ def installNGINX(self, nginx_host, session_type):
                     logger_task_id=task_id, 
                     server_os=nginx_server.os
                     )
+
+    return nginx_installer
+
+@celery.task(bind=True)
+def installNGINX(self, nginx_host, session_type):
+    """Installs nginx load balancer
+
+    Args:
+        nginx_host: hostname of server on which we will install nginx
+    """
+
+    task_id = self.request.id
+    app_conf = AppConfiguration.query.first()
+    primary_server = Server.query.filter_by(primary_server=True).first()
+
+    nginx_installer = get_nginx_installer(app_conf, task_id)
 
     if not nginx_installer.conn:
         return False
@@ -997,6 +989,29 @@ def installNGINX(self, nginx_host, session_type):
     db.session.commit()
 
     wlogger.log(task_id, "NGINX successfully installed")
+
+
+
+@celery.task(bind=True)
+def uninstallNGINX(self):
+    task_id = self.request.id
+    app_conf = AppConfiguration.query.first()
+    nginx_installer = get_nginx_installer(app_conf, task_id)
+
+    if not nginx_installer.conn:
+        wlogger.log(
+            task_id, 
+            'ssh connection to nginx host failed', 
+            'error'
+            )
+        return
+
+    if 'ubuntu' in nginx_installer.server_os.lower():
+        nginx_installer.run('DEBIAN_FRONTEND=noninteractive apt-get -y purge nginx-common 2>&1', inside=False)
+    else:
+        nginx_installer.run('yum remove -y nginx', inside=False)
+
+    return True
 
 def exec_cmd(command):    
     popen = subprocess.Popen(command, stdout=subprocess.PIPE)

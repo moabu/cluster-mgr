@@ -3,23 +3,69 @@
 
 {% block header %}
     <h1>Nginx is Ready</h1>
+    <ol class="breadcrumb">
+        <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+        <li>Cluster<</li>
+        <li class="active">Setup</li>
+    </ol>
+
 {% endblock %}
 
 {% block  content %}
 
-<div class="box box-primary">
-    <br>
-    <p>Nginx was installed previously and serves the following Gluu Servers:</p>
-    <br>
-    <ul class="list-group">
-    {% for s in servers %}
-    <li class="list-group-item">{{s}}</li>
-    {%endfor%}
-    </ul>
+
+
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="box box-warning">
+            <div class="box-body no-padding">
+                <br>
+                <div> Nginx was installed previously and serves the following Gluu Servers</div>
+                <br> 
+                
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                        <th>Hostname</th>
+                        <th style="text-align: center;">Server Liveness Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for server in servers %}
+                        
+                        
+                        <td class="hostname">{{server}}</td>
+                        
+                        <td style="text-align: center;">
+                            {% if servers[server] %}
+                            <span class="badge bg-green">Running</span>
+                            {% else %}
+                            <span class="badge bg-red">No Response</span>
+                            {% endif %}
+                        </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="box box-widget">
+            <div class="box-body">
+                <a class="btn btn-warning btn-block" href="{{ url_for('cluster.do_install_nginx', next='this')}}">
+                   <i class="fa fa-wrench"></i> Click Here to Re-Configure
+                </a>
+                <a class="btn btn-danger btn-block" href="{{ url_for('cluster.do_uninstall_nginx')}}">
+                    <i class="fa fa-trash"></i> Uninstall Nginx Load Balancer
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
 
-<a href="{{ url_for('cluster.do_install_nginx') }}" id="install-url" class="btn btn-block btn-warning">
-            Click Here to Re-Install</a>
 
 {% endblock %}
 
