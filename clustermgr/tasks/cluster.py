@@ -150,9 +150,7 @@ def get_csync2_config(exclude=None):
         csync2_config.append('  include {};'.format(d))
 
     csync2_config.append('')
-
     csync2_config.append('  exclude *~ .*;')
-
     csync2_config.append('')
 
 
@@ -181,11 +179,8 @@ def get_csync2_config(exclude=None):
 
     csync2_config.append('  backup-directory /var/backups/csync2;')
     csync2_config.append('  backup-generations 3;')
-
     csync2_config.append('\n  auto younger;\n')
-
     csync2_config.append('}')
-
     csync2_config = '\n'.join(csync2_config)
 
     return csync2_config
@@ -201,7 +196,6 @@ def setup_filesystem_replication(self):
         setup_filesystem_replication_do(task_id)
     except:
         raise Exception(traceback.format_exc())
-        
 
 
 def setup_filesystem_replication_do(task_id):
@@ -376,7 +370,7 @@ def setup_filesystem_replication_do(task_id):
             server_counter, csync2_path, server.id))
 
         server_counter += 1
-        
+
         wlogger.log(task_id, 'Crontab entry was created to sync files in every minute',
                          'debug', server_id=server.id)
 
@@ -392,9 +386,6 @@ def setup_filesystem_replication_do(task_id):
                     
             installer.restart_service('cron')
             installer.restart_service('openbsd-inetd')
-
-
-                
 
     return True
 
@@ -460,7 +451,6 @@ def modify_hosts(installer, hosts, inside=True, server_host=None):
         new_hosts = modify_etc_hosts(hosts, old_hosts)
         installer.put_file(hosts_file, new_hosts)
         wlogger.log(installer.logger_task_id, "{} was modified".format(hosts_file), 'success', server_id=installer.server_id)
-
 
 
 
@@ -983,13 +973,12 @@ def installNGINX(self, nginx_host, session_type):
 
     nginx_installer.enable_service('nginx', inside=False)
     nginx_installer.restart_service('nginx', inside=False)
-    
+
     # write nginx os type to database
     app_conf.nginx_os_type = nginx_installer.server_os
     db.session.commit()
 
     wlogger.log(task_id, "NGINX successfully installed")
-
 
 
 @celery.task(bind=True)
@@ -1105,7 +1094,7 @@ def update_httpd_certs_task(self, httpd_key, httpd_crt):
         installer.put_file(crt_path, httpd_crt)
 
         if hasattr(server, 'proxy'):
-            installer.run('service nginx restart', False, error_exception='Redirecting to')
+            installer.restart_service('nginx', inside=False)
         else:
             installer.delete_key('httpd', app_conf.nginx_host)
             installer.import_key('httpd', app_conf.nginx_host)
