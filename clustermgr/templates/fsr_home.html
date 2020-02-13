@@ -55,7 +55,7 @@
                     <i class="fa fa-wrench"></i> {%if csync %} Re-install {% else %} Install {% endif %} File System Replication
                 </a>
                 {% if csync %}
-                    <a class="btn btn-danger btn-block" onClick="showConfirmModal('{{url_for('cluster.remove_file_system_replication')}}', 'Do you want to uninsall File System Replication?')" href="#">
+                    <a class="btn btn-danger btn-block" onClick="showConfirmModal('{{url_for('cluster.remove_file_system_replication')}}', 'Do you want to uninstall File System Replication?')" href="#">
                         <i class="fa fa-trash"></i> Uninstall File System Replication</a>
                 {% endif %}
                 

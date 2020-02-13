@@ -50,13 +50,16 @@
                 <a class="btn btn-success btn-block" href="{{ url_for('monitoring.setup')}}">
                     <i class="fa fa-wrench"></i> Install Monitoring
                 </a>
-                <a class="btn btn-danger btn-block" href="{{ url_for('monitoring.remove')}}">
+                <a class="btn btn-danger btn-block" onClick="showConfirmModal('{{ url_for('monitoring.remove')}}', 'Do you want to uninstall Monitoring?')" href="#">
                     <i class="fa fa-trash"></i> Uninstall Monitoring
                 </a>
             </div>
         </div>
     </div>
 </div>
+
+{% include 'confirm_modal.html' %}
+
 {% endblock %}
 
 {% block js %}
