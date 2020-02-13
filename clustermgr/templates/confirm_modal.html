@@ -5,8 +5,22 @@
     <div class="modal-content">
       <div class="modal-header">
         <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-        <h4 class="modal-title" id="confirmModalText">{{confirm_question}}</h4>
+        <h4 class="modal-title">Confirm</h4>
       </div>
+      
+       <div class="modal-body">
+           
+            <div class="row">
+    <div class="col-sm-2">
+      <i style="font-size: 30px" class="fa fa-question" aria-hidden="true"></i>
+    </div>
+    <div class="col-sm-10">
+      <span id="confirmModalText"></span>
+      sdfsdf
+    </div>
+  </div>
+      </div>
+      
       <div class="modal-footer">
         <button type="button" class="btn btn-default" data-dismiss="modal" id="modal-btn-yes" onClick="actionConfirmed()">Yes</button>
         <button type="button" class="btn btn-primary" data-dismiss="modal" id="modal-btn-no">No</button>
@@ -20,8 +34,9 @@
 
 var confirm_url;
 
-function showConfirmModal(curl) {
-    $("#confirm-modal").modal('show');
+function showConfirmModal(curl, cquestion) {
+    $('#confirmModalText').html(cquestion);
+    $('#confirm-modal').modal('show');
     confirm_url = curl;
   };
 

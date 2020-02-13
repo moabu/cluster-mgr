@@ -181,13 +181,11 @@ def install_nginx():
     """Initiates installation of nginx load balancer"""
     app_conf = AppConfiguration.query.first()
     status = checkNginxStatus(app_conf.nginx_host)
-    confirm_question = "Do you want to uninstall Nginx Load Balancer?"
     if status:
         status = checkNginxStatus(app_conf.nginx_host)
         if status[0]:
             return render_template("nginx_reinstall.html", 
                             servers=status[1],
-                            confirm_question=confirm_question,
                             )
 
     return render_template("nginx_home.html")
