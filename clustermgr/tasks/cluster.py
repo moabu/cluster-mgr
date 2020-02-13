@@ -1011,6 +1011,8 @@ def uninstallNGINX(self):
     else:
         nginx_installer.run('yum remove -y nginx', inside=False)
 
+    nginx_installer.run('rm -r -f /etc/nginx', inside=False)
+
     return True
 
 def exec_cmd(command):    
