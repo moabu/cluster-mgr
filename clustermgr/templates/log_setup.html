@@ -50,13 +50,16 @@
                 <a class="btn btn-success btn-block" href="{{ url_for('log_mgr.install_filebeat')}}">
                     <i class="fa fa-cloud"></i> {% if offline %} Configure Filebeat {% else %} Install & Configure Filebeat {% endif %}
                 </a>
-                <a class="btn btn-danger btn-block" href="{{ url_for('log_mgr.uninstall_filebeat')}}">
+                <button class="btn btn-danger btn-block" onClick="showConfirmModal('{{ url_for('log_mgr.uninstall_filebeat')}}', 'Do you want to uninstall Filebeat?')">
                     <i class="fa fa-cloud"></i> Uninstall Filebeat
-                </a>
+                </button>
             </div>
         </div>
     </div>
 </div>
+
+{% include 'confirm_modal.html' %}
+
 {% endblock %}
 
 {% block js %}
