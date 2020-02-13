@@ -50,9 +50,9 @@
                 <a class="btn btn-success btn-block" href="{{ url_for('monitoring.setup')}}">
                     <i class="fa fa-wrench"></i> Install Monitoring
                 </a>
-                <a class="btn btn-danger btn-block" onClick="showConfirmModal('{{ url_for('monitoring.remove')}}', 'Do you want to uninstall Monitoring?')" href="#">
+                <button class="btn btn-danger btn-block" onClick="showConfirmModal('{{ url_for('monitoring.remove')}}', 'Do you want to uninstall Monitoring?')">
                     <i class="fa fa-trash"></i> Uninstall Monitoring
-                </a>
+                </button>
             </div>
         </div>
     </div>
