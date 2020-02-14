@@ -3,6 +3,7 @@ events {
 }
 
 http {
+  server_tokens off;
   upstream backend_id {
   ip_hash;
 {#SERVERS#}
