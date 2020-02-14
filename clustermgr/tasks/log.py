@@ -95,6 +95,21 @@ def collect_logs(self, server_id, path, influx_fmt=True):
     dbname = current_app.config["INFLUXDB_LOGGING_DB"]
     logs = []
     server = Server.query.get(server_id)
+    
+    agent_time = ''
+    agent_type = ''
+    
+    influx = InfluxDBClient(database=dbname)
+    influx.create_database(dbname)
+    influx_query = "SELECT * FROM logs WHERE hostname='{}' order by time desc limit 1".format(server.hostname)
+    result = influx.query(influx_query)
+
+    if result: 
+        rdict = next(result.get_points())
+        agent_time = rdict['time']
+        agent_type = rdict['type']
+
+    cmd = '/usr/local/bin/getfilebeatlog.py time:{} type:{}'.format(agent_time, agent_type)
 
     installer = Installer(
         server,
@@ -105,7 +120,7 @@ def collect_logs(self, server_id, path, influx_fmt=True):
     )
 
     try:
-        _, stdout, stderr = installer.run("cat {}".format(path), inside=False)
+        _, stdout, stderr = installer.run(cmd, inside=False)
         if not stderr:
             logs = filter(
                 None,
@@ -118,8 +133,7 @@ def collect_logs(self, server_id, path, influx_fmt=True):
         task_logger.warn("Unable to collect logs from remote server; "
                          "reason={}".format(exc))
 
-    influx = InfluxDBClient(database=dbname)
-    influx.create_database(dbname)
+
     return influx.write_points(logs)
 
 
@@ -236,6 +250,9 @@ def setup_filebeat(self, force_install=False):
 
     print "TASK", task_id
 
+    local_agent_file = os.path.join(current_app.root_path, 'monitoring_scripts/getfilebeatlog.py')
+    remote_agent_file = '/usr/local/bin/getfilebeatlog.py'
+
     for server in servers:
 
         installer = Installer(
@@ -244,6 +261,9 @@ def setup_filebeat(self, force_install=False):
             logger_task_id=task_id,
             server_os=server.os
             )
+
+        installer.upload_file(local_agent_file, remote_agent_file)
+        installer.run('chmod +x ' + remote_agent_file, False)
 
         fb_installed = installer.conn.exists('/usr/bin/filebeat')
 
