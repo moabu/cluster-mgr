@@ -202,7 +202,7 @@ def setup_filesystem_replication_do(task_id):
     """Deploys File System replicaton
     """
 
-    servers = Server.query.all()
+    servers = Server.query.order_by(Server.primary_server.desc()).all()
     app_conf = AppConfiguration.query.first()
 
     cysnc_hosts = []
@@ -430,8 +430,8 @@ def remove_filesystem_replication(self):
     task_id = self.request.id
     
     app_config = AppConfiguration.query.first()
-    servers = Server.query.all()
-    
+    servers = Server.query.order_by(Server.primary_server.desc()).all()
+
     for server in servers:
         r = remove_filesystem_replication_do(server, app_config, task_id)
         if not r:
