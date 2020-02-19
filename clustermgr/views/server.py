@@ -193,7 +193,7 @@ def remove_server(server_id):
 
     appconfig = AppConfiguration.query.first()
     server = Server.query.filter_by(id=server_id).first()
-    all_servers = Server.query.all()
+    all_servers = Server.get_all()
     
     if len(all_servers) > 1:
         if server.primary_server:
@@ -643,7 +643,7 @@ def test_view():
     steps = ['Perpare Server', 'Install Gluu Container', 'Run setup.py', 'Post Installation']
 
     server = Server.query.first()
-    servers = Server.query.all()
+    servers = Server.get_all()
     title = "You should not come this page!!!"
 
     nextpage = url_for('index.home')
@@ -663,7 +663,7 @@ def test_view():
 @server_view.route('/getostype', methods=['GET'])
 @login_required
 def get_os_type():
-    servers = Server.query.all()
+    servers = Server.get_all()
 
     data = {}
     for server in servers:

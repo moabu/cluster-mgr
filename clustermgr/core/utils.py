@@ -377,7 +377,7 @@ def get_redis_config(f):
     return addr_list
 
 def make_nginx_proxy_conf(exception=None):
-    servers = Server.query.all()
+    servers = Server.get_all()
     app_config = AppConfiguration.query.first()
     nginx_backends = []
 

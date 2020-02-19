@@ -61,7 +61,7 @@ def get_servers_and_list():
     if server_id:
         servers = [ Server.query.get(int(server_id)) ]
     else:
-        servers = Server.query.all()
+        servers = Server.get_all()
 
     server_id_list = [ s.id for s in servers ]
     
@@ -78,7 +78,7 @@ def install():
         servers = [ Server.query.get(int(server_id)) ]
     else:
         cache_servers = get_cache_servers()
-        servers = Server.query.all()
+        servers = Server.get_all()
 
     if not servers:
         return redirect(url_for('cache_mgr.index'))
@@ -159,7 +159,7 @@ def add_cache_server():
 def get_status():
 
     status={'redis':{}, 'stunnel':{}}
-    servers = Server.query.all()
+    servers = Server.get_all()
     
     check_cmd = 'python -c "import socket;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);print s.connect_ex((\'{0}\', {1}))"'
     

@@ -60,10 +60,10 @@ class ServerViewTestCase(unittest.TestCase):
     @patch('clustermgr.views.server.collect_server_details')
     def test_index_creates_new_server_on_post(self, mocktask):
         with self.app.app_context():
-            self.assertEqual(len(Server.query.all()), 0)
+            self.assertEqual(len(Server.get_all()), 0)
         rv = self._add_server()
         with self.app.app_context():
-            self.assertEqual(len(Server.query.all()), 1)
+            self.assertEqual(len(Server.get_all()), 1)
 
     @patch('clustermgr.views.server.collect_server_details')
     def test_index_calls_collect_server_details_task_on_post(self, mocktask):
@@ -142,12 +142,12 @@ class ServerViewTestCase(unittest.TestCase):
     def test_remove_deletes_the_server(self, mocktask):
         self._add_server()
         with self.app.app_context():
-            self.assertEqual(len(Server.query.all()), 1)
+            self.assertEqual(len(Server.get_all()), 1)
 
         rv = self.client.get("/server/remove/1/")
         self.assertEqual(rv.status_code, 302)  # redirects to home
         with self.app.app_context():
-            self.assertEqual(len(Server.query.all()), 0)
+            self.assertEqual(len(Server.get_all()), 0)
 
     @patch('clustermgr.views.server.remove_provider')
     def test_remove_calls_the_cleanup_tasks(self, mocktask):

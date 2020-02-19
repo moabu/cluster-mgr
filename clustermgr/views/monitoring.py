@@ -112,7 +112,7 @@ def getData(item, step=None):
         A compound data will be returned to be visualized by Google graphipcs.
     """
 
-    servers = Server.query.all()
+    servers = Server.get_all()
 
 
     # Gluu authentications will only be for primary server
@@ -305,7 +305,6 @@ def home():
     """This view provides home page of monitoring."""
     
     servers = Server.query.all()
-
     app_config = AppConfiguration.query.first()
 
     #If configuration was not done redirect to configuration page
@@ -413,7 +412,7 @@ def setup():
     
     """This view provides setting up monitoring components on remote servers"""
     
-    servers = Server.query.all()
+    servers = Server.get_all()
     appconf = AppConfiguration.query.first()
     if not appconf:
         flash("The application needs to be configured first. Kindly set the "
@@ -430,7 +429,7 @@ def setup():
     title = "Install Monitoring Componenets"
     whatNext = steps[1]
     nextpage = url_for('monitoring.setup_local')
-    servers = Server.query.all()
+    servers = Server.get_all()
     task = install_monitoring.delay()
     
     return render_template('logger_single.html',
@@ -583,7 +582,7 @@ def ldap_single(item):
 def remove():
     """This view will remove monitoring components"""
     
-    servers = Server.query.all()
+    servers = Server.get_all()
     app_conf = AppConfiguration.query.first()
     if not app_conf:
         flash("The application needs to be configured first. Kindly set the "
@@ -593,7 +592,7 @@ def remove():
     title = "Uninstall Monitoring"
     whatNext = "Monitoring Home"
     nextpage = url_for('monitoring.home')
-    servers = Server.query.all()
+    servers = Server.get_all()
     task = remove_monitoring.delay()
 
     local_server = Server( hostname='localhost', id=9999)
@@ -613,7 +612,7 @@ def remove():
 @login_required
 def get_server_status():
 
-    servers = Server.query.all()
+    servers = Server.get_all()
 
     services = {
                 'oxauth': '.well-known/openid-configuration',

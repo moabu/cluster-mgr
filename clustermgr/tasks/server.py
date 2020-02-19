@@ -717,7 +717,7 @@ def install_gluu_server(task_id, server_id):
     time.sleep(1)
 
     if app_conf.modify_hosts:
-        all_server = Server.query.all()
+        all_server = Server.get_all()
         host_ip = [ (ship.hostname, ship.ip) for ship in all_server ]
         modify_hosts(task_id, installer.conn, host_ip, '/opt/gluu-server/', server.hostname)
 

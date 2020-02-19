@@ -143,7 +143,7 @@ def install_filebeat():
         return redirect(url_for("index.app_configuration"))
 
     # checks for existing servers
-    servers = Server.query.all()
+    servers = Server.get_all()
 
     if not servers:
         flash("Add servers to the cluster before attempting to manage logs",
@@ -174,7 +174,7 @@ def collect():
         return redirect(url_for("index.app_configuration"))
 
     # checks for existing servers
-    servers = Server.query.all()
+    servers = Server.get_all()
 
     if not servers:
         flash("Add servers to the cluster before attempting to manage logs",
@@ -196,7 +196,7 @@ def collect():
 @log_mgr.route("/uninstall_filebeat")
 @login_required
 def uninstall_filebeat():
-    servers = Server.query.all()
+    servers = Server.get_all()
     task = remove_filebeat.delay()
 
     title = 'Uninstall Filebeat'

@@ -245,7 +245,7 @@ def setup_filebeat(self, force_install=False):
     """Setup filebeat to collect logs.
     """
     task_id = self.request.id
-    servers = Server.query.all()
+    servers = Server.get_all()
     app_conf = AppConfiguration.query.first()
 
     print "TASK", task_id
@@ -320,7 +320,7 @@ def remove_filebeat(self):
     task_id = self.request.id
     app_conf = AppConfiguration.query.first()
 
-    servers = Server.query.all()
+    servers = Server.get_all()
 
     for server in servers:
         installer = Installer(

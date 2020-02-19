@@ -134,7 +134,7 @@ def get_remote_stats():
     if app_conf:
         if app_conf.monitoring:
         
-            servers = Server.query.all()
+            servers = Server.get_all()
             for server in servers:
                 print "Monitoring: getting data for server {}".format(server.hostname)
                 c = RemoteClient(server.hostname, ip=server.ip)

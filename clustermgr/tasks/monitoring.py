@@ -57,7 +57,7 @@ def install_local(self):
     app_conf = AppConfiguration.query.first()
     
     task_id = self.request.id
-    servers = Server.query.all()
+    servers = Server.get_all()
     
     #create fake remote class that provides the same interface with RemoteClient
     fc = FakeRemote()
@@ -206,7 +206,7 @@ def install_monitoring(self):
     
     task_id = self.request.id
     installed = 0
-    servers = Server.query.all()
+    servers = Server.get_all()
     app_conf = AppConfiguration.query.first()
     
     for server in servers:
@@ -309,7 +309,7 @@ def remove_monitoring(self):
     """
     task_id = self.request.id
     installed = 0
-    servers = Server.query.all()
+    servers = Server.get_all()
     app_conf = AppConfiguration.query.first()
     for server in servers:
         # 1. Installer

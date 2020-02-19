@@ -132,7 +132,7 @@ def get_csync2_config(exclude=None):
 
     csync2_config = ['group gluucluster','{']
 
-    all_servers = Server.query.all()
+    all_servers = Server.get_all()
 
     cysnc_hosts = []
     for server in all_servers:
@@ -202,7 +202,7 @@ def setup_filesystem_replication_do(task_id):
     """Deploys File System replicaton
     """
 
-    servers = Server.query.order_by(Server.primary_server.desc()).all()
+    servers = Server.get_all()
     app_conf = AppConfiguration.query.first()
 
     cysnc_hosts = []
@@ -412,7 +412,7 @@ def remove_filesystem_replication_do(server, app_config, task_id):
         if csync_enabled:
             if 'CentOS' in server.os or 'RHEL' in server.os :
                 if installer.conn.exists('/opt/gluu-server/etc/xinetd.d/csync2'):
-                    installer.run('rm /opt/gluu-server/etc/xinetd.d/csync2')
+                    installer.run('rm /etc/xinetd.d/csync2')
                 services = ['xinetd', 'crond']
                 
             else:
@@ -430,7 +430,7 @@ def remove_filesystem_replication(self):
     task_id = self.request.id
     
     app_config = AppConfiguration.query.first()
-    servers = Server.query.order_by(Server.primary_server.desc()).all()
+    servers = Server.get_all()
 
     for server in servers:
         r = remove_filesystem_replication_do(server, app_config, task_id)
@@ -546,7 +546,7 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
         db.session.delete(server)
 
 
-    for server in Server.query.all():
+    for server in Server.get_all():
         if server.gluu_server:
         
             installer = Installer(
@@ -645,7 +645,7 @@ def opendjenablereplication(self, server_id):
     gluu_installed_servers = Server.query.filter_by(gluu_server=True).all()
 
     if server_id == 'all':
-        servers = Server.query.all()
+        servers = Server.get_all()
     else:
         servers = [Server.query.get(server_id)]
 
@@ -963,7 +963,7 @@ def installNGINX(self, nginx_host, session_type):
     if app_conf.modify_hosts:
         
         host_ip = []
-        servers = Server.query.all()
+        servers = Server.get_all()
 
         for ship in servers:
             host_ip.append((ship.hostname, ship.ip))
@@ -1029,7 +1029,7 @@ def register_objectclass(self, objcls):
     task_id = self.request.id
     primary = Server.query.filter_by(primary_server=True).first()
 
-    servers = Server.query.all()
+    servers = Server.get_all()
     app_conf = AppConfiguration.query.first()
 
     
@@ -1066,7 +1066,7 @@ def update_httpd_certs_task(self, httpd_key, httpd_crt):
     task_id = self.request.id
     app_conf = AppConfiguration.query.first()
 
-    servers = Server.query.all()
+    servers = Server.get_all()
 
     if not app_conf.external_load_balancer:
         mock_server = Server()

@@ -299,7 +299,7 @@ def chekFSR(server, gluu_version):
 @cluster.route('/fsrep/status', methods=['GET'])
 @login_required
 def fsrep_health():
-    servers = Server.query.all()
+    servers = Server.get_all()
     status = {}
     for server in servers:
         status[server.id]= False
@@ -394,7 +394,7 @@ def file_system_replication():
 @cluster.route('/removefsrep')
 @login_required
 def remove_file_system_replication():
-    servers = Server.query.all()
+    servers = Server.get_all()
     task = remove_filesystem_replication.delay()
 
     title = "Uninstalling File System Replication"
