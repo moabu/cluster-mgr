@@ -441,8 +441,7 @@ def install_gluu_server(task_id, server_id):
             if server.os == 'CentOS 7':
 
                 cmd = (
-                  #'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O '
-                  'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo  -O '
+                  'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O '
                   '/etc/yum.repos.d/Gluu.repo'
                   )
 
