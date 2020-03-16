@@ -1013,7 +1013,7 @@ def exec_cmd(command):
 def upgrade_clustermgr_task(self):
     task_id = self.request.id
     
-    cmd = '/usr/bin/sudo pip install --upgrade https://github.com/GluuFederation/cluster-mgr/archive/4.0.zip'
+    cmd = '/usr/bin/sudo pip install --upgrade https://github.com/GluuFederation/cluster-mgr/archive/4.1.zip'
 
     wlogger.log(task_id, cmd)
 
@@ -1108,7 +1108,7 @@ def check_latest_version():
     app_conf = AppConfiguration.query.first()
     if app_conf:
         print "Checking latest version from github"
-        result = requests.get('https://raw.githubusercontent.com/GluuFederation/cluster-mgr/4.0/clustermgr/__init__.py')
+        result = requests.get('https://raw.githubusercontent.com/GluuFederation/cluster-mgr/4.1/clustermgr/__init__.py')
         text = result.text.strip()
         latest_version = text.split('=')[1].strip().strip('"').strip("'")        
         app_conf.latest_version = latest_version
