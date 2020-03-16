@@ -57,7 +57,7 @@ class Server(db.Model):
 
     @classmethod
     def get_all(self):
-        return Server.query.order_by(Server.primary_server.desc()).all()
+        return db.session.query(Server).order_by(Server.primary_server.desc()).all()
 
 class AppConfiguration(db.Model):
     __tablename__ = 'appconfig'

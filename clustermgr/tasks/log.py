@@ -8,10 +8,9 @@ from influxdb import InfluxDBClient
 
 from ..core.clustermgr_installer import Installer
 from ..extensions import celery
-from ..extensions import db
 from ..extensions import wlogger
 from ..models import AppConfiguration
-from ..models import Server
+from ..models import Server, db
 from ..core.utils import as_boolean, parse_setup_properties
 
 task_logger = get_task_logger(__name__)
@@ -248,8 +247,6 @@ def setup_filebeat(self, force_install=False):
     servers = Server.get_all()
     app_conf = AppConfiguration.query.first()
 
-    print "TASK", task_id
-
     local_agent_file = os.path.join(current_app.root_path, 'monitoring_scripts/getfilebeatlog.py')
     remote_agent_file = '/usr/local/bin/getfilebeatlog.py'
 
@@ -290,7 +287,8 @@ def setup_filebeat(self, force_install=False):
 
         # update the model
         server.filebeat = True
-        db.session.commit()
+
+    db.session.commit()
 
 
 # @celery.task(bind=True)

@@ -148,9 +148,9 @@ def app_configuration():
         for f in repo_list:
             conf_form.gluu_archive.choices.append((f,os.path.split(f)[1]))
     
-        if request.method == 'GET':
+        if request.method == 'GET' and config:
             conf_form.gluu_archive.data = config.gluu_archive
-    
+
     # If the form is submitted and password for replication user was not
     # not supplied, make password "**dummy**", so don't change
     # what we have before

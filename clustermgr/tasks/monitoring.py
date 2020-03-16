@@ -160,7 +160,6 @@ def install_local(self):
 
             #run commands to install influxdb on local machine
             for cmd in influx_cmd:
-            
                 result = installer.run(cmd, error_exception='__ALL__', inside=False)
     
     wlogger.log(task_id, "Fixing /etc/influxdb/influxdb.conf for InfluxDB listen localhost", server_id=0)

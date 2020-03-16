@@ -116,13 +116,13 @@ class Installer:
         if self.logger_task_id:
             if result[1].strip():
                 wlogger.log(self.logger_task_id, result[1].strip(), 'debug', server_id=self.server_id)
-            if result[2].strip():
-                if error_exception:
-                    if (error_exception == '__ALL__') or error_exception in result[2]:
-                        wlogger.log(self.logger_task_id, result[2].strip(), 'debug', server_id=self.server_id)
-                        return
+            if result[2].strip() and error_exception:
+                if (error_exception == '__ALL__') or error_exception in result[2]:
+                    message_type = 'debug'
+                else:
+                    message_type = 'error'
 
-                wlogger.log(self.logger_task_id, result[2].strip(), 'error', server_id=self.server_id)
+                wlogger.log(self.logger_task_id, result[2].strip(), message_type, server_id=self.server_id)
 
     def log_command(self, cmd):
         if self.logger_task_id:
@@ -131,6 +131,7 @@ class Installer:
 
 
     def run(self, cmd, inside=True, error_exception=None):
+
         if inside:
             run_cmd = self.run_command.format(cmd)
         else:
@@ -142,15 +143,10 @@ class Installer:
         print "Installer> executing: {}".format(cmd)
         self.log_command(run_cmd)
         result = self.conn.run(run_cmd)
-        
-        if 'connect to host localhost port 60022: Connection refused' in result[2]:
-            self.log(result)
-        else:
-            self.log(result, error_exception)
-        
+        self.log(result, error_exception)
+
         return result
-        
-        
+
     def run_channel_command(self, cmd, re_list=[]):
     
         print "Installer> executing channel command: {}".format(cmd)
@@ -205,7 +201,7 @@ class Installer:
         if self.clone_type == 'rpm':
             wlogger.log(self.logger_task_id, "Installing epel-release", server_id=self.server_id)
             self.run('yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm', inside=inside, error_exception='__ALL__')
-            self.run('yum repolist', inside=inside)
+            self.run('yum repolist', inside=inside, error_exception="Trying other mirror")
 
     def upload_file(self, local, remote):
         print "Installer> Uploading local {} to remote {}".format(local, remote)
