@@ -94,16 +94,16 @@ def collect_logs(self, server_id, path, influx_fmt=True):
     dbname = current_app.config["INFLUXDB_LOGGING_DB"]
     logs = []
     server = Server.query.get(server_id)
-    
+
     agent_time = ''
     agent_type = ''
-    
+
     influx = InfluxDBClient(database=dbname)
     influx.create_database(dbname)
     influx_query = "SELECT * FROM logs WHERE hostname='{}' order by time desc limit 1".format(server.hostname)
     result = influx.query(influx_query)
 
-    if result: 
+    if result:
         rdict = next(result.get_points())
         agent_time = rdict['time']
         agent_type = rdict['type']
@@ -197,7 +197,7 @@ def _render_filebeat_config(installer):
         prop = parse_setup_properties(
                 os.path.join(current_app.config['DATA_DIR'], 'setup.properties')
             )
-        
+
         input_tmp = (
                 '- input_type: log\n'
                 '  paths:\n'
@@ -213,21 +213,21 @@ def _render_filebeat_config(installer):
                 '    os: %(os)s\n'
                 '    type: %(type)s\n'
                 )
-                
-        
+
+
         if as_boolean(prop['installPassport']):
             ctx_ = ctx.copy()
             ctx_.update({
-                        'type': 'passport', 
+                        'type': 'passport',
                         'log_files': '    - /opt/{}/opt/gluu/node/passport/server/logs/passport.log\n'.format(installer.container)
                         })
             ctx['input_passport'] = input_tmp % ctx_
 
-    
+
         if as_boolean(prop['installSaml']):
             ctx_ = ctx.copy()
             ctx_.update({
-                        'type': 'shibboleth', 
+                        'type': 'shibboleth',
                         'log_files': ('    - /opt/{0}/opt/shibboleth-idp/logs/idp-process.log\n'
                                       '    - /opt/{0}/opt/shibboleth-idp/logs/idp-warn.log\n'
                                       '    - /opt/{0}/opt/shibboleth-idp/logs/idp-audit.log\n'
@@ -287,6 +287,7 @@ def setup_filebeat(self, force_install=False):
 
         # update the model
         server.filebeat = True
+        db.session.add(server)
 
     db.session.commit()
 
