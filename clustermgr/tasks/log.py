@@ -288,8 +288,7 @@ def setup_filebeat(self, force_install=False):
         # update the model
         server.filebeat = True
         db.session.add(server)
-
-    db.session.commit()
+        db.session.commit()
 
 
 # @celery.task(bind=True)
