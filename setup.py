@@ -59,7 +59,7 @@ setup(
         "influxdb==5.0.0",
         'gunicorn==19.7.1',
         'psutil',
-        'pyasn1-modules',
+        'pyasn1-modules==0.4.8',
     ],
     scripts=['clusterapp.py', 'clustermgr4-cli'],
     classifiers=[
