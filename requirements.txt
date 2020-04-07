@@ -18,4 +18,4 @@ Flask-Mail==0.9.1
 influxdb==5.0.0
 psutil
 gunicorn==19.7.1
-pyasn1-modules==0.4.8
+pyasn1-modules==0.2.8
