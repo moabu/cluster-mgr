@@ -25,9 +25,7 @@ from clustermgr.core.utils import get_setup_properties, encode
 from clustermgr.core.clustermgr_logging import sys_logger as logger
 
 from clustermgr.core.ldap_functions import LdapOLC
-from clustermgr.core.ldifschema_utils import OpenDjSchema
 from wtforms.validators import DataRequired
-
 
 from clustermgr.tasks.cluster import upgrade_clustermgr_task
 from clustermgr.core.license import license_reminder
@@ -40,8 +38,6 @@ from clustermgr.core.clustermgr_installer import Installer
 
 from clustermgr.core.utils import get_setup_properties, \
     get_opendj_replication_status, as_boolean
-
-from clustermgr.core.ldifschema_utils import OpenDjSchema
 
 from clustermgr.tasks.server import collect_server_details
 

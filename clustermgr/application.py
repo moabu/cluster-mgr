@@ -78,7 +78,6 @@ def create_app():
     from clustermgr.views.logserver import log_mgr
     from clustermgr.views.keyrotation import keyrotation_bp
     from clustermgr.views.wizard import wizard
-    from clustermgr.views.attributes import attributes
     from clustermgr.views.operations import operations
 
     app.register_blueprint(index, url_prefix="")
@@ -91,7 +90,6 @@ def create_app():
     app.register_blueprint(monitoring, url_prefix="/monitoring")
     app.register_blueprint(keyrotation_bp, url_prefix="/keyrotation")
     app.register_blueprint(wizard, url_prefix="/wizard")
-    app.register_blueprint(attributes, url_prefix="/attributes")
     app.register_blueprint(operations, url_prefix="/operations")
 
     @app.context_processor
