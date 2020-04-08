@@ -19,7 +19,6 @@ from clustermgr.forms import AppConfigForm, SchemaForm, \
     TestUser, InstallServerForm, LdapSchema  # , KeyRotationForm
 
 from celery.result import AsyncResult
-from ldap.schema import AttributeType, ObjectClass, LDAPSyntax
 from clustermgr.core.utils import get_setup_properties, encode
 
 from clustermgr.core.clustermgr_logging import sys_logger as logger
