@@ -57,6 +57,10 @@ class AppConfigForm(FlaskForm):
     update = SubmitField("Update Configuration")
     offline = BooleanField('Offline installation')
     gluu_archive = SelectField('Gluu archive', choices = [])
+    
+    ldap_cache_clean_period = SelectField('LDAP Cache Entries Cleanup Period', 
+            choices = [("1","1 min"),("5", "5 mins"), ("10", "10 mins"), ("30", "30 mins")]
+            )
 
     def validate_nginx_host(form, field):
         is_resolved = is_hostname_resolved(field.data)

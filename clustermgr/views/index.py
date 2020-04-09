@@ -38,7 +38,8 @@ from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.core.utils import get_setup_properties, \
     get_opendj_replication_status, as_boolean
 
-from clustermgr.tasks.server import collect_server_details
+from clustermgr.tasks.server import collect_server_details, set_up_ldap_cache_cleaner
+
 
 index = Blueprint('index', __name__)
 index.before_request(prompt_license)
@@ -224,6 +225,7 @@ def app_configuration():
         config.ldap_update_period = conf_form.ldap_update_period.data
         config.ldap_update_period_unit = 's'
         config.external_load_balancer = conf_form.external_load_balancer.data
+        config.ldap_cache_clean_period = int(conf_form.ldap_cache_clean_period.data)
 
         if as_boolean(prop['installSaml']):
             config.use_ldap_cache = True
@@ -237,7 +239,7 @@ def app_configuration():
         else:
             config.offline = False
             config.gluu_archive = ''
-            
+
     
         if getattr(conf_form, 'replication_pw'):
             if conf_form.replication_pw_confirm.data:
@@ -253,6 +255,21 @@ def app_configuration():
 
         collect_server_details.delay(-1)
 
+        primary_server = Server.query.filter_by(primary_server=True).first()
+
+        if primary_server:
+
+            installer = Installer(
+                                    primary_server,
+                                    config.gluu_version,
+                                    logger_task_id=0,
+                                    server_os=primary_server.os
+                                )
+
+            if not installer.conn:
+                flash("Primary server is reachable via ssh.", 'warning')
+            else:
+                set_up_ldap_cache_cleaner(installer, config.ldap_cache_clean_period)
 
         if request.args.get('next'):
             return redirect(request.args.get('next'))
@@ -282,7 +299,8 @@ def app_configuration():
         conf_form.external_load_balancer.data = config.external_load_balancer
         conf_form.use_ldap_cache.data = config.use_ldap_cache
         conf_form.offline.data =  config.offline
-
+        conf_form.ldap_cache_clean_period.data = str(config.ldap_cache_clean_period)
+        
         #if config.external_load_balancer:
         #    conf_form.cache_host.data = config.cache_host
         #    conf_form.cache_ip.data = config.cache_ip

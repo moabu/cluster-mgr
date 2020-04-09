@@ -163,6 +163,26 @@ class LdapOLC(object):
 
         return self.conn.modify(dn, mod)
 
+    def set_ldap_cache_cleanup_interval(self, interval=-1):
+
+        result=self.conn.search(
+                        search_base="ou=oxauth,ou=configuration,o=gluu",
+                        search_scope=BASE,
+                        search_filter='(objectclass=*)',
+                        attributes=["oxAuthConfDynamic"]
+                        )
+        
+        
+        oxAuthConfDynamic = json.loads(self.conn.response[0]['attributes']['oxAuthConfDynamic'][0])
+
+        oxAuthConfDynamic['cleanServiceInterval'] = interval
+        oxAuthConfDynamic_json = json.dumps(oxAuthConfDynamic, indent=2)
+
+        return self.conn.modify(
+                            self.conn.response[0]['dn'], 
+                            {"oxAuthConfDynamic": [MODIFY_REPLACE, oxAuthConfDynamic_json]}
+                            )
+    
 
 
 def getLdapConn(addr, dn, passwd):

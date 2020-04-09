@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import os
 import sys
 import requests
@@ -13,13 +15,17 @@ ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_ALLOW)
 formatter = logging.Formatter('%(levelname)s %(asctime)s - %(message)s')
 log_handler = RotatingFileHandler('/var/log/ldap_cache_cleaner/cache_cleaner.log', maxBytes= 5*1024*1024, backupCount=3)
 log_handler.setFormatter(formatter)
+log_handler.setLevel(logging.DEBUG)
 logger = logging.getLogger('ldap_cache_cleaner')
-logger.setLevel(logging.INFO)
 logger.addHandler(log_handler)
+logger.setLevel(logging.DEBUG)
 
 
 prop_file = '/etc/gluu/conf/gluu-ldap.properties'
 
+if not os.path.exists(prop_file):
+    logger.error("LDAP properties file %s not found", prop_file)
+    sys.exit()
 
 props = {}
 
@@ -36,15 +42,19 @@ props['bindPassword'] = os.popen('/opt/gluu/bin/encode.py -e ' + props['bindPass
 
 ldap_uri = 'ldaps://'+props['servers'].split(',')[0]
 
-ldap_conn = ldap.initialize(ldap_uri)
-ldap_conn.simple_bind_s(props['bindDN'], props['bindPassword'])
+try:
+    ldap_conn = ldap.initialize(ldap_uri)
+    ldap_conn.simple_bind_s(props['bindDN'], props['bindPassword'])
+except Exception as e:
+    logger.error("Can't connect to LDAP server: %s", str(e))
+    sys.exit()
 
 offset = 0
 
 base_dn = [
         'ou=uma,o=gluu', 'ou=clients,o=gluu', 'ou=authorizations,o=gluu',
-        'ou=sessions,o=gluu', 'ou=scopes,o=gluu', 'ou=metrics,o=gluu',
-        'ou=tokens,o=gluu'
+        'ou=scopes,o=gluu', 'ou=tokens,o=gluu',
+        #'ou=sessions,o=gluu', 'ou=metrics,o=gluu',
         ]
 
 
@@ -65,22 +75,19 @@ for base in base_dn:
                         attrlist=['dn']
                         )
     except Exception as e:
+        logger.error(str(e))
         response = None
-        print e
 
     if response:
 
         logger.info("Deleting %d entries from %s", len(response), base)
 
         for e in response:
-            ldap_conn.delete(e[0])
+            try:
+                ldap_conn.delete(e[0])
+            except Exception as e:
+                logger.error(str(e))
         
         t_e = time.time()
 
         logger.info("Cleanup %s took %0.2f", base, t_e - t_s)
-    
-
-
-
-
-

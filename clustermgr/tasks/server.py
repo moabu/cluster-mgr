@@ -82,6 +82,22 @@ def collect_server_details(self, server_id):
     db.session.commit()
 
 
+def set_up_ldap_cache_cleaner(installer, ldap_cache_clean_period):
+    installer.conn.run('mkdir -p /opt/gluu-server/var/log/ldap_cache_cleaner')
+    installer.conn.run('chown jetty:jetty /opt/gluu-server/var/log/ldap_cache_cleaner')
+    installer.upload_file(
+        os.path.join(app.root_path, 'core/ldap_cache_cleanup.py'),
+        '/opt/gluu-server/opt/gluu/bin/ldap_cache_cleanup.py'
+        )
+    installer.conn.run('chmod +x /opt/gluu-server/opt/gluu/bin/ldap_cache_cleanup.py')
+    installer.put_file('/opt/gluu-server/etc/cron.d/ldap_cache_cleanup',
+    '*/{} * * * *    jetyy    /opt/gluu/bin/ldap_cache_cleanup.py\n'.format(ldap_cache_clean_period))
+
+    if 'CentOS' in installer.server_os or 'RHEL' in installer.server_os:
+        installer.restart_service('crond')
+    else:
+        installer.restart_service('cron')
+
 def modify_hosts(task_id, conn, hosts, chroot='/', server_host=None, server_id=''):
     wlogger.log(task_id, "Modifying /etc/hosts of server {0}".format(server_host), server_id=server_id)
     
@@ -566,12 +582,12 @@ def install_gluu_server(task_id, server_id):
         time.sleep(10)
 
 
-
     # If this server is primary, upload local setup.properties to server
     if server.primary_server:
         wlogger.log(task_id, "Uploading setup.properties")
         result = installer.upload_file(setup_properties_file, 
                  '/opt/gluu-server/root/setup.properties')
+
     # If this server is not primary, get setup.properties.last from primary
     # server and upload to this server
     else:
@@ -721,6 +737,17 @@ def install_gluu_server(task_id, server_id):
         host_ip = [ (ship.hostname, ship.ip) for ship in all_server ]
         modify_hosts(task_id, installer.conn, host_ip, '/opt/gluu-server/', server.hostname)
 
+
+    ldapc = LdapOLC(
+                    'ldaps://{}:1636'.format(server.hostname),
+                    'cn=Directory Manager',
+                    server.ldap_password
+                     )
+
+    if not server.primary_server:
+        ldapc.set_ldap_cache_cleanup_interval()
+        set_up_ldap_cache_cleaner(installer, app_conf.ldap_cache_clean_period)
+
     # Get slapd.conf from primary server and upload this server
     if not server.primary_server:
 
@@ -768,12 +795,6 @@ def install_gluu_server(task_id, server_id):
                                         
         #create base dn for o=metric backend    
         wlogger.log(task_id, "Creating base dn for o=metric backend")
-        
-        ldapc = LdapOLC(
-                    'ldaps://{}:1636'.format(server.hostname),
-                    'cn=Directory Manager',
-                    server.ldap_password
-                     )
         
         if not ldapc.connect():
             wlogger.log(task_id, "Cannot connect to ldap server. Failed to "

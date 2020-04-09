@@ -109,6 +109,8 @@ class AppConfiguration(db.Model):
     latest_version = db.Column(db.String(10))
     offline = db.Column(db.Boolean())
     gluu_archive = db.Column(db.String(50))
+
+    ldap_cache_clean_period = db.Column(db.Integer)
     
 
 class KeyRotation(db.Model):
