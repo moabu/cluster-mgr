@@ -192,8 +192,9 @@ def write_setup_properties_file(setup_prop):
             val = str(val) 
         prop[k] = val
     
-    with open(setup_properties_file, 'w') as w:
-        prop.store(w)
+    with open(prop_fn, 'wb') as w:
+        prop.store(f, encoding="utf-8")
+
 
 def get_setup_properties(createNew=False):
     """This fucntion returns properties for setup.properties file."""
