@@ -258,7 +258,7 @@ class RemoteClient(object):
         output = []
         for buf in buffers:
             try:
-                output.append(buf.read())
+                output.append(buf.read().decode())
             except IOError:
                 output.append('')
 
@@ -276,11 +276,14 @@ class RemoteClient(object):
         
         logger.debug("[%s] Getting file %s", self.host, filename)
         
-        file_obj = io.StringIO()
+        file_obj = io.BytesIO()
+        ret_obj = io.StringIO()
         try:
             result = self.sftpclient.getfo(filename, file_obj)
             file_obj.seek(0)
-            return result, file_obj
+            ret_obj.write(file_obj.read().decode())
+            ret_obj.seek(0)
+            return result, ret_obj
         except Exception as err:
             print(err)
             return False, err
@@ -298,8 +301,8 @@ class RemoteClient(object):
 
         logger.debug("[%s] Putting file %s", self.host, filename)
 
-        file_obj = io.StringIO()
-        file_obj.write(filecontent)
+        file_obj = io.BytesIO()
+        file_obj.write(filecontent.encode())
         file_obj.seek(0)
 
         try:
