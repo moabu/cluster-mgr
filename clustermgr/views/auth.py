@@ -1,4 +1,4 @@
-import ConfigParser
+import configparser
 import os
 import socket
 import hashlib
@@ -14,8 +14,6 @@ from flask_login import UserMixin
 from flask_login import login_user
 from flask_login import logout_user
 from flask_login import current_user
-from oxdpython import Client
-from oxdpython.exceptions import OxdServerError
 
 from ..extensions import login_manager
 from ..forms import LoginForm, SignUpForm
@@ -38,12 +36,12 @@ class User(UserMixin):
 
 
 def user_from_config(cfg_file, username):
-    parser = ConfigParser.SafeConfigParser()
+    parser = configparser.SafeConfigParser()
     parser.read(cfg_file)
 
     try:
         cfg = dict(parser.items("user"))
-    except ConfigParser.NoSectionError:
+    except configparser.NoSectionError:
         return
 
     if username != cfg["username"]:
@@ -80,7 +78,7 @@ def login():
 
         user = user_from_config(cfg_file, form.username.data)
 
-        enc_password = hashlib.sha224(form.password.data).hexdigest()
+        enc_password = hashlib.sha224(form.password.data.encode('utf-8')).hexdigest()
 
         if user and enc_password == user.password:
             next_ = request.values.get('next')
@@ -138,11 +136,11 @@ def oxd_login():
     try:
         auth_url = oxc.get_authorization_url()
     except OxdServerError as exc:
-        print exc  # TODO: use logging
+        print(exc)  # TODO: use logging
         flash("Failed to process the request due to error in OXD server.",
               "warning")
     except socket.error as exc:
-        print exc  # TODO: use logging
+        print(exc)  # TODO: use logging
         flash("Unable to connect to OXD server.", "warning")
     else:
         return redirect(auth_url)
@@ -185,7 +183,7 @@ def oxd_login_callback():
             flash("Invalid user's role.", "warning")
 
     except KeyError as exc:
-        print exc  # TODO: use logging
+        print(exc)  # TODO: use logging
         if exc.message == "user_name":
             msg = "user_name scope is not enabled in OIDC client"
         elif exc.message == "role":
@@ -193,11 +191,11 @@ def oxd_login_callback():
                   "or missing role attribute in user's info"
         flash(msg, "warning")
     except OxdServerError as exc:
-        print exc  # TODO: use logging
+        print(exc)  # TODO: use logging
         flash("Failed to process the request due to error in OXD server.",
               "warning")
     except socket.error as exc:
-        print exc  # TODO: use logging
+        print(exc)  # TODO: use logging
         flash("Unable to connect to OXD server.", "warning")
 
 
@@ -242,7 +240,7 @@ def signup():
             
             enc_password = hashlib.sha224(form.password.data).hexdigest()
 
-            config = ConfigParser.RawConfigParser()
+            config = configparser.RawConfigParser()
             config.add_section('user')
             config.set('user', 'username', username)
             config.set('user', 'password', enc_password)

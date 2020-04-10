@@ -91,7 +91,7 @@ class ChangeGluuHostname:
         self.conn = Connection(ldap_server, user="cn=directory manager", password=self.ldap_password)
         r = self.conn.bind()
         if not r:
-            print "Can't conect to LDAP Server"
+            print("Can't conect to LDAP Server")
             return False
 
         self.container = '/opt/gluu-server-{}'.format(self.gluu_version)
@@ -129,7 +129,7 @@ class ChangeGluuHostname:
 
 
     def change_appliance_config(self):
-        print "Changing LDAP Applience configurations"
+        print("Changing LDAP Applience configurations")
         config_dn = 'ou=configuration,inum={},ou=appliances,o=gluu'.format(
                     self.appliance_inum)
 
@@ -150,7 +150,7 @@ class ChangeGluuHostname:
 
             for k in config_data:
                 kVal = config_data[k]
-                if type(kVal) == type(u''):
+                if type(kVal) == type(''):
                     if self.old_host in kVal:
                         kVal=kVal.replace(self.old_host, self.new_host)
                         config_data[k]=kVal
@@ -160,7 +160,7 @@ class ChangeGluuHostname:
 
 
     def change_clients(self):
-        print "Changing LDAP Clients configurations"
+        print("Changing LDAP Clients configurations")
         dn = "ou=clients,o={},o=gluu".format(self.base_inum)
         self.conn.search(search_base=dn,
                     search_filter='(objectClass=oxAuthClient)',
@@ -185,7 +185,7 @@ class ChangeGluuHostname:
 
 
     def change_uma(self):
-        print "Changing LDAP UMA Configurations"
+        print("Changing LDAP UMA Configurations")
 
         for ou, cattr in (
                     ('resources','oxResource'),
@@ -206,7 +206,7 @@ class ChangeGluuHostname:
 
 
     def change_httpd_conf(self):
-        print "Changing httpd configurations"
+        print("Changing httpd configurations")
         if 'CentOS' in self.os_type:
             
             httpd_conf = os.path.join(self.container, 'etc/httpd/conf/httpd.conf')
@@ -226,7 +226,7 @@ class ChangeGluuHostname:
 
 
     def create_new_certs(self):
-        print "Creating certificates"
+        print("Creating certificates")
         cmd_list = [
             '/usr/bin/openssl genrsa -des3 -out /etc/certs/{0}.key.orig -passout pass:secret 2048',
             '/usr/bin/openssl rsa -in /etc/certs/{0}.key.orig -passin pass:secret -out /etc/certs/{0}.key',
@@ -246,7 +246,7 @@ class ChangeGluuHostname:
 
             for cmd in cmd_list:
                 cmd = cmd.format(crt)
-                print self.installer.run(cmd, error_exception='__ALL__')
+                print(self.installer.run(cmd, error_exception='__ALL__'))
 
 
             if not crt == 'saml.pem':
@@ -261,18 +261,18 @@ class ChangeGluuHostname:
         self.installer.run('chown jetty:jetty /etc/certs/oxauth-keys.*')
 
     def change_host_name(self):
-        print "Changing hostname"
+        print("Changing hostname")
         hostname_file = os.path.join(self.container, 'etc/hostname')
-        print self.c.put_file(hostname_file, self.new_host)
+        print(self.c.put_file(hostname_file, self.new_host))
 
     def modify_etc_hosts(self):
-        print "Modifying /etc/hosts"
+        print("Modifying /etc/hosts")
         hosts_file = os.path.join(self.container, 'etc/hosts')
         r = self.c.get_file(hosts_file)
         if r[0]:
             old_hosts = r[1]
             news_hosts = modify_etc_hosts([(self.new_host, self.ip_address)], old_hosts, self.old_host)
-            print self.c.put_file(hosts_file, news_hosts) 
+            print(self.c.put_file(hosts_file, news_hosts)) 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

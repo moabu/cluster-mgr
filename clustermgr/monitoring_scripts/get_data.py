@@ -22,12 +22,12 @@ def get_sqlite_stats(measurement):
         feilds = [ d[0] for d in cur.description ]
         data = result
 
-    print json.dumps({'data':{'fields':feilds, 'data': data}})
+    print(json.dumps({'data':{'fields':feilds, 'data': data}}))
 
 
 def get_age():
     uptime = int(time.time() - psutil.boot_time())
-    print json.dumps({'data':{'uptime': uptime}})
+    print(json.dumps({'data':{'uptime': uptime}}))
 
 if len(sys.argv) > 1:
     if sys.argv[1]=='age':

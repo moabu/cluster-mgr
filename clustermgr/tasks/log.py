@@ -55,7 +55,7 @@ def _filebeat_to_influx(log, hostname=""):
         "os": log["fields"]["os"],
         "type": log["fields"]["type"],
     }
-    _log["fields"] = {k: v for k, v in log.iteritems() if k in ("message", "source")}
+    _log["fields"] = {k: v for k, v in log.items() if k in ("message", "source")}
     return _log
 
 
@@ -105,10 +105,10 @@ def collect_logs(self, server_id, path, influx_fmt=True):
     try:
         _, stdout, stderr = installer.run("cat {}".format(path), inside=False)
         if not stderr:
-            logs = filter(
+            logs = list(filter(
                 None,
                 [parse_log(log, hostname=server.hostname) for log in stdout.splitlines()],
-            )
+            ))
         else:
             task_logger.warn("Unable to collect logs from remote server {}/{}; "
                              "reason={}".format(server.hostname, server.ip, stderr))
@@ -182,7 +182,7 @@ def setup_filebeat(self, force_install=False):
     servers = Server.query.all()
     app_conf = AppConfiguration.query.first()
 
-    print "TASK", task_id
+    print("TASK", task_id)
 
     for server in servers:
 

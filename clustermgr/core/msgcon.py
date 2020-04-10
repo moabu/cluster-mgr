@@ -1,6 +1,6 @@
 import requests
-import urlparse
-import urllib
+import urllib.parse
+import urllib.request, urllib.parse, urllib.error
 
 
 class LogItem(object):
@@ -54,8 +54,8 @@ class LogCollection(object):
         return self._get_page(self.links["prev"]["href"])
 
     def _get_page(self, url):
-        parsed_url = urlparse.urlparse(url)
-        parsed_qs = urlparse.parse_qs(parsed_url.query)
+        parsed_url = urllib.parse.urlparse(url)
+        parsed_qs = urllib.parse.parse_qs(parsed_url.query)
         try:
             page = parsed_qs["page"][0]
         except (KeyError, IndexError,):
@@ -64,7 +64,7 @@ class LogCollection(object):
 
 
 def get_audit_logs(base_url, page=0, size=20):
-    qs = urllib.urlencode({
+    qs = urllib.parse.urlencode({
         "sort": "id,desc",
         "page": page,
     })
@@ -79,7 +79,7 @@ def get_audit_logs(base_url, page=0, size=20):
 
 
 def get_server_logs(base_url, page=0, size=20):
-    qs = urllib.urlencode({
+    qs = urllib.parse.urlencode({
         "sort": "id,desc",
         "page": page,
     })

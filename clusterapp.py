@@ -58,7 +58,7 @@ def before_request():
         if appconf:
             app.jinja_env.globals['external_load_balancer'] = appconf.external_load_balancer
     except:
-        print "Database is not ready"
+        print("Database is not ready")
 
 
 @app.after_request

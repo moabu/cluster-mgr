@@ -11,7 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 
-import StringIO
+import io
 import socket
 import logging
 import os
@@ -121,7 +121,7 @@ def write_influx(host, measurement, data):
                             "time": d[0],
                             "fields": fields,
                             })
-    print "Writing data to InfluxDB"
+    print("Writing data to InfluxDB")
     client.write_points(json_body, time_precision='s')
 
 
@@ -141,7 +141,7 @@ def get_last_update_time(host, measurement):
     
     result = client.query('SELECT * FROM {} order by time desc limit 1'.format(measurement_suffix+'_'+measurement), epoch='s')
 
-    if result.raw.has_key('series'):
+    if 'series' in result.raw:
         return result.raw['series'][0]['values'][0][0]
     return 0
 
@@ -159,7 +159,7 @@ def get_remote_data(host, measurement, c):
 
     start = get_last_update_time(host, measurement)
 
-    print "Monitoring: last update time {} for measuremenet {} for host {}".format(start, measurement, host)
+    print("Monitoring: last update time {} for measuremenet {} for host {}".format(start, measurement, host))
     
     #Execute remote script and fetch standard output
     cmd = 'python /var/monitoring/scripts/get_data.py stats {} {}'.format(
@@ -173,10 +173,10 @@ def get_remote_data(host, measurement, c):
     try:
         data = json.loads(s_out)
     except Exception as e:
-        print "Monitoring: Server {} did not return json data. Error {}".format(host, e)
+        print("Monitoring: Server {} did not return json data. Error {}".format(host, e))
         return
 
-    print "Monitoring: {} records received for measurement {} from host {}".format(len(data['data']['data']), measurement, host)
+    print("Monitoring: {} records received for measurement {} from host {}".format(len(data['data']['data']), measurement, host))
     
     #wrtite fetched data to imnfluxdb
     write_influx(host, measurement, data['data'])
@@ -194,18 +194,18 @@ def get_age(host, c):
     """
 
     
-    print "Monitoring: fetching uptime for {}".format(host)
+    print("Monitoring: fetching uptime for {}".format(host))
     cmd = 'python /var/monitoring/scripts/get_data.py age'
     s_in, s_out, s_err = c.run(cmd)
 
     try:
         data = json.loads(s_out)
-        arg_d = {u'fields': ['time', u'uptime'], u'data': [[int(time.time()), data['data']['uptime']]]}
+        arg_d = {'fields': ['time', 'uptime'], 'data': [[int(time.time()), data['data']['uptime']]]}
     except Exception as e:
-        print "Monitoring: server {} did not return json data. Error: {}".format(host, e)
-        arg_d = {u'fields': ['time', u'uptime'], u'data': [[int(time.time()), 0]]}
+        print("Monitoring: server {} did not return json data. Error: {}".format(host, e))
+        arg_d = {'fields': ['time', 'uptime'], 'data': [[int(time.time()), 0]]}
     
-    print "Monitoring: uptime {}".format(data['data'])
+    print("Monitoring: uptime {}".format(data['data']))
     write_influx(host, 'uptime', arg_d)
     
 def get_remote_stats():
@@ -215,7 +215,7 @@ def get_remote_stats():
         
             servers = session.query(Server).all()
             for server in servers:
-                print "Monitoring: getting data for derver {}".format(server.hostname)
+                print("Monitoring: getting data for derver {}".format(server.hostname))
                 c = RemoteClient(server.hostname, ip=server.ip)
                 try:
                     c.startup()
@@ -223,11 +223,11 @@ def get_remote_stats():
                         get_remote_data(server.hostname, t, c)
                         get_age(server.hostname, c)
                 except Exception as e:
-                    print "Monitoring: An error occurred while retreiveing monitoring data from server {}. Error {e}".format(server.hostname, e)
+                    print("Monitoring: An error occurred while retreiveing monitoring data from server {}. Error {e}".format(server.hostname, e))
 
 
 SQLALCHEMY_DATABASE_URI = "sqlite:///{}/clustermgr.dev.db".format(os.path.join(os.path.expanduser("~"), ".clustermgr"))
-print SQLALCHEMY_DATABASE_URI
+print(SQLALCHEMY_DATABASE_URI)
 some_engine = create_engine(SQLALCHEMY_DATABASE_URI)
 Session = sessionmaker(bind=some_engine)
 session = Session()

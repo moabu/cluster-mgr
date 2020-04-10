@@ -225,7 +225,7 @@ def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
             stunnel_cert = installer.get_file('/etc/stunnel/redis-server.crt')
 
             if not stunnel_cert:
-                print "Can't retreive server certificate from primary cache server"
+                print("Can't retreive server certificate from primary cache server")
                 return False
 
     wlogger.log(task_id, "2", "setstep")

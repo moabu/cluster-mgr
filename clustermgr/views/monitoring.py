@@ -190,7 +190,7 @@ def getData(item, step=None):
 
         result = client.query(query, epoch='s')
 
-        print result.raw
+        print(result.raw)
 
 
         data_dict = {}
@@ -670,6 +670,6 @@ def get_server_status():
                         if result[1].strip() == '200':
                             status[server.id][service] = True
                     except Exception as e:
-                        print "Error getting service status of {0} for {1}. ERROR: {2}".format(server.hostname,service, e)
+                        print("Error getting service status of {0} for {1}. ERROR: {2}".format(server.hostname,service, e))
                     
     return jsonify(status)

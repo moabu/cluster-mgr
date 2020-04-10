@@ -165,7 +165,7 @@ if __name__ == "__main__":
     """
     
     for s in os.listdir('/tmp/schema/'):
-        print "processing", s
+        print("processing", s)
         m=OpenDjSchema('/tmp/schema/'+s)
         m.write('/tmp/x/' + s)
 

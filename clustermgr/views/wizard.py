@@ -63,7 +63,7 @@ def step1():
             db.session.commit()
     
             task = wizard_step1.delay()
-            print "TASK STARTED", task.id
+            print("TASK STARTED", task.id)
 
             title = "Incorporating Existing Server"
 
@@ -88,7 +88,7 @@ def step1():
 def step2():
     
     task = wizard_step2.delay()
-    print "TASK STARTED", task.id
+    print("TASK STARTED", task.id)
 
     
     title = "Incorporating Existing Server"

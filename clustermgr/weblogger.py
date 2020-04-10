@@ -104,7 +104,7 @@ class WebLogger(object):
         else:
             logitem['level'] = 'info'
 
-        for k, v in kwargs.iteritems():
+        for k, v in kwargs.items():
             logitem[k] = v
 
         self.r.rpush(self.__key(taskid), json.dumps(logitem))
@@ -141,7 +141,7 @@ class WebLogger(object):
         :param kwargs: keyword arguments for the metadata key and value
         """
         key = self.__key(taskid) + ":meta"
-        for (k, v) in kwargs.iteritems():
+        for (k, v) in kwargs.items():
             self.r.set(key + ":" + k, v)
 
     def get_meta(self, taskid, key):

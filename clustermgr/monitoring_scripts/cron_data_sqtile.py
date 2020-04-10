@@ -5,11 +5,11 @@ import psutil
 import re
 import sqlite3
 from ldap3 import Server, Connection, BASE
-from pyDes import *
+from .pyDes import *
 import base64
 import json
 
-from sqlite_monitoring_tables import monitoring_tables
+from .sqlite_monitoring_tables import monitoring_tables
 
 data_path = '/var/monitoring'
 
@@ -75,7 +75,7 @@ def collect_ldap_monitoring():
     try:
         conn.bind()
     except:
-        print "Can't connect to ldap server"
+        print("Can't connect to ldap server")
     else:
 
         conn.search(

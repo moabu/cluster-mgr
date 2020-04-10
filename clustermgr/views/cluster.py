@@ -134,7 +134,7 @@ def remove_deployment(server_id):
 
     # Start deployment removal celery task
     task = removeMultiMasterDeployement.delay(server_id)
-    print "TASK STARTED", task.id
+    print("TASK STARTED", task.id)
     title = "Removing Deployment"
     nextpage = url_for('index.multi_master_replication')
     whatNext = "Multi Master Replication"
@@ -171,7 +171,7 @@ def install_nginx():
     # Start nginx  installation celery task
     task = installNGINX.delay(app_conf.nginx_host)
 
-    print "Install NGINX TASK STARTED", task.id
+    print("Install NGINX TASK STARTED", task.id)
     head = "Configuring NGINX Load Balancer on {0}".format(app_conf.nginx_host)
     nextpage = url_for('index.multi_master_replication')
     whatNext = "LDAP Replication"

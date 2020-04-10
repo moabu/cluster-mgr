@@ -124,7 +124,7 @@ def create_app():
         return dict(hashed_url=hashed_url)
 
     def url_for_next_page(page):
-        args = {k: v for k, v in request.values.iteritems()}
+        args = {k: v for k, v in request.values.items()}
 
         try:
             page = int(page)
@@ -135,7 +135,7 @@ def create_app():
         return url_for(request.endpoint, **args)
 
     def url_for_prev_page(page):
-        args = {k: v for k, v in request.values.iteritems()}
+        args = {k: v for k, v in request.values.items()}
 
         try:
             page = int(page)

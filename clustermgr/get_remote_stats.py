@@ -64,7 +64,7 @@ def get_last_update_time(host, measurement):
     
     result = client.query('SELECT * FROM {} order by time desc limit 1'.format(measurement_suffix+'_'+measurement), epoch='s')
 
-    if result.raw.has_key('series'):
+    if 'series' in result.raw:
         return result.raw['series'][0]['values'][0][0]
     return 0
 
@@ -82,7 +82,7 @@ def get_remote_data(host, measurement, c):
 
     start = get_last_update_time(host, measurement)
 
-    print "last update time", start, "for measuremenet", measurement, "for host", host
+    print("last update time", start, "for measuremenet", measurement, "for host", host)
     
     #Execute remote script and fetch standard output
     cmd = 'python /var/monitoring/scripts/get_data.py stats {} {}'.format(
@@ -96,10 +96,10 @@ def get_remote_data(host, measurement, c):
     try:
         data = json.loads(s_out)
     except:
-        print "Server did not return json data"
+        print("Server did not return json data")
         return
 
-    print len(data['data']['data']), "records received for measurement", measurement, "from host", host
+    print(len(data['data']['data']), "records received for measurement", measurement, "from host", host)
     
     #wrtite fetched data to imnfluxdb
     write_influx(host, measurement, data['data'])
@@ -117,25 +117,25 @@ def get_age(host, c):
     """
 
     
-    print "Getting uptime"
+    print("Getting uptime")
     cmd = 'python /var/monitoring/scripts/get_data.py age'
     s_in, s_out, s_err = c.run(cmd)
 
     try:
         data = json.loads(s_out)
-        arg_d = {u'fields': ['time', u'uptime'], u'data': [[int(time.time()), data['data']['uptime']]]}
+        arg_d = {'fields': ['time', 'uptime'], 'data': [[int(time.time()), data['data']['uptime']]]}
     except:
-        print "Server did not return json data"
-        arg_d = {u'fields': ['time', u'uptime'], u'data': [[int(time.time()), 0]]}
+        print("Server did not return json data")
+        arg_d = {'fields': ['time', 'uptime'], 'data': [[int(time.time()), 0]]}
     
-    print "Uptime", data['data']
+    print("Uptime", data['data'])
     write_influx(host, 'uptime', arg_d)
     
 
 servers = sys.argv[1:]
 
 if not servers:
-    print "Usage: python get_remote_stats.py server1 server2 servser3"
+    print("Usage: python get_remote_stats.py server1 server2 servser3")
 
 for server in servers:
     c = RemoteClient(server)

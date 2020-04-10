@@ -117,7 +117,7 @@ def index():
         #        "added to /root/.ssh/authorized_keys on this server".format(
         #                                            server.hostname))
         
-            print "ask_passphrase", ask_passphrase
+            print("ask_passphrase", ask_passphrase)
         
             return render_template('new_server.html',
                        form=form,
@@ -451,7 +451,7 @@ def confirm_setup_properties(server_id):
     setup_prop['ip'] = server.ip
     setup_prop['ldapPass'] = server.ldap_password
 
-    keys = setup_prop.keys()
+    keys = list(setup_prop.keys())
     keys.sort()
 
     return render_template(
@@ -585,7 +585,7 @@ def make_primary(server_id):
 @login_required
 def install_gluu_server(server_id):
     
-    print "Installing Gluu Server"
+    print("Installing Gluu Server")
     
     task = task_install_gluu_server.delay(server_id)
     

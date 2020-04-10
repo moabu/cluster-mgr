@@ -227,7 +227,7 @@ class LdapOLC(object):
         
     def addAttribute(self, attribute, editing=None, objcls=None):
         
-        print "EDITING", editing
+        print("EDITING", editing)
         
         name = "'{}'".format(attribute.names[0])
         
@@ -274,7 +274,7 @@ class LdapOLC(object):
         inumAppliance = setup_prop['inumAppliance']
         dn='ou=oxtrust,ou=configuration,inum={},ou=appliances,o=gluu'.format(inumAppliance)
 
-        print dn
+        print(dn)
 
         r = self.conn.search(dn,
                     search_filter='(objectclass=*)',
@@ -282,7 +282,7 @@ class LdapOLC(object):
                     attributes=["oxTrustConfApplication"],
                     )
 
-        print r, self.conn.result
+        print(r, self.conn.result)
 
         jstr = self.conn.response[0]['attributes']['oxTrustConfApplication'][0]
         jdata = json.loads(jstr)
@@ -297,7 +297,7 @@ class LdapOLC(object):
             change = True
             
         if change:
-            print "changing"
+            print("changing")
             jstr = json.dumps(jdata)
             r = self.conn.modify(dn, {'oxTrustConfApplication': [MODIFY_REPLACE, jstr]})
             if not r:

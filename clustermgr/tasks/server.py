@@ -6,7 +6,7 @@ import time
 import subprocess
 import uuid
 import traceback
-import StringIO
+import io
 
 from flask import current_app as app
 
@@ -20,13 +20,13 @@ from clustermgr.config import Config
 
 from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.core.utils import get_setup_properties, modify_etc_hosts
-from clustermgr.core.Properties import Properties
+from clustermgr.core.jproperties import Properties
 
 from clustermgr.core.ldap_functions import LdapOLC
 
 @celery.task
 def collect_server_details(server_id):
-    print "Start collecting server details task"
+    print("Start collecting server details task")
     app_conf = AppConfiguration.query.first()
     
     if server_id == -1:
@@ -69,7 +69,7 @@ def collect_server_details(server_id):
     installed = []
     
     if server.gluu_server:
-        for component, marker in components.iteritems():
+        for component, marker in components.items():
             marker = os.path.join(installer.container, marker)
             if installer.conn.exists(marker):
                 installed.append(component)
@@ -653,13 +653,13 @@ def install_gluu_server(task_id, server_id):
         else:
             cmd_unenc = 'openssl enc -d -aes-256-cbc -in /install/community-edition-setup/setup.properties.last.enc -k {}'.format(server.ldap_password)
             result = primary_server_installer.run(cmd_unenc, inside=True)
-            prop_io = StringIO.StringIO(result[1])
+            prop_io = io.StringIO(result[1])
             prop_io.seek(0)
 
         prop = Properties()
         if prop_io:
             prop.load(prop_io)
-            prop_keys = prop.keys()
+            prop_keys = list(prop.keys())
             
             for p in prop_keys[:]:
                 if not p in prop_list:
@@ -670,7 +670,7 @@ def install_gluu_server(task_id, server_id):
             prop['hostname'] = str(app_conf.nginx_host)
             ldap_passwd = prop['ldapPass']
 
-            new_setup_properties_io = StringIO.StringIO()
+            new_setup_properties_io = io.StringIO()
             prop.store(new_setup_properties_io)
             new_setup_properties_io.seek(0)
             new_setup_properties = new_setup_properties_io.read()

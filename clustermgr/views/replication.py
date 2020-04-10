@@ -144,7 +144,7 @@ def remove_deployment(server_id):
 
     # Start deployment removal celery task
     task = removeMultiMasterDeployement.delay(server_id)
-    print "TASK STARTED", task.id
+    print("TASK STARTED", task.id)
     title = "Removing Deployment"
     nextpage = url_for('index.multi_master_replication')
     whatNext = "Multi Master Replication"

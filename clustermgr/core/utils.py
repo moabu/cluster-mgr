@@ -21,14 +21,14 @@ from clustermgr.models import Server, AppConfiguration, CacheServer
 from clustermgr.extensions import wlogger
 from flask import current_app as app
 from clustermgr.core.clustermgr_installer import Installer
-from clustermgr.core.Properties import Properties
+from clustermgr.core.jproperties import Properties
 
 import logging
 import traceback
 from logging.handlers import RotatingFileHandler
 
 
-DEFAULT_CHARSET = string.ascii_uppercase + string.digits + string.lowercase
+DEFAULT_CHARSET = string.ascii_uppercase + string.digits + string.ascii_lowercase
 
 port_status_cmd = '''python -c "import socket;sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM); socket.setdefaulttimeout(2.0); print sock.connect_ex(('{}', {}))"'''
 
@@ -128,7 +128,7 @@ def split_redis_cluster_slots(nodes):
     parts = 16384 / nodes
     allotted = -1
     ranges = []
-    for i in xrange(nodes):
+    for i in range(nodes):
         if i == nodes-1:
             ranges.append((allotted+1, 16383))
         else:
@@ -170,12 +170,16 @@ def get_quad():
 
 def parse_setup_properties(prop_file):
 
-    prop = Properties()
+    retDict = {}
+    p = Properties()
+    if os.path.exists(prop_file):
+        with open(prop_file, 'rb') as f:
+            p.load(f, 'utf-8')
 
-    with open(prop_file) as f:
-        prop.load(f)
-
-    return prop.getPropertyDict()
+        for k in p.keys():
+            retDict[str(k)] = str(p[k].data)
+            
+    return retDict
 
 def write_setup_properties_file(setup_prop):
 
@@ -421,7 +425,7 @@ def get_cache_servers():
 def is_hostname_resolved(hostname):
     result = ''
     try:
-        print socket.gethostbyname(hostname)
+        print(socket.gethostbyname(hostname))
     except:
         result = ("Unable to resolve hostname {}. Please check the DNS record, "
                   "or add the hostname to /etc/hosts of the cluster "

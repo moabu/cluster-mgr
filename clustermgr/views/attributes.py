@@ -44,7 +44,7 @@ def home():
     if not appconf:
         return render_template('intro.html', setup='cluster')
 
-    print appconf.object_class_base
+    print(appconf.object_class_base)
     
     if not appconf.object_class_base:
         return redirect(url_for('attributes.object_class'))

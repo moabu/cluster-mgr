@@ -32,7 +32,7 @@ class Installer:
                         server_id=self.server_id,
                         )
             try:
-                print "Installer> Establishing SSH connection to host {}".format(conn.hostname)
+                print(("Installer> Establishing SSH connection to host {}".format(conn.hostname)))
                 self.conn.startup()
                 wlogger.log(
                         self.logger_task_id, 
@@ -42,7 +42,7 @@ class Installer:
                         )
     
             except Exception as e:
-                print e
+                print(e)
                 self.conn = None
                 if str(e) == 'Pubkey is encrypted.':
                     error_msg = ("Pubkey seems to password protected. "
@@ -107,9 +107,9 @@ class Installer:
         
     def get_os_type(self):
         # 2. Linux Distribution of the server
-        print "Installer> Determining OS type"
+        print("Installer> Determining OS type")
         self.server_os = self.conn.get_os_type()
-        print "Installer> OS type was determined as " + self.server_os
+        print(("Installer> OS type was determined as " + self.server_os))
         return self.server_os
 
     def log(self, result, error_exception=None):
@@ -139,7 +139,7 @@ class Installer:
         if self.conn.__class__.__name__ == 'FakeRemote':
             run_cmd = 'sudo '+ cmd
 
-        print "Installer> executing: {}".format(cmd)
+        print(("Installer> executing: {}".format(cmd)))
         self.log_command(run_cmd)
         result = self.conn.run(run_cmd)
         
@@ -153,7 +153,7 @@ class Installer:
         
     def run_channel_command(self, cmd, re_list=[]):
     
-        print "Installer> executing channel command: {}".format(cmd)
+        print(("Installer> executing channel command: {}".format(cmd)))
         wlogger.log(self.logger_task_id, "Running "+cmd, "debug", server_id=self.server_id)
         
         last_debug = False
@@ -165,10 +165,10 @@ class Installer:
         channel.get_pty()
         channel.exec_command(cmd)
 
-        print "Installer> Starting channel loop"
+        print("Installer> Starting channel loop")
         while True:
             if channel.exit_status_ready():
-                print "Installer> Stopping channel loop"
+                print("Installer> Stopping channel loop")
                 break
             rl = ''
             try:
@@ -208,7 +208,7 @@ class Installer:
             self.run('yum repolist', inside=inside)
 
     def upload_file(self, local, remote):
-        print "Installer> Uploading local {} to remote {}".format(local, remote)
+        print(("Installer> Uploading local {} to remote {}".format(local, remote)))
         wlogger.log(self.logger_task_id, "Uploading local file {0} to remote server as {1}".format(local, remote), "debug", server_id=self.server_id)
         result = self.conn.upload(local, remote)
 
@@ -222,7 +222,7 @@ class Installer:
         return True
 
     def download_file(self, remote, local):
-        print "Installer> Downloading from {} remote {} to local {}".format(self.hostname, remote,local)
+        print(("Installer> Downloading from {} remote {} to local {}".format(self.hostname, remote,local)))
         wlogger.log(self.logger_task_id, "Downloading remote file {0} to local {1}".format(remote, local), "debug", server_id=self.server_id)
         result = self.conn.download(remote, local)
 
@@ -237,7 +237,7 @@ class Installer:
 
 
     def get_file(self, remote, asio=False):
-        print "Installer> Retreiving remote file {}".format(remote)
+        print(("Installer> Retreiving remote file {}".format(remote)))
         wlogger.log(self.logger_task_id, "Getting file {0} from {1}".format(remote, self.hostname), "debug", server_id=self.server_id)
         result = self.conn.get_file(remote)
 
@@ -254,7 +254,7 @@ class Installer:
         return result[1].read()
     
     def put_file(self, remote, content):
-        print "Installer> Writing remote file {}".format(remote)
+        print(("Installer> Writing remote file {}".format(remote)))
         result = self.conn.put_file(remote, content)
         if result[0]:
             wlogger.log(self.logger_task_id, "File {} was sent".format(remote), "success", server_id=self.server_id)
@@ -293,14 +293,14 @@ class Installer:
         check_file_enc = ('/opt/gluu-server/install/community-edition-setup/'
                     'setup.properties.last.enc')
 
-        print "Installer> Checking existence of file {} for gluu installation".format(check_file)
+        print(("Installer> Checking existence of file {} for gluu installation".format(check_file)))
 
         return self.conn.exists(check_file) or self.conn.exists(check_file_enc)
 
     def get_gluu_version(self, installed=False):
         gluu_version = None
         
-        print "Installer> Determining gluu version by using oxauth.war"
+        print("Installer> Determining gluu version by using oxauth.war")
         
         oxauth_path = '/opt/gluu-server/opt/gluu/jetty/oxauth/webapps/oxauth.war'
         
@@ -318,7 +318,7 @@ class Installer:
                 if 'Implementation-Version:' in ls:
                     version = ls.split(':')[1].strip()
                     gluu_version = '.'.join(version.split('.')[:3])
-                    print "Installer> Gluu version was determined as {0}".format(gluu_version)
+                    print(("Installer> Gluu version was determined as {0}".format(gluu_version)))
 
         return gluu_version
 
@@ -350,7 +350,7 @@ class Installer:
         if self.conn.__class__.__name__ == 'FakeRemote':
             cmd = 'sudo '+ cmd
 
-        print "Installer> executing: {}".format(cmd)
+        print(("Installer> executing: {}".format(cmd)))
 
         wlogger.log(self.logger_task_id, "Installing package {0} with command: {1}".format(package, cmd), "debug", server_id=self.server_id)
         
@@ -369,7 +369,7 @@ class Installer:
         if self.conn.__class__.__name__ == 'FakeRemote':
             run_cmd = 'sudo '+ run_cmd
 
-        print "Installer> executing: {}".format(run_cmd)
+        print(("Installer> executing: {}".format(run_cmd)))
         self.log_command(run_cmd)
         result = self.conn.run(run_cmd)
         self.log(result)
@@ -378,7 +378,7 @@ class Installer:
 
     def do_init(self, cmd):
         cmd = self.init_command.format(cmd)
-        print "Installer> executing: {}".format(cmd)
+        print(("Installer> executing: {}".format(cmd)))
         self.log_command(cmd)
         result = self.conn.run(cmd)
         self.log(result)

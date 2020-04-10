@@ -1,8 +1,9 @@
-import StringIO
+import io
 import socket
 import os
 import base64
 import logging
+import subprocess
 
 from logging.handlers import RotatingFileHandler
 from paramiko import SSHException
@@ -275,13 +276,13 @@ class RemoteClient(object):
         
         logger.debug("[%s] Getting file %s", self.host, filename)
         
-        file_obj = StringIO.StringIO()
+        file_obj = io.StringIO()
         try:
             result = self.sftpclient.getfo(filename, file_obj)
             file_obj.seek(0)
             return result, file_obj
         except Exception as err:
-            print err
+            print(err)
             return False, err
     
     def put_file(self,  filename, filecontent):
@@ -297,7 +298,7 @@ class RemoteClient(object):
 
         logger.debug("[%s] Putting file %s", self.host, filename)
 
-        file_obj = StringIO.StringIO()
+        file_obj = io.StringIO()
         file_obj.write(filecontent)
         file_obj.seek(0)
 
@@ -394,10 +395,11 @@ class FakeRemote:
             Standard input, output and error of command
         
         """
-        print cmd
-        cin, cout, cerr = os.popen3(cmd)
 
-        return '', cout.read(), cerr.read()
+        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        cout, cerr = p.communicate()
+
+        return '', cout.decode('utf-8'), cerr.decode('utf-8')
 
 
     def put_file(self, filename, filecontent):
