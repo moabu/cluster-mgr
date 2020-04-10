@@ -81,6 +81,7 @@ class WebLogger(object):
         return "{0}:{1}".format(self.prefix, taskid)
 
     def log(self, taskid, message, level=None, **kwargs):
+        print("logging", message)
         logger.debug(message.strip())
         """R Pushes the message into REDIS as a list for that task id with the key
         <app.name>:<taskid>.
@@ -122,9 +123,13 @@ class WebLogger(object):
             task id
         """
         messages = self.r.lrange(self.__key(taskid), 0, -1)
-        if not messages:
-            return []
-        return [json.loads(msg) for msg in messages]
+
+        result = []
+        
+        if  messages:
+            result = [json.loads(msg.decode()) for msg in messages]
+
+        return result
 
     def clean(self, taskid):
         """Removes the log for the particular task id

@@ -234,7 +234,7 @@ def get_log(task_id):
     msgs = wlogger.get_messages(task_id)
     result = AsyncResult(id=task_id, app=celery)
     value = 0
-    
+
     error_message = ''
 
     if result.result != None:
