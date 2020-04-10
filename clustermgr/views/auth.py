@@ -78,7 +78,7 @@ def login():
 
         user = user_from_config(cfg_file, form.username.data)
 
-        enc_password = hashlib.sha224(form.password.data.encode('utf-8')).hexdigest()
+        enc_password = hashlib.sha224(form.password.data.encode()).hexdigest()
 
         if user and enc_password == user.password:
             next_ = request.values.get('next')
@@ -238,7 +238,7 @@ def signup():
             username = form.username.data.strip()
             password = form.password.data.strip()
             
-            enc_password = hashlib.sha224(form.password.data).hexdigest()
+            enc_password = hashlib.sha224(form.password.data.encode()).hexdigest()
 
             config = configparser.RawConfigParser()
             config.add_section('user')
