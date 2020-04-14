@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from clustermgr.extensions import db
 
-
+"""
 class Server(db.Model):
     __tablename__ = "server"
 
@@ -230,35 +230,121 @@ class GServer(db.Model):
         if not self.id:
             db.session.add(self)
         db.session.commit()
+"""
+
+class Data:
+
+    def keys(self):
+        tmp = []
+        for k in self.__dict__:
+            tmp.append(k)
+        return tmp
+
+    def get(self, key, default=None):
+        if hasattr(self, key):
+            return getattr(self, key)
+        return default
 
 class ConfigParam(db.Model):
     __tablename__ = "config_param"
     id = db.Column(db.Integer, primary_key=True)
     key = db.Column(db.String(10))
     value = db.Column(db.Text)
+    criteria = db.Column(db.Text)
+
+
+    def save(self):
+        data_dict = {}
+        tmp = self.data.__dict__
+
+        if self.data:
+            for k in tmp :
+                data_dict[k] = tmp[k]
+
+        self.value = json.dumps(data_dict)
+
+        if not self.id:
+            db.session.add(self)
+
+        db.session.commit()
+
+    def delete(self):
+        db.session.delete(self)
+        db.session.commit()
 
     @classmethod
-    def get(self, key, default=None):
+    def new(self, key, data={}):
+        cfobject = ConfigParam()
+        cfobject.key = key
+        cfobject.data = Data()
+
+        for k in data:
+            setattr(cfobject.data, k, data[k])
+
+        return cfobject
+
+    @classmethod
+    def get(self, key):
         param_obj = ConfigParam.query.filter_by(key=key).first()
 
         if param_obj:
-            try:
-                return json.loads(param_obj.value)
-            except:
-                return param_obj.value
+            param_obj.data = Data()
+            jdata = json.loads(param_obj.value)
+            for k in jdata:
+                setattr(param_obj.data, k, jdata[k])
+
+        return param_obj
+
+
+    @classmethod
+    def get_by_id(self, id):
+        param_obj = ConfigParam.query.get(id)
+
+        if param_obj:
+            param_obj.data = Data()
+            jdata = json.loads(param_obj.value)
+            for k in jdata:
+                setattr(param_obj.data, k, jdata[k])
+
+        return param_obj
+    
+
+    @classmethod
+    def get_all(self, key, default=[]):
+        param_obj = ConfigParam.query.filter_by(key=key).all()
+        result = []
+        if param_obj:
+            for element in param_obj:
+                element.data = Data()
+                jdata = json.loads(element.value)
+                for k in jdata:
+                    setattr(element.data, k, jdata[k])
+                result.append(element)
+
+        if result:
+            return result
 
         return default
 
+
     @classmethod
-    def set(self, key, value):
-        param_obj = ConfigParam.query.filter_by(key=key).first()
-        
-        if not param_obj:
-            param_obj = ConfigParam(key=key)
-            db.session.add(param_obj)
-        
-        param_obj.value = json.dumps(value)
-        db.session.commit()
+    def get_servers(self):
+        servers = self.get_all('gluuserver')
+        if servers:
+            primary = None
+            for i, server in enumerate(servers[:]):
+                if server.data.get('primary'):
+                    primary = servers.pop(i)
+                    break
+            servers.insert(0, primary)
+        return servers
+
+    @classmethod
+    def get_primary_server(self):
+        servers = self.get_all('gluuserver')
+        for server in servers:
+            if server.data.get('primary'):
+                return server
 
     def __repr__(self):
         return '<Param {} {}>'.format(self.key, self.value)

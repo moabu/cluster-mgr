@@ -13,7 +13,7 @@ from flask_login import login_required
 from flask import current_app as app
 
 from clustermgr.core.ldap_functions import LdapOLC
-from clustermgr.models import Server, AppConfiguration
+from clustermgr.models import ConfigParam
 from clustermgr.tasks.cluster import installNGINX, \
     setup_filesystem_replication, opendjenablereplication, \
     remove_server_from_cluster, remove_filesystem_replication, \

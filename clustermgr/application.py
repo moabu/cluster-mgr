@@ -11,7 +11,7 @@ from flask_menu import Menu
 from clustermgr.extensions import db, csrf, migrate, wlogger, \
     login_manager, mailer
 from .core.license import license_manager
-from clustermgr.models import AppConfiguration
+from clustermgr.models import ConfigParam
 from . import __version__
 from clustermgr.core.remote import FakeRemote
 
@@ -148,7 +148,7 @@ def create_app():
             page = 2
         args['page'] = page - 1
         return url_for(request.endpoint, **args)
-    
+
 
     app.jinja_env.globals['url_for_next_page'] = url_for_next_page
     app.jinja_env.globals['url_for_prev_page'] = url_for_prev_page
@@ -158,18 +158,16 @@ def create_app():
 
     @app.before_request
     def before_request():
-        appconfig = AppConfiguration.query.first()
+        appconfig = ConfigParam.get('appconfig')
 
         use_ldap_cache = False
 
-        if appconfig:
-            use_ldap_cache = appconfig.use_ldap_cache
-            
+        if appconfig and appconfig.data.get('use_ldap_cache'):
+            use_ldap_cache = appconfig.data.use_ldap_cache
+
         app.jinja_env.globals['use_ldap_cache'] = use_ldap_cache
 
         if appconfig:                
-            app.jinja_env.globals['latest_version'] = appconfig.latest_version
-
-        app.jinja_env.globals['use_ldap_cache'] = use_ldap_cache
+            app.jinja_env.globals['latest_version'] = appconfig.data.get('latest_version', 0)
 
     return app

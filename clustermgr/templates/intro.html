@@ -12,10 +12,10 @@
         
         <hr>
         <p>Or</p>
-        {% if setup == 'server' %}
+        {% if load_balancer_config %}
             <a class="btn btn-primary" href="{{ url_for('server.index') }}" role="button">Add Server</a>
-        {% elif setup == 'cluster' %}
-            <a class="btn btn-primary" href="{{ url_for('index.app_configuration', next='/server/') }}" role="button">Create a New Gluu Server Cluster</a></p>
+        {% else %}
+            <a class="btn btn-primary" href="{{ url_for('load_balancer.configure', next='/server/') }}" role="button">Create a New Gluu Server Cluster</a></p>
         {% endif %}
 
     </div>

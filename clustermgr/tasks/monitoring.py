@@ -3,7 +3,7 @@ import os
 import getpass
 import time
 
-from clustermgr.models import Server, AppConfiguration
+from clustermgr.models import ConfigParam
 from clustermgr.extensions import db, wlogger, celery
 from clustermgr.core.ldap_functions import DBManager
 from clustermgr.core.clustermgr_installer import Installer

@@ -7,10 +7,9 @@ from clustermgr.extensions import wlogger
 from clustermgr.core.remote import RemoteClient
 
 class Installer:
-    def __init__(self, conn, gluu_version, server_os=None, logger_task_id=None, server_id=None):
+    def __init__(self, conn, server_os=None, logger_task_id=None, server_id=None):
         self.conn = conn
         self.logger_task_id = logger_task_id
-        self.gluu_version = gluu_version
         self.server_os = server_os
         self.server_id = server_id
         self.repo_updated = {False:False, True:False}
@@ -19,24 +18,24 @@ class Installer:
         self.hostname = ''
 
         if conn.__class__.__name__ != "RemoteClient" and conn.__class__.__name__ != 'FakeRemote':
-            self.server_os = conn.os
+            self.server_os = conn.data.get('os')
             self.server_id = conn.id
-            self.conn = RemoteClient(conn.hostname, conn.ip)
-            self.hostname = conn.hostname
-            self.ip = conn.ip
+            self.conn = RemoteClient(conn.data.hostname, conn.data.ip)
+            self.hostname = conn.data.hostname
+            self.ip = conn.data.ip
 
             wlogger.log(
                         self.logger_task_id, 
-                        "Making SSH connection to {} ...".format(conn.hostname),
+                        "Making SSH connection to {} ...".format(conn.data.hostname),
                         'action',
                         server_id=self.server_id,
                         )
             try:
-                print(("Installer> Establishing SSH connection to host {}".format(conn.hostname)))
+                print(("Installer> Establishing SSH connection to host {}".format(self.hostname)))
                 self.conn.startup()
                 wlogger.log(
                         self.logger_task_id, 
-                        "SSH connection to {} was successful.".format(conn.hostname),
+                        "SSH connection to {} was successful.".format(self.hostname),
                         'success',
                         server_id=self.server_id,
                         )
@@ -56,7 +55,7 @@ class Installer:
             
                 wlogger.log(
                         self.logger_task_id, 
-                        "Can't make SSH connection to {}. Reason: {}".format(conn.hostname, error_msg),
+                        "Can't make SSH connection to {}. Reason: {}".format(self.hostname, error_msg),
                         'fail',
                         server_id=self.server_id,
                     )
@@ -178,7 +177,7 @@ class Installer:
             if len(rl) > 0:
                 coutt = channel.recv(1024)
                 if coutt:
-                    for cout in coutt.split('\n'):
+                    for cout in coutt.decode().split('\n'):
                         all_cout.append(cout)
                         if cout.strip():
                             

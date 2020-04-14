@@ -11,9 +11,9 @@ from celery.result import AsyncResult
 
 
 from clustermgr.extensions import db, wlogger
-from clustermgr.models import AppConfiguration, Server
+from clustermgr.models import ConfigParam
 from clustermgr.forms import AppConfigForm, SchemaForm, \
-    TestUser, InstallServerForm, LdapSchema
+     InstallServerForm, LdapSchema
 
 from ldap.schema import AttributeType, ObjectClass, LDAPSyntax
 from clustermgr.core.utils import get_setup_properties

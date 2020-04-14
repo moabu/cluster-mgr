@@ -13,7 +13,7 @@ from flask import redirect
 
 
 from clustermgr.extensions import db, wlogger
-from clustermgr.models import AppConfiguration, Server
+from clustermgr.models import ConfigParam
 from clustermgr.forms import WizardStep1
 
 from clustermgr.core.license import license_reminder

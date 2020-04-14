@@ -1,4 +1,3 @@
-import configparser
 import os
 import socket
 import hashlib
@@ -17,7 +16,7 @@ from flask_login import current_user
 
 from ..extensions import login_manager
 from ..forms import LoginForm, SignUpForm
-from ..models import Server
+from ..models import ConfigParam
 
 
 auth_bp = Blueprint("auth", __name__)
@@ -35,19 +34,15 @@ class User(UserMixin):
         return self.username
 
 
-def user_from_config(cfg_file, username):
-    parser = configparser.SafeConfigParser()
-    parser.read(cfg_file)
+def user_from_db(username):
 
-    try:
-        cfg = dict(parser.items("user"))
-    except configparser.NoSectionError:
+    authdb = ConfigParam.get('authuser')
+
+    if username != authdb.data.username:
         return
 
-    if username != cfg["username"]:
-        return
+    user = User(authdb.data.username, authdb.data.password)
 
-    user = User(cfg["username"], cfg["password"])
     return user
 
 
@@ -59,16 +54,6 @@ def load_user(username):
 
 @auth_bp.route("/login/", methods=["GET", "POST"])
 def login():
-    
-    oxd_config = current_app.config["OXD_CLIENT_CONFIG_FILE"]
-
-    if os.path.exists(oxd_config):
-        return redirect(url_for("auth.oxd_login"))
-    
-    cfg_file = current_app.config["AUTH_CONFIG_FILE"]
-
-    if not os.path.exists(cfg_file):
-        return redirect(url_for('auth.signup'))
 
     if current_user.is_authenticated:
         return redirect(url_for("index.home"))
@@ -76,8 +61,7 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
 
-        user = user_from_config(cfg_file, form.username.data)
-
+        user = user_from_db(form.username.data)
         enc_password = hashlib.sha224(form.password.data.encode()).hexdigest()
 
         if user and enc_password == user.password:
@@ -89,7 +73,7 @@ def login():
 
         flash("Invalid username or password.", "warning")
 
-    server_num = Server.query.count()
+    server_num = ConfigParam.query.filter_by(key='gluuserver').count()
     return render_template('auth_login.html', form=form, server_num=server_num)
 
 
@@ -240,15 +224,13 @@ def signup():
             
             enc_password = hashlib.sha224(form.password.data.encode()).hexdigest()
 
-            config = configparser.RawConfigParser()
-            config.add_section('user')
-            config.set('user', 'username', username)
-            config.set('user', 'password', enc_password)
 
-            with open(config_file, 'w') as configfile:
-                config.write(configfile)
+            authdb = ConfigParam.new('authuser')
+            authdb.data.username = username
+            authdb.data.password = enc_password
+            authdb.save()
 
-            user = user_from_config(config_file, username)
+            user = user_from_db(username)
             login_user(user)
             return redirect(url_for('index.home'))
 

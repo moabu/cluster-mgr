@@ -5,7 +5,7 @@ import sys
 
 from influxdb import InfluxDBClient
 from clustermgr.monitoring_scripts import sqlite_monitoring_tables
-from clustermgr.models import Server, AppConfiguration
+from clustermgr.models import from clustermgr.models
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

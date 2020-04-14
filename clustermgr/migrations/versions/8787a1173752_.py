@@ -1,8 +1,8 @@
-"""add ConfigParam model
+"""empty message
 
-Revision ID: 57db102c2a43
-Revises: 323ee67934b1
-Create Date: 2020-01-14 13:55:58.012414
+Revision ID: 8787a1173752
+Revises: 
+Create Date: 2020-04-13 18:30:59.991748
 
 """
 from alembic import op
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '57db102c2a43'
-down_revision = '323ee67934b1'
+revision = '8787a1173752'
+down_revision = None
 branch_labels = None
 depends_on = None
 
@@ -22,6 +22,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('key', sa.String(length=10), nullable=True),
     sa.Column('value', sa.Text(), nullable=True),
+    sa.Column('criteria', sa.Text(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     # ### end Alembic commands ###

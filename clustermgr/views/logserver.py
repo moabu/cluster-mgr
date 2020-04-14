@@ -21,8 +21,7 @@ from ..core.license import prompt_license
 from ..core.license import license_required
 from ..core.utils import as_boolean
 from ..forms import LogSearchForm
-from ..models import Server
-from ..models import AppConfiguration
+from ..models import ConfigParam
 from ..tasks.log import collect_logs
 from ..tasks.log import setup_filebeat
 from ..tasks.log import remove_filebeat

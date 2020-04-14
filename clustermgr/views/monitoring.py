@@ -19,7 +19,7 @@ from clustermgr.core.license import license_reminder
 from clustermgr.core.license import license_required
 from clustermgr.core.license import prompt_license
 
-from clustermgr.models import Server, AppConfiguration
+from clustermgr.models import ConfigParam
 
 from clustermgr.tasks.monitoring import install_monitoring, install_local, \
     remove_monitoring

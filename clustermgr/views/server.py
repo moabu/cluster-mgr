@@ -11,7 +11,7 @@ from flask import Blueprint, render_template, redirect, url_for, \
 from flask_login import login_required
 
 from clustermgr.extensions import db
-from clustermgr.models import Server, AppConfiguration
+from clustermgr.models import ConfigParam
 
 
 from clustermgr.forms import ServerForm, InstallServerForm, \
@@ -54,19 +54,15 @@ def index():
     POST accepts the ServerForm, validates and creates a new Server object
     """
     
-    appconfig = AppConfiguration.query.first()
-    if not appconfig:
-        flash("Kindly set default values for the application before adding"
-              " servers.", "info")
-        return redirect(url_for('index.app_configuration', next="/server/"))
+    load_balancer_config = ConfigParam.get('load_balancer')
+    if not load_balancer_config:
+        return redirect(url_for('load_balancer.config', next="/server/"))
 
-
+    primary_server = ConfigParam.get_primary_server()
 
     form = ServerForm()
     header = "New Server"
-    primary_server = Server.query.filter(
-        Server.primary_server.is_(True)).first()
-
+    
     if primary_server:
         del form.ldap_password
         del form.ldap_password_confirm
@@ -74,23 +70,21 @@ def index():
         header = "New Server - Primary Server"
 
     if form.validate_on_submit():
-        
-        server = Server()
-        server.hostname = form.hostname.data.strip()
-        server.ip = form.ip.data.strip()
 
-        server.mmr = False
+        server = ConfigParam.new(
+                    'gluuserver', 
+                    data={
+                        'hostname': form.hostname.data.strip(),
+                        'ip': form.ip.data.strip(),
+                        'primary': not primary_server,
+                        'mmr': False,
+                        }
+                    )
+
         ask_passphrase = False
 
-        server_exist = Server.query.filter_by(
-                    hostname=server.hostname).first()
+        c = RemoteClient(server.data.hostname, server.data.ip)
 
-        if server_exist:
-            flash("Server with hostname {} is already in cluster".format(
-                server_exist.hostname), "warning")
-            return redirect(url_for('index.home'))
-
-        c = RemoteClient(server.hostname, server.ip)
         try:
             c.startup()
 
@@ -126,23 +120,17 @@ def index():
                        ask_passphrase=ask_passphrase,
                        next=url_for('server.index')
                        )
-        
+
         if primary_server:
-            server.ldap_password = primary_server.ldap_password
+            server.data.ldap_password = primary_server.data.ldap_password
         else:
-            server.ldap_password = form.ldap_password.data.strip()
-            server.primary_server = True
+            server.data.ldap_password = form.ldap_password.data.strip()
         
-        if not server.hostname == appconfig.nginx_host:
-            db.session.add(server)
-            db.session.commit()
-            # start the background job to get system details
-            collect_server_details.delay(server.id)
-            return redirect(url_for('index.home'))
-
-        else:
-            flash("Load balancer can't be used as gluu server", 'danger')
-
+        server.save()
+        
+        collect_server_details.delay(server.id)
+        
+        return redirect(url_for('index.home'))
 
     return render_template('new_server.html',
                            form=form,
@@ -153,14 +141,14 @@ def index():
 @server_view.route('/edit/<int:server_id>/', methods=['GET', 'POST'])
 @login_required
 def edit(server_id):
-    server = Server.query.get(server_id)
+    server = ConfigParam.get_by_id(server_id)
     if not server:
         flash('There is no server with the ID: %s' % server_id, "warning")
         return redirect(url_for('index.home'))
 
     form = ServerForm()
     header = "Update Server Details"
-    if server.primary_server:
+    if server.data.primary:
         header = "Update Primary Server Details"
         if request.method == 'POST' and not form.ldap_password.data.strip():
             form.ldap_password.data = '**dummy**'
@@ -169,23 +157,28 @@ def edit(server_id):
         del form.ldap_password
         del form.ldap_password_confirm
 
+
+    if request.method == 'POST' and (form.hostname.data.strip() == server.data.hostname):
+        form.samehost = True
+
+
     if form.validate_on_submit():
-        server.hostname = form.hostname.data.strip()
-        server.ip = form.ip.data.strip()
+        server.data.hostname = form.hostname.data.strip()
+        server.data.ip = form.ip.data.strip()
 
         
-        if server.primary_server and form.ldap_password.data != '**dummy**':
-            server.ldap_password = form.ldap_password.data.strip()
-            sync_ldap_passwords(server.ldap_password)
-        db.session.commit()
+        if server.data.primary and form.ldap_password.data != '**dummy**':
+            server.data.ldap_password = form.ldap_password.data.strip()
+            sync_ldap_passwords(server.data.ldap_password)
+        server.save()
         # start the background job to get system details
         collect_server_details.delay(server.id)
         return redirect(url_for('index.home'))
 
-    form.hostname.data = server.hostname
-    form.ip.data = server.ip
-    if server.primary_server:
-        form.ldap_password.data = server.ldap_password
+    form.hostname.data = server.data.hostname
+    form.ip.data = server.data.ip
+    if server.data.primary:
+        form.ldap_password.data = server.data.ldap_password
 
     return render_template('new_server.html', form=form, header=header)
 
@@ -194,20 +187,18 @@ def edit(server_id):
 @login_required
 def remove_server(server_id):
 
-    appconfig = AppConfiguration.query.first()
-    server = Server.query.filter_by(id=server_id).first()
-    all_servers = Server.query.all()
+    servers = ConfigParam.get_servers()
     
-    if len(all_servers) > 1:
-        if server.primary_server:
+    if len(servers) > 1:
+        if server[0].data.primary_server:
             flash("Please first remove non-primary servers ", "danger")
             return redirect(url_for('index.home'))
-            
+    
+    server = ConfigParam.get_by_id(server_id)
     
     if request.args.get('removefromdashboard') == 'true':
-        db.session.delete(server)
-        db.session.commit()
-        flash("Server {0} is removed.".format(server.hostname), "success")
+        server.delete()
+        flash("Server {0} is removed.".format(server.data.hostname), "success")
         return redirect(url_for('index.home'))
 
     disable_replication = True if request.args.get('disablereplication') == \
@@ -233,20 +224,30 @@ def install_gluu(server_id):
     file and redirects to install_gluu_server which does actual installation.
     """
 
+    settings = ConfigParam.get('settings')
+    if not settings:
+        return redirect(url_for('server.settings',
+                                next=url_for('server.install_gluu', server_id=server_id)))
+
     # If current server is not primary server, first we should identify
     # primary server. If primary server is not installed then redirect
     # to home to install primary.
-    pserver = Server.query.filter_by(primary_server=True).first()
+    pserver = ConfigParam.get_primary_server()
     if not pserver:
         flash("Please identify primary server before starting to install Gluu "
               "Server.", "warning")
         return redirect(url_for('index.home'))
 
-    server = Server.query.get(server_id)
+    elif not pserver.data.get('gluu_server'):
+        flash("Please first install primary server.", "warning")
+        return redirect(url_for('index.home'))
+        
+
+    server = ConfigParam.get_by_id(server_id)
 
     # We need os type to perform installation. If it was not identified,
     # return to home and wait until it is identifed.
-    if not server.os:
+    if not server.data.os:
         flash("Server OS version hasn't been identified yet. Checking Now",
               "warning")
         collect_server_details.delay(server_id)
@@ -254,14 +255,13 @@ def install_gluu(server_id):
 
     # If current server is not primary server, and primary server was installed,
     # start installation by redirecting to cluster.install_gluu_server
-    if not server.primary_server:
+    if not server.data.primary:
 
         return redirect(url_for('server.install_gluu_server',
                                 server_id=server_id))
 
     # If we come up here, it is primary server and we will ask admin which
     # components will be installed. So prepare form by InstallServerForm
-    appconf = AppConfiguration.query.first()
     form = InstallServerForm()
 
     # We don't require these for server installation. These fields are required
@@ -270,14 +270,14 @@ def install_gluu(server_id):
     del form.ip_address
     del form.ldap_password
 
-    header = 'Install Gluu Server on {0}'.format(server.hostname)
-
+    header = 'Install Gluu Server on {0}'.format(server.data.hostname)
+    lb = ConfigParam.get('load_balancer')
     # Get default setup properties.
     setup_prop = get_setup_properties()
 
-    setup_prop['hostname'] = appconf.nginx_host
-    setup_prop['ip'] = server.ip
-    setup_prop['ldapPass'] = server.ldap_password
+    setup_prop['hostname'] = lb.data.hostname
+    setup_prop['ip'] = server.data.ip
+    setup_prop['ldapPass'] = server.data.ldap_password
 
     # If form is submitted and validated, create setup.properties file.
     if form.validate_on_submit():
@@ -287,8 +287,7 @@ def install_gluu(server_id):
         setup_prop['orgName'] = form.orgName.data.strip()
         setup_prop['admin_email'] = form.admin_email.data.strip()
         setup_prop['application_max_ram'] = str(form.application_max_ram.data)
-                
-        
+
         for o in ('installOxAuth',
                   'installOxTrust',
                   'installLdap',
@@ -322,7 +321,6 @@ def install_gluu(server_id):
         form.orgName.data = setup_prop['orgName']
         form.admin_email.data = setup_prop['admin_email']
         form.application_max_ram.data = setup_prop['application_max_ram']
-
 
         for o in ('installOxAuth',
                   'installOxTrust',
@@ -444,12 +442,12 @@ def confirm_setup_properties(server_id):
 
     setup_prop = get_setup_properties()
 
-    appconf = AppConfiguration.query.first()
-    server = Server.query.get(server_id)
+    load_balancer = ConfigParam.get('load_balancer')
+    server = ConfigParam.get_by_id(server_id)
 
-    setup_prop['hostname'] = appconf.nginx_host
-    setup_prop['ip'] = server.ip
-    setup_prop['ldapPass'] = server.ldap_password
+    setup_prop['hostname'] = load_balancer.data.hostname
+    setup_prop['ip'] = server.data.ip
+    setup_prop['ldapPass'] = server.data.ldap_password
 
     keys = list(setup_prop.keys())
     keys.sort()
@@ -466,10 +464,10 @@ def confirm_setup_properties(server_id):
 @server_view.route('/ldapstat/<int:server_id>/')
 def get_ldap_stat(server_id):
 
-    server = Server.query.get(server_id)
+    server = ConfigParam.get_by_id(server_id)
     if server:
         try:
-            ldap_server = ldap3.Server('ldaps://{}:1636'.format(server.hostname))
+            ldap_server = ldap3.Server('ldaps://{}:1636'.format(server.data.hostname))
             conn = ldap3.Connection(ldap_server)
             if conn.bind(): 
                 return "1"
@@ -591,9 +589,9 @@ def install_gluu_server(server_id):
     
     steps = ['Perpare Server', 'Install Gluu Container', 'Run setup.py', 'Post Installation']
 
-    server = Server.query.get(server_id)
+    server = ConfigParam.get_by_id(server_id)
 
-    title = "Installing Gluu Server on " + server.hostname
+    title = "Installing Gluu Server on " + server.data.hostname
 
     nextpage = url_for('index.home')
     whatNext = "Dashboard"
@@ -614,48 +612,59 @@ def install_gluu_server(server_id):
 @login_required
 def settings():
     cform = GluuVersionForm()
-    
+    next_url = request.args.get('next')
     cform.gluu_archive.choices = [ (f,os.path.split(f)[1]) for f in glob.glob(os.path.join(Config.GLUU_REPO,'gluu-server*')) ]
     
-    primary_server = Server.query.filter_by(primary_server=True).first()
-    is_primary_deployed = True if primary_server and primary_server.gluu_server else False
-    app_config = AppConfiguration.query.first()
+    primary_server = ConfigParam.get_primary_server()
+    is_primary_deployed = False
+    if primary_server:
+        is_primary_deployed = primary_server.data.get('gluu_server', False)
 
-    if not app_config:
-        app_config = AppConfiguration()
-        db.session.add(app_config)
+    settings = ConfigParam.get('settings')
+    if not settings:
+        settings = ConfigParam.new('settings',
+                    data = {
+                        'gluu_version': cform.gluu_version.default,
+                        'gluu_archive': '',
+                        'service_update_period': 300,
+                        'modify_hosts': True,
+                        'offline': False,
+                        }
+                    )
 
     if request.method == 'GET':
-        if app_config.gluu_version:
-            cform.gluu_version.data = app_config.gluu_version
-
-        if app_config.gluu_archive:
-            cform.gluu_archive.data = app_config.gluu_archive
-
-        cform.offline.data = app_config.offline
-        cform.ldap_update_period.data = str(app_config.ldap_update_period)
-        cform.modify_hosts.data = app_config.modify_hosts
+        cform.gluu_version.data = settings.data.gluu_version
+        cform.gluu_archive.data = settings.data.gluu_archive
+        cform.offline.data = settings.data.offline
+        cform.ldap_update_period.data = str(settings.data.ldap_update_period)
+        cform.modify_hosts.data = settings.data.modify_hosts
 
     else:
-        if not app_config.gluu_version:
-            app_config.gluu_version = cform.gluu_version.data
+        if not is_primary_deployed:
+            settings.data.gluu_version = cform.gluu_version.data
 
-        app_config.offline = cform.offline.data
-        app_config.gluu_archive = cform.gluu_archive.data if app_config.offline else ''
+        settings.data.offline = cform.offline.data
+        settings.data.gluu_archive = cform.gluu_archive.data if settings.data.offline else ''
         
-        app_config.ldap_update_period = cform.ldap_update_period.data
-        app_config.ldap_update_period_unit = 's'
-        app_config.modify_hosts = cform.modify_hosts.data
+        settings.data.service_update_period = cform.ldap_update_period.data
+        settings.data.service_update_period = 's'
+        settings.data.modify_hosts = cform.modify_hosts.data
 
-        db.session.commit()
+        settings.save()
         flash("Settings saved", "success")
+
+        if next_url:
+            return redirect(next_url)
 
         return redirect(url_for('index.home'))
 
-    return render_template("settings.html",
+    template = 'settingsc.html' if next_url else 'settings.html'
+
+    return render_template(template,
                             cform=cform,
                             is_primary_deployed=is_primary_deployed,
                             repo_dir = Config.GLUU_REPO,
+                            next=next_url,
                             )
 
 @server_view.route('/test', methods=['GET'])
@@ -686,10 +695,10 @@ def test_view():
 @server_view.route('/getostype', methods=['GET'])
 @login_required
 def get_os_type():
-    servers = Server.query.all()
+    servers = ConfigParam.get_servers()
 
     data = {}
     for server in servers:
-        data[str(server.id)] = server.os
+        data[str(server.id)] = server.data.os
 
     return jsonify(data)

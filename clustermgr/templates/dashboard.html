@@ -73,7 +73,7 @@
                         <th>Server ID</th>
                         <th>Hostname</th>
                         <th>IP Address</th>
-                        {% if servers[0].gluu_server %}<th><center>Service Liveness Status</center></th>{% endif %}
+                        {% if servers[0].data.gluu_server %}<th><center>Service Liveness Status</center></th>{% endif %}
                         <th>OS</th>
                         <th>Actions</th>
                     </tr>
@@ -82,15 +82,15 @@
                     {% for server in servers %}
                     <tr>
                         <td>{{ server.id }}</td>
-                        <td>{{ server.hostname }}
-                            {% if server.primary_server %}
+                        <td>{{ server.data.hostname }}
+                            {% if server.data.primary %}
                                 <span class="badge bg-green">Primary</span>
                             {% endif %}
                         </td>
-                        <td>{{ server.ip }}</td>
+                        <td>{{ server.data.ip }}</td>
                         </td>
                         
-                        {% if servers[0].gluu_server %}
+                        {% if servers[0].data.gluu_server %}
                         <td>
                             <center> 
                                 <span class="badge" data-toggle="tooltip" id="ldapstat{{server.id}}" title="">LDAP</span> 
@@ -104,40 +104,40 @@
                         
                         {% endif %}
                         
-                        <td id="server_os_{{server.id}}">{{ server.os }}</td>
+                        <td id="server_os_{{server.id}}">{{ server.data.os }}</td>
                         <td>
                             
-                            <div id="serverunsupperted-{{server.id}}" {% if server.os and (server.os in SUPPORTED_OS) %} style="display:none" {% endif %}>
+                            <div id="serverunsupperted-{{server.id}}" {% if server.data.os and (server.data.os in SUPPORTED_OS) %} style="display:none" {% endif %}>
                                 Currently Cluster Manager<br>
                                 supports {{', '.join(SUPPORTED_OS)}}
                             </div>
-                            {% if not server.os in SUPPORTED_OS %}
+                            {% if not server.data.os in SUPPORTED_OS %}
                             <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal"
-                               data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Remove</a>
+                               data-serverid="{{server.id}}" data-hostname="{{ server.data.hostname }}" id="first-remove-{{server.id}}">Remove</a>
                             {% endif %}
                                
-                                <span  {% if (not server.os) or (not server.os in SUPPORTED_OS) %}style="display:none"{% endif %} id="serverhide-{{server.id}}">
+                                <span  {% if (not server.data.os) or (not server.data.os in SUPPORTED_OS) %}style="display:none"{% endif %} id="serverhide-{{server.id}}">
                                 <a id="drybutton{{server.id}}" class="btn btn-default btn-xs" href="#" onClick="dryRun({{server.id}})" class="btn btn-info btn-block">
                                     <i id="dryicon{{server.id}}" class="fa fa-spinner"></i> Dry-run
                                 </a>
                             <a class="btn btn-default btn-xs" href="{{ url_for('server.edit', server_id=server.id) }}">Edit</a>
                             <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#remove_alert_modal"
-                               data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Remove</a>
+                               data-serverid="{{server.id}}" data-hostname="{{ server.data.hostname }}">Remove</a>
                             
-                            {% if not server.gluu_server %}
+                            {% if not server.data.gluu_server %}
                             <br>
                             <a class="btn btn-default btn-xs" href="{{ url_for('server.install_gluu', server_id=server.id) }}">Install Gluu</a>
                             {% else %}
                             <br>
                             
                            <a class="btn btn-danger btn-xs" href="#" data-toggle="modal" data-target="#reinstall_alert_modal"
-                               data-serverid="{{server.id}}" data-hostname="{{ server.hostname }}">Re-install</a>
+                               data-serverid="{{server.id}}" data-hostname="{{ server.data.hostname }}">Re-install</a>
                            
                             {% endif %}
                             
-                            {% if not server.primary_server %}
+                            {% if not server.data.primary %}
                             <a class="btn btn-default btn-xs" href="#" data-toggle="modal" data-target="#change_primary_server_modal"
-                               data-pserverid="{{server.id}}" data-phostname="{{ server.hostname }}">Make Primary</a>
+                               data-pserverid="{{server.id}}" data-phostname="{{ server.data.hostname }}">Make Primary</a>
 
                             {% endif %}
                             
@@ -513,6 +513,8 @@ setTimeout(function() {
             if (supportedOs.includes(value)) {
                 $('#serverhide-'+key).show();
                 $('#serverunsupperted-'+key).hide();
+                $('#first-remove-' + key).hide();
+                
             } else {
                 $('#serverhide-'+key).hide();
                 $('#serverunsupperted-'+key).show();

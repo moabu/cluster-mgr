@@ -16,9 +16,8 @@ from ..core.utils import exec_cmd
 from ..core.utils import parse_setup_properties
 from ..extensions import celery
 from ..extensions import db
-from ..models import KeyRotation
-from ..models import Server
-from ..models import AppConfiguration
+from ..models import ConfigParam
+
 
 task_logger = get_task_logger(__name__)
 

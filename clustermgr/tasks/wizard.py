@@ -3,7 +3,7 @@ import os
 import getpass
 import re
 
-from clustermgr.models import Server, AppConfiguration
+from clustermgr.models import ConfigParam
 from clustermgr.extensions import db, wlogger, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.utils import run_and_log

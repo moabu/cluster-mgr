@@ -9,7 +9,7 @@ from flask_login import login_required
 from flask_menu import register_menu
 
 
-from clustermgr.models import Server, AppConfiguration
+from clustermgr.models import ConfigParam
 from clustermgr.tasks.cluster import installNGINX
 from clustermgr.forms import LoadBalancerForm
 from clustermgr.extensions import db
@@ -18,7 +18,7 @@ from ..core.license import license_reminder
 from ..core.license import prompt_license
 from ..core.license import license_required
 
-load_balancer = Blueprint('loadbalancer', __name__, template_folder='templates')
+load_balancer = Blueprint('load_balancer', __name__, template_folder='templates')
 load_balancer.before_request(prompt_license)
 load_balancer.before_request(license_required)
 load_balancer.before_request(license_reminder)
@@ -42,79 +42,79 @@ def menuIndex():
 
 
 
-
-
 @load_balancer.route('/install')
 @register_menu(load_balancer, '.gluuServerCluster.loadBalancer.installNginx', 'Install', order=1)
 @login_required
 def install_nginx():
     """Initiates installation of nginx load balancer"""
-    app_conf = AppConfiguration.query.first()
+    lb_config = ConfigParam.get('load_balancer')
 
-    if (not app_conf) or (not app_conf.nginx_host):
+    if (not lb_config) or (not lb_config.data.get('hostname')):
         flash("Please first configure Load Balancer")
-        return redirect(url_for('load_balancer.setup_nginx'))
+        return redirect(url_for('load_balancer.configure'))
 
     if not request.args.get('next') == 'install':
-        status = checkNginxStatus(app_conf.nginx_host)
+        status = checkNginxStatus(lb_config.data.hostname)
         if status[0]:
             return render_template("load_balancer_install.html", 
                                 servers=status[1])
         else:
-            servers = Server.query.all()
+            servers = ConfigParam.get_servers()
             return render_template("load_balancer_about_to_install.html", 
                                             servers=servers, app_conf=app_conf)
 
     # Start nginx  installation celery task
-    task = installNGINX.delay(app_conf.nginx_host)
+    task = installNGINX.delay(lb_config.data.hostname)
 
     print("Install NGINX TASK STARTED", task.id)
-    head = "Configuring NGINX Load Balancer on {0}".format(app_conf.nginx_host)
+    head = "Configuring NGINX Load Balancer on {0}".format(lb_config.data.hostname)
     nextpage = url_for('replication.multi_master_replication')
     whatNext = "LDAP Replication"
 
-    return render_template('logger_single.html', title=head, server=app_conf.nginx_host,
+    return render_template('logger_single.html', title=head, server=lb_config.data.hostname,
                            task=task, nextpage=nextpage, whatNext=whatNext)
 
 @load_balancer.route('/configure', methods=['GET', 'POST'])
 @register_menu(load_balancer, '.gluuServerCluster.loadBalancer.setupNginx', 'Configure', order=2)
 @login_required
-def setup_nginx():
+def configure():
     cform = LoadBalancerForm()
-    app_config = AppConfiguration.query.first()
-    primary_server = Server.query.filter_by(primary_server=True).first()
-    is_primary_deployed = True if primary_server and primary_server.gluu_server else False
-        
-    if not app_config:
-        app_config = AppConfiguration()
-        app_config.external_load_balancer = False
-        db.session.add(app_config)
 
-    submit_text = "Update" if app_config.nginx_host else "Save"
+    primary_server = ConfigParam.get_primary_server()
+    submit_text = 'Update'
+    is_primary_deployed = True if primary_server and primary_server.data.get('gluu_server') else False
+    load_balancer_config = ConfigParam.get('load_balancer')
+
+    if not load_balancer_config:
+        submit_text = 'Save'
+        load_balancer_config = ConfigParam.new('load_balancer', data={'hostname':'', 'ip':'', 'external': False})
 
     if request.method == 'GET':
-        cform.nginx_host.data = app_config.nginx_host
-        cform.nginx_ip.data = app_config.nginx_ip
-        cform.external_load_balancer.data = app_config.external_load_balancer
+        cform.nginx_host.data = load_balancer_config.data.hostname
+        cform.nginx_ip.data = load_balancer_config.data.ip
+        cform.external_load_balancer.data = load_balancer_config.data.external
     else:
-        if cform.external_load_balancer.data:
-            cform.nginx_ip.validators= []
+        #if cform.external_load_balancer.data:
+        #    cform.nginx_ip.validators= []
 
         if cform.validate_on_submit():
-            app_config.nginx_host = cform.nginx_host.data
-
+            load_balancer_config.data.hostname = cform.nginx_host.data
+            load_balancer_config.data.external = cform.external_load_balancer.data
             if cform.external_load_balancer.data:
-                app_config.nginx_ip = ''
-                cform.nginx_ip.data = ''
+                load_balancer_config.data.ip = ''
             else:
-                app_config.nginx_ip = cform.nginx_ip.data
+                load_balancer_config.data.ip = cform.nginx_ip.data
                 
-            app_config.external_load_balancer = cform.external_load_balancer.data
-            db.session.commit()
-            flash("Load Balancer configuration {}d".format(submit_text.lower()), "success")
+            load_balancer_config.save()
 
-    return render_template("load_balancer_setup.html",
+            flash("Load Balancer configuration {}d".format(submit_text.lower()), "success")
+            next_url = request.args.get('next')
+            if next_url:
+                return redirect(next_url)
+
+    return render_template("load_balancer_config.html",
                             cform=cform,
                             submit_text=submit_text,
                             is_primary_deployed=is_primary_deployed,
+                            next=request.args.get('next'),
                             )

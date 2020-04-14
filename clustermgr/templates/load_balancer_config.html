@@ -8,7 +8,7 @@
 {% block  content %}
 <div class="box box-primary">
 
-    <form id="cform" action="{{ url_for('loadbalancer.setup_nginx', next=next) }}" method="POST" class="form-horizontal">
+    <form id="cform" action="{{ url_for('load_balancer.configure', next=next) }}" method="POST" class="form-horizontal">
         <div class="box-body">
             {{ cform.csrf_token }}
 

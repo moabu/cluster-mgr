@@ -3,7 +3,7 @@ import os
 import re
 import socket
 
-from clustermgr.models import Server, AppConfiguration, CacheServer
+from clustermgr.models import ConfigParam
 from clustermgr.extensions import db, wlogger, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import LdapOLC

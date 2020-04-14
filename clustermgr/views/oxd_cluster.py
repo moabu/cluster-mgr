@@ -13,7 +13,7 @@ from ..core.license import license_reminder
 from ..core.license import prompt_license
 from ..core.license import license_required
 
-from clustermgr.models import GServer, ConfigParam, AppConfiguration, CacheServer
+from clustermgr.models import ConfigParam
 from clustermgr.forms import ServerForm, OxdSettingsForm
 
 oxd_cluster = Blueprint('oxd', __name__)

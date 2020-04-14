@@ -6,7 +6,7 @@ import json
 from ldap3 import Server, Connection, SUBTREE, BASE, LEVEL, \
     MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
 
-from clustermgr.models import Server as ServerModel
+from clustermgr.models import ConfigParam
 from clustermgr.core.utils import ldap_encode, get_setup_properties
 from ldap.schema import AttributeType, ObjectClass, LDAPSyntax
 

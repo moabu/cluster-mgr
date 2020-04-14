@@ -14,7 +14,7 @@ from clustermgr.extensions import celery
 
 from clustermgr.core.utils import logger
 from time import strftime
-from clustermgr.models import AppConfiguration
+from clustermgr.models import ConfigParam
 
 from flask import request, render_template
 
@@ -52,12 +52,9 @@ def run_celery_worker():
 
 @app.before_request
 def before_request():
-    try:
-        appconf = AppConfiguration.query.first()
-        if appconf:
-            app.jinja_env.globals['external_load_balancer'] = appconf.external_load_balancer
-    except:
-        print("Database is not ready")
+    load_balancer_config = ConfigParam.get('load_balancer')
+    if load_balancer_config:
+        app.jinja_env.globals['external_load_balancer'] = load_balancer_config.data.get('external')
 
 
 @app.after_request

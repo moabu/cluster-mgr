@@ -16,11 +16,11 @@ from flask_menu import register_menu
 
 from clustermgr.extensions import db
 from clustermgr.core.ldap_functions import LdapOLC
-from clustermgr.models import Server, AppConfiguration
-from clustermgr.tasks.cluster import installNGINX, \
-    setup_filesystem_replication, opendjenablereplication, \
-    remove_server_from_cluster, remove_filesystem_replication, \
-    opendj_disable_replication_task
+from clustermgr.models import ConfigParam
+from clustermgr.tasks.cluster import setup_filesystem_replication, \
+    opendjenablereplication, opendj_disable_replication_task, \
+    remove_server_from_cluster, remove_filesystem_replication
+    
 
 from clustermgr.core.utils import get_setup_properties, \
     get_opendj_replication_status, random_chars
@@ -168,15 +168,14 @@ def opendj_enable_replication(server_id):
         head = "Enabling Multimaster Replication on all servers"
         server = ''
 
+
+    ldap_replication = ConfigParam.get('ldap_replication')
+    if not ldap_replication.data.get('password'):
+        ldap_replication = ConfigParam.new('ldap_replication', data={'password': random_chars(8)})
+        ldap_replication.save()
+        
     #Start openDJ replication celery task
-    #task = opendjenablereplication.delay(server_id)
-
-    app_config = AppConfiguration.query.first()
-    if not app_config.replication_pw:
-        app_config.replication_pw = random_chars(8)
-        db.session.commit()
-
-    return app_config.replication_pw
+    task = opendjenablereplication.delay(server_id)
 
     return render_template('logger_single.html', title=head, server=server,
                            task=task, nextpage=nextpage, whatNext=whatNext)
@@ -297,18 +296,23 @@ def remove_file_system_replication():
                            task=task, multiserver=servers)
 
 
-@replication.route('/mmr/setpassword', methods=['POST'])
+@replication.route('/mmr/setttings', methods=['POST'])
 @login_required
-def set_replication_password():
+def mmr_settings():
 
     replication_pw = request.form.get('replication_password')
+    use_ip = True if request.form.get('use_ip') else False
+    
+    ldap_replication = ConfigParam.get('ldap_replication')
 
-    app_config = AppConfiguration.query.first()
-    if not app_config:
-        app_config = AppConfiguration()
-        db.session.add(app_config)
-    app_config.replication_pw = replication_pw
-    db.session.commit()
+    if not ldap_replication:
+        ldap_replication = ConfigParam.new('ldap_replication')
+
+    if replication_pw:
+        ldap_replication.data.password = ldap_replication
+        
+    ldap_replication.data.use_ip = use_ip
+    ldap_replication.save()
 
     return redirect(url_for('replication.multi_master_replication')) 
 
@@ -319,14 +323,17 @@ def multi_master_replication():
     """Multi Master Replication view for OpenDJ"""
 
     # Check if replication user (dn) and password has been configured
-    app_config = AppConfiguration.query.first()
-    if not app_config:
-        app_config = AppConfiguration()
-        db.session.add(app_config)
-        db.session.commit()
+    replication_pw = ''
+    use_ip = False
+    ldap_replication = ConfigParam.get('ldap_replication')
 
-    ldaps = Server.query.all()
-    primary_server = Server.query.filter_by(primary_server=True).first()
+    if ldap_replication:
+        replication_pw = ldap_replication.data.get('password')
+        use_ip = ldap_replication.data.get('use_ip')
+
+    ldaps = ConfigParam.get_servers()
+    primary_server = ConfigParam.get_primary_server()
+    settings = ConfigParam.get('settings')
 
     if not ldaps:
         flash("Servers has not been added. "
@@ -334,30 +341,28 @@ def multi_master_replication():
               "warning")
         return redirect(url_for('index.home'))
 
-
     ldap_errors = []
 
-    prop = get_setup_properties()
-    stat = ''
-    replication_pw_base64 = ''
-    if app_config.replication_pw:
-        replication_pw_base64 = base64.encodestring(app_config.replication_pw)
-        if replication_pw_base64.endswith('\n'):
-            replication_pw_base64 = replication_pw_base64[:-1]
+    return render_template('opendjmmr.html',
+                           servers=ldaps,
+                           get_stat=primary_server.data.get('mmr'),
+                           settings=settings,
+                           replication_pw=replication_pw,
+                           use_ip=use_ip
+                           )
 
-    if app_config.replication_pw:
+
+@replication.route('/mmr/replicationstatus')
+@login_required
+def mmr_replication_status():
+    stat = ''
+    primary_server = ConfigParam.get_primary_server()
+    if primary_server.data.get('mmr'):
         rep_status = get_opendj_replication_status()
 
         if not rep_status[0]:
             flash(rep_status[1], "warning")
         else:
             stat = rep_status[1]
-    else:
-        rep_status = None
-
-    return render_template('opendjmmr.html',
-                           servers=ldaps,
-                           stat = stat,
-                           app_conf=app_config,
-                           replication_pw_base64=replication_pw_base64
-                           )
+    
+    return stat

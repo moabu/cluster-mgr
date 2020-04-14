@@ -13,6 +13,7 @@ from wtforms.validators import DataRequired, AnyOf, \
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 
 from clustermgr.config import Config
+from clustermgr.models import ConfigParam
 
 from clustermgr.core.utils import is_hostname_resolved
 
@@ -27,14 +28,17 @@ class LoadBalancerForm(FlaskForm):
         if is_resolved:
             raise ValidationError(is_resolved)
 
+
+        
 class GluuVersionForm(FlaskForm):
     versions = [
-                '4.0', 
                 '4.1.0',
+                '4.0', 
                 ]
     gluu_version = SelectField('Gluu Server Version',
                         choices=[(v, v) for v in versions],
-                        description="You can't change version after deploying primary server."
+                        description="You can't change version after deploying primary server.",
+                        default=versions[0]
                         )
 
     offline = BooleanField('Offline installation')
@@ -183,13 +187,17 @@ class ServerForm(FlaskForm):
         if is_resolved:
             raise ValidationError(is_resolved)
 
-class TestUser(FlaskForm):
-    first_name = StringField('First Name', validators=[DataRequired()])
-    last_name = StringField('Last Name', validators=[DataRequired()])
-    email = StringField('Email', validators=[
-        DataRequired(), Email("Please enter valid email address.")])
+        if not hasattr(form, 'samehost'):
 
+            servers = ConfigParam.get_servers()
+            for server in servers:
+                if server.data.get('hostname') == field.data:
+                    raise ValidationError("Server with hostname {} is already in cluster".format(field.data))
 
+        load_balancer_config = ConfigParam.get('load_balancer')
+        if load_balancer_config and load_balancer_config.data.get('hostname') == field.data:
+            raise ValidationError("This hostname is Load Balancer")
+        
 class InstallServerForm(FlaskForm):
     hostname = StringField('Hostname *', validators=[DataRequired()])
     ip_address = StringField(

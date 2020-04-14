@@ -8,9 +8,8 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
 from flask_login import login_required
 from flask_menu import register_menu
 
-from clustermgr.models import Server, AppConfiguration
+from clustermgr.models import db, ConfigParam
 from clustermgr.tasks.cache import install_cache_cluster, uninstall_cache_cluster
-
 
 from ..core.license import license_reminder
 from ..core.license import prompt_license
@@ -18,9 +17,6 @@ from ..core.license import license_required
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.utils import get_redis_config, get_cache_servers, random_chars
 from clustermgr.forms import CacheSettingsForm, cacheServerForm
-
-from clustermgr.models import db, CacheServer
-
 
 cache_mgr = Blueprint('cache_mgr', __name__, template_folder='templates')
 cache_mgr.before_request(prompt_license)

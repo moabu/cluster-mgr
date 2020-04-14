@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% from 'macros.html' import render_field, render_checkbox_field, render_form %}
+
+{% block header %}
+    <h1>Application Settings</h1>
+    <ol class="breadcrumb">
+        <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+        <li class="active">Settings</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+
+
+
+
+
+
+<div class="box box-primary">
+
+ <form id="cform" action="{{ url_for('server.settings', next=next) }}" method="POST" class="form-horizontal">
+<div class="box-body">
+   
+    {% include 'settings.html' %}
+    </form>
+
+
+<div class="box-footer">
+  <input class="btn btn-primary pull-right" id="submit" name="submit" type="submit" value="Save and Continue">
+</div>
+
+</div>
+</div>
+
+{% endblock %}
+
+
+{% block js %}
+<script>
+
+
+function offlineInstallation() {
+
+    if ($('#offline').is(':checked')) {
+        $('#div-gluu-archive').removeAttr('style',  'display: none');
+        $('#gluu_archive').attr('required');
+            
+        
+    } else {
+        
+        $('#div-gluu-archive').attr('style',  'display: none');
+        $('#gluu_archive').removeAttr('required');
+            
+    }
+
+}
+
+
+$('#offline').change(function() {
+        
+        offlineInstallation();
+});
+
+
+offlineInstallation();
+
+
+$(document).ready(function(){
+  $('[data-toggle="gluu-repo-tooltip"]').tooltip(); 
+});
+
+</script>
+{% endblock %}

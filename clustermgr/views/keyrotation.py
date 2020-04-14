@@ -14,7 +14,7 @@ from ..core.license import prompt_license
 from ..core.utils import as_boolean
 from ..extensions import db
 from ..forms import KeyRotationForm
-from ..models import KeyRotation
+from ..models import ConfigParam
 from ..tasks.keyrotation import rotate_keys
 from clustermgr.extensions import celery
 

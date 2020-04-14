@@ -9,8 +9,7 @@ from ..core.clustermgr_installer import Installer
 from ..extensions import celery
 from ..extensions import db
 from ..extensions import wlogger
-from ..models import AppConfiguration
-from ..models import Server
+from ..models import ConfigParam
 
 task_logger = get_task_logger(__name__)
 

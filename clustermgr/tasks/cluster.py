@@ -11,7 +11,7 @@ import requests
 
 from flask import current_app as app
 
-from clustermgr.models import Server, AppConfiguration
+from clustermgr.models import ConfigParam
 from clustermgr.extensions import wlogger, db, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import LdapOLC, getLdapConn
@@ -44,19 +44,19 @@ def modifyOxLdapProperties(server, installer, task_id, pDict):
         file_content = ''
         for line in result.split('\n'):
             if line.startswith('servers:'):
-                line = 'servers: {0}'.format( pDict[server.hostname] )
+                line = 'servers: {0}'.format( pDict[server.data.hostname] )
                 print(line)
             file_content += line+'\n'
 
         print(pDict)
         #print file_content
 
-        result = installer.put_file(remote_file,file_content)
+        result = installer.put_file(remote_file, file_content)
 
         if result:
             wlogger.log(task_id,
                 'ox-ldap.properties file on {0} modified to include '
-                'all replicating servers'.format(server.hostname),
+                'all replicating servers'.format(server.data.hostname),
                 'success')
         else:
             state = False
@@ -66,7 +66,7 @@ def modifyOxLdapProperties(server, installer, task_id, pDict):
     if not state:
         wlogger.log(task_id,
                 'ox-ldap.properties file on {0} was not modified to '
-                'include all replicating servers.'.format(server.hostname),
+                'include all replicating servers.'.format(server.data.hostname),
                 'warning')
 
     # Modify Shib ldap.properties to include all ldap properties
@@ -579,47 +579,44 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
 
 def configure_OxIDPAuthentication(task_id, exclude=None, installers={}):
     
-    primary_server = Server.query.filter_by(primary_server=True).first()
-    
-    app_conf = AppConfiguration.query.first()
-
-    gluu_installed_servers = Server.query.filter_by(gluu_server=True).all()
-
+    primary_server = ConfigParam.get_primary_server()
+    servers = ConfigParam.get_servers()
+    ldap_replication = ConfigParam.get('ldap_replication')
     pDict = {}
+    settings = ConfigParam.get('settings')
 
-    for server in gluu_installed_servers:
-        if server.mmr:
-            laddr = server.ip if app_conf.use_ip else server.hostname
+    for server in servers:
+        if server.data.get('mmr'):
+            laddr = server.data.ip if ldap_replication.data.get('use_ip') else server.data.hostname
             ox_auth = [ laddr+':1636' ]
-            for prsrv in gluu_installed_servers:
-                if prsrv.mmr:
-                    if not prsrv == server:
-                        laddr = prsrv.ip if app_conf.use_ip else prsrv.hostname
+            for prsrv in servers:
+                if prsrv.data.get('mmr'):
+                    if not prsrv.id == server.id:
+                        laddr = prsrv.data.ip if ldap_replication.data.get('use_ip') else prsrv.data.hostname
                         ox_auth.append(laddr+':1636')
-            pDict[server.hostname]= ','.join(ox_auth)
+            pDict[server.data.hostname]= ','.join(ox_auth)
 
-    for server in gluu_installed_servers:
-        if server.mmr:
-            installer = installers.get(server.hostname)
+    for server in servers:
+        if server.data.get('mmr'):
+            installer = installers.get(server.data.hostname)
             if not installer:
                 installer = Installer(
                     server, 
-                    app_conf.gluu_version, 
                     logger_task_id=task_id, 
-                    server_os=server.os
+                    server_os=server.data.os
                     )
 
             modifyOxLdapProperties(server, installer, task_id, pDict)
 
     oxIDP=['localhost:1636']
 
-    for server in gluu_installed_servers:
+    for server in servers:
         if not server.id == exclude:
-            laddr = server.ip if app_conf.use_ip else server.hostname
+            laddr = server.data.ip if ldap_replication.data.get('use_ip') else server.data.hostname
             oxIDP.append(laddr+':1636')
 
-    adminOlc = LdapOLC('ldaps://{}:1636'.format(primary_server.hostname),
-                        'cn=directory manager', primary_server.ldap_password)
+    adminOlc = LdapOLC('ldaps://{}:1636'.format(primary_server.data.hostname),
+                        'cn=directory manager', primary_server.data.ldap_password)
 
     try:
         adminOlc.connect()
@@ -640,7 +637,7 @@ def configure_OxIDPAuthentication(task_id, exclude=None, installers={}):
         wlogger.log(task_id, 'Modifying oxIDPAuthentication entry is failed: {}'.format(
                 adminOlc.conn.result['description']), 'success')
 
-    if app_conf.use_ldap_cache:
+    if settings.data.get('use_ldap_cache'):
         adminOlc.changeOxCacheConfiguration('NATIVE_PERSISTENCE')
         wlogger.log(task_id,
                 'cacheProviderType entry is set to NATIVE_PERSISTENCE',
@@ -649,22 +646,19 @@ def configure_OxIDPAuthentication(task_id, exclude=None, installers={}):
 @celery.task(bind=True)
 def opendjenablereplication(self, server_id):
 
-    primary_server = Server.query.filter_by(primary_server=True).first()
+    primary_server = ConfigParam.get_primary_server()
     task_id = self.request.id
-    app_conf = AppConfiguration.query.first()
-
-    gluu_installed_servers = Server.query.filter_by(gluu_server=True).all()
-
+    ldap_replication_config = ConfigParam.get('ldap_replication')
+    
     if server_id == 'all':
-        servers = Server.query.all()
+        servers = ConfigParam.get_servers()
     else:
-        servers = [Server.query.get(server_id)]
+        servers = [ConfigParam.get_by_id(server_id)]
 
     installer = Installer(
                     primary_server, 
-                    app_conf.gluu_version, 
                     logger_task_id=task_id, 
-                    server_os=primary_server.os
+                    server_os=primary_server.data.os
                     )
 
     if not installer.conn:
@@ -693,89 +687,90 @@ def opendjenablereplication(self, server_id):
     primary_server_secured = False
 
     for server in servers:
-        if not server.primary_server:
-            
-            for base in ['gluu', 'site']:
+        if server.data.get('gluu_server'):
+            if not server.data.primary:
+                
+                for base in ['gluu', 'site']:
 
-                cmd = ( "OPENDJ_JAVA_HOME=/opt/jre "
-                        "/opt/opendj/bin/dsreplication enable --host1 {} --port1 4444 "
-                        "--bindDN1 'cn=directory manager' --bindPassword1 $'{}' "
-                        "--replicationPort1 8989 --host2 {} --port2 4444 --bindDN2 "
-                        "'cn=directory manager' --bindPassword2 $'{}' "
-                        "--replicationPort2 8989 --adminUID admin --adminPassword $'{}' "
-                        "--baseDN 'o={}' --trustAll -X -n").format(
-                            primary_server.hostname,
-                            primary_server.ldap_password.replace("'","\\'"),
-                            server.ip,
-                            server.ldap_password.replace("'","\\'"),
-                            app_conf.replication_pw.replace("'","\\'"),
-                            base,
-                            )
-            
-                wlogger.log(task_id, "Enabling replication on server {} for {}".format(
-                                                            server.hostname, base))
+                    cmd = ( "OPENDJ_JAVA_HOME=/opt/jre "
+                            "/opt/opendj/bin/dsreplication enable --host1 {} --port1 4444 "
+                            "--bindDN1 'cn=directory manager' --bindPassword1 $'{}' "
+                            "--replicationPort1 8989 --host2 {} --port2 4444 --bindDN2 "
+                            "'cn=directory manager' --bindPassword2 $'{}' "
+                            "--replicationPort2 8989 --adminUID admin --adminPassword $'{}' "
+                            "--baseDN 'o={}' --trustAll -X -n").format(
+                                primary_server.data.hostname,
+                                primary_server.data.ldap_password.replace("'","\\'"),
+                                server.data.ip,
+                                server.data.ldap_password.replace("'","\\'"),
+                                ldap_replication_config.data.password.replace("'","\\'"),
+                                base,
+                                )
+                
+                    wlogger.log(task_id, "Enabling replication on server {} for {}".format(
+                                                                server.data.hostname, base))
 
-                installer.run(cmd, error_exception='no base DNs available to enable replication')
+                    installer.run(cmd, error_exception='no base DNs available to enable replication')
 
-                wlogger.log(task_id, "Initializing replication on server {} for {}".format(
-                                                                server.hostname, base))
+                    wlogger.log(task_id, "Initializing replication on server {} for {}".format(
+                                                                    server.data.hostname, base))
 
-                cmd = ( "OPENDJ_JAVA_HOME=/opt/jre "
-                        "/opt/opendj/bin/dsreplication initialize --baseDN 'o={}' "
-                        "--adminUID admin --adminPassword $'{}' "
-                        "--portSource 4444  --hostDestination {} --portDestination 4444 "
-                        "--trustAll -X -n").format(
-                            base,
-                            app_conf.replication_pw.replace("'","\\'"),
-                            server.ip,
-                            )
+                    cmd = ( "OPENDJ_JAVA_HOME=/opt/jre "
+                            "/opt/opendj/bin/dsreplication initialize --baseDN 'o={}' "
+                            "--adminUID admin --adminPassword $'{}' "
+                            "--portSource 4444  --hostDestination {} --portDestination 4444 "
+                            "--trustAll -X -n").format(
+                                base,
+                                ldap_replication_config.data.password.replace("'","\\'"),
+                                server.data.ip,
+                                )
 
-                installer.run(cmd, error_exception='no base DNs available to enable replication')
+                    installer.run(cmd, error_exception='no base DNs available to enable replication')
 
-            if not primary_server_secured:
+                if not primary_server_secured:
 
-                wlogger.log(task_id, "Securing replication on primary server {}".format(
-                                                                primary_server.hostname))
+                    wlogger.log(task_id, "Securing replication on primary server {}".format(
+                                                                    primary_server.data.hostname))
 
+                    cmd = ( "OPENDJ_JAVA_HOME=/opt/jre "
+                            "/opt/opendj/bin/dsconfig -h {} -p 4444 "
+                            " -D  'cn=Directory Manager' -w $'{}' --trustAll "
+                            "-n set-crypto-manager-prop --set ssl-encryption:true"
+                            ).format(primary_server.data.ip, server.data.ldap_password.replace("'","\\'"))
+
+                    installer.run(cmd)
+                    
+                    primary_server_secured = True
+                    primary_server.data.mmr = True
+
+                wlogger.log(task_id, "Securing replication on server {}".format(
+                                                                server.data.hostname))
                 cmd = ( "OPENDJ_JAVA_HOME=/opt/jre "
                         "/opt/opendj/bin/dsconfig -h {} -p 4444 "
                         " -D  'cn=Directory Manager' -w $'{}' --trustAll "
                         "-n set-crypto-manager-prop --set ssl-encryption:true"
-                        ).format(primary_server.ip, primary_server.ldap_password.replace("'","\\'"))
+                        ).format(server.data.ip, server.data.ldap_password.replace("'","\\'"))
 
                 installer.run(cmd)
-                
-                primary_server_secured = True
-                primary_server.mmr = True
 
-            wlogger.log(task_id, "Securing replication on server {}".format(
-                                                            server.hostname))
-            cmd = ( "OPENDJ_JAVA_HOME=/opt/jre "
-                    "/opt/opendj/bin/dsconfig -h {} -p 4444 "
-                    " -D  'cn=Directory Manager' -w $'{}' --trustAll "
-                    "-n set-crypto-manager-prop --set ssl-encryption:true"
-                    ).format(server.ip, primary_server.ldap_password.replace("'","\\'"))
-
-            installer.run(cmd)
-
-            server.mmr = True
+                server.data.mmr = True
 
 
-    db.session.commit()
+    server.save()
+    primary_server.save()
 
     configure_OxIDPAuthentication(task_id, installers={installer.hostname:installer})
 
-    servers = Server.query.filter(Server.primary_server.isnot(True)).all()
+    servers = ConfigParam.get_servers()
 
     for server in servers:
 
-        if not server.primary_server:
+        if not server.data.primary:
 
             node_installer = Installer(
-                    server, 
-                    app_conf.gluu_version, 
+                    server,
                     logger_task_id=task_id, 
-                    server_os=primary_server.os
+                    server_os=primary_server.data.os
                     )
 
             wlogger.log(task_id, "Uploading OpenDj certificate files")
@@ -796,14 +791,14 @@ def opendjenablereplication(self, server_id):
                         "--portSource 4444 --hostDestination {} "
                         "--portDestination 4444 --trustAll --no-prompt"
                         ).format(
-                                app_conf.replication_pw.replace("'","\\'"),
+                                ldap_replication_config.data.password.replace("'","\\'"),
                                 base,
-                                primary_server.ip,
-                                server.ip,
+                                primary_server.data.ip,
+                                server.data.ip,
                                 )
                 node_installer.run(cmd)
 
-        node_installer.restart_gluu()
+            node_installer.restart_gluu()
 
     installer.restart_gluu()
 
@@ -815,8 +810,8 @@ def opendjenablereplication(self, server_id):
     cmd = ( "OPENDJ_JAVA_HOME=/opt/jre "
             "/opt/opendj/bin/dsreplication status -n -X -h {} "
             "-p 4444 -I admin -w $'{}'").format(
-                    primary_server.hostname,
-                    app_conf.replication_pw.replace("'","\\'"))
+                    primary_server.data.hostname,
+                    ldap_replication_config.data.password.replace("'","\\'"))
 
     installer.run(cmd)
 
@@ -831,37 +826,29 @@ def installNGINX(self, nginx_host):
         nginx_host: hostname of server on which we will install nginx
     """
     task_id = self.request.id
-    app_conf = AppConfiguration.query.first()
-    primary_server = Server.query.filter_by(primary_server=True).first()
-
-    #mock server
-    nginx_server = Server(
-                        hostname=app_conf.nginx_host, 
-                        ip=app_conf.nginx_ip,
-                        os=app_conf.nginx_os
-                        )
+    lb_config = ConfigParam.get('load_balancer')
+    primary_server = ConfigParam.get_primary_server()
 
     nginx_installer = Installer(
-                    nginx_server, 
-                    app_conf.gluu_version, 
-                    logger_task_id=task_id, 
-                    server_os=nginx_server.os
+                    lb_config, 
+                    logger_task_id=task_id,
+                    server_os=lb_config.data.get('os'),
                     )
 
     if not nginx_installer.conn:
         return False
 
-    if not nginx_installer.conn.exists('/usr/bin/python'):
+    if not nginx_installer.conn.exists('/usr/bin/python3'):
         
         if app_conf.offline:
             wlogger.log(
                 task_id, 
-                'python was not installed. Please install python and retry.', 
+                'python3 was not installed. Please install python3 and retry.', 
                 'error'
                 )
             return False
 
-        nginx_installer.install('python', inside=False)
+        nginx_installer.install('python3', inside=False)
 
     #check if nginx was installed on this server
     wlogger.log(task_id, "Check if NGINX installed")
@@ -898,13 +885,12 @@ def installNGINX(self, nginx_host):
 
     # we need to download ssl certifiactes from primary server.
     wlogger.log(task_id, "Making SSH connection to primary server {} for "
-                     "downloading certificates".format(primary_server.hostname))
+                     "downloading certificates".format(primary_server.data.hostname))
 
     primary_installer = Installer(
                     primary_server,
-                    app_conf.gluu_version,
                     logger_task_id=task_id,
-                    server_os=primary_server.os
+                    server_os=primary_server.data.os
                     )
 
     # get httpd.crt and httpd.key from primary server and put to this server
@@ -936,20 +922,22 @@ def installNGINX(self, nginx_host):
     nginx_installer.enable_service('nginx', inside=False)
     nginx_installer.restart_service('nginx', inside=False)
     
-    if app_conf.modify_hosts:
+    settings = ConfigParam.get('settings')
+    
+    if settings.data.get('modify_hosts'):
         
         host_ip = []
-        servers = Server.query.all()
+        servers = ConfigParam.get_servers()
 
         for ship in servers:
-            host_ip.append((ship.hostname, ship.ip))
+            host_ip.append((ship.data.hostname, ship.data.ip))
 
-        host_ip.append((app_conf.nginx_host, app_conf.nginx_ip))
+        host_ip.append((lb_config.data.hostname, lb_config.data.ip))
         modify_hosts(nginx_installer, host_ip, inside=False)
 
     # write nginx os type to database
-    app_conf.nginx_os_type = nginx_installer.server_os
-    db.session.commit()
+    lb_config.data.os  = nginx_installer.server_os
+    lb_config.save()
 
     wlogger.log(task_id, "NGINX successfully installed")
 

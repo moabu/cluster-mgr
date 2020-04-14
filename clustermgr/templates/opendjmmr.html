@@ -20,8 +20,8 @@
                     <th>Server ID</th>
                     <th>Hostname</th>
                     <th>IP Address</th>
-                    <th>Replication Status</th>
-                    <th>Server Status</th>
+                    <th><center>Replication Status</center></th>
+                    <th><center>Server Status</center></th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -29,28 +29,29 @@
                 {% for server in servers %}
                 <tr>
                     <td>{{ server.id }}</td>
-                    <td>{{ server.hostname }}
-                        {% if server.primary_server %}
+                    <td>{{ server.data.hostname }}
+                        {% if server.data.primary_server %}
                         <span class="badge bg-green">Primary</span>
                         {% endif %}
                     </td>
-                    <td>{{ server.ip }}</td>
-                    <td>
-                        {% if not server.primary_server %}
-                            {% if server.mmr %}
+                    <td>{{ server.data.ip }}</td>
+                    <td><center>
+                        {% if not server.data.primary %}
+                            {% if server.data.mmr %}
                                 Configured
                             {% else %}
                                 <p class="text-danger">Not Configured</p>
                             {% endif %}
                         {% endif %}
+                        </center>
                     </td>
                     <td><center> <span class="badge" id="ldapstat{{server.id}}"></span> </center></td>
                     <td>
                     {% if stat %}
-                        {% if not server.primary_server %}
+                        {% if not server.data.primary %}
                             <a class="btn btn-primary btn-xs" href="{{ url_for('replication.opendj_enable_replication', server_id=server.id) }}">
-                                {% if server.mmr %}Re-Enable Replication{%else%}Enable Replication{%endif%}</a>
-                            {% if server.mmr %}
+                                {% if server.data.mmr %}Re-Enable Replication{%else%}Enable Replication{%endif%}</a>
+                            {% if server.data.mmr %}
                             <a class="btn btn-primary btn-xs" href="{{ url_for('replication.opendj_disable_replication', server_id=server.id) }}">Disable Replication</a>
                             {% endif %}
                         {% endif %}
@@ -64,16 +65,10 @@
      
 </div>
 
-{% if not app_conf.replication_pw %}
 
-<a class="btn btn-success btn-xs" href="#" id="set-password">Set Replication Manager Password</a>
+<a class="btn btn-success btn-xs" href="#" id="set-password">Settings</a>
 
 
-{% else %}
-
-<a class="btn btn-info btn-xs" href="#" id="view-password">View Replication Manager Password</a>
-
-{% endif %}
 <br><br>
 
 <b>Note:</b>Ports 4444 and 8989 should be open to/from among all nodes of cluster pool.
@@ -86,12 +81,15 @@
 
 {% endif %}
 
-{% if stat %}
+{% if get_stat %}
   <br>
   <br>
   <label>Replication Status:</label>
-  <pre>
-{{ stat }}  
+
+  <pre id="replication-status">
+
+  <i class="fa fa-spinner fa-spin" style="font-size: 30px"></i>
+
   </pre>
 {% endif %}
 
@@ -99,32 +97,45 @@
 <!-- Set Replication Manager Password Modal Begin-->
 <div id="setReplicationPasswordModal" class="modal fade" role="dialog">
   <div class="modal-dialog">
-  <form class="form-horizontal" id="set-replication-password-form" action="{{ url_for('replication.set_replication_password') }}" method="POST">
+  <form class="form-horizontal" id="set-replication-password-form" action="{{ url_for('replication.mmr_settings') }}" method="POST">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <div class="modal-content">
       <div class="modal-header">
         <button type="button" class="close" data-dismiss="modal">&times;</button>
-        <h4 class="modal-title" id="modal-title">Set Replication Password</h4>
+        <h4 class="modal-title" id="modal-title">Replication Settings</h4>
       </div>
       <div class="modal-body" id="modal-body">
 
           <div class="form-group">
             <label class="control-label col-sm-4" for="replication_password">Password:</label>
             <div class="col-sm-8">
-            <input type="password" name="replication_password" id="rep-password">
+            <input type="password" name="replication_password" id="rep-password" {% if replication_pw %} value="{{replication_pw}}" disabled="true" {% endif %}>
+            {% if replication_pw %}
+            <span id="replication-password-show" class="glyphicon glyphicon-eye-open fa-2x"></span>
+            {% endif %}
             </div>
           </div>
 
+          {% if not replication_pw %}
           <div class="form-group">
             <label class="control-label col-sm-4" for="replication_password1">Retype Password:</label>
             <div class="col-sm-8">
             <input type="password" id="rep-password2">
             </div>
           </div>
+          {% endif %}
+            <div class="form-group">
+            <div class="col-sm-4"></div>
+            
+            <div class="checkbox col-sm-8">
+            <label><input name="use_ip" type="checkbox" {% if use_ip %}checked{% endif %}> Use IP address for replication</label>
+          </div>
+
+          </div>
 
       </div>
       <div class="modal-footer">
-        <a href="#" class="btn btn-default" data-dismiss="modal">Close</a> <a href="#" class="btn btn-primary" id="set-password-button">Set Password</a>
+        <a href="#" class="btn btn-default" data-dismiss="modal">Close</a> <a href="#" class="btn btn-primary" id="set-password-button">Save</a>
       </div>
     </div>
     
@@ -165,7 +176,7 @@ showLdapStat();
 
 setInterval(function() {
     showLdapStat();
-}, {% if app_conf.ldap_update_period %}{{app_conf.ldap_update_period}}{%else%}5{%endif%}*60*1000);
+}, {% if settings.data.get('service_update_period') %}{{settings.data.service_update_period}}{%else%}5{%endif%}*60*1000);
 
 
 $("#set-password").click(function(e){
@@ -181,33 +192,46 @@ $("#set-password-button").click(function(e){
   var pw1 = $("#rep-password").val();
   var pw2 = $("#rep-password2").val();
   
-  
+  {% if not replication_pw %}
   if ( pw1.length < 5) {
       alert("Password length should be at least 5 characters.");
-  } else if (pw1 != pw2) {
-      alert("Passwords do not match.");
-  } else {
-      
-      $('#set-replication-password-form').submit();
+      return;
   }
+  
+  if (pw1 != pw2) {
+      alert("Passwords do not match.");
+      return
+  } 
+  {% endif %}
+
+  $('#set-replication-password-form').submit();
+  
   
 });
 
-function decode_base64(s) {
-  var b=l=0,
-  m='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  return decodeURIComponent(s.replace(/./g, function (v) {
-    b=(b<<6)+m.indexOf(v); l+=6;
-    return l<8?'':'%'+(0x100+((b>>>(l-=8))&0xff)).toString(16).slice(-2);
-  }));
-}
+$("#redis_password").attr("type","password");
+var rps = $("#replication-password-show");
 
-$("#view-password").click(function(e){
-    alert(decode_base64("{{replication_pw_base64}}"));
-
+rps.click(function(e){
+    if (rps.hasClass("glyphicon-eye-close")){
+        rps.removeClass("glyphicon-eye-close");
+        rps.addClass("glyphicon-eye-open");
+        $("#rep-password").attr("type","password");
+        }
+    else {
+        rps.removeClass("glyphicon-eye-open");
+        rps.addClass("glyphicon-eye-close");
+        $("#rep-password").attr("type","text");
+        }
 });
 
+{% if get_stat %}
 
+$.get("{{url_for('replication.mmr_replication_status')}}", function( data ) {
+  $("#replication-status").text(data);
+});
+
+{% endif %}
 </script>
 
 {% endblock %}

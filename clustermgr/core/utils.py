@@ -17,7 +17,7 @@ from cryptography.hazmat.backends import default_backend
 
 from clustermgr.config import Config
 
-from clustermgr.models import Server, AppConfiguration, CacheServer
+from clustermgr.models import ConfigParam
 from clustermgr.extensions import wlogger
 from flask import current_app as app
 from clustermgr.core.clustermgr_installer import Installer
@@ -192,8 +192,8 @@ def write_setup_properties_file(setup_prop):
             val = str(val) 
         prop[k] = val
     
-    with open(prop_fn, 'wb') as w:
-        prop.store(f, encoding="utf-8")
+    with open(setup_properties_file, 'wb') as w:
+        prop.store(w, encoding="utf-8")
 
 
 def get_setup_properties(createNew=False):
@@ -241,15 +241,14 @@ def get_opendj_replication_status():
     :returns: A string that shows replication status
     """
     
-    primary_server = Server.query.filter_by(primary_server=True).first()
-    app_conf = AppConfiguration.query.first()
+    primary_server = ConfigParam.get_primary_server()
+    ldap_replication = ConfigParam.get('ldap_replication')
 
-    if not app_conf.replication_pw:
+    if not ldap_replication.data.get('password'):
         return False, "Replication has not been initialised"
 
     installer = Installer(
                 primary_server,
-                app_conf.gluu_version,
                 logger_task_id=-1,
                 server_os=None
                 )
@@ -258,8 +257,8 @@ def get_opendj_replication_status():
     cmd = ( 'OPENDJ_JAVA_HOME=/opt/jre '
             '/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 4444 -I admin -w $\'{}\'').format(
-                    primary_server.ip,
-                    app_conf.replication_pw.replace("'","\\'"))
+                    primary_server.data.ip,
+                    ldap_replication.data.password.replace("'","\\'"))
 
     stdin, stdout, stderr = installer.run(cmd)
 
@@ -394,8 +393,8 @@ def get_redis_config(f):
 
     
 def make_nginx_proxy_conf(exception=None):
-    servers = Server.query.all()
-    app_config = AppConfiguration.query.first()
+    servers = ConfigParam.get_servers()
+    lb_config = ConfigParam.get('load_balancer')
     nginx_backends = []
 
     server_list = []
@@ -406,12 +405,12 @@ def make_nginx_proxy_conf(exception=None):
     nginx_tmp = open(nginx_tmp_file).read()
 
     #add all gluu servers to nginx.conf
-    for s in servers:
-        if s.id != exception:
-            nginx_backends.append('  server {0}:443 max_fails=2 fail_timeout=10s;'.format(s.hostname))
-            server_list.append(s.hostname)
+    for server in servers:
+        if server.id != exception:
+            nginx_backends.append('  server {0}:443 max_fails=2 fail_timeout=10s;'.format(server.data.hostname))
+            server_list.append(server.data.hostname)
         
-    nginx_tmp = nginx_tmp.replace('{#NGINX#}', app_config.nginx_host)
+    nginx_tmp = nginx_tmp.replace('{#NGINX#}', lb_config.data.hostname)
     nginx_tmp = nginx_tmp.replace('{#SERVERS#}', '\n'.join(nginx_backends))
     nginx_tmp = nginx_tmp.replace('{#PINGSTRING#}', ' '.join(server_list))
 

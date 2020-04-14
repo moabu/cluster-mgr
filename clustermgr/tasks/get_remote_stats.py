@@ -7,7 +7,7 @@ from clustermgr.extensions import celery
 from influxdb import InfluxDBClient
 from clustermgr.core.remote import RemoteClient
 from clustermgr.monitoring_scripts import sqlite_monitoring_tables
-from clustermgr.models import Server, AppConfiguration
+from clustermgr.models import ConfigParam
 
 #Python client of influxdb
 client = InfluxDBClient(

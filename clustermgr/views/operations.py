@@ -10,7 +10,7 @@ from flask_login import current_user
 from flask_menu import register_menu
 
 from celery.result import AsyncResult
-from clustermgr.models import AppConfiguration, Server
+from clustermgr.models import ConfigParam
 
 
 from clustermgr.core.license import license_reminder
@@ -95,11 +95,12 @@ def remove_custom_schema(schema_file):
 
 
 def check_version():
-    app_conf = AppConfiguration.query.first()
-    if app.config['LOCAL_OS'] != 'Alpine' and app_conf and app_conf.latest_version > app.config['APP_VERSION']:
-        upgrade_menu = current_menu.submenu('.gluuServerCluster.operations.upgrade')
-        upgrade_menu.warning = 'New version is available'
-        return True
+    app_conf = ConfigParam.get('appconfig')
+    if app_conf:
+        if app_conf.data.get('LOCAL_OS') != 'Alpine' and app_conf.data.get('latest_version', '0') > app.config['APP_VERSION']:
+            upgrade_menu = current_menu.submenu('.gluuServerCluster.operations.upgrade')
+            upgrade_menu.warning = 'New version is available'
+            return True
 
 @login_required
 @register_menu(operations, '.gluuServerCluster.operations.upgrade', 'Upgrade', order=3, visible_when=check_version, active_when=check_version)

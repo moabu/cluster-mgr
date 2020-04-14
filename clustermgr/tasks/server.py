@@ -10,7 +10,7 @@ import io
 
 from flask import current_app as app
 
-from clustermgr.models import Server, AppConfiguration
+from clustermgr.models import ConfigParam
 from clustermgr.extensions import wlogger, db, celery
 import re
 
@@ -27,21 +27,11 @@ from clustermgr.core.ldap_functions import LdapOLC
 @celery.task
 def collect_server_details(server_id):
     print("Start collecting server details task")
-    app_conf = AppConfiguration.query.first()
     
-    if server_id == -1:
-        #mock server
-        server = Server( hostname=app_conf.nginx_host,
-                         ip = app_conf.nginx_ip
-                         )
-    else:
-        server = Server.query.get(server_id)
-        hostname = server.hostname
-        ip = server.ip
+    server = ConfigParam.get_by_id(server_id)
     
     installer = Installer(
                 server,
-                app_conf.gluu_version,
                 logger_task_id=-1,
                 server_os=None
                 )
@@ -74,11 +64,11 @@ def collect_server_details(server_id):
             if installer.conn.exists(marker):
                 installed.append(component)
 
-    server.components = ",".join(installed)
+    server.data.components = installed
 
-    server.os = os_type
+    server.data.os = os_type
 
-    db.session.commit()
+    server.save()
 
 
 def modify_hosts(task_id, conn, hosts, chroot='/', server_host=None, server_id=''):
@@ -192,13 +182,13 @@ def task_install_gluu_server(self, server_id):
     except:
         raise Exception(traceback.format_exc())
 
-def checkOfflineRequirements(installer, server, appconf):
-    os_type, os_version = server.os.split()
+def checkOfflineRequirements(installer, server, settings):
+    os_type, os_version = server.data.os.split()
 
     wlogger.log(installer.logger_task_id, "Checking if dependencies were installed")
 
     #Check if archive type and os type matches    
-    if not appconf.gluu_archive.endswith('.'+installer.clone_type):
+    if not settings.data.gluu_archive.endswith('.'+installer.clone_type):
         wlogger.log(installer.logger_task_id,
                     "Os type does not match gluu archive type", 'error')
         return False
@@ -207,7 +197,7 @@ def checkOfflineRequirements(installer, server, appconf):
                     "Os type matches with gluu archive", 'success')
     
     #Determine gluu version
-    a_path, a_fname = os.path.split(appconf.gluu_archive)
+    a_path, a_fname = os.path.split(settings.data.gluu_archive)
     m = re.search('gluu-server(_|-)(?P<gluu_version>(\d+).(\d+)((.\d+)?)(\.\d+)?)',a_fname)
 
     if m:
@@ -309,11 +299,11 @@ def make_opendj_listen_world(server, installer):
 
 def install_gluu_server(task_id, server_id):
 
-    server = Server.query.get(server_id)
-    primary_server = Server.query.filter_by(primary_server=True).first()
+    server = ConfigParam.get_by_id(server_id)
+    primary_server = ConfigParam.get_primary_server()
 
-    app_conf = AppConfiguration.query.first()
-
+    settings = ConfigParam.get('settings')
+    load_balancer = ConfigParam.get('load_balancer')
     enable_command = None
     gluu_server = 'gluu-server'
 
@@ -329,24 +319,23 @@ def install_gluu_server(task_id, server_id):
 
 
     # If os type of this server was not idientified, return to home
-    if not server.os:
+    if not server.data.os:
         wlogger.log(task_id, "OS type has not been identified.", 'fail')
         return False
 
-    if server.os != primary_server.os:
+    if server.data.os != primary_server.data.os:
         wlogger.log(task_id, "OS type is not the same as primary server.", 'fail')
         return False
 
     # If this is not primary server, we will download setup.properties
     # file from primary server
-    if not server.primary_server:
+    if not server.data.primary:
         wlogger.log(task_id, "Check if Primary Server is Installed", 'head')
 
         primary_server_installer = Installer(
                                 primary_server,
-                                app_conf.gluu_version,
                                 logger_task_id=task_id,
-                                server_os=server.os
+                                server_os=server.data.os
                             )
 
         if not primary_server_installer.conn:
@@ -365,20 +354,19 @@ def install_gluu_server(task_id, server_id):
                 
     installer = Installer(
                     server, 
-                    app_conf.gluu_version, 
                     logger_task_id=task_id, 
-                    server_os=server.os
+                    server_os=server.data.os
                     )
-
+    
     if not installer.conn:
         return False
 
 
-    if app_conf.offline:
-        if not checkOfflineRequirements(installer, server, app_conf):
+    if settings.data.offline:
+        if not checkOfflineRequirements(installer, server, settings):
             return False
 
-    if not app_conf.offline:
+    if not settings.data.offline:
         
         #check if curl exists on the system
         cmd = 'which curl'
@@ -397,14 +385,14 @@ def install_gluu_server(task_id, server_id):
             installer.install('python', inside=False)
 
         #add gluu server repo and imports signatures
-        if ('Ubuntu' in server.os) or ('Debian' in server.os):
+        if ('Ubuntu' in server.data.os) or ('Debian' in server.data.os):
 
-            if server.os == 'Ubuntu 16':
+            if server.data.os == 'Ubuntu 16':
                 dist = 'xenial'
-            elif server.os == 'Ubuntu 18':
+            elif server.data.os == 'Ubuntu 18':
                 dist = 'bionic'
 
-            if 'Ubuntu' in server.os:
+            if 'Ubuntu' in server.data.os:
                 cmd_list = (
                     'curl https://repo.gluu.org/ubuntu/gluu-apt.key | '
                     'apt-key add -',
@@ -412,7 +400,7 @@ def install_gluu_server(task_id, server_id):
                     '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist)
                     )
             
-            elif 'Debian' in server.os:
+            elif 'Debian' in server.data.os:
                 cmd_list = (
                     'curl https://repo.gluu.org/debian/gluu-apt.key | '
                     'apt-key add -',
@@ -432,21 +420,21 @@ def install_gluu_server(task_id, server_id):
                 wlogger.log(task_id, cmd, 'debug')
                 installer.run(cmd, inside=False)
 
-        elif 'CentOS' in server.os or 'RHEL' in server.os:
+        elif 'CentOS' in server.data.os or 'RHEL' in server.data.os:
             if not installer.conn.exists('/usr/bin/wget'):
                 installer.install('wget', inside=False, error_exception='warning: /var/cache/')
 
-            if server.os == 'CentOS 7':
+            if server.data.os == 'CentOS 7':
 
                 cmd = (
-                  #'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O '
-                  'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo  -O '
+                  'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O '
+                  #'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo  -O '
                   '/etc/yum.repos.d/Gluu.repo'
                   )
 
                 enable_command  = '/sbin/gluu-serverd enable'
                 
-            elif server.os == 'RHEL 7':
+            elif server.data.os == 'RHEL 7':
                 cmd = (
                   'wget https://repo.gluu.org/rhel/Gluu-rhel7.repo -O '
                   '/etc/yum.repos.d/Gluu.repo'
@@ -512,12 +500,12 @@ def install_gluu_server(task_id, server_id):
     wlogger.log(task_id, "Installing Gluu Server: " + gluu_server)
 
 
-    if app_conf.offline:
+    if settings.data.offline:
 
-        gluu_archive_fn = os.path.split(app_conf.gluu_archive)[1]
+        gluu_archive_fn = os.path.split(settings.data.gluu_archive)[1]
         wlogger.log(task_id, "Uploading {}".format(gluu_archive_fn))
 
-        cmd = 'scp {} root@{}:/root'.format(app_conf.gluu_archive, server.hostname)
+        cmd = 'scp {} root@{}:/root'.format(settings.data.gluu_archive, server.data.hostname)
         wlogger.log(task_id, cmd,'debug')
         time.sleep(1)
         os.system(cmd)
@@ -531,10 +519,10 @@ def install_gluu_server(task_id, server_id):
 
     else:
 
-        if server.os in ('Ubuntu 16', 'Ubuntu 18'):
-            gluu_package_name = gluu_server + '=' + app_conf.gluu_version + '~' + dist
+        if server.data.os in ('Ubuntu 16', 'Ubuntu 18'):
+            gluu_package_name = gluu_server + '=' + settings.data.gluu_version + '~' + dist
         else:
-            gluu_package_name = gluu_server + '-' + app_conf.gluu_version
+            gluu_package_name = gluu_server + '-' + settings.data.gluu_version
         
         cmd = installer.get_install_cmd(gluu_package_name, inside=False)
 
@@ -549,7 +537,7 @@ def install_gluu_server(task_id, server_id):
         #If previous installation was broken, make a re-installation. 
         #This sometimes occur on ubuntu installations
         if 'half-installed' in all_cout:
-            if ('Ubuntu' in server.os) or ('Debian' in server.os):
+            if ('Ubuntu' in server.data.os) or ('Debian' in server.data.os):
                 cmd = 'DEBIAN_FRONTEND=noninteractive  apt-get install --reinstall -y '+ gluu_server
                 installer.run_channel_command(cmd, re_list)
 
@@ -560,14 +548,13 @@ def install_gluu_server(task_id, server_id):
 
     #Since we will make ssh inot centos container, we need to wait ssh server to
     #be started properly
-    if server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
+    if server.data.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
         wlogger.log(task_id, "Sleeping 10 secs to wait for gluu server start properly.")
         time.sleep(10)
 
 
-
     # If this server is primary, upload local setup.properties to server
-    if server.primary_server:
+    if server.data.primary:
         wlogger.log(task_id, "Uploading setup.properties")
         result = installer.upload_file(setup_properties_file, 
                  '/opt/gluu-server/root/setup.properties')
@@ -658,26 +645,26 @@ def install_gluu_server(task_id, server_id):
 
         prop = Properties()
         if prop_io:
-            prop.load(prop_io)
+            prop.load(prop_io.read())
             prop_keys = list(prop.keys())
             
             for p in prop_keys[:]:
                 if not p in prop_list:
                     del prop[p]
 
-            prop['ip'] = str(server.ip)
+            prop['ip'] = str(server.data.ip)
             prop['ldap_type'] = 'opendj'
-            prop['hostname'] = str(app_conf.nginx_host)
+            prop['hostname'] = str(load_balancer.data.hostname)
             ldap_passwd = prop['ldapPass']
 
-            new_setup_properties_io = io.StringIO()
+            new_setup_properties_io = io.BytesIO()
             prop.store(new_setup_properties_io)
             new_setup_properties_io.seek(0)
             new_setup_properties = new_setup_properties_io.read()
 
             #put setup.properties to server
             remote_file_new = '/opt/gluu-server/root/setup.properties'
-            installer.put_file(remote_file_new, new_setup_properties)
+            installer.put_file(remote_file_new, new_setup_properties.decode())
 
             if ldap_passwd:
                 server.ldap_password = ldap_passwd
@@ -701,7 +688,7 @@ def install_gluu_server(task_id, server_id):
     setup_cmd = '/install/community-edition-setup/setup.py -f /root/setup.properties --listen_all_interfaces -n'
 
     #Don't load base data for secondary nodes
-    if not server.primary_server:
+    if not server.data.primary:
         setup_cmd += ' --no-data'
 
     cmd = installer.run_command.format(setup_cmd)
@@ -714,13 +701,13 @@ def install_gluu_server(task_id, server_id):
     #JavaScript on logger duplicates next log if we don't add this
     time.sleep(1)
 
-    if app_conf.modify_hosts:
-        all_server = Server.query.all()
-        host_ip = [ (ship.hostname, ship.ip) for ship in all_server ]
-        modify_hosts(task_id, installer.conn, host_ip, '/opt/gluu-server/', server.hostname)
+    if settings.data.modify_hosts:
+        all_server = ConfigParam.get_servers()
+        host_ip = [ (ship.data.hostname, ship.data.ip) for ship in all_server ]
+        modify_hosts(task_id, installer.conn, host_ip, '/opt/gluu-server/', server.data.hostname)
 
     # Get slapd.conf from primary server and upload this server
-    if not server.primary_server:
+    if not server.data.primary:
 
         #we need to download certificates
         #from primary server and upload to this server, then will delete and
@@ -751,11 +738,10 @@ def install_gluu_server(task_id, server_id):
                 'httpd',
                 'shibIDP',
                 'idp-encryption',
-                'asimba',
                 setup_prop['ldap_type'],
                 ):
-            installer.delete_key(suffix, app_conf.nginx_host)
-            installer.import_key(suffix, app_conf.nginx_host)
+            installer.delete_key(suffix, load_balancer.data.hostname)
+            installer.import_key(suffix, load_balancer.data.hostname)
 
         download_and_upload_custom_schema(  
                                             task_id,
@@ -768,9 +754,9 @@ def install_gluu_server(task_id, server_id):
         wlogger.log(task_id, "Creating base dn for o=metric backend")
         
         ldapc = LdapOLC(
-                    'ldaps://{}:1636'.format(server.hostname),
+                    'ldaps://{}:1636'.format(server.data.hostname),
                     'cn=Directory Manager',
-                    server.ldap_password
+                    server.data.ldap_password
                      )
         
         if not ldapc.connect():
@@ -815,8 +801,8 @@ def install_gluu_server(task_id, server_id):
                 result = installer.upload_file(local, remote)
 
 
-    server.gluu_server = True
-    db.session.commit()
+    server.data.gluu_server = True
+    server.save()
 
     #ntp is required for time sync, since ldap replication will be
     #done by time stamp. If not isntalled, install and configure crontab
@@ -833,7 +819,7 @@ def install_gluu_server(task_id, server_id):
     wlogger.log(task_id, 'Crontab entry was created to update time in every minute',
                      'debug')
 
-    if 'CentOS' in server.os or 'RHEL' in server.os:
+    if 'CentOS' in server.data.os or 'RHEL' in server.data.os:
         installer.restart_service('crond')
     else:
         installer.restart_service('cron')
