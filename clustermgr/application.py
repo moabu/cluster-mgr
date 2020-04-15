@@ -158,16 +158,16 @@ def create_app():
 
     @app.before_request
     def before_request():
-        appconfig = ConfigParam.get('appconfig')
+        settings = ConfigParam.get('settings')
 
         use_ldap_cache = False
 
-        if appconfig and appconfig.data.get('use_ldap_cache'):
+        if settings and settings.data.get('use_ldap_cache'):
             use_ldap_cache = appconfig.data.use_ldap_cache
 
         app.jinja_env.globals['use_ldap_cache'] = use_ldap_cache
 
-        if appconfig:                
-            app.jinja_env.globals['latest_version'] = appconfig.data.get('latest_version', 0)
+        if settings:                
+            app.jinja_env.globals['latest_version'] = settings.data.get('latest_version', 0)
 
     return app

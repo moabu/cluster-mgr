@@ -28,7 +28,8 @@ from ..core.license import license_reminder
 from ..core.license import prompt_license
 
 from clustermgr.core.utils import parse_setup_properties, \
-    write_setup_properties_file, get_setup_properties, port_status_cmd
+    write_setup_properties_file, get_setup_properties, \
+    port_status_cmd, as_boolean
 
 from clustermgr.core.ldap_functions import getLdapConn
 
@@ -190,7 +191,7 @@ def remove_server(server_id):
     servers = ConfigParam.get_servers()
     
     if len(servers) > 1:
-        if server[0].data.primary_server:
+        if servers[0].id == server_id:
             flash("Please first remove non-primary servers ", "danger")
             return redirect(url_for('index.home'))
     
@@ -223,6 +224,11 @@ def install_gluu(server_id):
     """Gluu server installation view. This function creates setup.properties
     file and redirects to install_gluu_server which does actual installation.
     """
+    pserver = ConfigParam.get_primary_server()
+    
+    if (pserver.id != server_id) and (not pserver.data.get('gluu_server')):
+        flash("Please first install primary server.", "warning")
+        return redirect(url_for('index.home'))
 
     settings = ConfigParam.get('settings')
     if not settings:
@@ -232,16 +238,11 @@ def install_gluu(server_id):
     # If current server is not primary server, first we should identify
     # primary server. If primary server is not installed then redirect
     # to home to install primary.
-    pserver = ConfigParam.get_primary_server()
     if not pserver:
         flash("Please identify primary server before starting to install Gluu "
               "Server.", "warning")
         return redirect(url_for('index.home'))
 
-    elif not pserver.data.get('gluu_server'):
-        flash("Please first install primary server.", "warning")
-        return redirect(url_for('index.home'))
-        
 
     server = ConfigParam.get_by_id(server_id)
 
@@ -329,9 +330,9 @@ def install_gluu(server_id):
                   'installSaml',
                   'installOxAuthRP',
                   'installPassport',
-                  'application_max_ram',
+                  
                   ):
-            getattr(form, o).data = setup_prop.get(o, '')
+            getattr(form, o).data = as_boolean(setup_prop.get(o, ''))
 
     setup_properties_form = SetupPropertiesLastForm()
 
@@ -629,6 +630,7 @@ def settings():
                         'service_update_period': 300,
                         'modify_hosts': True,
                         'offline': False,
+                        'use_ldap_cache': True,
                         }
                     )
 
@@ -636,7 +638,7 @@ def settings():
         cform.gluu_version.data = settings.data.gluu_version
         cform.gluu_archive.data = settings.data.gluu_archive
         cform.offline.data = settings.data.offline
-        cform.ldap_update_period.data = str(settings.data.ldap_update_period)
+        cform.service_update_period.data = str(settings.data.service_update_period)
         cform.modify_hosts.data = settings.data.modify_hosts
 
     else:
@@ -646,8 +648,7 @@ def settings():
         settings.data.offline = cform.offline.data
         settings.data.gluu_archive = cform.gluu_archive.data if settings.data.offline else ''
         
-        settings.data.service_update_period = cform.ldap_update_period.data
-        settings.data.service_update_period = 's'
+        settings.data.service_update_period = int(cform.service_update_period.data)
         settings.data.modify_hosts = cform.modify_hosts.data
 
         settings.save()

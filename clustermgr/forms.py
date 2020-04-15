@@ -46,7 +46,7 @@ class GluuVersionForm(FlaskForm):
             choices = []
             )
 
-    ldap_update_period = SelectField('Service Liveness Status Polling Period',
+    service_update_period = SelectField('Service Liveness Status Polling Period',
             choices=[
             
                 ('5', '5 secs'), ('10', '10 secs'), 
@@ -80,7 +80,7 @@ class AppConfigForm(FlaskForm):
     nginx_ip = StringField('Load Balancer IP Address', validators=[DataRequired()])
 
 
-    ldap_update_period = SelectField('Service Liveness Status Polling Period',
+    service_update_period = SelectField('Service Liveness Status Polling Period',
             choices=[
             
                 ('5', '5 secs'), ('10', '10 secs'), 

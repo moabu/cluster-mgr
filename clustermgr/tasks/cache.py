@@ -16,13 +16,13 @@ from ldap3.core.exceptions import LDAPSocketOpenError
 from flask import current_app as app
 
 
-def install_stunnel(installer, app_conf, is_cache):
+def install_stunnel(installer, settings, is_cache):
     
-    primary_cache_server = CacheServer.query.first()
+    primary_cache_server = ConfigParam.get('cacheserver')
     stunnel_installed = installer.conn.exists('/usr/bin/stunnel') or installer.conn.exists('/bin/stunnel')
     stunnel_package = 'stunnel4' if installer.clone_type == 'deb' else 'stunnel'  
 
-    if app_conf.offline:
+    if settings.data.offline:
         if not stunnel_installed:
             wlogger.log(
                 installer.logger_task_id, 
@@ -59,9 +59,9 @@ def install_stunnel(installer, app_conf, is_cache):
         installer.run("sed -i 's/ENABLED=0/ENABLED=1/g' /etc/default/stunnel4", inside=False)
 
     stunnel_pem_fn = '/etc/stunnel/redis-server.pem'
-    stunnel_pem_local_fn = '/tmp/{}.pem'.format(primary_cache_server.ip.replace('.','_'))
+    stunnel_pem_local_fn = '/tmp/{}.pem'.format(primary_cache_server.data.ip.replace('.','_'))
 
-    if installer.ip == primary_cache_server.ip:
+    if installer.ip == primary_cache_server.data.ip:
         if not installer.conn.exists(stunnel_pem_fn):
             wlogger.log(installer.logger_task_id, "Creating SSL certificate for stunnel", "info",
                             server_id=installer.server_id)
@@ -94,7 +94,7 @@ def install_stunnel(installer, app_conf, is_cache):
                             '[redis-server]\n'
                             'accept = {0}:{1}\n'
                             'connect = 127.0.0.1:6379\n'
-                            ).format(installer.ip, primary_cache_server.stunnel_port)
+                            ).format(installer.ip, primary_cache_server.data.stunnel_port)
     else:
         stunnel_redis_conf = ( 
                     'pid = /run/stunnel-redis.pid\n'
@@ -103,7 +103,7 @@ def install_stunnel(installer, app_conf, is_cache):
                     'client = yes\n'
                     'accept = 127.0.0.1:6379\n'
                     'connect = {0}:{1}\n'
-                    ).format(primary_cache_server.ip, primary_cache_server.stunnel_port)
+                    ).format(primary_cache_server.data.ip, primary_cache_server.data.stunnel_port)
     
     wlogger.log(installer.logger_task_id, "Writing redis stunnel configurations", "info",
                         server_id=installer.server_id)
@@ -130,17 +130,16 @@ def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
 
     task_id = self.request.id
 
-    servers = [ Server.query.get(id) for id in servers_id_list ]
-    cache_servers = [ CacheServer.query.get(id) for id in cache_servers_id_list ]
-    primary_cache_server = CacheServer.query.first()
-    app_conf = AppConfiguration.query.first()
-    
+    servers = [ ConfigParam.get_by_id(id) for id in servers_id_list ]
+    cache_servers = [ ConfigParam.get_by_id(id) for id in cache_servers_id_list ]
+    primary_cache_server = ConfigParam.get('cacheserver')
+    settings = ConfigParam.get('settings')
+
     for server in cache_servers:
 
-        server.os = None
+        server.data.os = None
         installer =  Installer(
                         server,
-                        app_conf.gluu_version,
                         logger_task_id=task_id
                     )
 
@@ -150,7 +149,7 @@ def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
 
         redis_installed = installer.conn.exists('/usr/bin/redis-server')
         
-        if app_conf.offline:
+        if settings.data.offline:
             if not redis_installed:
                 wlogger.log(
                     task_id, 
@@ -190,18 +189,18 @@ def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
             redis_config = redis_config.split('\n')
             for i, l in enumerate(redis_config[:]):
                 if l.startswith('requirepass'):
-                    if not server.redis_password:
+                    if not server.data.redis_password:
                         del redis_config[i]
                     else:
-                        redis_config[i] = 'requirepass ' + server.redis_password
+                        redis_config[i] = 'requirepass ' + server.data.redis_password
                     break
-                if l.replace(' ','').startswith('#requirepass') and server.redis_password:
-                    redis_config[i] = 'requirepass ' + server.redis_password
+                if l.replace(' ','').startswith('#requirepass') and server.data.redis_password:
+                    redis_config[i] = 'requirepass ' + server.data.redis_password
                     break
 
             else:
-                if server.redis_password:
-                    redis_config.append('requirepass ' + server.redis_password)
+                if server.data.redis_password:
+                    redis_config.append('requirepass ' + server.data.redis_password)
             filecontent = '\n'.join(redis_config)
 
             installer.put_file(redis_config_file, filecontent)
@@ -209,13 +208,13 @@ def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
         installer.enable_service(redis_package, inside=False)
         installer.restart_service(redis_package, inside=False)
 
-        si_result = install_stunnel(installer, app_conf, is_cache=True)
+        si_result = install_stunnel(installer, settings, is_cache=True)
 
         if not si_result:
             return False
 
-        server.installed = True
-        db.session.commit()
+        server.data.installed = True
+        server.save()
         
         if primary_cache_server.id == server.id:
             wlogger.log(installer.logger_task_id, "Retreiving server certificate", "info",
@@ -233,18 +232,17 @@ def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
     for server in servers:
         installer =  Installer(
                         server,
-                        app_conf.gluu_version,
                         logger_task_id=task_id
                     )
 
-        si_result = install_stunnel(installer, app_conf, is_cache=False)
+        si_result = install_stunnel(installer, settings, is_cache=False)
         if not si_result:
             return False
 
-        if server.primary_server:
+        if server.data.primary:
             
             server_string = 'localhost:6379'
-            __update_LDAP_cache_method(task_id, server, server_string, redis_password=primary_cache_server.redis_password)
+            __update_LDAP_cache_method(task_id, server, server_string, redis_password=primary_cache_server.data.redis_password)
 
         wlogger.log(task_id, "Restarting Gluu Server", "info",
                                 server_id=server.id)
@@ -266,9 +264,9 @@ def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE', 
     wlogger.log(tid, "Updating oxCacheConfiguration ...", "debug",
                 server_id=server.id)
     try:
-        adminOlc = LdapOLC('ldaps://{}:1636'.format(server.hostname), 
+        adminOlc = LdapOLC('ldaps://{}:1636'.format(server.data.hostname), 
                         'cn=directory manager',
-                        server.ldap_password)
+                        server.data.ldap_password)
         adminOlc.connect()
     except Exception as e:
         wlogger.log(tid, "Couldn't connect to LDAP. Error: {0}".format(e),
@@ -291,19 +289,16 @@ def uninstall_cache_cluster(self, servers_id_list, cache_servers_id_list):
 
     task_id = self.request.id
 
-    servers = [ Server.query.get(id) for id in servers_id_list ]
-    cache_servers = [ CacheServer.query.get(id) for id in cache_servers_id_list ]
-    primary_cache_server = CacheServer.query.first()
-    app_conf = AppConfiguration.query.first()
-    
+    servers = [ ConfigParam.get_by_id(id) for id in servers_id_list ]
+    cache_servers = [ ConfigParam.get_by_id(id) for id in cache_servers_id_list ]
+    primary_cache_server = ConfigParam.get('cacheserver')
+    settings = ConfigParam.get('settings')    
 
-    
     for server in cache_servers:
 
         server.os = None
         installer =  Installer(
                         server,
-                        app_conf.gluu_version,
                         logger_task_id=task_id
                     )
 
@@ -344,7 +339,6 @@ def uninstall_cache_cluster(self, servers_id_list, cache_servers_id_list):
     for server in servers:
         installer =  Installer(
                         server,
-                        app_conf.gluu_version,
                         logger_task_id=task_id
                     )
 
@@ -365,17 +359,17 @@ def uninstall_cache_cluster(self, servers_id_list, cache_servers_id_list):
         else:
             wlogger.log(task_id, "Stunnel not isntalled.", "info", server_id=server.id)
 
-        if server.primary_server:
+        if server.data.primary_server:
             
             server_string = 'localhost:6379'
-            __update_LDAP_cache_method(task_id, server, server_string, redis_password=primary_cache_server.redis_password)
+            __update_LDAP_cache_method(task_id, server, server_string, redis_password=primary_cache_server.data.redis_password)
 
         wlogger.log(task_id, "Restarting Gluu Server", "info",
                                 server_id=server.id)
 
         installer.restart_gluu()
     
-    app_conf.use_ldap_cache = True
-    db.session.commit()
+    settings.data.use_ldap_cache = True
+    settings.save()
     wlogger.log(task_id, "3", "setstep")
     return True

@@ -5,11 +5,11 @@ import psutil
 import re
 import sqlite3
 from ldap3 import Server, Connection, BASE
-from .pyDes import *
+from pyDes import *
 import base64
 import json
 
-from .sqlite_monitoring_tables import monitoring_tables
+from sqlite_monitoring_tables import monitoring_tables
 
 data_path = '/var/monitoring'
 
@@ -39,23 +39,28 @@ def get_ldap_admin_password():
 
 
 def execute_query(table, data, options=None):
-    
+
     """Writes data to sqlite database
 
     Args:
         tables (string): table name
         data: compound data to be written to database
     """
-    
-    tmpdata = [ str(d) for d in data ]
-    
+
+    tmpdata = []
+    for d in data:
+        if type(d) is bytes:
+            tmpdata.append(d.decode('utf-8'))
+        else:
+            tmpdata.append(str(d))
+
     datas = ', '.join(tmpdata)
-    
+
     if not options:
         options = monitoring_tables[table]
-    
+
     options = ['`{0}`'.format(o) for o in options]
-    
+
     query = 'INSERT INTO {0} (time, {1}) VALUES ({2}, {3})'.format(
                                         table,
                                         ', '.join(options), 

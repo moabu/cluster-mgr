@@ -20,21 +20,23 @@
                         <th>Server ID</th>
                         <th>Hostname</th>
                         <th>IP Address</th>
-                        <th>Monitoring Installed</th>
+                        <th><center>Monitoring Installed</center></th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for server in servers %}
                         <tr id="server_{{server.id}}">
                         <td class="id">{{server.id}}</td>
-                        <td class="hostname">{{server.hostname}}</td>
-                        <td class="ip">{{server.ip}}</td>
+                        <td class="hostname">{{server.data.hostname}}</td>
+                        <td class="ip">{{server.data.ip}}</td>
                         <td class="filebeat">
-                            {% if server.monitoring %}
+                            <center>
+                            {% if server.data.monitoring %}
                             <span class="glyphicon glyphicon-ok text-success"></span>
                             {% else %}
                             <span class="glyphicon glyphicon-remove text-danger"></span>
                             {% endif %}
+                            </center>
                         </td>
                         </tr>
                         {% endfor %}

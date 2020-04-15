@@ -113,12 +113,12 @@ def getData(item, step=None):
         A compound data will be returned to be visualized by Google graphipcs.
     """
 
-    servers = Server.query.all()
+    servers = ConfigParam.get_servers()
 
 
     # Gluu authentications will only be for primary server
     if item == 'gluu_authentications':
-        servers = ( Server.query.filter_by(primary_server=True).first() ,)
+        servers = ( ConfigParam.get_primary_server(), )
 
     # Determine period
     period = request.args.get('period','d')
@@ -175,7 +175,7 @@ def getData(item, step=None):
         else:
             aggr_f = 'mean({})'.format(field)
 
-        measurement_d = server.hostname.replace('.','_') +'_'+ measurement
+        measurement_d = server.data.hostname.replace('.','_') +'_'+ measurement
 
         query = ('SELECT {} FROM {} WHERE '
                   'time >= {}000000000 AND time <= {}000000000 '
@@ -190,11 +190,7 @@ def getData(item, step=None):
 
         result = client.query(query, epoch='s')
 
-        print(result.raw)
-
-
         data_dict = {}
-
         data = []
 
         # Format data to be used by Google graphics
@@ -243,7 +239,7 @@ def getData(item, step=None):
                     legends.append( get_legend(f)[1])
 
         data_dict = {'legends':legends, 'data':data}
-        ret_dict[server.hostname]=data_dict
+        ret_dict[server.data.hostname] = data_dict
 
     return ret_dict
 
@@ -311,18 +307,18 @@ def menuIndex():
 def home():
     
     """This view provides home page of monitoring."""
-    
-    servers = Server.query.all()
 
-    app_config = AppConfiguration.query.first()
+    servers = ConfigParam.get_servers()
+    monitoring_settings = ConfigParam.get('monitoring')
+    settings = ConfigParam.get('settings')
 
     #If configuration was not done redirect to configuration page
-    if not app_config:
-        return redirect(url_for("index.app_configuration"))
+    if not settings:
+        return redirect(url_for("server_view.settings"))
 
     #If monitoring components was not installed redirect to monitoring
     #introduction page
-    if not app_config.monitoring:
+    if (not monitoring_settings) or (not monitoring_settings.data.monitoring):
         return render_template('monitoring_intro.html')
 
     data_ready = None
@@ -331,9 +327,9 @@ def home():
     #both on remote servers and on local machine. Check if and data was
     #fetched from remote servers.
     try:
-        data_ready = check_data(servers[-1].hostname)
-    except:
-        flash("Error getting data from InfluxDB")
+        data_ready = check_data(servers[-1].data.hostname)
+    except Exception as e:
+        flash("Error getting data from InfluxDB. Reason: " + str(e), 'warning')
         return render_template( 'monitoring_error.html')
     #If data was not reteived, display that data was not retreived yet.
     if not data_ready:
@@ -343,7 +339,7 @@ def home():
 
     for server in servers:
         hosts.append({
-                    'name': server.hostname,
+                    'name': server.data.hostname,
                     'id': server.id
                     })
 
@@ -354,8 +350,8 @@ def home():
     try:
         data['cpu']= getData('cpu_percent', step=1200)
         data['mem']= getData('memory_usage', step=1200)
-    except:
-        flash("Error getting data from InfluxDB")
+    except Exception as e:
+        flash("Error getting data from InfluxDB. Reason: " + str(e), 'warning')
         return render_template( 'monitoring_error.html')
 
     for host in hosts:
@@ -381,10 +377,13 @@ def home():
 @monitoring.route('/setup')
 @login_required
 def setup_index():
+    monitoring_settings = ConfigParam.get('monitoring')
+    if (not monitoring_settings) or (not monitoring_settings.data.monitoring):
+        return redirect(url_for('monitoring.setup')) 
     
     """This view provides setting up monitoring"""
     
-    servers = Server.query.all()
+    servers = ConfigParam.get_servers()
     return render_template("monitoring_setup.html", servers=servers)
 
 
@@ -394,7 +393,8 @@ def setup_index():
 def setup_local():
     
     """This view provides setting up monitoring components on local machine"""
-    server = Server( hostname='localhost', id=0)
+    server = ConfigParam.new('localhost', data={'hostname': 'localhost'})
+    server.id = 0
 
     steps = ['Install Components on Servers', 'Setup Local Server']
 
@@ -422,12 +422,8 @@ def setup():
     
     """This view provides setting up monitoring components on remote servers"""
     
-    servers = Server.query.all()
-    appconf = AppConfiguration.query.first()
-    if not appconf:
-        flash("The application needs to be configured first. Kindly set the "
-              "values before attempting clustering.", "warning")
-        return redirect(url_for("index.app_configuration"))
+    servers = ConfigParam.get_servers()
+    monitoring_settings = ConfigParam.get('monitoring')
 
     if not servers:
         flash("Add servers to the cluster before attempting to manage cache",
@@ -439,7 +435,6 @@ def setup():
     title = "Install Monitoring Componenets"
     whatNext = steps[1]
     nextpage = url_for('monitoring.setup_local')
-    servers = Server.query.all()
     task = install_monitoring.delay()
     
     return render_template('logger_single.html',
@@ -462,8 +457,8 @@ def system(item):
     #First get data from influxdb
     try:
         data = getData(item)
-    except:
-        flash("Error getting data from InfluxDB")
+    except Exception as e:
+        flash("Error getting data from InfluxDB. Reason:" + str(e), 'error', 'warning')
         return render_template( 'monitoring_error.html')
 
     #Default template is 'monitoring_graphs.html'
@@ -491,7 +486,7 @@ def system(item):
         for host in data:
             colors[host]=[]
 
-            for i in range(len(data[host]['legends'])/2):
+            for i in range(int(len(data[host]['legends'])/2)):
                 colors[host].append(line_colors[i])
                 colors[host].append(line_colors[i])
 
@@ -510,7 +505,7 @@ def system(item):
         for h in data:
             for d in data[h]['data']:
                 for v in d[1:]:
-                    if not v=='null':
+                    if v and v != 'null':
                         if v > max_value:
                             max_value = v
                         if v < min_value:
@@ -591,21 +586,22 @@ def ldap_single(item):
 @login_required
 def remove():
     """This view will remove monitoring components"""
-    
-    servers = Server.query.all()
-    app_conf = AppConfiguration.query.first()
-    if not app_conf:
+
+    settings = ConfigParam.get('settings')
+    servers = ConfigParam.get_servers()
+
+    if not settings:
         flash("The application needs to be configured first. Kindly set the "
               "values before attempting clustering.", "warning")
-        return redirect(url_for("index.app_configuration"))
+        return redirect(url_for("server.settings"))
 
     title = "Uninstall Monitoring"
     whatNext = "Monitoring Home"
     nextpage = url_for('monitoring.home')
-    servers = Server.query.all()
     task = remove_monitoring.delay()
 
-    local_server = Server( hostname='localhost', id=9999)
+    local_server = ConfigParam.new('local', data={'hostname':'localhost'})
+    local_server.id = 9999
     servers.append(local_server)
     
     return render_template('logger_single.html',
@@ -622,7 +618,7 @@ def remove():
 @login_required
 def get_server_status():
 
-    servers = Server.query.all()
+    servers = ConfigParam.get_servers()
 
     services = {
                 'oxauth': '.well-known/openid-configuration',
@@ -640,23 +636,23 @@ def get_server_status():
     if prop['installPassport']:
         active_services.append('passport')
 
-    cmd =  '''python -c "import urllib2,ssl; print urllib2.urlopen('https://localhost/{}', context= ssl._create_unverified_context()).getcode()"'''
+    cmd = '''python3 -c "from urllib import request; import ssl; print(request.urlopen('https://localhost/{}', context= ssl._create_unverified_context()).code)"'''
 
 
     for server in servers:
         status[server.id] = {}
-        
-        c = RemoteClient(server.hostname)
+
+        c = RemoteClient(server.data.hostname)
         c.ok = False
         try:
             c.startup()
             c.ok = True
         except Exception as e:
             pass
-        
+
         for service in active_services:
             status[server.id][service] = False
-            
+
             if c.ok:
                 if service == 'passport':
                     passport_cmd = port_status_cmd.format('localhost', 8090)
@@ -670,6 +666,6 @@ def get_server_status():
                         if result[1].strip() == '200':
                             status[server.id][service] = True
                     except Exception as e:
-                        print("Error getting service status of {0} for {1}. ERROR: {2}".format(server.hostname,service, e))
+                        print("Error getting service status of {0} for {1}. ERROR: {2}".format(server.data.hostname,service, e))
                     
     return jsonify(status)

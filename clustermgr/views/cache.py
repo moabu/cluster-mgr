@@ -15,7 +15,7 @@ from ..core.license import license_reminder
 from ..core.license import prompt_license
 from ..core.license import license_required
 from clustermgr.core.remote import RemoteClient
-from clustermgr.core.utils import get_redis_config, get_cache_servers, random_chars
+from clustermgr.core.utils import get_redis_config, random_chars
 from clustermgr.forms import CacheSettingsForm, cacheServerForm
 
 cache_mgr = Blueprint('cache_mgr', __name__, template_folder='templates')
@@ -28,18 +28,18 @@ cache_mgr.before_request(license_reminder)
 @register_menu(cache_mgr, '.gluuServerCluster.cacheManagement', 'Cache Management', order=4, icon='fa fa-microchip')
 @login_required
 def index():
-    servers = Server.query.all()
-    appconf = AppConfiguration.query.first()
-    cache_servers = get_cache_servers()
+    servers = ConfigParam.get_servers()
+    settings = ConfigParam.get('settings')
+    cache_servers = ConfigParam.get_all('cacheserver')
     cachetype = request.args.get('cachetype')
 
     if cachetype == 'redis':
-        appconf.use_ldap_cache = False
-        db.session.commit()
+        settings.data.use_ldap_cache = False
+        settings.save()
     elif cachetype == 'ldap':
         if not cache_servers:
-            appconf.use_ldap_cache = True
-            db.session.commit()
+            settings.data.use_ldap_cache = True
+            settings.save()
 
         else:
             steps = ['Disabling Redis Server and Stunnel on Cache Server', 'Disabling stunnel on Gluu Server Nodes']
@@ -76,7 +76,7 @@ def index():
                            servers=servers, 
                            form=form,
                            cache_servers=cache_servers,
-                           use_ldap_cache=appconf.use_ldap_cache,
+                           use_ldap_cache=settings.data.use_ldap_cache,
                            )
 
 
@@ -100,10 +100,15 @@ def install():
 
     if server_id:
         cache_servers = []
-        servers = [ Server.query.get(int(server_id)) ]
+        servers = [ ConfigParam.get_by_id(int(server_id)) ]
     else:
-        cache_servers = get_cache_servers()
-        servers = Server.query.all()
+        cache_servers = ConfigParam.get_all('cacheserver')
+        servers = ConfigParam.get_servers()
+
+
+    print("servers", servers)
+    print("cache_servers", cache_servers)
+
 
     if not servers:
         return redirect(url_for('cache_mgr.index'))
@@ -139,7 +144,9 @@ def add_cache_server():
     form = cacheServerForm()
 
     if cid:
-        cacheserver = CacheServer.query.get(cid)
+        cacheserver = ConfigParam.get_by_id(cid)
+        for k in cacheserver.data.keys():
+            setattr(cacheserver, k, getattr(cacheserver.data, k))
         form = cacheServerForm(obj=cacheserver)
         if not cacheserver:
             return "<h2>No such Cache Server</h2>"
@@ -149,25 +156,22 @@ def add_cache_server():
             form.stunnel_port.data = 16379
 
     if request.method == "POST" and form.validate_on_submit():
-        hostname = form.hostname.data
+        hostname = form.data.hostname.data
         ip = form.ip.data
         install_redis = form.install_redis.data
         redis_password = form.redis_password.data
         stunnel_port = form.stunnel_port.data
 
         if not cid:
-            cacheserver = CacheServer()
-            if not CacheServer.query.first():
-                cacheserver.id = 100000
-            db.session.add(cacheserver)
+            cacheserver = ConfigParam.new('cacheserver')
 
-        cacheserver.hostname = hostname
-        cacheserver.ip = ip
-        cacheserver.install_redis = install_redis
-        cacheserver.redis_password = redis_password
-        cacheserver.stunnel_port = stunnel_port
+        cacheserver.data.hostname = hostname
+        cacheserver.data.ip = ip
+        cacheserver.data.install_redis = install_redis
+        cacheserver.data.redis_password = redis_password
+        cacheserver.data.stunnel_port = stunnel_port
 
-        db.session.commit()
+        cacheserver.save()
         if cid:
             flash("Cache server was added","success")
         else:
@@ -182,20 +186,20 @@ def add_cache_server():
 def get_status():
 
     status={'redis':{}, 'stunnel':{}}
-    servers = Server.query.all()
+    servers = ConfigParam.get_servers()
     
     check_cmd = 'python -c "import socket;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);print s.connect_ex((\'{0}\', {1}))"'
     
-    cache_servers = get_cache_servers()
+    cache_servers = ConfigParam.get_all('cacheserver')
     
 
-    stunnel_port = cache_servers[0].stunnel_port if cache_servers else None
+    stunnel_port = cache_servers[0].data.stunnel_port if cache_servers else None
         
     
     for server in servers + cache_servers:
-        key = server.ip.replace('.','_')
+        key = server.data.ip.replace('.','_')
 
-        c = RemoteClient(host=server.hostname, ip=server.ip)
+        c = RemoteClient(host=server.data.hostname, ip=server.data.ip)
         try:
             c.startup()
         except:
@@ -215,7 +219,7 @@ def get_status():
                     status['redis'][key]=False
 
                 if stunnel_port:
-                    r = c.run(check_cmd.format(server.ip, stunnel_port))
+                    r = c.run(check_cmd.format(server.data.ip, stunnel_port))
                     stat = r[1].strip()
 
                 if stat == '0':

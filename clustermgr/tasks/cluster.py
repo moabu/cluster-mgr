@@ -132,12 +132,12 @@ def get_csync2_config(exclude=None):
 
     csync2_config = ['group gluucluster','{']
 
-    all_servers = Server.query.all()
+    all_servers = ConfigParam.get_servers()
 
     cysnc_hosts = []
     for server in all_servers:
-        if not server.hostname == exclude:
-            cysnc_hosts.append(('csync{}.gluu'.format(server.id), server.ip))
+        if not server.data.hostname == exclude:
+            cysnc_hosts.append(('csync{}.gluu'.format(server.id), server.data.ip))
 
     for srv in cysnc_hosts:
         csync2_config.append('  host {};'.format(srv[0]))
@@ -201,19 +201,17 @@ def setup_filesystem_replication(self):
         setup_filesystem_replication_do(task_id)
     except:
         raise Exception(traceback.format_exc())
-        
 
 
 def setup_filesystem_replication_do(task_id):
     """Deploys File System replicaton
     """
 
-    servers = Server.query.all()
-    app_conf = AppConfiguration.query.first()
-
+    servers = ConfigParam.get_servers()
+    settings = ConfigParam.get('settings')
     cysnc_hosts = []
     for server in servers:
-        cysnc_hosts.append(('csync{}.gluu'.format(server.id), server.ip))
+        cysnc_hosts.append(('csync{}.gluu'.format(server.id), server.data.ip))
 
     server_counter = 0
 
@@ -225,16 +223,15 @@ def setup_filesystem_replication_do(task_id):
         
         installer =  Installer(
                                 server,
-                                app_conf.gluu_version,
                                 logger_task_id=task_id,
-                                server_os=server.os
+                                server_os=server.data.os
                             )
         
         modify_hosts(installer, cysnc_hosts)
 
         if not installer.conn.exists(os.path.join(installer.container, 'usr/sbin/csync2')): 
 
-            if app_conf.offline:
+            if settings.data.offline:
                 wlogger.log(
                         task_id, 
                         'csync2 was not installed. Please install csync2 and retry.', 
@@ -270,7 +267,7 @@ def setup_filesystem_replication_do(task_id):
 
                 installer.run('curl http://mirror.centos.org/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7 >/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7', inside=True, error_exception= '__ALL__')
 
-                csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.{}.x86_64.rpm'.format(server.os.replace(' ', '').lower())
+                csync_rpm = 'https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.{}.x86_64.rpm'.format(server.data.os.replace(' ', '').lower())
                 
                 installer.install(csync_rpm, inside=True, error_exception= '__ALL__')
 
@@ -280,7 +277,7 @@ def setup_filesystem_replication_do(task_id):
         installer.run('rm -f /var/lib/csync2/*.db3')
         installer.run('rm -f /etc/csync2*')
 
-        if server.primary_server:
+        if server.data.primary:
 
             primary_installer = installer
 
@@ -387,7 +384,7 @@ def setup_filesystem_replication_do(task_id):
             installer.restart_service('cron')
             installer.restart_service('openbsd-inetd')
 
-        if server.os == 'Ubuntu 16':
+        if server.data.os == 'Ubuntu 16':
             pids = installer.run('pidof inetd')
             if pids[1].strip():
                 cmd = 'kill -9 {0}'.format( pids[1].strip())
@@ -395,27 +392,27 @@ def setup_filesystem_replication_do(task_id):
 
     return True
 
-def remove_filesystem_replication_do(server, app_config, task_id):
+def remove_filesystem_replication_do(server, task_id):
 
-        installer = Installer(server, app_config.gluu_version, logger_task_id=task_id)
+        installer = Installer(server, logger_task_id=task_id)
         if not installer.conn:
             return False
         
         csync_enabled = False
         
-        if installer.conn.exists('/etc/cron.d/csync2'):
+        if installer.conn.exists('/opt/gluu-server/etc/cron.d/csync2'):
             installer.run('rm /etc/cron.d/csync2')
             csync_enabled = True
         
-        if installer.conn.exists('/var/lib/csync2/'):
+        if installer.conn.exists('/opt/gluu-server/var/lib/csync2/'):
             installer.run('rm /var/lib/csync2/*.*')
             
-        if installer.conn.exists('/etc/csync2.cfg'):
+        if installer.conn.exists('/opt/gluu-server/etc/csync2.cfg'):
             installer.run('rm -f /etc/csync2.cfg')
 
         if csync_enabled:
-            if 'CentOS' in server.os or 'RHEL' in server.os :
-                if installer.conn.exists('/etc/xinetd.d/csync2'):
+            if 'CentOS' in server.data.os or 'RHEL' in server.data.os :
+                if installer.conn.exists('/opt/gluu-server/etc/xinetd.d/csync2'):
                     installer.run('rm /etc/xinetd.d/csync2')
                 services = ['xinetd', 'crond']
                 
@@ -433,11 +430,10 @@ def remove_filesystem_replication_do(server, app_config, task_id):
 def remove_filesystem_replication(self):
     task_id = self.request.id
     
-    app_config = AppConfiguration.query.first()
-    servers = Server.query.all()
+    servers = ConfigParam.get_servers()
     
     for server in servers:
-        r = remove_filesystem_replication_do(server, app_config, task_id)
+        r = remove_filesystem_replication_do(server, task_id)
         if not r:
             return r
 
@@ -446,17 +442,12 @@ def modify_hosts(installer, hosts, inside=True, server_host=None):
     wlogger.log(installer.logger_task_id, "Modifying /etc/hosts", server_id=installer.server_id)
     chroot = installer.container if inside else '/'
     hosts_file = os.path.join(chroot,'etc/hosts')
-    
     old_hosts = installer.get_file(hosts_file)
-    
-    print("OLD hosts", old_hosts)
-    
+
     if old_hosts:
         new_hosts = modify_etc_hosts(hosts, old_hosts)
         installer.put_file(hosts_file, new_hosts)
         wlogger.log(installer.logger_task_id, "{} was modified".format(hosts_file), 'success', server_id=installer.server_id)
-
-
 
 
 def do_disable_replication(task_id, server, primary_server, app_conf):
@@ -486,8 +477,8 @@ def do_disable_replication(task_id, server, primary_server, app_conf):
 
     installer.run(cmd, error_exception='no base DNs replicated')
 
-    server.mmr = False
-    db.session.commit()
+    server.data.mmr = False
+    server.save()
 
     configure_OxIDPAuthentication(task_id, exclude=server.id, installers={installer.hostname:installer})
 
@@ -523,7 +514,7 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
 
     removed_server_hostname = server.hostname
 
-    remove_filesystem_replication_do(server, app_conf, task_id)
+    remove_filesystem_replication_do(server, task_id)
 
     nginx_installer = None
 
@@ -554,7 +545,7 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
             return False
 
     if remove_server:
-        db.session.delete(server)
+        server.delete()
 
 
     for server in Server.query.all():

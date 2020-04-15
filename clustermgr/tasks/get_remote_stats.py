@@ -81,10 +81,11 @@ def get_remote_data(host, measurement, c):
     print("Monitoring: last update time {} for measuremenet {} for host {}".format(start, measurement, host))
     
     #Execute remote script and fetch standard output
-    cmd = 'python /var/monitoring/scripts/get_data.py stats {} {}'.format(
+    cmd = 'python3 /var/monitoring/scripts/get_data.py stats {} {}'.format(
                                 measurement,
                                 start
                                 )
+
     s_in, s_out, s_err = c.run(cmd)
 
     #If nothing bad on the remote server, data on the standard output shoul be
@@ -130,18 +131,16 @@ def get_age(host, c):
     
 @celery.task
 def get_remote_stats():
-    app_conf = AppConfiguration.query.first()
-    if app_conf:
-        if app_conf.monitoring:
-        
-            servers = Server.query.all()
-            for server in servers:
-                print("Monitoring: getting data for server {}".format(server.hostname))
-                c = RemoteClient(server.hostname, ip=server.ip)
-                try:
-                    c.startup()
-                    for t in sqlite_monitoring_tables.monitoring_tables:
-                        get_remote_data(server.hostname, t, c)
-                        get_age(server.hostname, c)
-                except Exception as e:
-                    print("Monitoring: An error occurred while retreiveing monitoring data from server {}. Error {}".format(server.hostname, e))
+    monitoring_settings = ConfigParam.get('monitoring')
+    if monitoring_settings and monitoring_settings.data.monitoring:
+        servers = ConfigParam.get_servers()
+        for server in servers:
+            print("Monitoring: getting data for server {}".format(server.data.hostname))
+            c = RemoteClient(server.data.hostname, ip=server.data.ip)
+            try:
+                c.startup()
+                for t in sqlite_monitoring_tables.monitoring_tables:
+                    get_remote_data(server.data.hostname, t, c)
+                    get_age(server.data.hostname, c)
+            except Exception as e:
+                print("Monitoring: An error occurred while retreiveing monitoring data from server {}. Error {}".format(server.data.hostname, e))

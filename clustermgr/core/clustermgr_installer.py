@@ -269,7 +269,7 @@ class Installer:
             self.run('update-rc.d {0} {1}'.format(service, change),inside=inside, error_exception='warning:')
         else:
             error_exception = 'Created symlink from' if change=='enable' else 'Removed symlink'
-            self.run(self.service_script.format(service, change), inside=inside, error_exception='Created symlink from')
+            self.run(self.service_script.format(service, change), inside=inside, error_exception=error_exception)
 
     def stop_service(self, service, inside=True):
         cmd = self.service_script.format(service, 'stop')

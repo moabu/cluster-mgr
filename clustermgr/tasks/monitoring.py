@@ -9,8 +9,6 @@ from clustermgr.core.ldap_functions import DBManager
 from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.core.remote import FakeRemote
 
-
-
 from flask import current_app as app
 
 from influxdb import InfluxDBClient
@@ -54,17 +52,16 @@ def install_local(self):
         successfully
     """
     
-    app_conf = AppConfiguration.query.first()
-    
     task_id = self.request.id
-    servers = Server.query.all()
-    
+    settings = ConfigParam.get('settings')
+    servers = ConfigParam.get_servers()
+    monitoring_settings = ConfigParam.get('monitoring')
+
     #create fake remote class that provides the same interface with RemoteClient
     fc = FakeRemote()
     
     installer = Installer(
                 conn=fc,
-                gluu_version=None,
                 server_id=0,
                 logger_task_id=task_id,
                 )
@@ -76,7 +73,7 @@ def install_local(self):
 
     if not localos == 'Alpine':
     
-        if app_conf.offline:
+        if settings.data.offline:
 
             if not os.path.exists('/usr/bin/influxd'):
                 wlogger.log(task_id, 
@@ -92,24 +89,24 @@ def install_local(self):
                     'curl -sL https://repos.influxdata.com/influxdb.key | '
                     'sudo apt-key add -'
                     ]
-                    
-                if '14' in localos:
-                    influx_cmd.append(
-                    'echo "deb https://repos.influxdata.com/ubuntu '
-                    'trusty stable" | sudo tee '
-                    '/etc/apt/sources.list.d/influxdb.list')
-                elif '16' in localos:
-                    influx_cmd.append(
-                    'echo "deb https://repos.influxdata.com/ubuntu '
-                    'xenial stable" | sudo tee '
-                    '/etc/apt/sources.list.d/influxdb.list')
-                
+
+                if '16' in localos:
+                    os_name = 'xenial'
+                elif '18' in localos:
+                    os_name = 'bionic'
+
+                influx_cmd.append(
+                    ('echo "deb https://repos.influxdata.com/ubuntu '
+                    '{} stable" | sudo tee '
+                    '/etc/apt/sources.list.d/influxdb.list').format(os_name)
+                    )
+
                 influx_cmd += [
                     'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
                     'DEBIAN_FRONTEND=noninteractive sudo apt-get install influxdb',
                     'sudo service influxdb start',
-                    'sudo pip install influxdb',
-                    'sudo pip install psutil',
+                    'sudo pip3 install influxdb',
+                    'sudo pip3 install psutil',
                     ]
             
             elif 'Debian' in localos:
@@ -118,25 +115,25 @@ def install_local(self):
                     'DEBIAN_FRONTEND=noninteractive sudo apt-get install -y curl',
                     'curl -sL https://repos.influxdata.com/influxdb.key | '
                     'sudo apt-key add -']
-                    
-                if '7' in localos:
-                    influx_cmd.append(
-                    'echo "deb https://repos.influxdata.com/'
-                    'debian wheezy stable" | sudo tee /etc/apt/sources.list.d/'
-                    'influxdb.list')
-                elif '8' in localos:
-                    influx_cmd.append(
-                    'echo "deb https://repos.influxdata.com/'
-                    'debian jessie stable" | sudo tee /etc/apt/sources.list.d/'
-                    'influxdb.list')
-                
+
+                if '8' in localos:
+                    os_name = 'jessie'
+                elif '9' in localos:
+                    os_name = 'stretch'
+                   
+                influx_cmd.append(
+                    ('echo "deb https://repos.influxdata.com/'
+                    'debian {} stable" | sudo tee /etc/apt/sources.list.d/'
+                    'influxdb.list').format(os_name)
+                    )
+
                 influx_cmd += [
                     'sudo apt-get update',
                     'sudo apt-get -y remove influxdb',
                     'DEBIAN_FRONTEND=noninteractive sudo apt-get -y install influxdb',
                     'sudo service influxdb start',
-                    'sudo pip install influxdb',
-                    'sudo pip install psutil',
+                    'sudo pip3 install influxdb',
+                    'sudo pip3 install psutil',
                     ]
 
             elif localos in ('CentOS 7', 'RHEL 7'):
@@ -155,7 +152,7 @@ def install_local(self):
                                 'sudo yum remove -y influxdb',
                                 'sudo yum install -y influxdb',
                                 'sudo service influxdb start',
-                                'sudo pip install psutil',
+                                'sudo pip3 install psutil',
                             ]
 
             #run commands to install influxdb on local machine
@@ -187,9 +184,10 @@ def install_local(self):
                             "fail", server_id=0)
 
     #Flag database that configuration is done for local machine
-    app_conf = AppConfiguration.query.first()
-    app_conf.monitoring = True
-    db.session.commit()
+    if not monitoring_settings:
+        monitoring_settings = ConfigParam.new('monitoring')
+    monitoring_settings.data.monitoring = True
+    monitoring_settings.save()
 
     return True
 
@@ -206,16 +204,17 @@ def install_monitoring(self):
     
     task_id = self.request.id
     installed = 0
-    servers = Server.query.all()
-    app_conf = AppConfiguration.query.first()
     
+    settings = ConfigParam.get('settings')
+    servers = ConfigParam.get_servers()
+    monitoring_settings = ConfigParam.get('monitoring')
+
     for server in servers:
         # 1. Installer
         installer = Installer(
                 server, 
-                app_conf.gluu_version, 
                 logger_task_id=task_id, 
-                server_os=server.os
+                server_os=server.data.os
                 )
 
         # 2. create monitoring directory
@@ -240,7 +239,7 @@ def install_monitoring(self):
                 
         # 4. Upload crontab entry to collect data in every 5 minutes
         crontab_entry = (
-                        '*/5 * * * *    root    python '
+                        '*/5 * * * *    root    python3 '
                         '/var/monitoring/scripts/cron_data_sqtile.py\n'
                         )
                         
@@ -248,7 +247,7 @@ def install_monitoring(self):
             return False
 
 
-        if app_conf.offline:
+        if settings.data.offline:
             # check if psutil and ldap3 was installed on remote server
             for py_mod in ('psutil', 'ldap3', 'pyDes'):
                 result = installer.run("python -c 'import {0}'".format(py_mod), inside=False)
@@ -266,17 +265,17 @@ def install_monitoring(self):
 
             # 5. Installing packages. 
             # 5a. First determine commands for each OS type
-            packages = ['gcc', 'python-dev', 'python-pip']
+            packages = ['gcc', 'python3-dev', 'python3-pip']
 
             for package in packages:
                 installer.install(package, inside=False, error_exception='warning:')
 
             # 5b. These commands are common for all OS types 
             commands = [
-                            'pip install ldap3', 
-                            'pip install psutil',
-                            'pip install pyDes',
-                            'python /var/monitoring/scripts/'
+                            'pip3 install ldap3', 
+                            'pip3 install psutil',
+                            'pip3 install pyDes',
+                            'python3 /var/monitoring/scripts/'
                             'sqlite_monitoring_tables.py'
                             ]
 
@@ -288,14 +287,13 @@ def install_monitoring(self):
             # 5c. Executing commands
             wlogger.log(task_id, "Installing Packages and Running Commands", 
                                 "info", server_id=server.id)
-            
+
             for cmd in commands:
-                
                 result = installer.run(cmd, inside=False, error_exception='__ALL__')
             
-        server.monitoring = True
+        server.data.monitoring = True
+        server.save()
 
-    db.session.commit()
     return True
 
 @celery.task(bind=True)
@@ -309,15 +307,14 @@ def remove_monitoring(self):
     """
     task_id = self.request.id
     installed = 0
-    servers = Server.query.all()
-    app_conf = AppConfiguration.query.first()
+    servers = ConfigParam.get_servers()
+
     for server in servers:
         # 1. Installer
         installer = Installer(
                 server, 
-                app_conf.gluu_version, 
                 logger_task_id=task_id, 
-                server_os=server.os
+                server_os=server.data.os
                 )
         
         # 2. remove monitoring directory
@@ -332,7 +329,8 @@ def remove_monitoring(self):
         else:
             installer.restart_service('cron', inside=False)
 
-        server.monitoring = False
+        server.data.monitoring = False
+        server.save()
 
     # 5. Remove local settings
     
@@ -341,7 +339,6 @@ def remove_monitoring(self):
 
     installer = Installer(
             conn=fc,
-            gluu_version=None,
             server_id=9999,
             logger_task_id=task_id,
             )
@@ -349,7 +346,9 @@ def remove_monitoring(self):
     installer.remove('influxdb', inside=False)
 
     #Flag database that configuration is done for local machine
-    app_conf.monitoring = False
-    db.session.commit()
+    monitoring_settings = ConfigParam.get('monitoring')
+    if monitoring_settings:
+        monitoring_settings.data.monitoring = False
+        monitoring_settings.save()
 
     return True

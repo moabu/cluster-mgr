@@ -1,5 +1,4 @@
 {% from 'macros.html' import render_field, render_checkbox_field, render_form %}
-{{is_primary_deployed}}
             {{ cform.csrf_token }}
             <div class="form-group {{ 'has-error' if cform.gluu_version.errors else '' }}">
                 {{ cform.gluu_version.label(class="control-label col-md-4") }}
@@ -36,11 +35,11 @@
             <center>To enable offline installation please put gluu <b>.deb</b> or <b>.rpm</b> archives to <code>{{repo_dir}}</code> </center>            
             {% endif %}
 
-            <div class="form-group {{ 'has-error' if cform.ldap_update_period.errors else '' }}">
-                {{ cform.ldap_update_period.label(class="control-label col-md-6") }}
+            <div class="form-group {{ 'has-error' if cform.service_update_period.errors else '' }}">
+                {{ cform.service_update_period.label(class="control-label col-md-6") }}
                 <div class="col-md-6">
-                    {{ cform.ldap_update_period(class="form-control") }}
-                    {% for error in cform.ldap_update_period.errors %}
+                    {{ cform.service_update_period(class="form-control") }}
+                    {% for error in cform.service_update_period.errors %}
                         <p class="help-block">{{ error }}</p>
                     {% endfor %}
                 </div>

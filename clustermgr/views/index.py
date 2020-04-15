@@ -111,8 +111,6 @@ def home():
     service_update_period = 300
     if settings:
         service_update_period = settings.data.get('service_update_period', 300)
-        if settings.data.service_update_period != 's':
-            service_update_period = service_update_period * 60
 
     server_id_list = [str(server.id) for server in servers]
 

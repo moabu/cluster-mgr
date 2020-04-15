@@ -245,6 +245,12 @@ class Data:
             return getattr(self, key)
         return default
 
+    def __getattribute__(self, attr):
+        try:
+            return object.__getattribute__(self, attr)
+        except AttributeError:
+            return None
+
 class ConfigParam(db.Model):
     __tablename__ = "config_param"
     id = db.Column(db.Integer, primary_key=True)
@@ -261,7 +267,7 @@ class ConfigParam(db.Model):
             for k in tmp :
                 data_dict[k] = tmp[k]
 
-        self.value = json.dumps(data_dict)
+        self.value = json.dumps(data_dict, indent=2)
 
         if not self.id:
             db.session.add(self)

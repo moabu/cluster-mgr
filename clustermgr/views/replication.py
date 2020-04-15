@@ -182,20 +182,20 @@ def opendj_enable_replication(server_id):
 
 
 
-def chekFSR(server, gluu_version):
-    c = RemoteClient(server.hostname, ip=server.ip)
+def chekFSR(server):
+    c = RemoteClient(server.data.hostname, ip=server.data.ip)
     try:
         c.startup()
     except Exception as e:
-        flash("Can't establish SSH connection to {}".format(server.hostname),
+        flash("Can't establish SSH connection to {}".format(server.data.hostname),
               "warning")
         return False, []
-    
-    csync_config = '/opt/gluu-server-{}/etc/csync2.cfg'.format(gluu_version)
+
+    csync_config = '/opt/gluu-server/etc/csync2.cfg'
     result = c.get_file(csync_config)
     
     if result[0]:
-        
+
         servers = []
 
         for l in result[1].readlines():
@@ -203,7 +203,7 @@ def chekFSR(server, gluu_version):
             if ls.startswith('host') and ls.endswith(';'):
                 hostname = ls.split()[1][:-1]
                 servers.append(hostname)
-        
+
         if servers:
             return True, servers
 
@@ -215,14 +215,13 @@ def chekFSR(server, gluu_version):
 def file_system_replication():
     """File System Replication view"""
 
-    app_config = AppConfiguration.query.first()
-    servers = Server.query.all()
+    servers = ConfigParam.get_servers()
 
     csync = 0
 
     if request.method == 'GET':
         if not request.args.get('install') == 'yes':
-            status = chekFSR(servers[0], app_config.gluu_version)
+            status = chekFSR(servers[0])
             
             for server in servers:
                 if 'csync{}.gluu'.format(server.id) in status[1]:
@@ -240,7 +239,7 @@ def file_system_replication():
         return redirect(url_for('index.home'))
 
     for server in servers:
-        if not server.gluu_server:
+        if not server.data.gluu_server:
             flash("Please install gluu servers", "warning")
             return redirect(url_for('index.home'))
 
@@ -283,7 +282,7 @@ def file_system_replication():
 @login_required
 @replication.route('/removefsrep')
 def remove_file_system_replication():
-    servers = Server.query.all()
+    servers = ConfigParam.get_servers()
     task = remove_filesystem_replication.delay()
 
     title = "Uninstalling File System Replication"
@@ -309,7 +308,7 @@ def mmr_settings():
         ldap_replication = ConfigParam.new('ldap_replication')
 
     if replication_pw:
-        ldap_replication.data.password = ldap_replication
+        ldap_replication.data.password = replication_pw
         
     ldap_replication.data.use_ip = use_ip
     ldap_replication.save()
