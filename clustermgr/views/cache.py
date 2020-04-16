@@ -156,7 +156,7 @@ def add_cache_server():
             form.stunnel_port.data = 16379
 
     if request.method == "POST" and form.validate_on_submit():
-        hostname = form.data.hostname.data
+        hostname = form.hostname.data
         ip = form.ip.data
         install_redis = form.install_redis.data
         redis_password = form.redis_password.data

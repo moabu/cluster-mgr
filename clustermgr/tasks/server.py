@@ -826,8 +826,6 @@ def install_gluu_server(task_id, server_id):
     else:
         installer.restart_service('cron')
 
-
-    
     wlogger.log(task_id, "5", "setstep")
     return True
 
