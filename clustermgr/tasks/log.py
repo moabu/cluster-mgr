@@ -87,17 +87,16 @@ def collect_logs(self, server_id, path, influx_fmt=True):
     :params influx_fmt: Whether to use influxdb format or not.
     :returns: A boolean whether logs are saved successfully to database or not.
     """
+
     task_id = self.request.id
-    app_conf = AppConfiguration.query.first()
     dbname = current_app.config["INFLUXDB_LOGGING_DB"]
     logs = []
-    server = Server.query.get(server_id)
+    server = ConfigParam.get_by_id(server_id)
 
     installer = Installer(
         server,
-        app_conf.gluu_version,
         logger_task_id=task_id,
-        server_os=server.os,
+        server_os=server.data.os,
         server_id=server_id,
     )
 
@@ -106,11 +105,11 @@ def collect_logs(self, server_id, path, influx_fmt=True):
         if not stderr:
             logs = list(filter(
                 None,
-                [parse_log(log, hostname=server.hostname) for log in stdout.splitlines()],
+                [parse_log(log, hostname=server.data.hostname) for log in stdout.splitlines()],
             ))
         else:
             task_logger.warn("Unable to collect logs from remote server {}/{}; "
-                             "reason={}".format(server.hostname, server.ip, stderr))
+                             "reason={}".format(server.data.hostname, server.data.ip, stderr))
     except Exception as exc:
         task_logger.warn("Unable to collect logs from remote server; "
                          "reason={}".format(exc))
@@ -154,6 +153,7 @@ def _render_filebeat_config(installer):
     """Renders filebeat config and upload to a server.
     """
     # render filebeat.yml and upload to server
+    settings = ConfigParam.get('settings')
 
     with current_app.app_context():
         ctx = {
@@ -161,7 +161,7 @@ def _render_filebeat_config(installer):
             "os": installer.server_os,
             "chroot": "true" if installer.is_gluu_installed() else "",
             "chroot_path": installer.container,
-            "gluu_version": installer.gluu_version,
+            "gluu_version": settings.data.gluu_version,
         }
 
         src = "filebeat.yml"
@@ -178,23 +178,20 @@ def setup_filebeat(self, force_install=False):
     """Setup filebeat to collect logs.
     """
     task_id = self.request.id
-    servers = Server.query.all()
-    app_conf = AppConfiguration.query.first()
-
-    print("TASK", task_id)
+    servers = ConfigParam.get_servers()
+    settings = ConfigParam.get('settings')
 
     for server in servers:
 
         installer = Installer(
             server,
-            app_conf.gluu_version,
             logger_task_id=task_id,
-            server_os=server.os
+            server_os=server.data.os
             )
 
         fb_installed = installer.conn.exists('/usr/bin/filebeat')
 
-        if app_conf.offline:
+        if settings.data.offline:
             if not fb_installed:
                 wlogger.log(
                         task_id,
@@ -216,10 +213,16 @@ def setup_filebeat(self, force_install=False):
         installer.restart_service('filebeat', inside=False)
 
         # update the model
-        server.filebeat = True
-        db.session.add(server)
-        db.session.commit()
+        server.data.filebeat = True
+        server.save()
 
+    logging_config = ConfigParam.get('logging')
+
+    if not logging_config:
+        logging_config = ConfigParam.new('logging')
+
+    logging_config.data.installed = True
+    logging_config.save()
 
 # @celery.task(bind=True)
 def setup_influxdb(self):
@@ -246,16 +249,13 @@ def remove_filebeat(self):
     """Removes filebeat.
     """
     task_id = self.request.id
-    app_conf = AppConfiguration.query.first()
-
-    servers = Server.query.all()
+    servers = ConfigParam.get_servers()
 
     for server in servers:
         installer = Installer(
             server,
-            app_conf.gluu_version,
             logger_task_id=task_id,
-            server_os=server.os
+            server_os=server.data.os
             )
 
         installer.remove('filebeat', inside=False)
@@ -264,8 +264,14 @@ def remove_filebeat(self):
         installer.run("rm -f /tmp/gluu-filebeat*", inside=False)
 
         # update the model
-        server.filebeat = False
-        db.session.add(server)
-        db.session.commit()
+        server.data.filebeat = False
+        server.save()
+
+
+    logging_config = ConfigParam.get('logging')
+
+    if logging_config:
+        logging_config.data.installed = False
+        logging_config.save()
 
     return True

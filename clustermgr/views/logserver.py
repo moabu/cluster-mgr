@@ -85,10 +85,15 @@ def index():
     logs = []
     page = request.values.get("page", 1)
 
+    logging_config = ConfigParam.get('logging')
+
+    if not logging_config or (not logging_config.data.installed):
+        return redirect(url_for('log_mgr.setup'))
+
     # populate host drop-down
     servers = [("", "")]
-    for server in Server.query:
-        servers.append((server.ip, "{}/{}".format(server.hostname, server.ip)))
+    for server in ConfigParam.get_servers():
+        servers.append((server.data.ip, "{}/{}".format(server.data.hostname, server.data.ip)))
 
     form = LogSearchForm()
     form.host.choices = servers
@@ -114,32 +119,40 @@ def index():
 @log_mgr.route("/setup/")
 @login_required
 def setup():
-    servers = Server.query.all()
-    app_conf = AppConfiguration.query.first()
     
-    if not app_conf.monitoring:
+    settings = ConfigParam.get('settings')
+    
+    if not settings:
+        flash("The application needs to be configured first. Kindly set the "
+              "values before attempting clustering.", "warning")
+        return redirect(url_for("server.settings", next=url_for('log_mgr.setup')))
+
+    servers = ConfigParam.get_servers()
+    monitoring = ConfigParam.get('monitoring')
+
+    if not monitoring or (not monitoring.data.monitoring):
         return render_template("log_setup_error.html")
+
+    logging_config = ConfigParam.get('logging')
     
-    
-    if app_conf:
-        offline = app_conf.offline
-    else:
-        offline = False
-    return render_template("log_setup.html", servers=servers, offline=offline)
+    installed = True if (logging_config and logging_config.data.installed) else False
+        
+
+    return render_template(
+                    "log_setup.html", 
+                    servers=servers, 
+                    offline=settings.data.offline,
+                    installed=installed
+                    )
 
 
 @log_mgr.route("/setup/install_filebeat/")
 @login_required
 def install_filebeat():
-    # checks for existing app config
-    if not AppConfiguration.query.count():
-        flash("The application needs to be configured first. Kindly set the "
-              "values before attempting clustering.", "warning")
-        return redirect(url_for("index.app_configuration"))
+    settings = ConfigParam.get('settings')
+    servers = ConfigParam.get_servers()
 
     # checks for existing servers
-    servers = Server.query.all()
-
     if not servers:
         flash("Add servers to the cluster before attempting to manage logs",
               "warning")
@@ -162,14 +175,9 @@ def install_filebeat():
 @log_mgr.route("/logs/collect/")
 @login_required
 def collect():
-    # checks for existing app config
-    if not AppConfiguration.query.count():
-        flash("The application needs to be configured first. Kindly set the "
-              "values before attempting clustering.", "warning")
-        return redirect(url_for("index.app_configuration"))
 
     # checks for existing servers
-    servers = Server.query.all()
+    servers = ConfigParam.get_servers()
 
     if not servers:
         flash("Add servers to the cluster before attempting to manage logs",
@@ -191,7 +199,7 @@ def collect():
 @log_mgr.route("/setup/uninstall_filebeat")
 @login_required
 def uninstall_filebeat():
-    servers = Server.query.all()
+    servers = ConfigParam.get_servers()
     task = remove_filebeat.delay()
 
     title = 'Uninstall Filebeat'

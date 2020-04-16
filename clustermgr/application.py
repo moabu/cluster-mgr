@@ -163,7 +163,7 @@ def create_app():
         use_ldap_cache = False
 
         if settings and settings.data.get('use_ldap_cache'):
-            use_ldap_cache = appconfig.data.use_ldap_cache
+            use_ldap_cache = settings.data.use_ldap_cache
 
         app.jinja_env.globals['use_ldap_cache'] = use_ldap_cache
 

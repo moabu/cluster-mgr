@@ -655,6 +655,8 @@ def install_gluu_server(server_id):
 @server_view.route('/settings', methods=['GET','POST'])
 @login_required
 def settings():
+
+    outside = request.args.get('outside')
     cform = GluuVersionForm()
     next_url = request.args.get('next')
     cform.gluu_archive.choices = [ (f,os.path.split(f)[1]) for f in glob.glob(os.path.join(Config.GLUU_REPO,'gluu-server*')) ]
@@ -702,7 +704,7 @@ def settings():
 
         return redirect(url_for('index.home'))
 
-    template = 'settingsc.html' if next_url else 'settings.html'
+    template = 'settingsc.html' if (next_url or outside) else 'settings.html'
 
     return render_template(template,
                             cform=cform,
