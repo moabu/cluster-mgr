@@ -206,7 +206,6 @@ def get_setup_properties(createNew=False):
         'countryCode': '',
         'city': '',
         'state': '',
-        'jksPass': '',
         'admin_email': '',
         'ip': '',
         'installOxAuth':True,
