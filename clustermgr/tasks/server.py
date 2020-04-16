@@ -638,7 +638,7 @@ def install_gluu_server(task_id, server_id):
             result = primary_server_installer.conn.get_file(remote_file)
             prop_io = result[1]
         else:
-            cmd_unenc = 'openssl enc -d -aes-256-cbc -in /install/community-edition-setup/setup.properties.last.enc -k {}'.format(server.ldap_password)
+            cmd_unenc = 'openssl enc -d -aes-256-cbc -in /install/community-edition-setup/setup.properties.last.enc -k {}'.format(server.data.ldap_password)
             result = primary_server_installer.run(cmd_unenc, inside=True)
             prop_io = io.StringIO(result[1])
             prop_io.seek(0)
