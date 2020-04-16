@@ -47,15 +47,13 @@
                     </td>
                     <td><center> <span class="badge" id="ldapstat{{server.id}}"></span> </center></td>
                     <td>
-                    {% if stat %}
-                        {% if not server.data.primary %}
-                            <a class="btn btn-primary btn-xs" href="{{ url_for('replication.opendj_enable_replication', server_id=server.id) }}">
-                                {% if server.data.mmr %}Re-Enable Replication{%else%}Enable Replication{%endif%}</a>
-                            {% if server.data.mmr %}
-                            <a class="btn btn-primary btn-xs" href="{{ url_for('replication.opendj_disable_replication', server_id=server.id) }}">Disable Replication</a>
-                            {% endif %}
+                      {% if not server.data.primary %}
+                        <a class="btn btn-primary btn-xs" href="{{ url_for('replication.opendj_enable_replication', server_id=server.id) }}">
+                            {% if server.data.mmr %}Re-Enable Replication{%else%}Enable Replication{%endif%}</a>
+                        {% if server.data.mmr %}
+                        <a class="btn btn-primary btn-xs" href="{{ url_for('replication.opendj_disable_replication', server_id=server.id) }}">Disable Replication</a>
                         {% endif %}
-                    {% endif %}
+                      {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -149,6 +147,7 @@
 {% block js %}
 
 <script>
+
 function showLdapStat() {
 
 {% for server in servers %}
@@ -159,15 +158,13 @@ function showLdapStat() {
             $("#ldapstat{{server.id}}").removeClass("bg-red");
             $("#ldapstat{{server.id}}").text("Live");
         } else {
-            
             $("#ldapstat{{server.id}}").addClass("bg-red");
             $("#ldapstat{{server.id}}").removeClass("bg-green");
             $("#ldapstat{{server.id}}").text("Down");
         }
-        
-    
+
     });
-    
+
 {% endfor %}
 
 }
@@ -176,14 +173,11 @@ showLdapStat();
 
 setInterval(function() {
     showLdapStat();
-}, {% if settings.data.get('service_update_period') %}{{settings.data.service_update_period}}{%else%}5{%endif%}*60*1000);
+}, {% if settings.data.get('service_update_period') %}{{settings.data.service_update_period}}{%else%}300{%endif%}*1000);
 
 
 $("#set-password").click(function(e){
-
-
   $('#setReplicationPasswordModal').modal('show');
-
 });
 
 $("#set-password-button").click(function(e){

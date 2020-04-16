@@ -47,12 +47,13 @@ def menuIndex():
 @login_required
 @replication.route('/mmr/opendjdisablereplication/<int:server_id>/')
 def opendj_disable_replication(server_id):
-    server = Server.query.get(server_id)
+    server = ConfigParam.get_by_id(server_id)
     task = opendj_disable_replication_task.delay(
                                             server.id, 
                                         )
-    title = "Disabling LDAP Replication for {}".format(server.hostname)
-    nextpage = url_for('index.multi_master_replication')
+
+    title = "Disabling LDAP Replication for {}".format(server.data.hostname)
+    nextpage = url_for('replication.multi_master_replication')
     whatNext = "Multi Master Replication"
 
 
@@ -60,7 +61,6 @@ def opendj_disable_replication(server_id):
                            title=title, steps=[], task=task,
                            nextpage=nextpage, whatNext=whatNext
                            )
-
 
 
 @login_required
@@ -162,12 +162,11 @@ def opendj_enable_replication(server_id):
     nextpage = url_for('replication.multi_master_replication')
     whatNext = "LDAP Replication"
     if not server_id == 'all':
-        server = Server.query.get(server_id)
-        head = "Enabling Multimaster Replication on Server: " + server.hostname
+        server = ConfigParam.get_by_id(int(server_id))
+        head = "Enabling Multimaster Replication on Server: " + server.data.hostname
     else:
         head = "Enabling Multimaster Replication on all servers"
         server = ''
-
 
     ldap_replication = ConfigParam.get('ldap_replication')
     if not ldap_replication.data.get('password'):

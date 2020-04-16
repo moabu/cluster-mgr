@@ -450,29 +450,33 @@ def modify_hosts(installer, hosts, inside=True, server_host=None):
         wlogger.log(installer.logger_task_id, "{} was modified".format(hosts_file), 'success', server_id=installer.server_id)
 
 
-def do_disable_replication(task_id, server, primary_server, app_conf):
+def do_disable_replication(task_id, server, primary_server):
 
     installer = Installer(
                     server, 
-                    app_conf.gluu_version, 
                     logger_task_id=task_id, 
-                    server_os=server.os
+                    server_os=server.data.os
                     )
+    
 
     if not installer.conn:
         return False
     
     wlogger.log(task_id, 
         "Disabling replication for {0}".format(
-        server.hostname)
+        server.data.hostname)
         )
+
+    replication_config = ConfigParam.get('ldap_replication')
+
+    addr_type = 'ip' if replication_config.data.use_ip else 'hostname'
 
     cmd = ( 'OPENDJ_JAVA_HOME=/opt/jre '
             '/opt/opendj/bin/dsreplication disable --disableAll --port 4444 '
             '--hostname {} --adminUID admin --adminPassword $\'{}\' '
             '--trustAll --no-prompt').format(
-                            server.hostname,
-                            app_conf.replication_pw)
+                            getattr(server.data, addr_type),
+                            replication_config.data.password)
 
 
     installer.run(cmd, error_exception='no base DNs replicated')
@@ -487,8 +491,8 @@ def do_disable_replication(task_id, server, primary_server, app_conf):
     cmd = ( 'OPENDJ_JAVA_HOME=/opt/jre '
             '/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 4444 -I admin -w $\'{}\'').format(
-                    primary_server.hostname,
-                    app_conf.replication_pw)
+                    getattr(primary_server.data, addr_type),
+                    replication_config.data.password)
 
     installer.run(cmd)
 
@@ -496,11 +500,10 @@ def do_disable_replication(task_id, server, primary_server, app_conf):
 
 @celery.task(bind=True)
 def opendj_disable_replication_task(self, server_id):
-    server = Server.query.get(server_id)
-    primary_server = Server.query.filter_by(primary_server=True).first()
-    app_conf = AppConfiguration.query.first()
+    server = ConfigParam.get_by_id(server_id)
+    primary_server = ConfigParam.get_primary_server()
     task_id = self.request.id
-    result = do_disable_replication(task_id, server, primary_server, app_conf)
+    result = do_disable_replication(task_id, server, primary_server)
     return result
 
 @celery.task(bind=True)
@@ -540,7 +543,7 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
 
 
     if disable_replication:
-        result = do_disable_replication(task_id, server, primary_server, app_conf)
+        result = do_disable_replication(task_id, server, primary_server)
         if not result:
             return False
 
