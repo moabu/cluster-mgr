@@ -269,6 +269,10 @@ def mmr_settings():
     ldap_replication.data.use_ip = use_ip
     ldap_replication.save()
 
+    next_url = request.form.get('next')
+    if next_url:
+        return redirect(next_url)
+
     return redirect(url_for('replication.multi_master_replication')) 
 
 @replication.route('/mmr/')
@@ -289,7 +293,7 @@ def multi_master_replication():
     ldaps = ConfigParam.get_servers()
     primary_server = ConfigParam.get_primary_server()
     settings = ConfigParam.get('settings')
-
+    
     if not ldaps:
         flash("Servers has not been added. "
               "Please add servers",

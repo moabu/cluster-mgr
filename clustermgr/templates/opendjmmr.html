@@ -73,7 +73,7 @@
 
 
 
-<a class="btn pull-right btn-primary btn-xs" href="{{ url_for('replication.opendj_enable_replication', server_id='all') }}">
+<a id="depploy-all" class="btn pull-right btn-primary btn-xs" href="{{ url_for('replication.opendj_enable_replication', server_id='all') }}">
         {% if stat %}Re-Deploy All{%else%}Deploy All{%endif%}</a>
 <br>
 
@@ -96,6 +96,9 @@
 <div id="setReplicationPasswordModal" class="modal fade" role="dialog">
   <div class="modal-dialog">
   <form class="form-horizontal" id="set-replication-password-form" action="{{ url_for('replication.mmr_settings') }}" method="POST">
+    {% if not replication_pw %}
+    <input type="hidden" name="next" value="{{ url_for('replication.opendj_enable_replication', server_id='all') }}">
+    {% endif %}
     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <div class="modal-content">
       <div class="modal-header">
@@ -179,6 +182,15 @@ setInterval(function() {
 $("#set-password").click(function(e){
   $('#setReplicationPasswordModal').modal('show');
 });
+
+{% if not replication_pw %}
+
+$("#depploy-all").click(function(e){
+  $('#setReplicationPasswordModal').modal('show');
+  return false;
+});
+
+{% endif %}
 
 $("#set-password-button").click(function(e){
   e.preventDefault();
