@@ -681,9 +681,11 @@ def install_gluu_server(task_id, server_id):
     #JavaScript on logger duplicates next log if we don't add this
     time.sleep(1)
 
-    #installer.run('wget https://raw.githubusercontent.com/GluuFederation/community-edition-setup/version_4.1.0/setup.py -O /install/community-edition-setup/setup.py',
-    #                inside=True, error_exception='__ALL__')
-    #installer.run('chmod +x /install/community-edition-setup/setup.py', inside=True, error_exception='__ALL__')
+    # setup.py of 4.1.0 is buggy, we need to download from github
+    if settings.data.gluu_version == '4.1.0':
+        installer.run('wget https://raw.githubusercontent.com/GluuFederation/community-edition-setup/version_4.1.0/setup.py -O /install/community-edition-setup/setup.py',
+                        inside=True, error_exception='__ALL__')
+        installer.run('chmod +x /install/community-edition-setup/setup.py', inside=True, error_exception='__ALL__')
 
     setup_cmd = '/install/community-edition-setup/setup.py -f /root/setup.properties --listen_all_interfaces -n'
 
