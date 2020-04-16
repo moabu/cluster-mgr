@@ -992,26 +992,22 @@ def register_objectclass(self, objcls):
 def update_httpd_certs_task(self, httpd_key, httpd_crt):
     
     task_id = self.request.id
-    app_conf = AppConfiguration.query.first()
+    servers = ConfigParam.get_servers()
+    lb_config = ConfigParam.get('load_balancer')
+    lb_config.proxy = True
 
-    servers = Server.query.all()
-
-    if not app_conf.external_load_balancer:
-        mock_server = Server()
-        mock_server.hostname = app_conf.nginx_host
-        mock_server.ip = app_conf.nginx_ip
-        mock_server.proxy = True
-        mock_server.os = app_conf.nginx_os_type
-        servers.insert(0, mock_server)
+    if not lb_config.data.external:
+        servers.insert(0, lb_config)
+        
 
     for server in servers:
-        installer = Installer(server, app_conf.gluu_version, logger_task_id=task_id)
-        if hasattr(server, 'proxy'):
-            if not server.os:
-                print("Determining nginx os type")
-                app_conf.nginx_os_type = installer.server_os
-                db.session.commit()
+        installer = Installer(
+                        server, 
+                        server_os=server.data.os,
+                        logger_task_id=task_id,
+                        )
 
+        if hasattr(server, 'proxy'):
             key_path = '/etc/nginx/ssl/httpd.key'
             crt_path = '/etc/nginx/ssl/httpd.crt'
         else:
@@ -1024,8 +1020,8 @@ def update_httpd_certs_task(self, httpd_key, httpd_crt):
         if hasattr(server, 'proxy'):
             installer.run('service nginx restart', False, error_exception='Redirecting to')
         else:
-            installer.delete_key('httpd', app_conf.nginx_host)
-            installer.import_key('httpd', app_conf.nginx_host)
+            installer.delete_key('httpd', lb_config.data.hostname)
+            installer.import_key('httpd', lb_config.data.hostname)
             installer.restart_gluu()
 
     return True

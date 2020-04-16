@@ -42,13 +42,15 @@ def menuIndex():
 @register_menu(operations, '.gluuServerCluster.operations.httpdCertificates', 'Web Certificates', order=1)
 def httpd_certs():
 
-    app_config = AppConfiguration.query.first()
-    
-    server = Server.query.filter_by(primary_server=True).first()
+    server = ConfigParam.get_primary_server()
 
-    installer = Installer(server, app_config.gluu_version)
+    installer = Installer(
+                        server,
+                        logger_task_id=0, 
+                        server_os=server.data.os
+                )
+
     httpd_key = installer.get_file(os.path.join(installer.container, 'etc/certs/httpd.key'))
-
     httpd_crt = installer.get_file(os.path.join(installer.container, 'etc/certs/httpd.crt'))
     
     cert_form = httpdCertificatesForm()
@@ -67,7 +69,7 @@ def update_httpd_certificate():
     task = update_httpd_certs_task.delay(httpd_key, httpd_crt)
     print("TASK STARTED", task.id)
     head = "Updating HTTPD Certificate"
-    nextpage = "index.home"
+    nextpage = url_for('index.home')
     whatNext = "Go to Dashboard"
     return render_template("logger_single.html", heading=head, server="",
                            task=task, nextpage=nextpage, whatNext=whatNext)
