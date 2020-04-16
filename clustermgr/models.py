@@ -290,7 +290,7 @@ class ConfigParam(db.Model):
         return cfobject
 
     @classmethod
-    def get(self, key):
+    def get(self, key, default=None):
         param_obj = ConfigParam.query.filter_by(key=key).first()
 
         if param_obj:
@@ -299,8 +299,9 @@ class ConfigParam(db.Model):
             for k in jdata:
                 setattr(param_obj.data, k, jdata[k])
 
-        return param_obj
+            return param_obj
 
+        return default
 
     @classmethod
     def get_by_id(self, id):

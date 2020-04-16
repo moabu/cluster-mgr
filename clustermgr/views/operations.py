@@ -8,6 +8,7 @@ from flask import current_app as app
 from flask_login import login_required
 from flask_login import current_user
 from flask_menu import register_menu
+from werkzeug.utils import secure_filename
 
 from celery.result import AsyncResult
 from clustermgr.models import ConfigParam
@@ -79,6 +80,14 @@ def update_httpd_certificate():
 @operations.route('/customschema', methods=['GET', 'POST'])
 def custom_schema():
     sform = SchemaForm()
+
+    if request.method == 'POST' and sform.validate_on_submit():
+        f = sform.schema.data
+        filename = secure_filename(f.filename)
+        f.save(os.path.join(
+            app.config['SCHEMA_DIR'], filename
+        ))
+
     schemafiles = os.listdir(app.config['SCHEMA_DIR'])
     return render_template("custom_schema.html",
                 schemafiles=schemafiles,
@@ -93,7 +102,8 @@ def remove_custom_schema(schema_file):
     file_path = os.path.join(app.config['SCHEMA_DIR'], schema_file)
     if os.path.exists(file_path):
         os.remove(file_path)
-    return redirect(url_for('index.app_configuration'))
+
+    return redirect(url_for('operations.custom_schema'))
 
 
 def check_version():
@@ -103,6 +113,7 @@ def check_version():
             upgrade_menu = current_menu.submenu('.gluuServerCluster.operations.upgrade')
             upgrade_menu.warning = 'New version is available'
             return True
+
 
 @login_required
 @register_menu(operations, '.gluuServerCluster.operations.upgrade', 'Upgrade', order=3, visible_when=check_version, active_when=check_version)
@@ -126,7 +137,7 @@ def upgrade_clustermgr():
     title = "Upgrading clustermgr"
     nextpage = url_for("index.home")
     whatNext = "Go to Dashboard"
-    
+
     return render_template('logger_single.html',
                            server_id=0,
                            title=title,
