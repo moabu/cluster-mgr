@@ -59,7 +59,12 @@ def index():
     
     load_balancer_config = ConfigParam.get('load_balancer')
     if not load_balancer_config:
-        return redirect(url_for('load_balancer.config', next="/server/"))
+        return redirect(url_for('load_balancer.config', next=url_for('server.index')))
+
+    settings = ConfigParam.get('settings')
+    if not settings:
+        return redirect(url_for('server.settings', next=url_for('server.index')))
+
 
     primary_server = ConfigParam.get_primary_server()
 

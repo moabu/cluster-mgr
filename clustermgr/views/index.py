@@ -74,9 +74,17 @@ def home():
         
     servers = ConfigParam.get_all('gluuserver')
     load_balancer_config = ConfigParam.get('load_balancer')
-
+    settings = ConfigParam.get('settings')
+    
     if not servers:
-        return render_template('intro.html', setup='cluster', load_balancer_config=load_balancer_config)
+        next_url = url_for('server.index') if settings else url_for('server.settings', next=url_for('server.index'))
+        
+        return render_template(
+                    'intro.html', 
+                    setup='cluster', 
+                    load_balancer_config=load_balancer_config,
+                    next_url=next_url,
+                    )
 
     ask_passphrase = False
     
@@ -106,7 +114,7 @@ def home():
                 ask_passphrase=ask_passphrase, next='/',
                 warning_text="Error accessing primary server")
     
-    settings = ConfigParam.get('settings')
+    
 
     service_update_period = 300
     if settings:

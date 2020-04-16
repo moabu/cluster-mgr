@@ -15,7 +15,7 @@
         {% if load_balancer_config %}
             <a class="btn btn-primary" href="{{ url_for('server.index') }}" role="button">Add Server</a>
         {% else %}
-            <a class="btn btn-primary" href="{{ url_for('load_balancer.configure', next='/server/') }}" role="button">Create a New Gluu Server Cluster</a></p>
+            <a class="btn btn-primary" href="{{ url_for('load_balancer.configure', next=next_url) }}" role="button">Create a New Gluu Server Cluster</a></p>
         {% endif %}
 
     </div>

@@ -79,17 +79,19 @@ def install_nginx():
 @login_required
 def configure():
     cform = LoadBalancerForm()
-
+    next_url = request.args.get('next')
     primary_server = ConfigParam.get_primary_server()
-    submit_text = 'Update'
+    submit_text = "Update Configuration"
     is_primary_deployed = True if primary_server and primary_server.data.get('gluu_server') else False
     load_balancer_config = ConfigParam.get('load_balancer')
 
     if not load_balancer_config:
-        submit_text = 'Save'
+        submit_text = "Save Configuration"
         load_balancer_config = ConfigParam.new('load_balancer', data={'hostname':'', 'ip':'', 'external': False})
 
     if request.method == 'GET':
+        if next_url:
+            submit_text = "Save and Continue" 
         cform.nginx_host.data = load_balancer_config.data.hostname
         cform.nginx_ip.data = load_balancer_config.data.ip
         cform.external_load_balancer.data = load_balancer_config.data.external
@@ -107,8 +109,8 @@ def configure():
                 
             load_balancer_config.save()
 
-            flash("Load Balancer configuration {}d".format(submit_text.lower()), "success")
-            next_url = request.args.get('next')
+            flash("Load Balancer configuration saved".format("success"))
+            
             if next_url:
                 return redirect(next_url)
 
