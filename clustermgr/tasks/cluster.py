@@ -510,32 +510,26 @@ def opendj_disable_replication_task(self, server_id):
 def remove_server_from_cluster(self, server_id, remove_server=False, 
                                                 disable_replication=True):
 
-    app_conf = AppConfiguration.query.first()
-    primary_server = Server.query.filter_by(primary_server=True).first()
-    server = Server.query.get(server_id)
     task_id = self.request.id
-
-    removed_server_hostname = server.hostname
+    server = ConfigParam.get_by_id(server_id)
+    servers = ConfigParam.get_servers()
+    primary_server = ConfigParam.get_primary_server()
+    settings = ConfigParam.get('settings')
+    lb_config = ConfigParam.get('load_balancer')
+    
+    removed_server_hostname = server.data.hostname
 
     remove_filesystem_replication_do(server, task_id)
 
     nginx_installer = None
 
-    #mock server
-    nginx_server = Server(
-                        hostname=app_conf.nginx_host, 
-                        ip=app_conf.nginx_ip,
-                        os=app_conf.nginx_os
-                        )
-
     nginx_installer = Installer(
-                    nginx_server, 
-                    app_conf.gluu_version, 
+                    lb_config, 
                     logger_task_id=task_id, 
-                    server_os=nginx_server.os
+                    server_os=lb_config.data.os
                     )
                         
-    if not app_conf.external_load_balancer:
+    if not lb_config.data.external:
         # Update nginx
         nginx_config = make_nginx_proxy_conf(exception=server_id)
         nginx_installer.put_file('/etc/nginx/nginx.conf', nginx_config)
@@ -547,18 +541,13 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
         if not result:
             return False
 
-    if remove_server:
-        server.delete()
-
-
-    for server in Server.query.all():
-        if server.gluu_server:
+    for rmserver in servers:
+        if rmserver.data.gluu_server:
         
             installer = Installer(
-                        server,
-                        app_conf.gluu_version,
+                        rmserver,
                         logger_task_id=task_id,
-                        server_os=server.os
+                        server_os=rmserver.data.os
                     )
 
             csync2_config = get_csync2_config(exclude=removed_server_hostname)
@@ -567,7 +556,9 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
 
             installer.restart_gluu()
 
-    db.session.commit()
+    if remove_server:
+        server.delete()
+    
     return True
 
 

@@ -21,6 +21,8 @@ from clustermgr.tasks.server import collect_server_details, \
     task_install_gluu_server, task_test
 from clustermgr.config import Config
 
+from clustermgr.tasks.cluster import remove_server_from_cluster
+
 
 from clustermgr.core.remote import RemoteClient, ClientNotSetupException
 from ..core.license import license_required
@@ -189,14 +191,14 @@ def edit(server_id):
 def remove_server(server_id):
 
     servers = ConfigParam.get_servers()
-    
+
     if len(servers) > 1:
         if servers[0].id == server_id:
             flash("Please first remove non-primary servers ", "danger")
             return redirect(url_for('index.home'))
-    
+
     server = ConfigParam.get_by_id(server_id)
-    
+
     if request.args.get('removefromdashboard') == 'true':
         server.delete()
         flash("Server {0} is removed.".format(server.data.hostname), "success")
@@ -205,18 +207,59 @@ def remove_server(server_id):
     disable_replication = True if request.args.get('disablereplication') == \
                                'true' else False
 
-    return redirect(url_for('cluster.remove_server_from_cluster_view',
-                                server_id=server_id, removeserver=True,
-                                disablereplication=disable_replication,
-                                next='dashboard',
-                                ))
-
+    return redirect(url_for('server.remove_server_from_cluster_view', 
+                            server_id=server_id, 
+                            disablereplication='true',
+                            removeserver='true',
+                            )
+                    )
  
     # TODO LATER perform checks on ther flags and add their cleanup tasks
 
-    
     return redirect(url_for('index.home'))
 
+
+
+@server_view.route('/removeserverfromcluster/<int:server_id>/')
+def remove_server_from_cluster_view(server_id):
+    """Initiates removal of replications"""
+    remove_server = False
+
+    if request.args.get('removeserver'):
+        remove_server = True
+    
+    disable_replication = True if request.args.get(
+                                    'disablereplication',''
+                                    ).lower() == 'true' else False
+
+    #Start non-gluu ldap server installation celery task
+    server = ConfigParam.get_by_id(server_id)
+    task = remove_server_from_cluster.delay(
+                                            server.id, 
+                                            remove_server, 
+                                            disable_replication
+                                        )
+
+    title = "Removing server {} from cluster".format(server.data.hostname)
+
+    if request.args.get('next') == 'dashboard':
+        nextpage = url_for("index.home")
+        whatNext = "Dashboard"
+    else:
+        nextpage = url_for("index.home")
+        whatNext = "Multi Master Replication"
+
+    return render_template('logger_single.html',
+                           server_id=server_id,
+                           title=title,
+                           steps=[],
+                           task=task,
+                           cur_step=1,
+                           auto_next=False,
+                           multistep=False,
+                           nextpage=nextpage,
+                           whatNext=whatNext
+                           )
 
 @server_view.route('/installgluu/<int:server_id>/', methods=['GET', 'POST'])
 @login_required
