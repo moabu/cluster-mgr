@@ -150,8 +150,10 @@ class Installer:
         return result
         
         
-    def run_channel_command(self, cmd, re_list=[]):
+    def run_channel_command(self, cmd, re_list=[], inside=False):
     
+        if inside:
+            cmd = self.run_command.format(cmd)
         print(("Installer> executing channel command: {}".format(cmd)))
         wlogger.log(self.logger_task_id, "Running "+cmd, "debug", server_id=self.server_id)
         

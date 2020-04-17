@@ -5,6 +5,9 @@ import time
 import glob
 import ldap3
 
+from flask_wtf import FlaskForm
+from wtforms import BooleanField
+
 from flask import Blueprint, render_template, redirect, url_for, \
     flash, request, jsonify, current_app
 
@@ -18,7 +21,7 @@ from clustermgr.forms import ServerForm, InstallServerForm, \
     SetupPropertiesLastForm, GluuVersionForm
 
 from clustermgr.tasks.server import collect_server_details, \
-    task_install_gluu_server, task_test
+    task_install_gluu_server, task_add_service, task_test
 from clustermgr.config import Config
 
 from clustermgr.tasks.cluster import remove_server_from_cluster
@@ -509,6 +512,65 @@ def confirm_setup_properties(server_id):
                     )
 
 
+@server_view.route('/addservice/', methods=['GET', 'POST'])
+@login_required
+def add_service():
+
+    services = (
+            'installOxAuth',
+            'installOxTrust',
+            'installSaml',
+            'installPassport',
+            #'installGluuRadius',
+            'installCasa',
+            'installOxd',
+        )
+
+    prop = get_setup_properties()
+
+    if request.method == 'GET':
+
+        class authForm(FlaskForm):
+            pass
+
+
+        for s in services:
+            default = True if as_boolean(prop.get(s, 'false')) else False
+            f = BooleanField(s.replace('install',''), default=default)
+            setattr(authForm, s, f)
+
+        form = authForm()
+
+        for s in services:
+            f = getattr(form, s)
+            f.disabled = True if as_boolean(prop.get(s, 'false')) else False
+        
+        return render_template('simple_form.html', form=form)
+
+    else:
+        
+        services_to_install = []
+        for s in services:
+            if request.form.get(s):
+                services_to_install.append(s)
+        
+        if not services_to_install:
+            flash("Nothing was selected to install", "success")
+            return redirect(url_for('index.home'))
+        
+        servers = ConfigParam.get_servers()
+        
+        task = task_add_service.delay(services_to_install)
+
+        title = 'Installing Services'
+        nextpage=url_for('index.home')
+        whatNext="Dashboard"
+        
+        return render_template('logger_single.html',
+                           task_id=task.id, title=title,
+                           nextpage=nextpage, whatNext=whatNext,
+                           task=task, multiserver=servers,
+                           )
 
 @server_view.route('/ldapstat/<int:server_id>/')
 def get_ldap_stat(server_id):

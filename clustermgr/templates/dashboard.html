@@ -11,6 +11,13 @@
     text-decoration-color: black;
     }
 
+.gluu-image {
+  background-image: url("{{ url_for('static', filename='images/gluu_icon.png') }}");
+  background-position: 90% 15%;
+  background-repeat: no-repeat;
+  background-size: 68px 78px;
+}
+
 </style>
 
 <div class="row">
@@ -30,28 +37,19 @@
         </div>
     </div>
 
-    {% if app_conf %}
      <div class="col-xs-12 col-sm-6 col-md-3">
-        <div class="small-box bg-yellow">
+        <div class="small-box bg-yellow gluu-image">
             <div class="inner">
-                <h3>{{ app_conf.gluu_version }}</h3>
-                <p>Gluu Version</p>
+                <h3>{{ installed_services | length }}</h3>
+                <p>Services</p>
             </div>
-            <div class="icon">
-                {% if app_conf.offline %}
-                  <i class="fa fa-hdd-o"></i>
-                {% else %}
-                  <i class="fa fa-cloud"></i>
-                {% endif %}
-            </div>
-            <a href="#" id="change-version" class="small-box-footer">
-                Change Settings
+            <a href="#" id="add-service" class="small-box-footer">
+                Add Service
                 <i class="fa fa-arrow-circle-right"></i>
             </a>
         </div>
     </div>
 
-    {% endif %}
 
 </div>
 
@@ -281,12 +279,12 @@
 <!-- Settings Modal Begin-->
 <div id="changeVersionModal" class="modal fade" role="dialog">
   <div class="modal-dialog">
-  <form class="form-horizontal" id="form" action="{{ url_for('server.settings') }}" method="POST">
+  <form class="form-horizontal" id="modal-form" action="" method="POST">
 
     <div class="modal-content">
       <div class="modal-header">
         <button type="button" class="close" data-dismiss="modal">&times;</button>
-        <h4 class="modal-title" id="modal-title">Settings</h4>
+        <h4 class="modal-title" id="modal-title"></h4>
       </div>
       <div class="modal-body" id="change-version-modal-body">
 
@@ -296,7 +294,7 @@
         
       </div>
       <div class="modal-footer">
-        <a href="#" class="btn btn-default" data-dismiss="modal">Close</a> <input type="submit" class="btn btn-primary" value="Save">
+        <a href="#" class="btn btn-default" data-dismiss="modal">Close</a> <input type="submit" id="modal-save-button" class="btn btn-primary" value="">
       </div>
     </div>
     
@@ -527,12 +525,25 @@ setTimeout(function() {
 
 
 $("#change-version").click(function(e){
-
-$('#change-version-modal-body').html('<p>Loading ...</p>')
-  e.preventDefault();
-  $('#changeVersionModal').modal('show').find('.modal-body').load("{{request.host_url}}{{url_for('server.settings')[1:]}}");
-
+    $("#modal-form").attr("action", "{{ url_for('server.settings') }}");
+    $('#change-version-modal-body').html('<p>Loading ...</p>')
+    e.preventDefault();
+    $('#changeVersionModal').modal('show').find('.modal-body').load("{{request.host_url}}{{url_for('server.settings')[1:]}}");
 });
+
+
+$("#add-service").click(function(e){
+    $("#modal-save-button").val("Continue");
+    $("#modal-title").text("Select Services to Install")
+    
+    $("#modal-form").attr("action", "{{ url_for('server.add_service') }}");
+    $('#change-version-modal-body').html('<p>Loading ...</p>')
+    e.preventDefault();
+    $('#changeVersionModal').modal('show').find('.modal-body').load("{{request.host_url}}{{url_for('server.add_service')[1:]}}");
+});
+
+
+
 
 </script>
 {% endblock %}

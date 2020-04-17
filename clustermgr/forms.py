@@ -1,10 +1,7 @@
 import glob
 import os
 
-try:
-    from flask_wtf import FlaskForm
-except ImportError:
-    from flask_wtf import Form as FlaskForm
+from flask_wtf import FlaskForm
 from wtforms import StringField, SelectField, BooleanField, IntegerField, \
     PasswordField, RadioField, SubmitField, validators, TextAreaField, \
     HiddenField

@@ -19,7 +19,8 @@ from clustermgr.config import Config
 
 
 from clustermgr.core.clustermgr_installer import Installer
-from clustermgr.core.utils import get_setup_properties, modify_etc_hosts
+from clustermgr.core.utils import get_setup_properties, modify_etc_hosts, \
+    write_setup_properties_file
 from clustermgr.core.jproperties import Properties
 
 from clustermgr.core.ldap_functions import LdapOLC
@@ -829,6 +830,55 @@ def install_gluu_server(task_id, server_id):
     wlogger.log(task_id, "5", "setstep")
     return True
 
+@celery.task(bind=True)
+def task_add_service(self, services_to_install):
+    task_id = self.request.id
+    settings = ConfigParam.get('settings')
+    servers = ConfigParam.get_servers()
+
+    args_for_installer = {
+                'installSaml': ('addshib','SAML Shibboleth IDP'),
+                'installPassport': ('addpassport', 'Passport'),
+                'installOxd': ('addoxd', 'Oxd Server'),
+                'installCasa': ('addcasa', 'Gluu Casa'),
+                'installGluuRadius': ('addradius', 'Gluu Radius Server'),
+            }
+
+    for server in servers:
+        installer = Installer(
+            server,
+            logger_task_id=task_id,
+            server_os=server.data.os
+            )
+
+        if not installer.conn:
+            return False
+
+        post_setup_installer_url = 'https://raw.githubusercontent.com/GluuFederation/community-edition-setup/version_{}/post-setup-add-components.py'.format(settings.data.gluu_version)
+        target_file = '/install/community-edition-setup/post-setup-add-components.py'
+        installer.run('wget -nv -q {} -O {}'.format(post_setup_installer_url, target_file))
+        installer.run('chmod +x ' + target_file)
+
+        for service in services_to_install:
+
+            wlogger.log(
+                    task_id, 
+                    "Installing {} ".format(args_for_installer[service][1]),
+                    server_id=server.id
+                    )
+
+            installer.run_channel_command('cd /install/community-edition-setup; python post-setup-add-components.py -' + args_for_installer[service][0], inside=True)
+
+        installer.restart_gluu()
+
+    setup_prop = get_setup_properties()
+
+    for service in services_to_install:
+        setup_prop[service] = True
+
+    write_setup_properties_file(setup_prop)
+
+    return True
 
 @celery.task(bind=True)
 def task_test(self):

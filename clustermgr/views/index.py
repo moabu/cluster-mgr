@@ -131,9 +131,11 @@ def home():
     if as_boolean(prop['installPassport']):
         services.append('passport')
 
+
     return render_template('dashboard.html', servers=servers,
                              services=services, server_id_list=server_id_list,
                              service_update_period=service_update_period,
+                             installed_services=services + ['ldap'],
                         )
 
 @index.route('/log/<task_id>')
