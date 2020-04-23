@@ -6,15 +6,21 @@ sentinel_node_port = 26381
 cur_dir = os.path.dirname(os.path.realpath(__file__))
 
 
-def get_stunnel_config(servers, server=None):
+def get_stunnel_config(servers, server=None, osclone='deb'):
 
     # if server is None, it is local server
     
+    def_dict = {
+                'deb': {'uid': 'stunnel4', 'gid': 'stunnel4', 'pid': '/var/run/stunnel4/stunnel.pid'},
+                'rpm': {'uid': 'nobody', 'gid': 'nobody', 'pid': '/var/run/stunnel.pid'},
+                }
+    
     stunnel_conf_list = ['cert = /etc/stunnel/private.pem',
-                         'pid = /var/run/stunnel.pid',
+                         'pid = ' + def_dict[osclone]['pid'],
+                         'setuid = ' + def_dict[osclone]['uid'],
+                         'setgid = ' + def_dict[osclone]['gid'],
+                         '',
                          ]
-        
-    stunnel_conf_list.append('')
 
     if server:
         stunnel_conf_list.append('[redis-server]')
@@ -48,14 +54,19 @@ def get_stunnel_config(servers, server=None):
 
 
 
-def get_redis_config(servers, conf_type):
+def get_redis_config(servers, conf_type, osclone='deb'):
+
+    def_dict = {
+                'deb': {'pid': '/var/run/redis/{}.pid'.format(conf_type)},
+                'rpm': {'pid': '/var/run/{}.pid'.format(conf_type)},
+                }
 
     redis_conf_tmp_filename = os.path.join(cur_dir, conf_type + '.conf.temp')
 
     nq = 1 if len(servers) <= 3 else 2
     quorum = len(servers) - nq
 
-    format_dict = {'quorum': quorum}
+    format_dict = {'quorum': quorum, 'pidfile': def_dict[osclone]['pid']}
     format_dict['redis_master_node'] = redis_node_port
     confs = {}
     
@@ -103,7 +114,7 @@ if __name__ == '__main__':
 
     # write redis config
     for conf_type in ('redis', 'sentinel'):
-        redis_confs = get_redis_config(servers, conf_type=conf_type)
+        redis_confs = get_redis_config(servers, conf_type=conf_type, osclone='rpm')
         for i, c in enumerate(redis_confs):
             cdir = str(i + 1)
             if not os.path.exists(cdir):
@@ -114,11 +125,11 @@ if __name__ == '__main__':
     # write stunnel config for cache nodes
     for i, c in enumerate(servers):
         cdir = str(i + 1)
-        stunnel_conf = get_stunnel_config(servers, servers[i])
+        stunnel_conf = get_stunnel_config(servers, servers[i], osclone='rpm')
         with open('{}/stunnel.conf'.format(cdir), 'w') as w:
             w.write(stunnel_conf)
 
     # write stunnel config to be used by gluu servers
-    stunnel_conf = get_stunnel_config(servers)
+    stunnel_conf = get_stunnel_config(servers, osclone='rpm')
     with open('stunnel-gluu.conf', 'w') as w:
             w.write(stunnel_conf)

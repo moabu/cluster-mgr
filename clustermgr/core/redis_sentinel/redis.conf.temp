@@ -6,7 +6,7 @@ timeout 0
 tcp-keepalive 300
 daemonize yes
 supervised no
-pidfile "/var/run/redis/redis-server.pid"
+pidfile "%(pidfile)s"
 loglevel notice
 logfile "/var/log/redis/redis-server.log"
 databases 16
