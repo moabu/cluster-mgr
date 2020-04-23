@@ -739,12 +739,13 @@ def install_gluu_server(task_id, server_id):
 
 
     ldapc = LdapOLC(
-                    'ldaps://{}:1636'.format(server.hostname),
+                    'ldaps://{}:1636'.format('localhost'),
                     'cn=Directory Manager',
                     server.ldap_password
                      )
 
-    if not server.primary_server:
+    if server.primary_server:
+        ldapc.connect()
         ldapc.set_ldap_cache_cleanup_interval()
         set_up_ldap_cache_cleaner(installer, app_conf.ldap_cache_clean_period)
 
