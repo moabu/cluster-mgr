@@ -61,6 +61,7 @@ setup(
         'psutil',
         'pyasn1==0.4.8',
         'pyasn1-modules==0.2.8',
+        'email-validator',
     ],
     scripts=['clusterapp.py', 'clustermgr4-cli'],
     classifiers=[
