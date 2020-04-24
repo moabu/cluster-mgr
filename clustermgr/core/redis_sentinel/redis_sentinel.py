@@ -9,10 +9,11 @@ cur_dir = os.path.dirname(os.path.realpath(__file__))
 def get_stunnel_config(servers, server=None, osclone='deb'):
 
     # if server is None, it is local server
-    
+    # WARNING: if osclone is rpm create dierctory /var/run/stunnel/ and chown to nobody
+
     def_dict = {
                 'deb': {'uid': 'stunnel4', 'gid': 'stunnel4', 'pid': '/var/run/stunnel4/stunnel.pid'},
-                'rpm': {'uid': 'nobody', 'gid': 'nobody', 'pid': '/var/run/stunnel.pid'},
+                'rpm': {'uid': 'nobody', 'gid': 'nobody', 'pid': '/var/run/stunnel/stunnel.pid'},
                 }
     
     stunnel_conf_list = ['cert = /etc/stunnel/private.pem',
