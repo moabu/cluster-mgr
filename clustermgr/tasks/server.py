@@ -739,10 +739,12 @@ def install_gluu_server(task_id, server_id):
 
 
     ldapc = LdapOLC(
-                    'ldaps://{}:1636'.format('localhost'),
+                    'ldaps://{}:1636'.format(server.hostname),
                     'cn=Directory Manager',
                     server.ldap_password
                      )
+
+     wlogger.log(task_id, "Connecting LDAP Server: {}".format(server.hostname), 'debug')
 
     if server.primary_server:
         ldapc.connect()
