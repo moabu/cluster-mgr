@@ -89,9 +89,9 @@ def get_mean_last(measurement, host):
     returns: 
         Average of measurement for host
     """
-    querym = 'SELECT mean(*) FROM {}'.format(host.replace('.','_') +'_'+ measurement)
+    querym = 'SELECT mean(*) FROM "{}"'.format(host.replace('.','_') +'_'+ measurement)
     resultm = client.query(querym, epoch='s')
-    queryl = 'SELECT * FROM {}  ORDER BY DESC LIMIT 1'.format(host.replace('.','_') +'_'+ measurement)
+    queryl = 'SELECT * FROM "{}"  ORDER BY DESC LIMIT 1'.format(host.replace('.','_') +'_'+ measurement)
     resultl = client.query(queryl, epoch='s')
 
     return resultm.raw['series'][0]['values'][0][1], resultl.raw['series'][0]['values'][0][1]
@@ -176,7 +176,7 @@ def getData(item, step=None):
 
         measurement_d = server.hostname.replace('.','_') +'_'+ measurement
 
-        query = ('SELECT {} FROM {} WHERE '
+        query = ('SELECT {} FROM "{}" WHERE '
                   'time >= {}000000000 AND time <= {}000000000 '
                   'GROUP BY time({}s)'.format(
                     aggr_f,
@@ -323,8 +323,8 @@ def home():
     #fetched from remote servers.
     try:
         data_ready = check_data(servers[-1].hostname)
-    except:
-        flash("Error getting data from InfluxDB")
+    except Exception as e:
+        flash("Error getting data from InfluxDB" + str(e))
         return render_template( 'monitoring_error.html')
     #If data was not reteived, display that data was not retreived yet.
     if not data_ready:
@@ -345,8 +345,8 @@ def home():
     try:
         data['cpu']= getData('cpu_percent', step=1200)
         data['mem']= getData('memory_usage', step=1200)
-    except:
-        flash("Error getting data from InfluxDB")
+    except Exception as e:
+        flash("Error getting data from InfluxDB" + str(e))
         return render_template( 'monitoring_error.html')
 
     for host in hosts:
@@ -452,8 +452,8 @@ def system(item):
     #First get data from influxdb
     try:
         data = getData(item)
-    except:
-        flash("Error getting data from InfluxDB")
+    except Exception as e:
+        flash("Error getting data from InfluxDB" + str(e))
         return render_template( 'monitoring_error.html')
 
     #Default template is 'monitoring_graphs.html'
