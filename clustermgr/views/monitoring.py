@@ -189,9 +189,6 @@ def getData(item, step=None):
 
         result = client.query(query, epoch='s')
 
-        print result.raw
-
-
         data_dict = {}
 
         data = []
@@ -324,7 +321,7 @@ def home():
     try:
         data_ready = check_data(servers[-1].hostname)
     except Exception as e:
-        flash("Error getting data from InfluxDB" + str(e))
+        flash("Error getting data from InfluxDB: " + str(e))
         return render_template( 'monitoring_error.html')
     #If data was not reteived, display that data was not retreived yet.
     if not data_ready:
@@ -346,7 +343,7 @@ def home():
         data['cpu']= getData('cpu_percent', step=1200)
         data['mem']= getData('memory_usage', step=1200)
     except Exception as e:
-        flash("Error getting data from InfluxDB" + str(e))
+        flash("Error getting data from InfluxDB: " + str(e))
         return render_template( 'monitoring_error.html')
 
     for host in hosts:
@@ -453,7 +450,7 @@ def system(item):
     try:
         data = getData(item)
     except Exception as e:
-        flash("Error getting data from InfluxDB" + str(e))
+        flash("Error getting data from InfluxDB: " + str(e))
         return render_template( 'monitoring_error.html')
 
     #Default template is 'monitoring_graphs.html'
