@@ -40,22 +40,22 @@ def get_os_type(self):
 
     cin, cout, cerr = self.run("cat "+files[0])
 
-    if "Ubuntu" in cout and "14.04" in cout:
-        os_type = "Ubuntu 14"
     if "Ubuntu" in cout and "16.04" in cout:
         os_type = "Ubuntu 16"
-    if "Ubuntu" in cout and "18.04" in cout:
+    elif "Ubuntu" in cout and "18.04" in cout:
         os_type = "Ubuntu 18"
-    if "CentOS" in cout and "release 6." in cout:
-        os_type = "CentOS 6"
-    if "CentOS" in cout and "release 7." in cout:
+    elif "CentOS" in cout and "release 7." in cout:
         os_type = "CentOS 7"
-    if 'Red Hat Enterprise Linux' in cout and '7.' in cout:
+    elif "CentOS" in cout and "release 8." in cout:
+        os_type = "CentOS 8"
+    elif 'Red Hat Enterprise Linux' in cout and '7.' in cout:
         os_type = 'RHEL 7'
-    if 'Debian' in cout and "(jessie)" in cout:
-        os_type = 'Debian 8'
-    if 'Debian' in cout and "(stretch)" in cout:
+    elif 'Red Hat Enterprise Linux' in cout and '8.' in cout:
+        os_type = 'RHEL 8'
+    elif 'Debian' in cout and "(stretch)" in cout:
         os_type = 'Debian 9'
+    elif 'Debian' in cout and "(buster)" in cout:
+        os_type = 'Debian 10'
 
     self.server_os = os_type
     

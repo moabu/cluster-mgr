@@ -11,12 +11,13 @@ from clustermgr.core.utils import parse_setup_properties, \
         get_redis_config, get_cache_servers
 
 from clustermgr.core.clustermgr_installer import Installer
+from clustermgr.core import redis_sentinel
 
 from ldap3.core.exceptions import LDAPSocketOpenError
 from flask import current_app as app
 
 
-def install_stunnel(installer, settings, is_cache):
+def install_stunnel(installer, settings, is_cache, stunnel_redis_conf=None):
     
     primary_cache_server = ConfigParam.get('cacheserver')
     stunnel_installed = installer.conn.exists('/usr/bin/stunnel') or installer.conn.exists('/bin/stunnel')
@@ -53,10 +54,12 @@ def install_stunnel(installer, settings, is_cache):
                 server_id=installer.server_id)
         installer.upload_file(local_service_file, remote_service_file)
         installer.run("mkdir -p /var/log/stunnel4", inside=False)
-
+        stunnel_user = 'nobody'
+        
     if installer.clone_type == 'deb':
         wlogger.log(installer.logger_task_id, "Enabling stunnel", "debug", server_id=installer.server_id)
         installer.run("sed -i 's/ENABLED=0/ENABLED=1/g' /etc/default/stunnel4", inside=False)
+        stunnel_user = 'stunnel4'
 
     stunnel_pem_fn = '/etc/stunnel/redis-server.pem'
     stunnel_pem_local_fn = '/tmp/{}.pem'.format(primary_cache_server.data.ip.replace('.','_'))
@@ -73,9 +76,11 @@ def install_stunnel(installer, settings, is_cache):
                     error_exception='Generating'
                     )
             installer.run('cat /etc/stunnel/redis-server.key /etc/stunnel/redis-server.crt > {}'.format(stunnel_pem_fn), inside=False)
+
             installer.run('chmod 600 /etc/stunnel/redis-server.key',inside=False)
             installer.run('chmod 600 '+stunnel_pem_fn, inside=False)
-        
+            installer.run('chown {0}:{0} /etc/stunnel/redis-server.key'.format(stunnel_user),inside=False)
+
         # retreive stunnel certificate
         wlogger.log(installer.logger_task_id, "Retreiving server certificate", "info",
                             server_id=installer.server_id)
@@ -87,26 +92,28 @@ def install_stunnel(installer, settings, is_cache):
         installer.upload_file(stunnel_pem_local_fn, stunnel_pem_fn)
         installer.run('chmod 600 '+stunnel_pem_fn, inside=False)
  
-    if is_cache:
-        stunnel_redis_conf = (
-                            'pid = /run/stunnel-redis.pid\n'
-                            'cert = /etc/stunnel/redis-server.pem\n'
-                            '[redis-server]\n'
-                            'accept = {0}:{1}\n'
-                            'connect = 127.0.0.1:6379\n'
-                            ).format(installer.ip, primary_cache_server.data.stunnel_port)
-    else:
-        stunnel_redis_conf = ( 
-                    'pid = /run/stunnel-redis.pid\n'
-                    'cert = /etc/stunnel/redis-server.pem\n'
-                    '[redis-client]\n'
-                    'client = yes\n'
-                    'accept = 127.0.0.1:6379\n'
-                    'connect = {0}:{1}\n'
-                    ).format(primary_cache_server.data.ip, primary_cache_server.data.stunnel_port)
-    
+ 
+    if not stunnel_redis_conf:
+        if is_cache:
+            stunnel_redis_conf = (
+                                'pid = /run/stunnel-redis.pid\n'
+                                'cert = /etc/stunnel/redis-server.pem\n'
+                                '[redis-server]\n'
+                                'accept = {0}:{1}\n'
+                                'connect = 127.0.0.1:6379\n'
+                                ).format(installer.ip, primary_cache_server.data.stunnel_port)
+        else:
+            stunnel_redis_conf = ( 
+                        'pid = /run/stunnel-redis.pid\n'
+                        'cert = /etc/stunnel/redis-server.pem\n'
+                        '[redis-client]\n'
+                        'client = yes\n'
+                        'accept = 127.0.0.1:6379\n'
+                        'connect = {0}:{1}\n'
+                        ).format(primary_cache_server.data.ip, primary_cache_server.data.stunnel_port)
+        
     wlogger.log(installer.logger_task_id, "Writing redis stunnel configurations", "info",
-                        server_id=installer.server_id)
+                            server_id=installer.server_id)
 
     installer.put_file('/etc/stunnel/stunnel.conf', stunnel_redis_conf)
     
@@ -120,13 +127,160 @@ def install_stunnel(installer, settings, is_cache):
         installer.run("mkdir -p /var/log/stunnel4", inside=False)
         installer.run("systemctl daemon-reload", inside=False)        
 
+    installer.run('chown {0}:{0} {1}'.format(stunnel_user, stunnel_pem_fn),inside=False)
+
     installer.enable_service(stunnel_package, inside=False)
     installer.restart_service(stunnel_package, inside=False)
 
     return True
 
+
+
 @celery.task(bind=True)
-def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
+def install_cache_sentinel(self, servers_id_list, cache_servers_id_list):
+
+    task_id = self.request.id
+
+    servers = [ ConfigParam.get_by_id(id) for id in servers_id_list ]
+    cache_servers = [ ConfigParam.get_by_id(id) for id in cache_servers_id_list ]
+    primary_cache_server = ConfigParam.get('cacheserver')
+    settings = ConfigParam.get('settings')
+    
+    sentinel_supported_os_list = ('RHEL 8', 'Debian 10', 'CentOS 8', 'Ubuntu 18')
+
+    for server in cache_servers:
+
+        server.data.os = None
+        installer =  Installer(
+                        server,
+                        logger_task_id=task_id
+                    )
+
+        if not installer.conn:
+            wlogger.log(task_id, "SSH connection to server failed", "error", server_id=server.id)
+            return False
+
+        if not installer.server_os in sentinel_supported_os_list:
+            wlogger.log(task_id, "OS type of server is {}. Sentinel can be installed only on {}".format(
+                                    server.data.os, ','.join(sentinel_supported_os_list)
+                                    ),
+                        "error", server_id=server.id)
+            return False
+
+        redis_installed = installer.conn.exists('/usr/bin/redis-server')
+        sentinel_installed = installer.conn.exists('/usr/bin/redis-server')
+
+        if settings.data.offline:
+            if not (redis_installed and sentinel_installed):
+                wlogger.log(
+                    task_id, 
+                    'Redis Server and Redis Sentinel were not installed. Please install Redis '
+                    ' Server and Redis Sentinel', 
+                    'error',
+                    server_id=server.id
+                    )
+                return False
+
+        redis_package = 'redis-server' if installer.clone_type == 'deb' else 'redis'  
+        if not redis_installed:
+            wlogger.log(task_id, "Installing Redis Server", "info", server_id=server.id)
+            
+            installer.install(redis_package, inside=False)
+        
+        if not sentinel_installed and installer.clone_type == 'deb':
+            installer.install('redis-sentinel', inside=False)
+        
+        if not installer.conn.exists('/usr/bin/redis-server'):
+                wlogger.log(
+                    task_id, 
+                    'Redis Server was not installed. Please check log files', 
+                    'error',
+                    server_id=server.id
+                    )
+                return False
+
+        redis_config = redis_sentinel.get_redis_config(cache_servers, 'redis', osclone=installer.clone_type)
+        sentinel_config = redis_sentinel.get_redis_config(cache_servers, 'sentinel', osclone=installer.clone_type)
+
+        if installer.clone_type == 'deb':
+            redis_config_file = '/etc/redis/redis.conf'
+            sentinel_config_file = '/etc/redis/sentinel.conf'
+        else:
+            redis_config_file = '/etc/redis.conf'
+            sentinel_config_file = '/etc/redis-sentinel.conf'
+
+        installer.put_file(redis_config_file, redis_config[server.id])
+        installer.put_file(sentinel_config_file, sentinel_config[server.id])
+
+        installer.enable_service(redis_package, inside=False)
+        installer.restart_service(redis_package, inside=False)
+
+        installer.enable_service('redis-sentinel', inside=False)
+        installer.restart_service('redis-sentinel', inside=False)
+
+        stunnel_conf = redis_sentinel.get_stunnel_config(cache_servers, server, osclone=installer.clone_type)
+        si_result = install_stunnel(installer, settings, is_cache=True, stunnel_redis_conf=stunnel_conf)
+
+        if not si_result:
+            return False
+
+        server.data.installed = True
+        server.save()
+        
+        if primary_cache_server.id == server.id:
+            wlogger.log(installer.logger_task_id, "Retreiving server certificate", "info",
+                                server_id=installer.server_id)
+            
+            # retreive stunnel certificate
+            stunnel_cert = installer.get_file('/etc/stunnel/redis-server.crt')
+
+            if not stunnel_cert:
+                print("Can't retreive server certificate from primary cache server")
+                return False
+
+
+    wlogger.log(task_id, "2", "setstep")
+
+    for server in servers:
+        installer =  Installer(
+                        server,
+                        logger_task_id=task_id
+                    )
+
+        stunnel_conf = redis_sentinel.get_stunnel_config(cache_servers, osclone=installer.clone_type)
+
+        si_result = install_stunnel(installer, settings, is_cache=False, stunnel_redis_conf=stunnel_conf)
+        if not si_result:
+            return False
+
+        if server.data.primary:
+            cache_servers_string_list = []
+            for i in range(len(cache_servers)):
+                cache_servers_string_list.append('localhost:{}'.format(redis_sentinel.sentinel_node_port + i))
+
+            config_params = {
+                'cacheProviderType': 'REDIS',
+                'key': 'redisConfiguration',
+                'redisProviderType': 'SENTINEL',
+                'sentinelMasterGroupName': redis_sentinel.sentinelMasterGroupName,
+                'servers': ','.join(cache_servers_string_list),
+                }
+
+            __update_LDAP_cache_method(task_id, server, config_params)
+
+        wlogger.log(task_id, "Restarting Gluu Server", "info",
+                                server_id=server.id)
+
+        #installer.restart_gluu()
+
+    wlogger.log(task_id, "3", "setstep")
+    return True
+
+
+
+
+@celery.task(bind=True)
+def install_cache_single(self, servers_id_list, cache_servers_id_list):
 
     task_id = self.request.id
 
@@ -241,8 +395,15 @@ def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
 
         if server.data.primary:
             
-            server_string = 'localhost:6379'
-            __update_LDAP_cache_method(task_id, server, server_string, redis_password=primary_cache_server.data.redis_password)
+            config_params = {
+                            'cacheProviderType': 'REDIS',
+                            'key': 'redisConfiguration',
+                            'redisProviderType': 'STANDALONE',
+                            'servers': 'localhost:6379',
+                            'sentinelMasterGroupName': '',
+                            }
+
+            __update_LDAP_cache_method(task_id, server, config_params)
 
         wlogger.log(task_id, "Restarting Gluu Server", "info",
                                 server_id=server.id)
@@ -252,7 +413,7 @@ def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
     wlogger.log(task_id, "3", "setstep")
     return True
 
-def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE', redis_password=''):
+def __update_LDAP_cache_method(tid, server, config_params):
     """Connects to LDAP and updathe cache method and the cache servers
 
     :param tid: task id for log identification
@@ -267,7 +428,7 @@ def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE', 
         adminOlc = LdapOLC('ldaps://{}:1636'.format(server.data.hostname), 
                         'cn=directory manager',
                         server.data.ldap_password)
-        adminOlc.connect()
+        print(adminOlc.connect())
     except Exception as e:
         wlogger.log(tid, "Couldn't connect to LDAP. Error: {0}".format(e),
                     "error", server_id=server.id)
@@ -275,8 +436,8 @@ def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE', 
                          "connections from outside", "debug",
                     server_id=server.id)
         return
-    
-    result = adminOlc.changeOxCacheConfiguration('REDIS', server_string, redis_password)
+
+    result = adminOlc.changeOxCacheConfiguration(config_params)
 
     if not result:
         wlogger.log(tid, "oxCacheConfigutaion update failed", "fail",
@@ -360,10 +521,8 @@ def uninstall_cache_cluster(self, servers_id_list, cache_servers_id_list):
             wlogger.log(task_id, "Stunnel not isntalled.", "info", server_id=server.id)
 
         if server.data.primary_server:
+            __update_LDAP_cache_method(task_id, server, {'cacheProviderType': 'NATIVE_PERSISTENCE'})
             
-            server_string = 'localhost:6379'
-            __update_LDAP_cache_method(task_id, server, server_string, redis_password=primary_cache_server.data.redis_password)
-
         wlogger.log(task_id, "Restarting Gluu Server", "info",
                                 server_id=server.id)
 

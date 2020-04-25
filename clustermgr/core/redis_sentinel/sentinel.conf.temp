@@ -5,10 +5,10 @@ pidfile "%(pidfile)s"
 logfile "/var/log/redis/redis-sentinel.log"
 sentinel deny-scripts-reconfig yes
 dir "/var/lib/redis"
-sentinel monitor mymaster 127.0.0.1 %(redis_master_node)s %(quorum)s
-sentinel down-after-milliseconds mymaster 10
-sentinel config-epoch mymaster 24
-sentinel leader-epoch mymaster 24
+sentinel monitor %(sentinelMasterGroupName)s 127.0.0.1 %(redis_master_node)s %(quorum)s
+sentinel down-after-milliseconds %(sentinelMasterGroupName)s 10
+sentinel config-epoch %(sentinelMasterGroupName)s 24
+sentinel leader-epoch %(sentinelMasterGroupName)s 24
 protected-mode no
 sentinel current-epoch 24
 sentinel announce-ip 127.0.0.1

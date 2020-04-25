@@ -354,4 +354,4 @@ class ConfigParam(db.Model):
                 return server
 
     def __repr__(self):
-        return '<Param {} {}>'.format(self.key, self.value)
+        return '<Param {}:{} {}>'.format(self.key, self.id, self.value)

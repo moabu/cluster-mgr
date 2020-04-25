@@ -55,6 +55,7 @@ class LdapOLC(object):
             the ldap connection result
         """
         logger.debug("Making Ldap Connection to " + self.addr)
+
         self.server = Server(self.addr, use_ssl=True)
         self.conn = Connection(
             self.server, user=self.binddn, password=self.passwd)
@@ -116,24 +117,29 @@ class LdapOLC(object):
                             {"oxIDPAuthentication": [MODIFY_REPLACE, oxidp_s]}
                             )
 
-    def changeOxCacheConfiguration(self, method, server_string=None, redis_password=None):
-        result=self.conn.search(
+    def changeOxCacheConfiguration(self, config_params):
+
+        
+        result = self.conn.search(
                         search_base="ou=configuration,o=gluu",
                         search_scope=BASE,
                         search_filter='(objectclass=*)',
                         attributes=["oxCacheConfiguration"]
                         )
+
         if result:
             oxCacheConfiguration = json.loads(self.conn.response[0]['attributes']['oxCacheConfiguration'][0])
-            oxCacheConfiguration['cacheProviderType'] = method
-            if server_string:
-                oxCacheConfiguration['redisConfiguration']['servers'] = server_string
+            oxCacheConfiguration['cacheProviderType'] = config_params.pop('cacheProviderType')
 
-            oxCacheConfiguration['redisConfiguration']['decryptedPassword'] = redis_password
+            if 'key' in config_params:
+                configKey = config_params.pop('key')
+                
+                for k in config_params:
+                    oxCacheConfiguration[configKey][k] = config_params[k]
 
             oxCacheConfiguration_js = json.dumps(oxCacheConfiguration, indent=2)
             dn = self.conn.response[0]['dn']
-            
+
             return self.conn.modify(dn, {'oxCacheConfiguration': [MODIFY_REPLACE, oxCacheConfiguration_js]})
 
 

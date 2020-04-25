@@ -9,7 +9,8 @@ from flask_login import login_required
 from flask_menu import register_menu
 
 from clustermgr.models import db, ConfigParam
-from clustermgr.tasks.cache import install_cache_cluster, uninstall_cache_cluster
+from clustermgr.tasks.cache import install_cache_single,\
+    uninstall_cache_cluster, install_cache_sentinel
 
 from ..core.license import license_reminder
 from ..core.license import prompt_license
@@ -105,11 +106,6 @@ def install():
         cache_servers = ConfigParam.get_all('cacheserver')
         servers = ConfigParam.get_servers()
 
-
-    print("servers", servers)
-    print("cache_servers", cache_servers)
-
-
     if not servers:
         return redirect(url_for('cache_mgr.index'))
 
@@ -119,7 +115,15 @@ def install():
     whatNext = "Cache Management Home"
     nextpage = url_for('cache_mgr.index')
     
-    task = install_cache_cluster.delay(
+    if len(cache_servers) == 1:
+    
+        task = install_cache_single.delay(
+                                [server.id for server in servers],
+                                [server.id for server in cache_servers],
+                                )
+    else:
+
+        task = install_cache_sentinel.delay(
                                 [server.id for server in servers],
                                 [server.id for server in cache_servers],
                                 )
@@ -150,17 +154,11 @@ def add_cache_server():
         form = cacheServerForm(obj=cacheserver)
         if not cacheserver:
             return "<h2>No such Cache Server</h2>"
-    else:
-        if request.method == "GET":
-            form.redis_password.data = random_chars(20)
-            form.stunnel_port.data = 16379
 
     if request.method == "POST" and form.validate_on_submit():
         hostname = form.hostname.data
         ip = form.ip.data
         install_redis = form.install_redis.data
-        redis_password = form.redis_password.data
-        stunnel_port = form.stunnel_port.data
 
         if not cid:
             cacheserver = ConfigParam.new('cacheserver')
@@ -168,8 +166,6 @@ def add_cache_server():
         cacheserver.data.hostname = hostname
         cacheserver.data.ip = ip
         cacheserver.data.install_redis = install_redis
-        cacheserver.data.redis_password = redis_password
-        cacheserver.data.stunnel_port = stunnel_port
 
         cacheserver.save()
         if cid:

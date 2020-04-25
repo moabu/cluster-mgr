@@ -5,23 +5,30 @@ sentinel_node_port = 26381
 
 cur_dir = os.path.dirname(os.path.realpath(__file__))
 
+sentinelMasterGroupName = 'GluuCluster'
 
 def get_stunnel_config(servers, server=None, osclone='deb'):
 
     # if server is None, it is local server
-    # WARNING: if osclone is rpm create dierctory /var/run/stunnel/ and chown to nobody
+    # WARNING: if osclone is rpm replace service unit file
 
     def_dict = {
                 'deb': {'uid': 'stunnel4', 'gid': 'stunnel4', 'pid': '/var/run/stunnel4/stunnel.pid'},
                 'rpm': {'uid': 'nobody', 'gid': 'nobody', 'pid': '/var/run/stunnel/stunnel.pid'},
                 }
-    
-    stunnel_conf_list = ['cert = /etc/stunnel/private.pem',
+
+    stunnel_conf_list = ['cert = /etc/stunnel/redis-server.pem',
                          'pid = ' + def_dict[osclone]['pid'],
-                         'setuid = ' + def_dict[osclone]['uid'],
-                         'setgid = ' + def_dict[osclone]['gid'],
-                         '',
+                         'sslVersion = TLSv1',
+
                          ]
+    if osclone == 'deb':
+        stunnel_conf_list += [
+                            'setuid = ' + def_dict[osclone]['uid'],
+                            'setgid = ' + def_dict[osclone]['gid'],
+                            ]
+
+    stunnel_conf_list.append('')
 
     if server:
         stunnel_conf_list.append('[redis-server]')
@@ -67,12 +74,12 @@ def get_redis_config(servers, conf_type, osclone='deb'):
     nq = 1 if len(servers) <= 3 else 2
     quorum = len(servers) - nq
 
-    format_dict = {'quorum': quorum, 'pidfile': def_dict[osclone]['pid']}
+    format_dict = {'quorum': quorum, 'pidfile': def_dict[osclone]['pid'], 'sentinelMasterGroupName': sentinelMasterGroupName}
     format_dict['redis_master_node'] = redis_node_port
     confs = {}
-    
+
     for i, cs in enumerate(servers):
-        
+
         with open(redis_conf_tmp_filename) as f:
             conf_tmp = f.read()
 
@@ -84,7 +91,7 @@ def get_redis_config(servers, conf_type, osclone='deb'):
 
         conf_tmp = conf_tmp % format_dict
         confs[cs.id] = conf_tmp
-        
+
     return confs
 
 

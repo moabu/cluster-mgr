@@ -367,8 +367,7 @@ class cacheServerForm(FlaskForm):
     hostname = StringField("Cache Server Hostname", validators=[DataRequired()])
     ip = StringField("Cache Server IP Address", validators=[DataRequired(), IPAddress()])
     install_redis = BooleanField("Install Redis and stunnel", default=True)
-    redis_password = StringField("Redis Password")
-    stunnel_port = IntegerField("Stunnel Port", validators=[DataRequired()])
+
 
 class OxdSettingsForm(FlaskForm):
     versions = [

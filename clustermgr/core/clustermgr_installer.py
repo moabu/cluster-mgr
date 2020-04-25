@@ -67,7 +67,7 @@ class Installer:
     
     def settings(self):
 
-        if self.server_os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
+        if self.server_os in ('CentOS 8', 'CentOS 7', 'RHEL 7', 'RHEL 8', 'Ubuntu 18', 'Debian 10'):
             self.init_command = '/sbin/gluu-serverd {0}'
             self.service_script = 'systemctl {1} {0}'
         else:
@@ -130,6 +130,7 @@ class Installer:
 
 
     def run(self, cmd, inside=True, error_exception=None):
+
         if inside:
             run_cmd = self.run_command.format(cmd)
         else:
@@ -270,7 +271,7 @@ class Installer:
         if self.clone_type == 'deb':
             self.run('update-rc.d {0} {1}'.format(service, change),inside=inside, error_exception='warning:')
         else:
-            error_exception = 'Created symlink from' if change=='enable' else 'Removed symlink'
+            error_exception = 'Created symlink' if change=='enable' else 'Removed symlink'
             self.run(self.service_script.format(service, change), inside=inside, error_exception=error_exception)
 
     def stop_service(self, service, inside=True):
@@ -284,7 +285,6 @@ class Installer:
     def restart_service(self, service, inside=True):
         cmd = self.service_script.format(service, 'restart')
         self.run(cmd, inside=inside, error_exception='Redirecting to /bin/systemctl')
-
 
     def is_gluu_installed(self):
         
@@ -336,7 +336,8 @@ class Installer:
 
         if not self.repo_updated[inside]:
             if self.clone_type == 'rpm':
-                self.run('yum repolist', inside)
+                self.run('yum makecache fast', inside=inside)
+                self.run('yum repolist', inside, error_exception='Last metadata expiration check')
             else:
                 self.run('DEBIAN_FRONTEND=noninteractive apt-get update', inside)
                 self.run('DEBIAN_FRONTEND=noninteractive apt-get install -y apt-utils', inside, error_exception='debconf:')
