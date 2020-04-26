@@ -268,11 +268,10 @@ class Installer:
 
     def enable_service(self, service, inside=True, change='enable'):
         
-        if self.clone_type == 'deb':
-            self.run('update-rc.d {0} {1}'.format(service, change),inside=inside, error_exception='warning:')
+        if self.server_os in ('Ubuntu 16', 'Debian 9'):
+            self.run('update-rc.d {0} {1}'.format(service, change),inside=inside, error_exception='__ALL__')
         else:
-            error_exception = 'Created symlink' if change=='enable' else 'Removed symlink'
-            self.run(self.service_script.format(service, change), inside=inside, error_exception=error_exception)
+            self.run(self.service_script.format(service, change), inside=inside, error_exception='__ALL__')
 
     def stop_service(self, service, inside=True):
         cmd = self.service_script.format(service, 'stop')

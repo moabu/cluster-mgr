@@ -9,8 +9,7 @@ from flask_login import login_required
 from flask_menu import register_menu
 
 from clustermgr.models import db, ConfigParam
-from clustermgr.tasks.cache import install_cache_single,\
-    uninstall_cache_cluster, install_cache_sentinel
+from clustermgr.tasks.cache import uninstall_cache_cluster, install_cache_sentinel
 
 from ..core.license import license_reminder
 from ..core.license import prompt_license
@@ -115,15 +114,15 @@ def install():
     whatNext = "Cache Management Home"
     nextpage = url_for('cache_mgr.index')
     
-    if len(cache_servers) == 1:
+    #if len(cache_servers) == 1:
     
-        task = install_cache_single.delay(
-                                [server.id for server in servers],
-                                [server.id for server in cache_servers],
-                                )
-    else:
+    #    task = install_cache_single.delay(
+    #                            [server.id for server in servers],
+    #                            [server.id for server in cache_servers],
+    #                            )
+    #else:
 
-        task = install_cache_sentinel.delay(
+    task = install_cache_sentinel.delay(
                                 [server.id for server in servers],
                                 [server.id for server in cache_servers],
                                 )

@@ -7,7 +7,7 @@ cur_dir = os.path.dirname(os.path.realpath(__file__))
 
 sentinelMasterGroupName = 'GluuCluster'
 
-def get_stunnel_config(servers, server=None, osclone='deb'):
+def get_stunnel_config(servers, server=None, osclone='deb', sentinel=True):
 
     # if server is None, it is local server
     # WARNING: if osclone is rpm replace service unit file
@@ -35,11 +35,12 @@ def get_stunnel_config(servers, server=None, osclone='deb'):
         stunnel_conf_list.append('accept = {}:16379'.format(server.data.ip))
         stunnel_conf_list.append('connect = 127.0.0.1:6379')
         stunnel_conf_list.append('')
-
-        stunnel_conf_list.append('[redis-sentinel]')
-        stunnel_conf_list.append('accept = {}:36379'.format(server.data.ip))
-        stunnel_conf_list.append('connect = 127.0.0.1:26379')
-        stunnel_conf_list.append('')
+        
+        if sentinel:
+            stunnel_conf_list.append('[redis-sentinel]')
+            stunnel_conf_list.append('accept = {}:36379'.format(server.data.ip))
+            stunnel_conf_list.append('connect = 127.0.0.1:26379')
+            stunnel_conf_list.append('')
 
     for i, cs in enumerate(servers):
         section_name = '[redis-node{}]'.format(i+1)
@@ -49,14 +50,14 @@ def get_stunnel_config(servers, server=None, osclone='deb'):
         stunnel_conf_list.append('connect = {}:16379'.format(cs.data.ip))
         stunnel_conf_list.append('')
 
-
-    for i, cs in enumerate(servers):
-        section_name = '[redis-sentinel-node{}]'.format(i+1)
-        stunnel_conf_list.append(section_name)
-        stunnel_conf_list.append('client = yes')
-        stunnel_conf_list.append('accept = 127.0.0.1:{}'.format(sentinel_node_port + i))
-        stunnel_conf_list.append('connect = {}:36379'.format(cs.data.ip))
-        stunnel_conf_list.append('')
+    if sentinel:
+        for i, cs in enumerate(servers):
+            section_name = '[redis-sentinel-node{}]'.format(i+1)
+            stunnel_conf_list.append(section_name)
+            stunnel_conf_list.append('client = yes')
+            stunnel_conf_list.append('accept = 127.0.0.1:{}'.format(sentinel_node_port + i))
+            stunnel_conf_list.append('connect = {}:36379'.format(cs.data.ip))
+            stunnel_conf_list.append('')
 
     return '\n'.join(stunnel_conf_list)
 
@@ -64,8 +65,11 @@ def get_stunnel_config(servers, server=None, osclone='deb'):
 
 def get_redis_config(servers, conf_type, osclone='deb'):
 
+    if osclone == 'deb':
+        pid_file = '/var/run/redis/redis-server.pid' if conf_type == 'redis' else '/var/run/redis/redis-sentinel.pid'
+
     def_dict = {
-                'deb': {'pid': '/var/run/redis/{}.pid'.format(conf_type)},
+                'deb': {'pid': pid_file},
                 'rpm': {'pid': '/var/run/{}.pid'.format(conf_type)},
                 }
 
