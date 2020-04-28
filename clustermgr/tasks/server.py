@@ -744,7 +744,7 @@ def install_gluu_server(task_id, server_id):
                     server.ldap_password
                      )
 
-     wlogger.log(task_id, "Connecting LDAP Server: {}".format(server.hostname), 'debug')
+    wlogger.log(task_id, "Connecting LDAP Server: {}".format(server.hostname), 'debug')
 
     if server.primary_server:
         ldapc.connect()
