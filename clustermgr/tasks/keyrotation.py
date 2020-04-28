@@ -23,7 +23,9 @@ task_logger = get_task_logger(__name__)
 
 
 def generate_jks(passwd, javalibs_dir, jks_path, exp=365,
-                 alg="RS256 RS384 RS512 ES256 ES384 ES512"):
+    sig_keys='RS256 RS384 RS512 ES256 ES384 ES512 PS256 PS384 PS512',
+    enc_keys='RSA1_5 RSA'):
+
     if os.path.exists(jks_path):
         os.unlink(jks_path)
 
@@ -32,8 +34,8 @@ def generate_jks(passwd, javalibs_dir, jks_path, exp=365,
     cmd = " ".join([
         "java",
         "-jar", os.path.join(javalibs_dir, "keygen.jar"),
-        "-enc_keys", alg,
-        "-sig_keys", alg,
+        "-enc_keys", enc_keys,
+        "-sig_keys", sig_keys,
         "-dnname", "{!r}".format(dn),
         "-expiration", "{}".format(exp),
         "-keystore", jks_path,
