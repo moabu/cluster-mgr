@@ -43,7 +43,7 @@ Execute the following commands to install Cluster Manager to `/opt/clustermgr` w
 
 `# pip install python-ldap==2.4.15 --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr`
 
-`# pip install  https://github.com/GluuFederation/cluster-mgr/archive/4.0.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr` 
+`# pip install  https://github.com/GluuFederation/cluster-mgr/archive/4.1.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr` 
 
 You need to copy `/opt/clustermgr` directory to RHEL7 that has no internet access. So let us package:
 
@@ -54,7 +54,7 @@ Now you can copy `clustermgr4.tgz` to RHEL7 that has no internet access.
 ### Upgrading Cluster Manager
 If you built Cluster Manager before and there is an update, you can upgrade current static build as:
 
-`# pip install --upgrade --force-reinstall  --no-deps --no-cache-dir https://github.com/GluuFederation/cluster-mgr/archive/4.0.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr`
+`# pip install --upgrade --force-reinstall  --no-deps --no-cache-dir https://github.com/GluuFederation/cluster-mgr/archive/4.1.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr`
 
 You need to create new `clustermgr4.tgz` and copy to RHEL7 that has no internet access.
 
