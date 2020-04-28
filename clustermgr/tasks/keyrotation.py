@@ -27,7 +27,9 @@ task_logger = get_task_logger(__name__)
 
 
 def generate_jks(passwd, javalibs_dir, jks_path, exp=365,
-    alg="RS256 RS384 RS512 ES256 ES384 ES512 PS256 PS384 PS512 RSA1_5 RSA-OAEP"):
+    sig_keys='RS256 RS384 RS512 ES256 ES384 ES512 PS256 PS384 PS512',
+    enc_keys='RSA1_5 RSA'):
+    
     if os.path.exists(jks_path):
         os.unlink(jks_path)
 
@@ -36,8 +38,8 @@ def generate_jks(passwd, javalibs_dir, jks_path, exp=365,
     cmd = " ".join([
         "java",
         "-jar", os.path.join(javalibs_dir, "keygen.jar"),
-        "-enc_keys", alg,
-        "-sig_keys", alg,
+        "-enc_keys", enc_keys,
+        "-sig_keys", sig_keys,
         "-dnname", "{!r}".format(dn),
         "-expiration", "{}".format(exp),
         "-keystore", jks_path,
@@ -46,22 +48,6 @@ def generate_jks(passwd, javalibs_dir, jks_path, exp=365,
     return exec_cmd(cmd)
 
 
-def get_props(server, gluu_version, task_id):
-    props = {}
-
-    installer = Installer(server, 
-                          gluu_version, 
-                          logger_task_id=task_id)
-
-    props_fn = os.path.join(installer.container, 
-                    'install/community-edition-setup/setup.properties.last')
-
-    props_content = installer.get_file(props_fn, asio=True)
-    
-    props = Properties()
-    props.load(props_content)
-
-    return props.getPropertyDict()
 
 def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass="", task_id=None):
     pub_keys = pub_keys or []
@@ -81,7 +67,6 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass="", task_id=None):
             pass
 
     server = Server.query.filter_by(primary_server=True).first()
-    props = get_props(server, appconf.gluu_version, task_id)
     binddn = "cn=Directory Manager"
 
     s = Ldap3Server(host=server.ip, port=1636, use_ssl=True)

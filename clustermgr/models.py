@@ -201,7 +201,8 @@ def dbLogger(target, op):
     data_ = {}
     mapper = inspect(target)
     for column in mapper.attrs:
-        data_[column.key] = getattr(target, column.key)
+        data_[column.key] = str(getattr(target, column.key))
+
 
     logger.debug("%s[%s]: %s", op, target.__class__.__name__, json.dumps(data_))
 
