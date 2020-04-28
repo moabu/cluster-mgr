@@ -67,7 +67,6 @@ def settings():
 
         if kr.data.enabled:
             # rotate the keys immediately
-            print("Firing rotation")
             rotate_keys.delay()
         return redirect(url_for(".index"))
 
