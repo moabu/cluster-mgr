@@ -32,34 +32,42 @@ def isKEyRatationMenuVisible():
 @register_menu(keyrotation_bp, '.gluuServerCluster.keyRotation', 'Key Rotation', order=7, icon='fa fa-key', visible_when=isKEyRatationMenuVisible)
 @login_required
 def index():
-    kr = KeyRotation.query.first()
+    kr = ConfigParam.get('keyrotation')
+    if not kr:
+        kr = ConfigParam.new(
+                    'keyrotation', 
+                    data={
+                        'interval': 24,
+                        'enabled': False,
+                        'rotated_at': 0,
+                        }
+                    )
+        kr.save()
+
     return render_template("keyrotation_index.html", kr=kr)
 
 
 @keyrotation_bp.route("/settings/", methods=["GET", "POST"])
 @login_required
 def settings():
-    kr = KeyRotation.query.first()
+    kr = ConfigParam.get('keyrotation')
     form = KeyRotationForm()
 
     if request.method == "GET" and kr is not None:
-        form.interval.data = kr.interval
-        form.enabled.data = "true" if kr.enabled else "false"
+        form.interval.data = kr.data.interval
+        form.enabled.data = "true" if kr.data.enabled else "false"
         # form.type.data = kr.type
 
     if form.validate_on_submit():
-        if not kr:
-            kr = KeyRotation()
-
-        kr.interval = form.interval.data
-        kr.enabled = as_boolean(form.enabled.data)
+        kr.data.interval = form.interval.data
+        kr.data.enabled = as_boolean(form.enabled.data)
         # kr.type = form.type.data
-        kr.type = "jks"
-        db.session.add(kr)
-        db.session.commit()
+        kr.data.type = "jks"
+        kr.save()
 
-        if kr.enabled:
+        if kr.data.enabled:
             # rotate the keys immediately
+            print("Firing rotation")
             rotate_keys.delay()
         return redirect(url_for(".index"))
 

@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime
+import datetime
 
 from celery.utils.log import get_task_logger
 from ldap3 import Connection
@@ -44,40 +44,22 @@ def generate_jks(passwd, javalibs_dir, jks_path, exp=365,
     return exec_cmd(cmd)
 
 
-def get_props(server, gluu_version, task_id):
-    props = {}
-
-    installer = Installer(server, 
-                          gluu_version, 
-                          logger_task_id=task_id)
-
-    props_fn = os.path.join(installer.container, 
-                    'install/community-edition-setup/setup.properties.last')
-
-    props_content = installer.get_file(props_fn, asio=True)
-    
-    props = Properties()
-    props.load(props_content)
-
-    return props.getPropertyDict()
-
 def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass="", task_id=None):
     pub_keys = pub_keys or []
     if not pub_keys:
         task_logger.warn("Public keys are not available.")
         return False
 
-    appconf = AppConfiguration.query.first()
+    servers = ConfigParam.get_servers()
 
-    for server in Server.query:
-        props = get_props(server, appconf.gluu_version, task_id)
+    for server in servers:
         binddn = "cn=Directory Manager"
 
-        s = Ldap3Server(host=server.ip, port=1636, use_ssl=True)
+        s = Ldap3Server(host=server.data.ip, port=1636, use_ssl=True)
         try:
-            conn = Connection(s, user=binddn, password=server.ldap_password, auto_bind=True)
+            conn = Connection(s, user=binddn, password=server.data.ldap_password, auto_bind=True)
         except LDAPSocketOpenError:
-            task_logger.warn("Unable to connecto to LDAP at {}; trying other server (if possible).".format(server.hostname))
+            task_logger.warn("Unable to connecto to LDAP at {}; trying other server (if possible).".format(server.data.hostname))
             continue
 
         # base DN for oxAuth config
@@ -108,7 +90,7 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass="", task_id=None):
         dyn_conf = json.loads(entry["oxAuthConfDynamic"].values[0])
         dyn_conf.update({
             "keyRegenerationEnabled": False,  # always set to False
-            "keyRegenerationInterval": kr.interval,
+            "keyRegenerationInterval": kr.data.interval,
             "defaultSignatureAlgorithm": "RS512",
         })
 
@@ -118,9 +100,11 @@ def modify_oxauth_config(kr, pub_keys=None, openid_jks_pass="", task_id=None):
         })
         serialized_dyn_conf = json.dumps(dyn_conf, indent=2)
 
+
         # update the attributes
         task_logger.info("Modifying oxAuth configuration.")
-        conn.modify(entry.entry_dn, {
+        dn = conn.response[0]['dn']
+        conn.modify(dn, {
             'oxRevision': [(MODIFY_REPLACE, [ox_rev])],
             'oxAuthConfWebKeys': [(MODIFY_REPLACE, [serialized_keys_conf])],
             'oxAuthConfDynamic': [(MODIFY_REPLACE, [serialized_dyn_conf])],
@@ -139,7 +123,7 @@ def rotate_keys(self):
     task_id = self.request.id
     javalibs_dir = celery.conf["JAVALIBS_DIR"]
     jks_path = celery.conf["JKS_PATH"]
-    kr = KeyRotation.query.first()
+    kr = ConfigParam.get('keyrotation')
 
     if not kr:
         task_logger.warn("Unable to find key rotation data from database; skipping task.")
@@ -166,15 +150,11 @@ def _rotate_keys(kr, javalibs_dir, jks_path, task_id):
     # update LDAP entry
     if pub_keys and modify_oxauth_config(kr, pub_keys, openid_jks_pass, ):
         task_logger.info("Keys have been updated.")
-        kr.rotated_at = datetime.utcnow()
-        db.session.add(kr)
-        db.session.commit()
-
-        app_conf = AppConfiguration.query.first()
-
-        for server in Server.query:
+        kr.data.rotated_at = datetime.datetime.utcnow().timestamp()
+        kr.save()
+        servers = ConfigParam.get_servers()
+        for server in servers:
             installer = Installer(server, 
-                                  app_conf.gluu_version, 
                                   logger_task_id=task_id)
 
             remote_jks_path = os.path.join(installer.container, 
@@ -182,22 +162,27 @@ def _rotate_keys(kr, javalibs_dir, jks_path, task_id):
             installer.upload_file(jks_path, remote_jks_path)
 
 
+def get_next_rotation(kr):
+    return datetime.datetime.fromtimestamp(kr.data.rotated_at)  + timedelta(hours=kr.data.interval)
+
 @celery.task
 def schedule_key_rotation():
-    kr = KeyRotation.query.first()
+    kr = ConfigParam.get('keyrotation')
 
     if not kr:
         task_logger.warn("Unable to find key rotation data from database; skipping task.")
         return
 
-    if not kr.enabled:
+    if not kr.data.enabled:
         task_logger.warn("Key rotation is disabled.")
         return
 
-    if not kr.should_rotate():
+    next_rotation = get_next_rotation(kr)
+
+    if not datetime.utcnow() > next_rotation:
         task_logger.warn(
             "key rotation task will be executed "
-            "approximately at {} UTC".format(kr.next_rotation_at)
+            "approximately at {} UTC".format(next_rotation)
         )
         return
 

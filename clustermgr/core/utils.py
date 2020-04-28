@@ -151,7 +151,7 @@ def exec_cmd(cmd):
                              stderr=subprocess.PIPE)
     stdout, stderr = popen.communicate()
     retcode = popen.returncode
-    return stdout, stderr, retcode
+    return stdout.decode(), stderr.decode(), retcode
 
 
 def get_mac_addr():

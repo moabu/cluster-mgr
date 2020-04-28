@@ -16,11 +16,11 @@
     <div class="box-body">
         <dl class="dl-horizontal">
             <dt>Enabled</dt>
-            <dd>{{ "Yes" if kr.enabled else "No" }}</dd>
+            <dd>{{ "Yes" if kr.data.enabled else "No" }}</dd>
             <dt>Rotation Interval</dt>
-            <dd>{{ kr.interval }} hour(s)</dd>
+            <dd>{{ kr.data.interval }} hour(s)</dd>
             <dt>Backend Type</dt>
-            <dd>{{ "JKS" if kr.type == "jks" else "N/A" }}</dd>
+            <dd>{{ "JKS" if kr.data.type == "jks" else "N/A" }}</dd>
         </dl>
     </div>
     <div class="box-footer">
