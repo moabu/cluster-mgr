@@ -27,14 +27,25 @@ and install the following pacakges (on host system):
 ## cysnc2 installation (CentOS 7):
 
 
-Obtain csync2 from https://raw.githubusercontent.com/mbaser/gluu/master/csync2-2.0-3.gluu.centos7.x86_64.rpm
+Obtain csync2 from http://162.243.99.240/icrby8xcvbcv/csync2/csync2-2.0-3.gluu.centos7.x86_64.rpm
 
 inside container:
 
 ```
 # yum install sqlite-devel xinetd gnutls librsync
-# rpm -i csync2-2.0-3.gluu.centos7.x86_64.rpm 
+# rpm -i csync2-2.0-3.gluu.centos7.x86_64.rpm
 ```
+## cysnc2 installation (RedHat 7):
+
+Obtain csync2 from http://162.243.99.240/icrby8xcvbcv/csync2/csync2-2.0-3.gluu.rhel7.src.rpm
+
+inside container:
+
+```
+# yum install sqlite-devel xinetd gnutls librsync
+# rpm -i csync2-2.0-3.gluu.rhel7.src.rpm
+```
+
 
 ## cysnc2 installation (ubuntu & Debian):
 
@@ -55,6 +66,13 @@ Obtain influxdb from https://repos.influxdata.com/ubuntu/pool/stable/i/influxdb/
 # dpkg -i influxdb_1.7.4-1_amd64.deb
 ```
 
+## CentOS 7 & RedHat 7
+Download http://162.243.99.240/icrby8xcvbcv/psutil/python2-psutil-5.7.0-1.el7.x86_64.rpm
+and install all nodes:
+  
+```
+rpm -i ython2-psutil-5.7.0-1.el7.x86_64.rpm
+```
 
 # Logging
 
