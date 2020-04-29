@@ -1,6 +1,7 @@
 #!/bin/sh
 
-export PYTHONPATH=$PYTHONPATH:/usr/local/bin:/usr/bin
+export PYTHONPATH=$PYTHONPATH:/usr/local/bin:/usr/bin:/opt/clustermgr/clustermgr:/opt/clustermgr/bin
+
 CELERY_PID="$HOME/.clustermgr4/celery.pid"
 CELERY_BEAT_PID="$HOME/.clustermgr4/celery-beat.pid"
 GUNICORN_PID="$HOME/.clustermgr4/gunicorn.pid"
