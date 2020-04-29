@@ -297,14 +297,14 @@ class Installer:
         
         print "Installer> Determining gluu version by using oxauth.war"
         
-        oxauth_path = '/opt/gluu-server/opt/gluu/jetty/oxauth/webapps/oxauth.war'
+        oxauth_path = '/opt/gluu/jetty/oxauth/webapps/oxauth.war'
         
-        if installed and not self.conn.exists(oxauth_path):
-            oxauth_path = '/opt/gluu-server/opt/dist/gluu/oxauth.war'
+        if installed and not self.conn.exists(self.container + oxauth_path):
+            oxauth_path = '/opt/dist/gluu/oxauth.war'
             
         
-        if self.conn.exists(oxauth_path):
-            result = self.conn.run('''python -c "import zipfile;zf=zipfile.ZipFile('{}','r');print zf.read('META-INF/MANIFEST.MF')"'''.format(oxauth_path))
+        if self.conn.exists(self.container + oxauth_path):
+            result = self.run('''python -c \\"import zipfile;zf=zipfile.ZipFile('{}','r');print zf.read('META-INF/MANIFEST.MF')\\"'''.format(oxauth_path))
 
             menifest = result[1]
 

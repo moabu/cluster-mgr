@@ -81,8 +81,6 @@ class ChangeGluuHostname:
         self.os_type = os_type
         self.gluu_version = gluu_version
         self.local = local
-        self.base_inum = None
-        self.appliance_inum = None
         self.logger_tid = None
 
 
@@ -103,35 +101,12 @@ class ChangeGluuHostname:
                                     self.os_type, self.logger_tid)
 
         self.installer.hostname = self.server
-
-        self.appliance_inum = self.get_appliance_inum()
-        self.base_inum = self.get_base_inum()
         
         return True
-    def get_appliance_inum(self):
-        self.conn.search(search_base='ou=appliances,o=gluu',
-                    search_filter='(objectclass=*)',
-                    search_scope=SUBTREE, attributes=['inum'])
-        
-        for r in self.conn.response:
-            if r['attributes']['inum']:
-                return r['attributes']['inum'][0]
-
-
-    def get_base_inum(self):
-        self.conn.search(search_base='o=gluu',
-                search_filter='(objectclass=gluuOrganization)',
-                search_scope=SUBTREE, attributes=['o'])
-
-        for r in self.conn.response:
-            if r['attributes']['o']:
-                return r['attributes']['o'][0]
-
 
     def change_appliance_config(self):
         print "Changing LDAP Applience configurations"
-        config_dn = 'ou=configuration,inum={},ou=appliances,o=gluu'.format(
-                    self.appliance_inum)
+        config_dn = 'ou=configuration,o=gluu'
 
 
         for dns, cattr in (
@@ -161,7 +136,7 @@ class ChangeGluuHostname:
 
     def change_clients(self):
         print "Changing LDAP Clients configurations"
-        dn = "ou=clients,o={},o=gluu".format(self.base_inum)
+        dn = "ou=clients,o=gluu"
         self.conn.search(search_base=dn,
                     search_filter='(objectClass=oxAuthClient)',
                     search_scope=SUBTREE, attributes=[
@@ -192,7 +167,7 @@ class ChangeGluuHostname:
                     ('scopes', 'oxId'),
                     ):
 
-            dn = "ou={},ou=uma,o={},o=gluu".format(ou, self.base_inum)
+            dn = "ou={},ou=uma,o=gluu".format(ou)
 
             self.conn.search(search_base=dn, search_filter='(objectClass=*)', search_scope=SUBTREE, attributes=[cattr])
             result = self.conn.response 
@@ -251,8 +226,8 @@ class ChangeGluuHostname:
 
             if not crt == 'saml.pem':
 
-                self.installer.delete_key(self.old_host, crt)
-                self.installer.import_key(self.new_host, crt)
+                self.installer.delete_key(crt, self.old_host)
+                self.installer.import_key(crt, self.new_host)
             
         saml_crt_old_path = os.path.join(self.container, 'etc/certs/saml.pem.crt')
         saml_crt_new_path = os.path.join(self.container, 'etc/certs/saml.pem')

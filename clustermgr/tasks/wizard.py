@@ -40,7 +40,6 @@ def wizard_step1(self):
                 server, 
                 '', 
                 logger_task_id=task_id, 
-                server_os=server.os
                 )
 
     
@@ -52,20 +51,38 @@ def wizard_step1(self):
 
     if not gluu_version:
         wlogger.log(task_id, "Gluu Server is not installed on this server", 'fail')
-        wlogger.log(tid, "Ending analyzation of server.", 'error')
+        wlogger.log(task_id, "Ending analyzation of server.", 'error')
         return False
         
     app_conf.gluu_version = gluu_version
 
- 
     wlogger.log(task_id, "Gluu version was determined as {}".format(gluu_version), 'success')
     
     installer.gluu_version = gluu_version
     installer.settings()
 
+    ldap_prop_file = installer.get_file('/opt/gluu-server/etc/gluu/conf/gluu-ldap.properties')
+
+    for l in ldap_prop_file.splitlines():
+        ls = l.strip()
+        if ls.startswith('bindPassword'):
+            n = ls.find(':')
+            en_password = ls[n+1:].strip()
+            break
+    
+    pw_result = installer.run('/opt/gluu/bin/encode.py -D ' + en_password, inside=True)
+    ldap_password = pw_result[1].strip()
+    
+    server.ldap_password = ldap_password
+    db.session.commit()
+
     setup_properties_last = os.path.join(installer.container, 
                         'install/community-edition-setup/setup.properties.last')
-    
+
+    if installer.conn.exists(setup_properties_last + '.enc'):
+        cmd_unenc = "openssl enc -d -aes-256-cbc -in /install/community-edition-setup/setup.properties.last.enc -out /install/community-edition-setup/setup.properties.last -pass pass:$'{}'".format(server.ldap_password)
+        installer.run(cmd_unenc, inside=True)
+
     setup_properties_local = os.path.join(Config.DATA_DIR, 'setup.properties')
     
     result = installer.download_file(setup_properties_last, setup_properties_local)
