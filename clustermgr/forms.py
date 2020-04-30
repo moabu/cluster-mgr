@@ -16,12 +16,10 @@ from clustermgr.config import Config
 
 class AppConfigForm(FlaskForm):
     versions = [
+                '3.1.8',
+                '3.1.7',
                 '3.1.6',
-                '3.1.5', 
-                '3.1.4', 
-                '3.1.3.1',
-                '3.1.3', 
-                '3.1.2',
+
                 ]
     gluu_version = SelectField('Gluu Server Version',
                                choices=[(v, v) for v in versions])

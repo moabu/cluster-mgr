@@ -1467,7 +1467,7 @@ def installGluuServer(self, server_id):
         run_cmd = ("ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o "
             "Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no "
             "-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes "
-            "root@localhost \"{}\"")
+            "root@localhost '{}'")
 
 
     if appconf.gluu_version >= '3.1.4':
