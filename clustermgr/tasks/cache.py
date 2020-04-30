@@ -400,12 +400,19 @@ def install_cache_cluster(self):
 
         if server.primary_server:
             __update_LDAP_cache_method(tid, server, 'localhost:16379')
-        
+
 
         wlogger.log(tid, "Restarting Gluu Server", "info",
                                 server_id=server.id)
 
-        si.run_command('systemctl restart gluu-server-{}'.format(app_conf.gluu_version))
+        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+            restart_command = '/sbin/gluu-serverd-{0} restart'.format(
+                                app_config.gluu_version)
+        else:
+            restart_command = '/etc/init.d/gluu-server-{0} restart'.format(
+                                app_config.gluu_version)
+
+        si.run_command(restart_command)
 
     wlogger.log(tid, "3", "set_step")
 
