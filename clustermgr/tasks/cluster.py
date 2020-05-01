@@ -265,7 +265,7 @@ def setup_filesystem_replication_do(task_id):
                 installer.run('curl http://mirror.centos.org/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7 >/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7', inside=True, error_exception= '__ALL__')
 
                 csync_rpm = 'http://162.243.99.240/icrby8xcvbcv/csync2/csync2-2.0-3.gluu.{}.x86_64.rpm'.format(server.os.replace(' ', '').lower())
-                
+
                 installer.install(csync_rpm, inside=True, error_exception= '__ALL__')
 
         else:
@@ -313,7 +313,6 @@ def setup_filesystem_replication_do(task_id):
 
 
         csync2_path = '/usr/sbin/csync2'
-
 
         if installer.clone_type == 'deb':
 

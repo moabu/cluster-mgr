@@ -288,8 +288,8 @@ def install_gluu(server_id):
         setup_prop['orgName'] = form.orgName.data.strip()
         setup_prop['admin_email'] = form.admin_email.data.strip()
         setup_prop['application_max_ram'] = str(form.application_max_ram.data)
-                
-        
+
+
         for o in ('installOxAuth',
                   'installOxTrust',
                   'installLdap',
@@ -297,6 +297,8 @@ def install_gluu(server_id):
                   'installSaml',
                   'installOxAuthRP',
                   'installPassport',
+                  'installOxd',
+                  'installCasa',
                   'application_max_ram',
                   ):
             setup_prop[o] = getattr(form, o).data
@@ -332,6 +334,8 @@ def install_gluu(server_id):
                   'installSaml',
                   'installOxAuthRP',
                   'installPassport',
+                  'installOxd',
+                  'installCasa',
                   'application_max_ram',
                   ):
             getattr(form, o).data = setup_prop.get(o, '')

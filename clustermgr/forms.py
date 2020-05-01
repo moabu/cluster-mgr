@@ -177,6 +177,8 @@ class InstallServerForm(FlaskForm):
     installSaml = BooleanField('Install Shibboleth SAML IDP')
     installOxAuthRP = BooleanField('Install oxAuth RP')
     installPassport = BooleanField('Install Passport')
+    installOxd = BooleanField('Install Oxd')
+    installCasa = BooleanField('Install Casa')
     
     gluu_licence = SelectField(
         "Do you acknowledge that use of the Gluu Server is under the MIT license?",
