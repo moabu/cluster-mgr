@@ -2,6 +2,7 @@ import json
 import os
 import getpass
 import re
+import time
 
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import db, wlogger, celery
@@ -12,7 +13,7 @@ from clustermgr.tasks.cluster import get_os_type, makeOpenDjListenIpAddr,\
 from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.config import Config
 from clustermgr.core.utils import get_setup_properties, \
-        write_setup_properties_file
+        write_setup_properties_file, get_oxauth_version
 from clustermgr.core.change_gluu_host import ChangeGluuHostname
 
 from flask import current_app as app
@@ -54,26 +55,54 @@ def wizard_step1(self):
     
     wlogger.log(tid, "OS type was determined as {}".format(os_type), 'debug')
     
-    gluu_version = None
-    
+    gluu_path_version = None
+    oxauth_version = None
+
     #Determine if a version of gluu server was installed.
     r = c.listdir("/opt")
     if r[0]:
         for s in r[1]:
             m=re.search('gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+)(.\d+)?)$',s)
             if m:
-                gluu_version = m.group("gluu_version")
+                gluu_path_version = m.group("gluu_version")
                 
-                app_conf.gluu_version = gluu_version
-                wlogger.log(tid, "Gluu version was determined as {}".format(
-                                                        gluu_version), 'debug')
+                wlogger.log(tid, "Gluu path was determined as gluu-server-{}".format(
+                                                        gluu_path_version), 'debug')
+                
+                
+                oxauth_path = '/opt/gluu-server-{0}/opt/gluu/jetty/oxauth/webapps/oxauth.war'.format(gluu_path_version)
+                
+                try:
+                    result = c.run('''python -c "import zipfile;zf=zipfile.ZipFile('{}','r');print zf.read('META-INF/MANIFEST.MF')"'''.format(oxauth_path))
+                
+                    menifest = result[1]
+
+                    for l in menifest.split('\n'):
+                        ls = l.strip()
+                        if 'Implementation-Version:' in ls:
+                            version = ls.split(':')[1].strip()
+                            oxauth_version = '.'.join(version.split('.')[:3])
+                            
+                            wlogger.log(tid, "oxauth version was determined as {}".format(
+                                                                oxauth_version), 'debug')
+                            app_conf.gluu_version = oxauth_version
+                            break
+                except:
+                    pass
+
+                if not oxauth_version:
+                    wlogger.log(tid, "Error determining oxauth version.", 'debug')
+                    wlogger.log(tid, "Setting gluu version to path version", 'debug')            
+                    app_conf.gluu_version = gluu_path_version
+
     
-    if not gluu_version:
+    if not gluu_path_version:
         wlogger.log(tid, "Gluu server was not installed on this server",'fail')
         wlogger.log(tid, "Ending analyzation of server.", 'error')
         return
     
-    gluu_path = '/opt/gluu-server-{}'.format(gluu_version)
+
+    gluu_path = '/opt/gluu-server-{}'.format(gluu_path_version)
     
     server.gluu_server = True
     
@@ -112,6 +141,10 @@ def wizard_step2(self):
     server = Server.query.filter_by(primary_server=True).first()
     app_conf = AppConfiguration.query.first()
     
+    gluu_path_version = None
+    
+
+    
     c = RemoteClient(server.hostname, ip=server.ip)
 
     wlogger.log(tid, "Making SSH Connection")
@@ -124,6 +157,44 @@ def wizard_step2(self):
         wlogger.log(tid, "Ending changing name.", 'error')
         return
     
+    r = c.listdir("/opt")
+    if r[0]:
+        for s in r[1]:
+            m=re.search('gluu-server-(?P<gluu_version>(\d+).(\d+).(\d+)(.\d+)?)$',s)
+            if m:
+                gluu_path_version = m.group("gluu_version")
+                
+    if not gluu_path_version:
+        wlogger.log(tid, "Error determining version from path", 'error')
+    
+    if gluu_path_version != app_conf.gluu_version:
+        wlogger.log(tid, "Changing path to match oxauth version")
+        if server.os in ('CentOS 7', 'RHEL 7'):
+            server_bin = '/sbin/gluu-serverd-{0}'.format(gluu_path_version)
+            cmd = server_bin + ' stop'
+            wlogger.log(tid, "Executing " + cmd, 'debug')
+            c.run(cmd)
+            time.sleep(10)
+            
+            cmd_list = [
+                        server_bin + ' disable',
+                        'mv /sbin/gluu-serverd-{0} /sbin/gluu-serverd-{1}'.format(gluu_path_version, app_conf.gluu_version),
+                        'sed -i "s/GLUU_VERSION={0}/GLUU_VERSION={1}/" /sbin/gluu-serverd-{1}'.format(gluu_path_version, app_conf.gluu_version),
+                        'cd /var/lib/container/ && ln -s /opt/gluu-server-{1} gluu_server_{1} && rm gluu_server_{0}'.format(gluu_path_version, app_conf.gluu_version),
+                        'mv /usr/lib/systemd/system/systemd-nspawn\@gluu_server_{0}.service /usr/lib/systemd/system/systemd-nspawn\@gluu_server_{1}.service'.format(gluu_path_version, app_conf.gluu_version),
+                        'mv /opt/gluu-server-{0} /opt/gluu-server-{1}'.format(gluu_path_version, app_conf.gluu_version),
+                        '/sbin/gluu-serverd-{0} enable'.format(app_conf.gluu_version),
+                        '/sbin/gluu-serverd-{0} start'.format(app_conf.gluu_version),
+                        ]
+                        
+            for cmd in cmd_list:
+                wlogger.log(tid, "Executing " + cmd, 'debug')
+                c.run(cmd)
+
+            #wait server to start
+            time.sleep(30)
+        
+
     run_cmd , cmd_chroot = get_run_cmd(server)
     makeOpenDjListenIpAddr(tid, c, cmd_chroot, run_cmd, server)
     

@@ -41,10 +41,11 @@ def modify_etc_hosts(host_ip, old_hosts, old_host):
         if h in hosts['ipv4']['127.0.0.1']:
             hosts['ipv4']['127.0.0.1'].remove(h)
 
-    for h,i in host_ip:
-        if h in hosts['ipv6']['::1']:
-            hosts['ipv6']['::1'].remove(h)
-            
+    if '::1' in hosts['ipv6']:
+        for h,i in host_ip:
+            if h in hosts['ipv6']['::1']:
+                hosts['ipv6']['::1'].remove(h)
+
     for h,i in host_ip:
         if i in hosts['ipv4']:
             if not h in hosts['ipv4'][i]:
@@ -181,20 +182,22 @@ class ChangeGluuHostname:
                                                 'oxAuthPostLogoutRedirectURI',
                                                 'oxAuthRedirectURI',
                                                 'oxClaimRedirectURI',
+                                                'oxAuthLogoutURI'
                                                 ])
 
-        result = self.conn.response[0]['attributes']
+        for client_entry in self.conn.response:
+            dn = client_entry['dn']
+            for atr in client_entry['attributes']:
+                if client_entry['attributes'][atr]:
+                    changeAttr = False
+                    for i in range(len(client_entry['attributes'][atr])):
+                        cur_val = client_entry['attributes'][atr][i]
+                        client_entry['attributes'][atr][i] = cur_val.replace(self.old_host, self.new_host)
+                        if cur_val != client_entry['attributes'][atr][i]:
+                            changeAttr = True
 
-        dn = self.conn.response[0]['dn']
-
-        for atr in result:
-            for i in range(len(result[atr])):
-                changeAttr = False
-                if self.old_host in result[atr][i]:
-                    changeAttr = True
-                    result[atr][i] = result[atr][i].replace(self.old_host, self.new_host)
-                    self.conn.modify(dn, {atr: [MODIFY_REPLACE, result[atr]]})
-
+                if changeAttr:
+                    self.conn.modify(dn, {atr: [MODIFY_REPLACE, client_entry['attributes'][atr]]})
 
 
     def change_uma(self):
@@ -257,7 +260,7 @@ class ChangeGluuHostname:
             'chown jetty:jetty /etc/certs/oxauth-keys*'
             ]
 
-        cert_list = ['httpd', 'idp-encryption', 'idp-signing', 'shibIDP', 'opendj', 'passport-sp']
+        cert_list = ['httpd', 'idp-encryption', 'idp-signing', 'shibIDP', 'passport-sp']
 
         for crt in cert_list:
 

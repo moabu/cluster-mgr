@@ -78,6 +78,7 @@ def deploy_config(server_id):
 
 
 @cluster.route('/opendjdisablereplication/<int:server_id>/')
+@login_required
 def opendj_disable_replication(server_id):
     server = Server.query.get(server_id)
     task = opendj_disable_replication_task.delay(
@@ -94,6 +95,7 @@ def opendj_disable_replication(server_id):
 
 
 @cluster.route('/removeserverfromcluster/<int:server_id>/')
+@login_required
 def remove_server_from_cluster_view(server_id):
     """Initiates removal of replications"""
     remove_server = False
@@ -249,6 +251,7 @@ def install_nginx():
 
 
 @cluster.route('/opendjenablereplication/<server_id>')
+@login_required
 def opendj_enable_replication(server_id):
 
     nextpage = 'index.multi_master_replication'
@@ -304,6 +307,7 @@ def chekFSR(server, gluu_version):
     return False, [], paths
 
 @cluster.route('/fsrep', methods=['GET', 'POST'])
+@login_required
 def file_system_replication():
     """File System Replication view"""
 
@@ -369,6 +373,11 @@ def file_system_replication():
         return render_template("fsrep.html", form=fs_paths_form)
 
 
+    user_fsr_file_name = os.path.join(app.config["DATA_DIR"], 'fsr_paths')
+
+    with open(user_fsr_file_name,'w') as w:
+        w.write(fs_paths_form.fs_paths.data.strip())
+
     task = setup_filesystem_replication.delay()
 
     return render_template('fsr_install_logger.html', step=1,
@@ -377,14 +386,23 @@ def file_system_replication():
 
 
 @cluster.route('/updatefsreppath', methods=["POST"])
+@login_required
 def update_fsrep_path():
     servers = Server.query.all()
+
+    fsr_paths = request.form['fs_paths']
+
+    user_fsr_file_name = os.path.join(app.config["DATA_DIR"], 'fsr_paths')
+    
+    with open(user_fsr_file_name,'w') as w:
+        w.write(fsr_paths)
 
     task = update_filesystem_replication_paths.delay()
     return render_template('fsr_install_logger.html', step=1,
                            task_id=task.id, servers=servers)
 
 @cluster.route('/removefsrep')
+@login_required
 def remove_file_system_replication():
     servers = Server.query.all()
     task = remove_filesystem_replication.delay()

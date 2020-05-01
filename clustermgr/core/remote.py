@@ -4,11 +4,22 @@ import logging
 import os
 import base64
 
+from logging.handlers import RotatingFileHandler
+
 from paramiko import SSHException
 from paramiko.client import SSHClient, AutoAddPolicy
 from paramiko.ssh_exception import PasswordRequiredException 
 from flask import current_app
 
+
+log_file = os.path.join(os.path.expanduser('~'), '.clustermgr','logs', 'ssh.log')
+
+my_logger = logging.getLogger("Gluu Cluster Manager")
+my_logger.setLevel(logging.INFO)
+handler = RotatingFileHandler(log_file, maxBytes=10485760, backupCount=5)
+formatter=logging.Formatter('%(asctime)s: %(message)s')
+handler.setFormatter(formatter)
+my_logger.addHandler(handler)
 
 
 def decode(key, enc):
@@ -72,7 +83,12 @@ class RemoteClient(object):
         self.sftpclient = None
         self.client.set_missing_host_key_policy(AutoAddPolicy())
         self.client.load_system_host_keys()
-        logging.debug("RemoteClient created for host: %s", host)
+        logging.debug("RemoteClient created for host: %s" % host)
+
+
+    def log_me(self, text, e=False):
+        log_text = '@{}> {}'.format(self.host, text)
+        my_logger.info(log_text)
 
     def startup(self):
         """Function that starts SSH connection and makes client available for
@@ -80,7 +96,7 @@ class RemoteClient(object):
         it tries with the IP address if supplied
         """
         try:
-            logging.debug("Trying to connect to remote server %s", self.host)
+            self.log_me("Trying to connect to remote server %s" % self.host)
             self.client.connect(self.host, port=22, username=self.user, 
                                     passphrase=self.passphrase)
             self.sftpclient = self.client.open_sftp()
@@ -92,17 +108,17 @@ class RemoteClient(object):
         
         except:
             if self.ip:
-                logging.warning("Connection with hostname failed. Retrying "
+                self.log_me("Connection with hostname failed. Retrying "
                                 "with IP")
                 self._try_with_ip()
             else:
-                logging.error("Connection to %s failed.", self.host)
+                self.log_me("Connection to %s failed." % self.host)
                 raise ClientNotSetupException('Could not connect to the host.')
 
 
     def _try_with_ip(self):
         try:
-            logging.debug("Connecting to IP:%s User:%s", self.ip, self.user )
+            self.log_me("Connecting to IP:%s User:%s" % (self.ip, self.user) )
             self.client.connect(self.ip, port=22, username=self.user,
                                 passphrase=self.passphrase)
             self.sftpclient = self.client.open_sftp()
@@ -113,7 +129,7 @@ class RemoteClient(object):
             raise ClientNotSetupException(e)
 
         except socket.error:
-            logging.error("Connection with IP (%s) failed.", self.ip)
+            self.log_me("Connection with IP (%s) failed." % self.ip)
             raise ClientNotSetupException('Could not connect to the host.')
 
     def rename(self, oldpath, newpath):
@@ -125,8 +141,10 @@ class RemoteClient(object):
         Returns:
             True if rename successful else False
         """
+        self.log_me("rename: {} to {}".format(oldpath, newpath))
         try:
             r = self.sftpclient.rename(oldpath, newpath)
+            self.log_me(r)
             return True
         except Exception as err:
             return False
@@ -138,17 +156,22 @@ class RemoteClient(object):
             remote (string): location of the file in remote server
             local (string): path where the file should be saved
         """
+        
+        self.log_me("download form {} to {}".format(remote, local))
+        
         if not self.sftpclient:
             raise ClientNotSetupException(
                 'Cannot download file. Client not initialized')
-
         try:
             self.sftpclient.get(remote, local)
-            return "Download successful. File at: {0}".format(local)
+            rstr = "Download successful. File at: {0}".format(local)
         except OSError:
-            return "Error: Local file %s doesn't exist." % local
+            rstr = "Error: Local file %s doesn't exist." % local
         except IOError:
-            return "Error: Remote location %s doesn't exist." % remote
+            rstr = "Error: Remote location %s doesn't exist." % remote
+        
+        self.log_me(rstr)
+        return rstr
 
     def upload(self, local, remote):
         """Uploads the file from local location to remote server.
@@ -157,17 +180,26 @@ class RemoteClient(object):
             local (string): path of the local file to upload
             remote (string): location on remote server to put the file
         """
+        
+        self.log_me("upload form {} to {}".format(local, remote))
+        
         if not self.sftpclient:
             raise ClientNotSetupException(
                 'Cannot upload file. Client not initialized')
-
+        
         try:
             self.sftpclient.put(local, remote)
-            return "Upload successful. File at: {0}".format(remote)
+            rstr = "Upload successful. File at: {0}".format(remote)
+            err = False
         except OSError:
-            return "Error: Local file %s doesn't exist." % local
+            rstr =  "Error: Local file %s doesn't exist." % local
+            err = True
         except IOError:
-            return "Error: Remote location %s doesn't exist." % remote
+            rstr =  "Error: Remote location %s doesn't exist." % remote
+            err = True
+
+        self.log_me(rstr, err)
+        return rstr
 
     def exists(self, filepath):
         """Returns whether a file exists or not in the remote server.
@@ -178,13 +210,18 @@ class RemoteClient(object):
         Returns:
             True if it exists, False if it doesn't
         """
+        
+        self.log_me("check exsitence of {}".format(filepath))
+        
         if not self.client:
             raise ClientNotSetupException(
                 'Cannot run procedure. Client not initialized')
         try:
             self.sftpclient.stat(filepath)
+            self.log_me("file {} exists".format(filepath))
             return True
         except:
+            self.log_me("file {} does not exist".format(filepath))
             return False
 
     def run(self, command):
@@ -196,6 +233,8 @@ class RemoteClient(object):
         Returns:
             tuple of three strings containing text from stdin, stdout an stderr
         """
+        self.log_me("running command: {}".format(command))
+        
         if not self.client:
             raise ClientNotSetupException(
                 'Cannot run procedure. Client not initialized')
@@ -209,6 +248,9 @@ class RemoteClient(object):
             except IOError:
                 output.append('')
 
+
+        self.log_me("command result {}".format(str(output)))
+
         return tuple(output)
 
     def get_file(self, filename):
@@ -220,12 +262,18 @@ class RemoteClient(object):
         Returns:
             tuple: True/False, file like object / error
         """
+        
+        self.log_me("retreiving file: {}".format(filename))
+        
         f = StringIO.StringIO()
         try:
             r = self.sftpclient.getfo(filename, f)
             f.seek(0)
+            self.log_me("file {} retreived {}".format(filename, r))
             return r, f
         except Exception as err:
+            self.log_me("error while retreiving file {}, {}".format(filename, 
+                                                                    err), True)
             return False, err
     
     def put_file(self,  filename, filecontent):
@@ -242,10 +290,15 @@ class RemoteClient(object):
         f.write(filecontent)
         f.seek(0)
 
+        self.log_me("putting file: {}".format(filename))
+
         try:
             r = self.sftpclient.putfo(f, filename)
+            self.log_me("file {} was put {}".format(filename, r))
             return True, r.st_size
         except Exception as err:
+            self.log_me("error while putting file {}, {}".format(filename, 
+                                                                    err), True)
             return False, err
 
     def mkdir(self,  dirname):
@@ -259,10 +312,15 @@ class RemoteClient(object):
             a tuple containing the success or failure of operation and dirname
                 on success and error on failure
         """
+        self.log_me("creating directory: {}".format(dirname))
+        
         try:
             self.sftpclient.mkdir(dirname)
+            self.log_me("directory {} was created".format(dirname))
             return True, dirname
         except Exception as err:
+            self.log_me("error while creating directory {}, {}".format(dirname,
+                                                                    err), True)
             return False, err
 
     def listdir(self, dirname):
@@ -275,15 +333,20 @@ class RemoteClient(object):
         Returns:
             a list of the files and folders in the directory
         """
+        self.log_me("listing directory: {}".format(dirname))
         try:
             r = self.sftpclient.listdir(dirname)
+            self.log_me("list of directory {}: {}".format(dirname, r))
             return True, r
         except Exception as err:
+            self.log_me("error while listing directory {}, {}".format(dirname,
+                                                                    err), True)
             return False, err
 
     def close(self):
         """Close the SSH Connection
         """
+        self.log_me("closing connection")
         self.client.close()
 
     def __repr__(self):

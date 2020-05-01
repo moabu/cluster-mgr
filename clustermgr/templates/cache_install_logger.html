@@ -41,8 +41,12 @@
             Oops, Installation Failed. Click Here to Retry</a>
 
       {% if step == 1 %}
-        <a href="{{ url_for('index.home') }}" class="btn btn-block btn-primary" style="display: none;" id="next">
-           Go Home</a>
+        {% if server_id %}
+          <a href="{{ url_for('cache_mgr.index') }}" class="btn btn-block btn-primary" style="display: none;" id="next">Go Cache Management</a>
+        {% else %}
+          <a href="{{ url_for('index.home') }}" class="btn btn-block btn-primary" style="display: none;" id="next">Go Home</a>
+        {% endif %}
+        
       {% endif %}
 
       <div id="dummy"></div>

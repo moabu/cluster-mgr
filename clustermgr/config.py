@@ -89,6 +89,8 @@ class Config(object):
 
     INFLUXDB_LOGGING_DB = "gluu_logs"
 
+    SUPPORTED_OS = ['CentOS 7', 'RHEL 7', 'Ubuntu 16']
+
 
 class ProductionConfig(Config):
     SECRET_KEY = ''

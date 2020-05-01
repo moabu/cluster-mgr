@@ -15,7 +15,7 @@ from ..core.license import license_reminder
 from ..core.license import prompt_license
 from ..core.license import license_required
 from clustermgr.core.remote import RemoteClient
-from clustermgr.core.utils import get_redis_config, get_cache_servers
+from clustermgr.core.utils import get_redis_config, get_cache_servers, random_chars
 from clustermgr.forms import CacheSettingsForm, cacheServerForm
 
 from clustermgr.models import db, CacheServer
@@ -54,6 +54,8 @@ def index():
 
     cache_servers = get_cache_servers()
 
+    print cache_servers
+
     return render_template('cache_index.html', 
                            servers=servers, 
                            form=form,
@@ -73,25 +75,34 @@ def get_servers_and_list():
     
     return servers, server_id_list, server_id
 
-@cache_mgr.route('/install/', methods=['GET', 'POST'])
+@cache_mgr.route('/install', methods=['GET', 'POST'])
 @login_required
 def install():
 
-    cache_servers = get_cache_servers()
-    servers = Server.query.all()
+    server_id = request.args.get('server')
+    
+    if server_id:
+        cache_servers = []
+        servers = [ Server.query.get(int(server_id)) ]
+
+    else:
+        cache_servers = get_cache_servers()
+        servers = Server.query.all()
 
     if not servers:
         return redirect(url_for('cache_mgr.index'))
 
 
-    task = install_cache_cluster.delay()
-    
-    
-    
+    task = install_cache_cluster.delay(
+                                [server.id for server in servers],
+                                [server.id for server in cache_servers],
+                                )
+
     return render_template( 'cache_install_logger.html',
                             servers=cache_servers+servers,
                             step=1,
                             task_id=task.id,
+                            server_id=server_id,
                            )
 
 @cache_mgr.route('/addcacheserver/', methods=['GET', 'POST'])
@@ -99,22 +110,24 @@ def install():
 def add_cache_server():
     cid = request.args.get('cid', type=int)
 
+    form = cacheServerForm()
+
     if cid:
         cacheserver = CacheServer.query.get(cid)
+        form = cacheServerForm(obj=cacheserver)
         if not cacheserver:
             return "<h2>No such Cache Server</h2>"
-
-        form = cacheServerForm(obj=cacheserver)
     else:
-        form = cacheServerForm()
-    
+        form.redis_password.data = random_chars(20)
+        form.stunnel_port.data = 16379
+
     if request.method == "POST" and form.validate_on_submit():
         hostname = form.hostname.data
         ip = form.ip.data
         install_redis = form.install_redis.data
-        
-        print (form.install_redis.data)
-        
+        redis_password = form.redis_password.data
+        stunnel_port = form.stunnel_port.data
+
         if not cid:
             cacheserver = CacheServer()
             db.session.add(cacheserver)
@@ -122,7 +135,9 @@ def add_cache_server():
         cacheserver.hostname = hostname
         cacheserver.ip = ip
         cacheserver.install_redis = install_redis
-        
+        cacheserver.redis_password = redis_password
+        cacheserver.stunnel_port = stunnel_port
+
         db.session.commit()
         if cid:
             flash("Cache server was added","success")
@@ -144,6 +159,10 @@ def get_status():
     
     cache_servers = get_cache_servers()
     
+
+    stunnel_port = cache_servers[0].stunnel_port if cache_servers else None
+        
+    
     for server in servers + cache_servers:
         key = server.ip.replace('.','_')
 
@@ -155,6 +174,8 @@ def get_status():
             status['redis'][key] = False
         else:
 
+            status['stunnel'][key]=False
+            
             if server in cache_servers:
                 r = c.run(check_cmd.format('localhost', 6379))
                 stat = r[1].strip()
@@ -164,22 +185,22 @@ def get_status():
                 else:
                     status['redis'][key]=False
 
-                r = c.run(check_cmd.format(server.ip, 16379))
-                stat = r[1].strip()
+                if stunnel_port:
+                    r = c.run(check_cmd.format(server.ip, stunnel_port))
+                    stat = r[1].strip()
 
                 if stat == '0':
                     status['stunnel'][key]=True
-                else:
-                    status['stunnel'][key]=False
 
             else:
-                r = c.run(check_cmd.format('localhost', 16379))
-                stat = r[1].strip()
+                
+                if stunnel_port:
 
-                if stat == '0':
-                    status['stunnel'][key]=True
-                else:
-                    status['stunnel'][key]=False
+                    r = c.run(check_cmd.format('localhost', '6379'))
+                    stat = r[1].strip()
+
+                    if stat == '0':
+                        status['stunnel'][key]=True
 
         c.close()
     

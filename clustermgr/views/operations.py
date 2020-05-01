@@ -36,6 +36,10 @@ def httpd_certs():
     installer = Installer(server, app_config.gluu_version, logger_tid=None)
     httpd_key_io = installer.c.get_file(os.path.join(installer.container, 'etc/certs/httpd.key'))
     
+    if not httpd_key_io[0]:
+        flash("Can't receive httpd certificate", "danger")
+        return redirect(url_for('index.home'))
+    
     if httpd_key_io[0]:
         httpd_key = httpd_key_io[1].read() #.replace('-----BEGIN RSA PRIVATE KEY-----','').replace('-----END RSA PRIVATE KEY-----','').strip()
 

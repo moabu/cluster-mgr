@@ -4,7 +4,7 @@ import re
 import socket
 
 
-from clustermgr.models import Server, AppConfiguration
+from clustermgr.models import Server, AppConfiguration, CacheServer
 from clustermgr.extensions import db, wlogger, celery
 from clustermgr.core.remote import RemoteClient
 from clustermgr.core.ldap_functions import DBManager
@@ -96,6 +96,8 @@ class RedisInstaller(BaseInstaller):
 
     def install_in_ubuntu(self):
         
+        self.config_file = '/etc/redis/redis.conf'
+
         if self.check_installed():
             return True
         
@@ -118,10 +120,14 @@ class RedisInstaller(BaseInstaller):
 
     def install_in_centos(self):
         
+        self.config_file = '/etc/redis.conf'
+        
         if self.check_installed():
             return True
+        
+        
                 
-        cmd_list = ('yum install epel-release -y',
+        cmd_list = ('yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm',
                     'yum clean all',
                     'yum install -y redis'
                     )
@@ -133,11 +139,35 @@ class RedisInstaller(BaseInstaller):
             cin, cout, cerr = self.run_command(install_cmd)
             wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
             
-            if cerr:
+            if '/var/cache/yum' in cerr:
+                wlogger.log(self.tid, cerr, "debug", server_id=self.server.id)
+            else:
                 wlogger.log(self.tid, cerr, "error", server_id=self.server.id)
 
         return True
 
+
+
+    def set_redis_password(self):
+        result = self.rc.get_file(self.config_file)
+        if result[0]:
+            config_file = result[1].readlines()
+            for i, l in enumerate(config_file[:]):
+                if l.startswith('requirepass'):
+                    if not self.server.redis_password:
+                        del config_file[i]
+                    else:
+                        config_file[i] = 'requirepass ' + self.server.redis_password+'\n'
+                    break
+                if l.replace(' ','').startswith('#requirepass') and self.server.redis_password:
+                    config_file[i] = 'requirepass ' + self.server.redis_password+'\n'
+                    break
+                
+            else:
+                if self.server.redis_password:
+                    config_file.append('requirepass ' + self.server.redis_password+'\n')
+            filecontent = ''.join(config_file)
+            self.rc.put_file(self.config_file, filecontent)
 
     def run_sysctl(self, command):
         if self.os_type == 'deb':
@@ -145,7 +175,6 @@ class RedisInstaller(BaseInstaller):
         elif self.os_type == 'rpm':
             cmd = 'systemctl {} redis'.format(command)
         self.run_command(cmd)
-
 
 
 
@@ -167,12 +196,11 @@ class StunnelInstaller(BaseInstaller):
         cin, cout, cerr = self.run_command("DEBIAN_FRONTEND=noninteractive apt-get install stunnel4 -y")
         wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
         if cerr:
-            wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
+            wlogger.log(self.tid, cerr, "error", server_id=self.server.id)
 
         # Verifying installation by trying to reinstall
         cin, cout, cerr = self.rc.run("DEBIAN_FRONTEND=noninteractive apt-get install stunnel4 -y")
-        
-        
+
         if "stunnel4 is already the newest version" in cout:
             return True
         else:
@@ -182,8 +210,13 @@ class StunnelInstaller(BaseInstaller):
         #self.run_command("yum update -y")
         cin, cout, cerr = self.run_command("yum install -y stunnel")
         wlogger.log(self.tid, cout, "debug", server_id=self.server.id)
-        if cerr:
-            wlogger.log(self.tid, cerr, "cerror", server_id=self.server.id)
+
+        if cerr.strip():
+            if '/var/cache/yum' in cerr:
+                wlogger.log(self.tid, cerr, "debug", server_id=self.server.id)
+            else:
+                wlogger.log(self.tid, cerr, "error", server_id=self.server.id)
+            
         # verifying installation
         cin, cout, cerr = self.rc.run("yum install -y stunnel")
         if "already installed" in cout:
@@ -207,22 +240,21 @@ class StunnelInstaller(BaseInstaller):
         elif self.os_type == 'rpm':
             cmd = 'systemctl {} stunnel'.format(command)
         self.run_command(cmd)
-
-
+    
 
 @celery.task(bind=True)
-def install_cache_cluster(self):
-    
+def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
+
     tid = self.request.id
-    
+
+    servers = [ Server.query.get(id) for id in servers_id_list ]
+    cache_servers = [ CacheServer.query.get(id) for id in cache_servers_id_list ]
+
     app_conf = AppConfiguration.query.first()
     
-    cache_servers = get_cache_servers()
-    servers = Server.query.all()
-    
     primary_cache = None
-    
-    
+    primary_cache_server = CacheServer.query.first()
+
     for server in cache_servers:
 
         rc = __get_remote_client(server, tid)
@@ -244,6 +276,15 @@ def install_cache_cluster(self):
                 return False
 
         redis_installed = ri.install()
+        
+        wlogger.log(
+                    tid, 
+                    'Setting Redis password',
+                    'info',
+                    server_id=server.id
+                    )
+        
+        ri.set_redis_password()
     
         if redis_installed:
             wlogger.log(tid, "Redis install successful", "success",
@@ -309,22 +350,16 @@ def install_cache_cluster(self):
             
             wlogger.log(tid, "Retreiving server certificate", "info",
                                 server_id=server.id)
-            stunnel_cert = rc.get_file('/etc/stunnel/redis-server.crt')
 
-            if not stunnel_cert[0]:
-                wlogger.log(tid, "Can't retreive server certificate", "fail",
-                            server_id=server.id)
-
-            stunnel_cert = stunnel_cert[1].read()
 
             stunnel_redis_conf = (
                                 'pid = /run/stunnel-redis.pid\n'
                                 '[redis-server]\n'
                                 'cert = /etc/stunnel/redis-server.crt\n'
                                 'key = /etc/stunnel/redis-server.key\n'
-                                'accept = {0}:16379\n'
+                                'accept = {0}:{1}\n'
                                 'connect = 127.0.0.1:6379\n'
-                                ).format(server.ip)
+                                ).format(server.ip, primary_cache_server.stunnel_port)
             
             wlogger.log(tid, "Writing redis stunnel configurations", "info",
                                 server_id=server.id)
@@ -333,11 +368,24 @@ def install_cache_cluster(self):
             
             si.run_sysctl('enable')
             si.run_sysctl('restart')
-            
+        
+        server.installed = True
+        db.session.commit()
         rc.close()
         
-        wlogger.log(tid, "2", "set_step")
+    wlogger.log(tid, "2", "set_step")
     
+    # retreive stunnel certificate
+    rc = RemoteClient(primary_cache_server.hostname, ip=primary_cache_server.ip)
+    rc.startup()
+    stunnel_cert = rc.get_file('/etc/stunnel/redis-server.crt')
+
+    if not stunnel_cert[0]:
+        print "Can't retreive server certificate from primary cache server"
+        return False
+
+    stunnel_cert = stunnel_cert[1].read()
+
     for server in servers:
                 
         rc = __get_remote_client(server, tid)
@@ -375,16 +423,16 @@ def install_cache_cluster(self):
         if si.os_type == 'deb':
             wlogger.log(tid, "Enabling stunnel", "debug", server_id=server.id)
             si.run_command("sed -i 's/ENABLED=0/ENABLED=1/g' /etc/default/stunnel4")
-        
+
         stunnel_redis_conf = ( 
                             'pid = /run/stunnel-redis.pid\n'
                             '[redis-client]\n'
                             'client = yes\n'
-                            'accept = 127.0.0.1:16379\n'
-                            'connect = {0}:16379\n'
+                            'accept = 127.0.0.1:{1}\n'
+                            'connect = {0}:{1}\n'
                             'CAfile = /etc/stunnel/redis-server.crt\n'
                             'verify = 4\n'
-                            ).format(primary_cache)
+                            ).format(primary_cache, primary_cache_server.stunnel_port)
 
         wlogger.log(tid, "Writing redis stunnel configurations", "info",
                                 server_id=server.id)
@@ -399,26 +447,25 @@ def install_cache_cluster(self):
         si.run_sysctl('restart')
 
         if server.primary_server:
-            __update_LDAP_cache_method(tid, server, 'localhost:16379')
-
+            
+            server_string = 'localhost:{0}'.format(primary_cache_server.stunnel_port)
+            __update_LDAP_cache_method(tid, server, server_string, redis_password=primary_cache_server.redis_password)
+        
 
         wlogger.log(tid, "Restarting Gluu Server", "info",
                                 server_id=server.id)
 
-        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-            restart_command = '/sbin/gluu-serverd-{0} restart'.format(
-                                app_config.gluu_version)
-        else:
-            restart_command = '/etc/init.d/gluu-server-{0} restart'.format(
-                                app_config.gluu_version)
 
-        si.run_command(restart_command)
+        if server.os in ('RHEL 7', 'CentOS 7', 'Ubuntu 18'):
+            si.run_command('/sbin/gluu-serverd-{} restart'.format(app_conf.gluu_version))
+        else:
+            si.run_command('systemctl restart gluu-server-{}'.format(app_conf.gluu_version))
 
     wlogger.log(tid, "3", "set_step")
 
 
 
-def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE'):
+def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE', redis_password=''):
     """Connects to LDAP and updathe cache method and the cache servers
 
     :param tid: task id for log identification
@@ -444,6 +491,7 @@ def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE'):
     cache_conf['cacheProviderType'] = 'REDIS'
     cache_conf['redisConfiguration']['redisProviderType'] = method
     cache_conf['redisConfiguration']['servers'] = server_string
+    cache_conf['redisConfiguration']['decryptedPassword'] = redis_password
 
     result = dbm.set_applicance_attribute('oxCacheConfiguration',
                                           [json.dumps(cache_conf)])

@@ -7,12 +7,14 @@ import shlex
 import subprocess
 import uuid
 import base64
+import zipfile
 
 from cryptography.hazmat.primitives.ciphers import Cipher
 from cryptography.hazmat.primitives.ciphers import algorithms
 from cryptography.hazmat.primitives.ciphers import modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
+from clustermgr.core.Properties import Properties
 
 from clustermgr.config import Config
 
@@ -35,54 +37,6 @@ handler = RotatingFileHandler(Config.LOG_FILE, maxBytes= 5*1024*1024, backupCoun
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.ERROR)
 logger.addHandler(handler)
-
-
-def parse_slapdconf(old_conf=None):
-    """Parses the slapd.conf file generated during the installation of
-    Gluu server and gets the values necessary for the provider.conf.
-
-    Args:
-        old_conf (string) - OPTIONAL Location of the slapd.conf file.
-            Defatuls to /opt/symas/etc/openldap/slapd.conf
-
-    Returns:
-        dict containing the values for the following
-            * openldapSchemaFolder
-            * openldapTLSCACert
-            * openldapTLSCert
-            * openldapTLSKey
-            * encoded_ldap_pw
-            * BCRYPT - This has {} around it, so an escape value `{BCRYPT}`
-    """
-    if not old_conf:
-        old_conf = '/opt/symas/etc/openldap/slapd.conf'
-
-    f = open(old_conf, 'r')
-    values = {}
-
-    for line in f:
-        # openldapSchemaFolder
-        if 'gluu.schema' in line and re.match('^include*', line):
-            path = line.split("\"")[1].replace("/gluu.schema", "")
-            values["openldapSchemaFolder"] = path
-        # openldapTLSCACert
-        if re.match("^TLSCACertificateFile*", line):
-            values["openldapTLSCACert"] = line.split("\"")[1]
-        # openldapTLSCert
-        if re.match("^TLSCertificateFile*", line):
-            values["openldapTLSCert"] = line.split("\"")[1]
-        # openldapTLSKey
-        if re.match("^TLSCertificateKeyFile*", line):
-            values["openldapTLSKey"] = line.split("\"")[1]
-        # encoded_ldap_pw
-        if re.match("^rootpw", line):
-            values["encoded_ldap_pw"] = line.split()[1]
-    f.close()
-
-    # BCRYPT - This has {} around it so escape this
-    values["BCRYPT"] = "{BCRYPT}"
-
-    return values
 
 
 def ldap_encode(password):
@@ -217,7 +171,7 @@ def get_quad():
 
 def get_inums():
     """This fuction created inums based on Python's uuid4 function.
-    Barrowed from setup.py of gluu installer"""
+    Barrowed from setup.pmastery of gluu installer"""
 
     base_inum = '@!%s.%s.%s.%s' % tuple([get_quad() for _ in xrange(4)])
     org_two_quads = '%s.%s' % tuple([get_quad() for _ in xrange(2)])
@@ -226,36 +180,26 @@ def get_inums():
     inum_appliance = '%s!0002!%s' % (base_inum, appliance_two_quads)
     return inum_org, inum_appliance
 
-def parse_setup_properties(content):
-    setup_prop = dict()
-    for l in content:
-        ls = l.strip()
-        if ls:
-            if not ls[0] == '#':
-                eq_loc = ls.find('=')
+def parse_setup_properties(prop_file):
+    prop = Properties()
 
-                if eq_loc > 0:
-                    k = ls[:eq_loc]
-                    v = ls[eq_loc+1:]
-                    v=v.replace('\\=','=')
-                    v=v.replace("\\'","'")
-                    v=v.replace('\\"','"')
-                    if v == 'True':
-                        v = True
-                    elif v == 'False':
-                        v = False
-                    setup_prop[k] = v
+    with open(prop_file) as f:
+        prop.load(f)
 
-    return setup_prop
+    return prop.getPropertyDict()
 
 def write_setup_properties_file(setup_prop):
-
     setup_properties_file = os.path.join(Config.DATA_DIR,
                                          'setup.properties')
-
-    with open(setup_properties_file, 'w') as f:
-        for k, v in setup_prop.items():
-            f.write('{0}={1}\n'.format(k, v))
+    prop = Properties()
+    for k in setup_prop:
+        val = setup_prop[k]
+        if not isinstance(val, str):
+            val = str(val) 
+        prop[k] = val
+    
+    with open(setup_properties_file, 'w') as w:
+        prop.store(w)
 
 def get_setup_properties(createNew=False):
     """This fucntion returns properties for setup.properties file."""
@@ -289,10 +233,11 @@ def get_setup_properties(createNew=False):
     setup_properties_file = os.path.join(Config.DATA_DIR, 'setup.properties')
 
     if os.path.exists(setup_properties_file):
-        setup_prop_f = parse_setup_properties(
-                                open(setup_properties_file).readlines())
-
+        prop = Properties()
+        setup_prop_f = parse_setup_properties(setup_properties_file)
         setup_prop.update(setup_prop_f)
+
+    return setup_prop
 
     if createNew:
         #Every time this function is called, create new inum
@@ -319,7 +264,7 @@ def get_opendj_replication_status():
     cmd_run = '{}'
 
     #determine execution environment for differetn OS types
-    if (primary_server.os == 'CentOS 7') or (primary_server.os == 'RHEL 7'):
+    if primary_server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
         chroot = None
         cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
                 '-o Port=60022 -o LogLevel=QUIET '
@@ -335,7 +280,7 @@ def get_opendj_replication_status():
         return False, "Cannot establish SSH connection {0}".format(e)
 
     #This command queries server for replication status
-    cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
+    cmd = ('OPENDJ_JAVA_HOME=/opt/jre /opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 4444 -I admin -w $\'{}\'').format(
                     primary_server.ip,
                     app_config.replication_pw.replace("'","\\'"))
@@ -386,9 +331,10 @@ def modify_etc_hosts(host_ip, old_hosts):
         if h in hosts['ipv4']['127.0.0.1']:
             hosts['ipv4']['127.0.0.1'].remove(h)
 
-    for h,i in host_ip:
-        if h in hosts['ipv6']['::1']:
-            hosts['ipv6']['::1'].remove(h)
+    if '::1' in hosts['ipv6']:
+        for h,i in host_ip:
+            if h in hosts['ipv6']['::1']:
+                hosts['ipv6']['::1'].remove(h)
             
     for h,i in host_ip:
         if i in hosts['ipv4']:
@@ -555,8 +501,20 @@ def make_nginx_proxy_conf(exception=None):
 
 
 def get_cache_servers():
-    
     cache_servers = CacheServer.query.all()
-
-
+    
     return cache_servers
+
+
+def get_oxauth_version(war_io):
+    war_zip = zipfile.ZipFile(war_io)
+    menifest = war_zip.read('META-INF/MANIFEST.MF')
+
+    for l in menifest.split('\n'):
+        ls = l.strip()
+        if 'Implementation-Version:' in ls:
+            version = ls.split(':')[1].strip()
+            version = '.'.join(version.split('.')[:3])
+            return version
+
+

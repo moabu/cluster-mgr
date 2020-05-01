@@ -16,10 +16,12 @@ from clustermgr.config import Config
 
 class AppConfigForm(FlaskForm):
     versions = [
-                '3.1.8',
-                '3.1.7',
                 '3.1.6',
-
+                '3.1.5',
+                #'3.1.4',
+                #'3.1.3.1',
+                #'3.1.3',
+                #'3.1.2',
                 ]
     gluu_version = SelectField('Gluu Server Version',
                                choices=[(v, v) for v in versions])
@@ -36,17 +38,17 @@ class AppConfigForm(FlaskForm):
     nginx_host = StringField('Load Balancer Hostname', validators=[DataRequired()])
 
     nginx_ip = StringField('Load Balancer IP Address', validators=[DataRequired()])
-    
+
 
     ldap_update_period = SelectField('Service Liveness Status Polling Period',
             choices=[
-            
-                ('5', '5 secs'), ('10', '10 secs'), 
+
+                ('5', '5 secs'), ('10', '10 secs'),
                 ('20', '20 secs'), ('30', '30 secs'),
                 ('60', '1 min'), ('120', '2 mins'),
                 ('300', '5 mins'), ('600', '10 mins'),
                 ('900', '15 mins'), ('1200', '20 mins'),
-                
+
             ],
             default = '300',
             )
@@ -179,7 +181,7 @@ class InstallServerForm(FlaskForm):
         "Ldap Type",
         choices=[
             ("opendj", "OpenDJ",),
-            #("wrends", "Gluu WrenDS")
+            ("wrends", "Gluu WrenDS")
         ],
         validators=[AnyOf(["opendj", "wrends"])],
         default='opendj'
@@ -215,8 +217,11 @@ class LicenseSettingsForm(FlaskForm):
     license_id = StringField("License ID", validators=[DataRequired()])
     license_password = StringField("License Password", validators=[DataRequired()])
     public_password = StringField("Public Password", validators=[DataRequired()])
-    public_key = StringField("Public Key", validators=[DataRequired()],
-                             filters=[replace_pubkey_whitespace])
+    public_key = TextAreaField(
+        "Public Key",
+        validators=[DataRequired()],
+        # filters=[replace_pubkey_whitespace],
+    )
     update = SubmitField("Update")
 
 
@@ -257,11 +262,11 @@ class SignUpForm(FlaskForm):
                                message='Passwords must match')
                 ])
     passwordconfirm = PasswordField("Re-enter Password", validators=[DataRequired()])
-    
+
     license_confirm = BooleanField('Check here to indicate that you have read and agree to the terms of the <a target="_blank" href="https://github.com/GluuFederation/cluster-mgr/blob/master/LICENSE">GLUU-SUPPORT license</a>' , validators=[DataRequired()])
-    
-    
-    
+
+
+
     login = SubmitField("Sign up")
 
 class WizardStep1(FlaskForm):
@@ -270,7 +275,7 @@ class WizardStep1(FlaskForm):
     ip = StringField(
         'Current IP Address of primary Gluu Server *', validators=[DataRequired(), IPAddress()])
     nginx_ip = StringField('Load Balancer IP Address')
-        
+
     next = SubmitField("Next")
 
 class CacheSettingsForm(FlaskForm):
@@ -296,7 +301,7 @@ class LdapSchema(FlaskForm):
                                 ('numericStringSubstringsMatch', 'numericStringSubstringsMatch'),
                                 ('telephoneNumberSubstringsMatch', 'telephoneNumberSubstringsMatch'),
                             ))
-            
+
     equality = SelectField("Equality", choices=(('',''),
                                 ('bitStringMatch', 'bitStringMatch'),
                                 ('booleanMatch', 'booleanMatch'),
@@ -318,7 +323,7 @@ class LdapSchema(FlaskForm):
                                 ('telephoneNumberMatch', 'telephoneNumberMatch'),
                                 ('uniqueMemberMatch', 'uniqueMemberMatch'),
                                 ))
-                                
+
     ordering = SelectField("Ordering", choices=(('',''),
                             ('caseExactOrderingMatch', 'caseExactOrderingMatch'),
                             ('caseIgnoreOrderingMatch', 'caseIgnoreOrderingMatch'),
@@ -327,8 +332,8 @@ class LdapSchema(FlaskForm):
                             ('numericStringOrderingMatch', 'numericStringOrderingMatch'),
                             ('octetStringOrderingMatch', 'octetStringOrderingMatch'),
                                 ))
-    
-    
+
+
     single_value = BooleanField("Single Valued")
     #obsolete = BooleanField("Obsolete")
     collective = BooleanField("Collective")
@@ -343,3 +348,5 @@ class cacheServerForm(FlaskForm):
     hostname = StringField("Cache Server Hostname", validators=[DataRequired()])
     ip = StringField("Cache Server IP Address", validators=[DataRequired(), IPAddress()])
     install_redis = BooleanField("Install Redis and stunnel", default=True)
+    redis_password = StringField("Redis Password")
+    stunnel_port = IntegerField("Stunnel Port", validators=[DataRequired()])

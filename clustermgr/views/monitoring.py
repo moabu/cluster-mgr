@@ -595,12 +595,24 @@ def get_server_status():
 
     for server in servers:
         status[server.id] = {}
+        c = RemoteClient(server.hostname)
+        c.ok = False
+        try:
+            c.startup()
+            c.ok = True
+        except Exception as e:
+            pass
+        
+        
         for service in active_services:
-            try:
-                url = 'https://{0}/{1}'.format(server.hostname, services[service])
-                r = requests.get(url, verify=False)
-                status[server.id][service]=r.ok
-            except:
-                pass
+            status[server.id][service] = False
+
+            if c.ok:
+                try:
+                    result = c.run("curl -kLI https://localhost/"+services[service]+ " -o /dev/null -w '%{http_code}\n' -s")
+                    if result[1].strip() == '200':
+                        status[server.id][service] = True
+                except Exception as e:
+                    print "Error getting service status of {0} for {1}. ERROR: {2}".format(server.hostname,service, e)
 
     return jsonify(status)

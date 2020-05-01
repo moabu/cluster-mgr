@@ -5,6 +5,7 @@ import re
 import time
 import subprocess
 import requests
+import StringIO
 
 from flask import current_app as app
 
@@ -15,7 +16,10 @@ from clustermgr.core.ldap_functions import LdapOLC, getLdapConn
 from clustermgr.core.utils import get_setup_properties, modify_etc_hosts, \
         make_nginx_proxy_conf, make_twem_proxy_conf, make_proxy_stunnel_conf
 from clustermgr.core.clustermgr_installer import Installer
+from clustermgr.core.Properties import Properties
+
 from clustermgr.config import Config
+
 import uuid
 import select
 
@@ -50,8 +54,10 @@ def run_command(tid, c, command, container=None, no_error='error',  server_id=''
     if container == '/':
         container = None
     if container:
-        command = 'chroot {0} /bin/bash -c "{1}"'.format(container,
+        command = "chroot {0} /bin/bash -c $'{1}'".format(container,
                                                          command)
+
+    print "command", command
 
     wlogger.log(tid, command, "debug", server_id=server_id)
 
@@ -193,12 +199,20 @@ def modifyOxLdapProperties(server, c, tid, pDict, chroot):
 
 def get_csync2_config(exclude=None):
 
-    replication_user_file = os.path.join(app.root_path, 'templates',
+    fsr_file_name = os.path.join(app.root_path, 'templates',
                                     'file_system_replication',
                                     'replication_defaults.txt')
+                                    
+
+    user_fsr_file_name = os.path.join(app.config["DATA_DIR"], 'fsr_paths')
+    
+    if os.path.exists(user_fsr_file_name):
+        fsr_file_name = user_fsr_file_name
+
+
     sync_directories = []
 
-    for l in open(replication_user_file).readlines():
+    for l in open(fsr_file_name).readlines():
         if l.strip():
             sync_directories.append(l.strip())
 
@@ -280,12 +294,12 @@ def get_run_cmd(server):
     run_cmd = "{}"
     cmd_chroot = get_chroot()
 
-    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+    if server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
         cmd_chroot = None
         run_cmd = ("ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o "
             "Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no "
             "-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes "
-            "root@localhost '{}'")
+            "root@localhost $'{}'")
                 
     return run_cmd, cmd_chroot
 
@@ -294,9 +308,9 @@ def restart_inetd(tid, c, server):
 
     run_cmd , cmd_chroot = get_run_cmd(server)
 
-    if server.os in ('Ubuntu 16', 'Debian 9'):
+    if server.os in ('Ubuntu 16', 'Debian 9', 'Ubuntu 18'):
     
-        cmd = '/etc/init.d/openbsd-inetd stop'
+        cmd = run_cmd.format('/etc/init.d/openbsd-inetd stop')
         run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
 
@@ -308,13 +322,13 @@ def restart_inetd(tid, c, server):
                 run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
 
 
-        cmd = '/etc/init.d/openbsd-inetd start'
+        cmd = run_cmd.format('/etc/init.d/openbsd-inetd start')
         run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
     
     if ('CentOS' in server.os) or ('RHEL' in server.os):
 
-        cmd = run_cmd.format('service xinetd start')
+        cmd = run_cmd.format('service xinetd restart')
         run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
 
@@ -388,27 +402,18 @@ def setup_filesystem_replication(self):
             else:
 
                 if 'Ubuntu' in server.os:
-                    cmd = 'localedef -i en_US -f UTF-8 en_US.UTF-8'
-                    run_command(tid, c, cmd, chroot, server_id=server.id)
-
-                    cmd = 'locale-gen en_US.UTF-8'
-                    run_command(tid, c, cmd, chroot, server_id=server.id)
-
-                    install_command = 'DEBIAN_FRONTEND=noninteractive apt-get'
-
-                    cmd = '{} update'.format(install_command)
-                    run_command(tid, c, cmd, chroot, server_id=server.id)
-
-                    cmd = '{} install -y apt-utils'.format(install_command)
-                    run_command(tid, c, cmd, chroot, no_error=None, server_id=server.id)
-
-
-                    cmd = '{} install -y csync2'.format(install_command)
-                    run_command(tid, c, cmd, chroot, server_id=server.id)
-
-
-                    cmd = 'apt-get install -y csync2'
-                    run_command(tid, c, cmd, chroot, server_id=server.id)
+                    
+                    print("*"*50)
+                    cmd_list = ['localedef -i en_US -f UTF-8 en_US.UTF-8',
+                                'locale-gen en_US.UTF-8',
+                                'apt-get -y update'.format('DEBIAN_FRONTEND=noninteractive apt-get'),
+                                'apt-get install -y apt-utils',
+                                'apt-get install -y csync2',
+                                ]
+                    
+                    for cmdi in cmd_list:
+                        cmd = run_cmd.format(cmdi)                    
+                        run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
                 elif 'CentOS' in server.os:
 
@@ -433,7 +438,31 @@ def setup_filesystem_replication(self):
                     cmd = run_cmd.format('yum install -y crontabs')
                     run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
 
+                if server.os == 'RHEL 7':
+                    #enable centos7 repo
+                    centos7_repo = ('[centos]\n'
+                                    'name=CentOS-7\n'
+                                    'baseurl=http://ftp.heanet.ie/pub/centos/7/os/x86_64/\n'
+                                    'enabled=1\n'
+                                    'gpgcheck=1\n'
+                                    'gpgkey=http://ftp.heanet.ie/pub/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7\n'
+                                    )
+                    
+                    wlogger.log(tid, "Enabling CentOS 7 repository", 'debug', server_id=server.id)
+                    repo_fn = os.path.join(chroot, 'etc/yum.repos.d/centos.repo')
+                    c.put_file(repo_fn, centos7_repo)
 
+
+                    cmd_list = ('yum repolist',
+                                'yum install -y sqlite-devel xinetd gnutls librsync',
+                                'yum install -y https://github.com/mbaser/gluu/raw/master/csync2-2.0-3.gluu.centos7.x86_64.rpm',
+                                )
+                    
+                    for cmdi in cmd_list:
+                        cmd = run_cmd.format(cmdi)
+                        run_command(tid, c, cmd, cmd_chroot, no_error=None, server_id=server.id)
+                    
+                    
 
         if server.primary_server:
 
@@ -510,7 +539,7 @@ def setup_filesystem_replication(self):
 
 
 
-        elif 'CentOS' in server.os:
+        elif 'CentOS' in server.os or 'RHEL' in server.os:
             inetd_conf = (
                 '# default: off\n'
                 '# description: csync2\n'
@@ -544,17 +573,12 @@ def setup_filesystem_replication(self):
                          'debug', server_id=server.id)
 
 
-
+        cmd = run_cmd.format('service crond restart')
         if ('CentOS' in server.os) or ('RHEL' in server.os):
             restart_inetd(tid, c, server)
-            cmd = run_cmd.format('service crond restart')
             run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
-
         else:
-
             cmd = run_cmd.format('service cron reload')
-            run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
-            cmd = run_cmd.format('service openbsd-inetd start')
             run_command(tid, c, cmd, cmd_chroot, no_error='debug', server_id=server.id)
 
         c.close()
@@ -710,7 +734,7 @@ def import_key(suffix, hostname, gluu_version, tid, c, sos):
 
     chroot = '/opt/gluu-server-{0}'.format(gluu_version)
 
-    if sos == 'CentOS 7' or sos == 'RHEL 7':
+    if sos in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
         command = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost '{0}'".format(cmd)
     else:
         command = 'chroot {0} /bin/bash -c "{1}"'.format(chroot,
@@ -746,7 +770,7 @@ def delete_key(suffix, hostname, gluu_version, tid, c, sos):
                         "-storepass", defaultTrustStorePW
                         ])
 
-        if sos == 'CentOS 7' or sos == 'RHEL 7':
+        if sos in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
             command = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost '{0}'".format(cmd)
         else:
             command = 'chroot {0} /bin/bash -c "{1}"'.format(chroot,
@@ -870,16 +894,21 @@ def upload_custom_schema(tid, c, ldap_type, gluu_server):
                                                             
 def makeOpenDjListenIpAddr(tid, c, cmd_chroot, run_cmd, server, ip_addr='0.0.0.0'):
 
+    appconf = AppConfiguration.query.first()
+
     wlogger.log(tid, "Making openDJ listens all interfaces for port 4444 and 1636")
 
+    cmd = "sed -i 's/dsreplication.java-args=-Xms8m -client/dsreplication.java-args=-Xms8m -client -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true/g' /opt/gluu-server-{}/opt/opendj/config/java.properties".format(appconf.gluu_version)
+
+    run_command(tid, c, cmd)
+
     opendj_commands = [
-            "sed -i \\\"s/dsreplication.java-args=-Xms8m -client/dsreplication.java-args=-Xms8m -client -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true/g\\\" /opt/opendj/config/java.properties",
             "/opt/opendj/bin/dsjavaproperties",
-            "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D \\\"cn=directory manager\\\" -w $\\\"{}\\\" -n set-administration-connector-prop  --set listen-address:{} -X".format(server.ldap_password, ip_addr),
-            "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D \\\"cn=directory manager\\\" -w $\\\"{}\\\" -n set-connection-handler-prop --handler-name \\\"LDAPS Connection Handler\\\" --set enabled:true --set listen-address:{} -X".format(server.ldap_password, ip_addr),
+            "OPENDJ_JAVA_HOME=/opt/jre /opt/opendj/bin/dsconfig -h localhost -p 4444 -D \\\'cn=directory manager\\\' -w \\\'{}\\\' -n set-administration-connector-prop  --set listen-address:{} -X".format(server.ldap_password, ip_addr),
+            "OPENDJ_JAVA_HOME=/opt/jre /opt/opendj/bin/dsconfig -h localhost -p 4444 -D \\\'cn=directory manager\\\' -w \\\'{}\\\' -n set-connection-handler-prop --handler-name \\\'LDAPS Connection Handler\\\' --set enabled:true --set listen-address:{} -X".format(server.ldap_password, ip_addr),
             ]
 
-    if server.os in ('RHEL 7', 'CentOS 7'):
+    if server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
         opendj_commands.append('systemctl stop opendj')
         opendj_commands.append('systemctl start opendj')
     else:
@@ -887,8 +916,8 @@ def makeOpenDjListenIpAddr(tid, c, cmd_chroot, run_cmd, server, ip_addr='0.0.0.0
         opendj_commands.append('/etc/init.d/opendj start')
     
     for command in opendj_commands:
-        if server.os in ('RHEL 7', 'CentOS 7'):
-            command = command.replace('\\\"','"')
+        #if server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
+        #    command = command.replace('\\\"',"'")
         cmd = run_cmd.format(command)
         run_command(tid, c, cmd, cmd_chroot)
 
@@ -907,7 +936,7 @@ def checkOfflineRequirements(tid, server, c, appconf):
                     "Os type does not match gluu archive type", 'error')
             return False
     elif os_type.lower() in ('centos', 'rhel'):
-        if not appconf.gluu_archive.endswith('.rmp'):
+        if not appconf.gluu_archive.endswith('.rpm'):
             wlogger.log(tid,
                     "Os type does not match gluu archive type", 'error')
             return False
@@ -1007,6 +1036,9 @@ def installGluuServer(self, server_id):
         return
 
 
+    run_cmd, cmd_chroot = get_run_cmd(server)
+
+
     if appconf.offline:
         if not checkOfflineRequirements(tid, server, c, appconf):
             return False
@@ -1019,8 +1051,8 @@ def installGluuServer(self, server_id):
 
     gluu_server = 'gluu-server-' + appconf.gluu_version
 
-    #opendj_version = '3.0.0.dd9dedab5172885f14f0929682570c573d0c2b7b'
     
+
     #If os type of this server was not idientified, return to home
     if not server.os:
         wlogger.log(tid, "OS type has not been identified.", 'fail')
@@ -1033,6 +1065,11 @@ def installGluuServer(self, server_id):
     if not server.primary_server:
         wlogger.log(tid, "Check if Primary Server is Installed")
 
+        if not server.os == pserver.os:
+            wlogger.log(tid, "OS type is not the same as primary server.", 'fail')
+            wlogger.log(tid, "Ending server installation process.", "error")
+            return False
+
         pc = RemoteClient(pserver.hostname, ip=pserver.ip)
 
         try:
@@ -1044,9 +1081,6 @@ def installGluuServer(self, server_id):
             wlogger.log(tid, "Ending server installation process.", "error")
             return
 
-        #opendj_version_file = pc.get_file('/opt/{0}/opt/opendj/config/buildinfo'.format(gluu_server))
-        #if opendj_version_file[0]:
-        #    opendj_version = opendj_version_file[1].read().strip()
 
         if check_gluu_installation(pc):
             wlogger.log(tid, "Primary Server is Installed",'success')
@@ -1063,13 +1097,10 @@ def installGluuServer(self, server_id):
     stop_command   = 'service gluu-server-{0} stop'
     enable_command = None
 
-
-
     if server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
         enable_command  = '/sbin/gluu-serverd-{0} enable'
         stop_command    = '/sbin/gluu-serverd-{0} stop'
         start_command   = '/sbin/gluu-serverd-{0} start'
-
 
     if appconf.offline:
         gluu_archive_fn = os.path.split(appconf.gluu_archive)[1]
@@ -1084,7 +1115,7 @@ def installGluuServer(self, server_id):
         if ('Ubuntu' in server.os) or ('Debian' in server.os):
             install_command = 'dpkg -i /root/{}'.format(gluu_archive_fn)
         else:
-            install_command = 'rpm -i root/{}'.format(gluu_archive_fn)
+            install_command = 'rpm -i /root/{}'.format(gluu_archive_fn)
     else:
 
 
@@ -1124,10 +1155,10 @@ def installGluuServer(self, server_id):
             if 'Ubuntu' in server.os:
                 cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
                    '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
-                   
+
                 #Testing
-                cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" '
-                   '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
+                #cmd = ('echo "deb https://repo.gluu.org/ubuntu/ {0}-devel main" '
+                #   '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist))
 
             elif 'Debian' in server.os:
                 cmd = ('echo "deb https://repo.gluu.org/debian/ stable main" '
@@ -1185,11 +1216,14 @@ def installGluuServer(self, server_id):
 
 
     if not c.exists('/usr/bin/python'):
-        if 'Ubuntu' in server.os or 'Debian' in server.os:
+        if 'Ubuntu' in server.os:
+            cmd = 'DEBIAN_FRONTEND=noninteractive apt-get install -y python-minimal'
+        elif 'Debian' in server.os:
             cmd = 'DEBIAN_FRONTEND=noninteractive apt-get install -y python'
         else:
             cmd = 'yum install -y python'
         run_command(tid, c, cmd, no_error='debug')
+
 
 
     wlogger.log(tid, "Check if Gluu Server was installed")
@@ -1218,7 +1252,16 @@ def installGluuServer(self, server_id):
                     cmd = stop_command.format(gluu_version)
                     rs = run_command(tid, c, cmd, no_error='debug')
 
-                run_command(tid, c, install_command + "remove -y "+s)
+
+                if appconf.offline:
+                    if ('Ubuntu' in server.os) or ('Debian' in server.os):
+                        cmd = 'apt-get remove -y ' + s
+                    else:
+                        cmd = 'rpm -e ' + s
+                else:
+                    cmd = install_command + "remove -y "+s
+                        
+                run_command(tid, c,cmd)
 
 
     if not gluu_installed:
@@ -1235,6 +1278,8 @@ def installGluuServer(self, server_id):
         cmd = install_command + 'install -y ' + gluu_server
     wlogger.log(tid, cmd, "debug")
     
+    
+    c.log_me("running command: {}".format(cmd))
     
     channel = c.client.get_transport().open_session()
     channel.get_pty()
@@ -1272,23 +1317,16 @@ def installGluuServer(self, server_id):
                             last_debug = False
                             wlogger.log(tid, cout, "debug")
 
-    
-    #If previous installation was broken, make a re-installation. This sometimes
-    #occur on ubuntu installations
-    if 'half-installed' in cout:
-        if ('Ubuntu' in server.os) or  ('Debian' in server.os):
-            cmd = 'DEBIAN_FRONTEND=noninteractive apt-get install --reinstall -y '+ gluu_server
-            run_command(tid, c, cmd, no_error='debug')
-
 
     if enable_command:
         run_command(tid, c, enable_command.format(appconf.gluu_version), no_error='debug')
 
     run_command(tid, c, start_command.format(appconf.gluu_version))
 
+
     #Since we will make ssh inot centos container, we need to wait ssh server to
     #be started properly
-    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+    if server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
         wlogger.log(tid, "Sleeping 10 secs to wait for gluu server start properly.")
         time.sleep(10)
 
@@ -1296,8 +1334,6 @@ def installGluuServer(self, server_id):
     if setup_prop.get('opendj_type') == 'wrends':
         cmd = 'wget https://ox.gluu.org/maven/org/forgerock/opendj/opendj-server-legacy/4.0.0-M3/opendj-server-legacy-4.0.0-M3.zip -P /opt/{}/opt/dist/app'.format(gluu_server)
         run_command(tid, c, cmd, no_error='debug')
-        
-    
 
     # If this server is primary, upload local setup.properties to server
     if server.primary_server:
@@ -1317,18 +1353,6 @@ def installGluuServer(self, server_id):
             return
 
 
-        #if opendj version is not default, download latest version
-        
-        #if opendj_version != '3.0.0.dd9dedab5172885f14f0929682570c573d0c2b7b':
-        #    wlogger.log(tid, "Downloading lastest openDj from http://ox.gluu.org/")
-        #    cmd = ('wget http://ox.gluu.org/maven/org/forgerock/opendj/'
-        #           'opendj-server-legacy/3.0.1.gluu/opendj-server-legacy-3.0.1.gluu.zip '
-        #           '-O /opt/{0}/opt/dist/app/opendj-server-3.0.0.1.zip').format(gluu_server)
-        #    wlogger.log(tid, cmd, 'debug')
-
-        #    c.run(cmd)
-
-
         # ldap_paswwrod of this server should be the same with primary server
         ldap_passwd = None
 
@@ -1336,27 +1360,34 @@ def installGluuServer(self, server_id):
         remote_file = '/opt/{}/install/community-edition-setup/setup.properties.last'.format(gluu_server)
         wlogger.log(tid, 'Downloading setup.properties.last from primary server', 'debug')
 
+        prop_list = ['passport_rp_client_jks_pass', 'application_max_ram', 'encoded_ldap_pw', 'ldapPass', 'state', 'defaultTrustStorePW', 'passport_rs_client_jks_pass_encoded', 'passportSpJksPass', 'pairwiseCalculationSalt', 'installAsimba', 'installLdap', 'oxauth_client_id', 'oxTrust_log_rotation_configuration', 'scim_rs_client_jks_pass_encoded', 'encoded_openldapJksPass', 'inumApplianceFN', 'inumAppliance', 'oxauthClient_pw', 'opendj_p12_pass', 'passportSpKeyPass', 'scim_rs_client_jks_pass', 'inumOrgFN', 'scim_rs_client_id', 'default_key_algs', 'installOxTrust', 'ldap_port', 'encoded_shib_jks_pw', 'orgName', 'openldapKeyPass', 'city', 'oxVersion', 'baseInum', 'asimbaJksPass', 'oxTrustConfigGeneration', 'passport_rp_client_id', 'pairwiseCalculationKey', 'scim_rp_client_jks_pass', 'encoded_opendj_p12_pass', 'httpdKeyPass', 'installOxAuth', 'admin_email', 'passport_rs_client_jks_pass', 'oxauth_openid_jks_pass', 'countryCode', 'installSaml', 'installJce', 'encoded_ldapTrustStorePass', 'encode_salt', 'inumOrg', 'openldapJksPass', 'encoded_ox_ldap_pw', 'installHttpd', 'passport_rs_client_id', 'scim_rp_client_id', 'ldap_hostname', 'oxauthClient_encoded_pw', 'shibJksPass', 'installPassport', 'installOxAuthRP']
+        prop = Properties()
+        
        #get setup.properties.last from primary server.
         r=pc.get_file(remote_file)
         if r[0]:
-            new_setup_properties=''
-            setup_properties = r[1].readlines()
-            #replace ip with address of this server
-            for l in setup_properties:
-                if l.startswith('ip='):
-                    l = 'ip={0}\n'.format(server.ip)
-                elif l.startswith('ldapPass='):
-                    ldap_passwd = l.split('=')[1].strip()
-                elif l.startswith('hostname='):
-                    l = 'hostname={0}\n'.format(appconf.nginx_host)
-                elif l.startswith('os_type=') or l.startswith('os_initdaemon=') or l.startswith('rsyslogUbuntuInitFile'):
-                    l = ''
-                new_setup_properties += l
+            prop.load(r[1])
+
+            prop_keys = prop.keys()
+
+            for p in prop_keys[:]:
+                if not p in prop_list:
+                    del prop[p]
+
+            prop['ip'] = str(server.ip)
+            prop['ldap_type'] = 'opendj'
+            prop['hostname'] = str(appconf.nginx_host)
+            ldap_passwd = prop['ldapPass']
+
+            new_setup_properties_io = StringIO.StringIO()
+            prop.store(new_setup_properties_io)
+            new_setup_properties_io.seek(0)
+            new_setup_properties = new_setup_properties_io.read()
 
             #put setup.properties to server
             remote_file_new = '/opt/{}/install/community-edition-setup/setup.properties'.format(gluu_server)
             wlogger.log(tid, 'Uploading setup.properties', 'debug')
-            c.put_file(remote_file_new,  new_setup_properties)
+            c.put_file(remote_file_new, new_setup_properties)
 
             if ldap_passwd:
                 server.ldap_password = ldap_passwd
@@ -1401,10 +1432,10 @@ def installGluuServer(self, server_id):
     #run setup.py on the server
     wlogger.log(tid, "Running setup.py - Be patient this process will take a while ...")
 
-    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-        cmd = "ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes root@localhost 'cd /install/community-edition-setup/ && ./setup.py -n -v %s'"
+
+    if server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
+        cmd = run_cmd.format('cd /install/community-edition-setup/ && ./setup.py -n -v %s')
     else:
-        
         cmd = 'chroot /opt/{} /bin/bash -c "cd /install/community-edition-setup/ && ./setup.py -n -v %s"'.format(gluu_server)
 
     if not server.primary_server:
@@ -1414,6 +1445,8 @@ def installGluuServer(self, server_id):
 
 
     wlogger.log(tid ,cmd, "debug")
+
+    c.log_me("running command: {}".format(cmd))
 
     channel = c.client.get_transport().open_session()
     channel.get_pty()
@@ -1457,17 +1490,6 @@ def installGluuServer(self, server_id):
             host_ip.append((ship.hostname, ship.ip))
 
         modify_hosts(tid, c, host_ip, '/opt/'+gluu_server+'/', server.hostname)
-
-
-    run_cmd = "{}"
-    cmd_chroot = '/opt/'+gluu_server
-
-    if server.os == 'CentOS 7' or server.os == 'RHEL 7':
-        cmd_chroot = None
-        run_cmd = ("ssh -o IdentityFile=/etc/gluu/keys/gluu-console -o "
-            "Port=60022 -o LogLevel=QUIET -o StrictHostKeyChecking=no "
-            "-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=yes "
-            "root@localhost '{}'")
 
 
     if appconf.gluu_version >= '3.1.4':
@@ -1572,6 +1594,19 @@ def installGluuServer(self, server_id):
     run_command(tid, c, cmd)
     #########
 
+    if appconf.gluu_version == '3.1.6':
+        #fix oxauth.war for openid connect session
+        wlogger.log(tid, "Fixing oxauth.war for OpenId connect session")
+        rcmd, cmdchr = get_run_cmd(server)
+        cmd_list = [
+                '/opt/jre/bin/jar -xf /opt/gluu/jetty/oxauth/webapps/oxauth.war WEB-INF/incl/layout/authorize-template.xhtml',
+                'sed \\\'s/<f:view locale="#{language.localeCode}">/<f:view transient="true" locale="#{language.localeCode}">/\\\' -i WEB-INF/incl/layout/authorize-template.xhtml',
+                '/opt/jre/bin/jar -uf /opt/gluu/jetty/oxauth/webapps/oxauth.war WEB-INF/incl/layout/authorize-template.xhtml',
+                ]
+
+        for cmd in cmd_list:
+            run_command(tid, c, run_cmd.format(cmd), cmd_chroot)
+
     server.gluu_server = True
     db.session.commit()
     wlogger.log(tid, "Gluu Server successfully installed")
@@ -1581,18 +1616,10 @@ def do_disable_replication(tid, server, primary_server, app_config):
 
 
     c = RemoteClient(primary_server.hostname, ip=primary_server.ip)
-    chroot = '/opt/gluu-server-' + app_config.gluu_version
 
 
-    cmd_run = '{}'
 
-    if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):
-        chroot = None
-        cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
-                '-o Port=60022 -o LogLevel=QUIET '
-                '-o StrictHostKeyChecking=no '
-                '-o UserKnownHostsFile=/dev/null '
-                '-o PubkeyAuthentication=yes root@localhost "{}"')
+    cmd_run, cmd_chroot = get_run_cmd(server)
 
     wlogger.log(tid, 
         "Disabling replication for {0}".format(
@@ -1615,13 +1642,13 @@ def do_disable_replication(tid, server, primary_server, app_config):
     wlogger.log(tid, "SSH connection successful", 'success')
 
     cmd = ('/opt/opendj/bin/dsreplication disable --disableAll --port 4444 '
-            '--hostname {} --adminUID admin --adminPassword $\'{}\' '
+            '--hostname {} --adminUID admin --adminPassword \\\'{}\\\' '
             '--trustAll --no-prompt').format(
                             server.hostname,
                             app_config.replication_pw)
 
     cmd = cmd_run.format(cmd)
-    run_command(tid, c, cmd, chroot)
+    run_command(tid, c, cmd, cmd_chroot)
 
     server.mmr = False
     db.session.commit()
@@ -1630,13 +1657,13 @@ def do_disable_replication(tid, server, primary_server, app_config):
 
     wlogger.log(tid, "Checking replication status", 'debug')
 
-    cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
-            '-p 1444 -I admin -w $\'{}\'').format(
+    cmd = ('OPENDJ_JAVA_HOME=/opt/jre /opt/opendj/bin/dsreplication status -n -X -h {} '
+            '-p 1444 -I admin -w \\\'{}\\\'').format(
                     primary_server.hostname,
                     app_config.replication_pw)
 
     cmd = cmd_run.format(cmd)
-    run_command(tid, c, cmd, chroot)
+    run_command(tid, c, cmd, cmd_chroot)
 
     return True
 
@@ -1944,17 +1971,7 @@ def opendjenablereplication(self, server_id):
 
     for server in servers:
         
-        cmd_run = '{}'
-
-        if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):
-            chroot = None
-            cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
-                    '-o Port=60022 -o LogLevel=QUIET '
-                    '-o StrictHostKeyChecking=no '
-                    '-o UserKnownHostsFile=/dev/null '
-                    '-o PubkeyAuthentication=yes root@localhost "{}"')
-                            
-        
+        cmd_run, chroot =  get_run_cmd(server)
         
         if not server.primary_server:
             wlogger.log(tid, "Enabling replication on server {}".format(
@@ -1962,12 +1979,12 @@ def opendjenablereplication(self, server_id):
                                                             
             for base in ['gluu', 'site']:
 
-                cmd = ('/opt/opendj/bin/dsreplication enable --host1 {} --port1 4444 '
-                        '--bindDN1 \'cn=directory manager\' --bindPassword1 $\'{}\' '
+                cmd = ('OPENDJ_JAVA_HOME=/opt/jre /opt/opendj/bin/dsreplication enable --host1 {} --port1 4444 '
+                        '--bindDN1 \\\'cn=directory manager\\\' --bindPassword1 \\\'{}\\\' '
                         '--replicationPort1 8989 --host2 {} --port2 4444 --bindDN2 '
-                        '\'cn=directory manager\' --bindPassword2 $\'{}\' '
-                        '--replicationPort2 8989 --adminUID admin --adminPassword $\'{}\' '
-                        '--baseDN \'o={}\' --trustAll -X -n').format(
+                        '\\\'cn=directory manager\\\' --bindPassword2 \\\'{}\\\' '
+                        '--replicationPort2 8989 --adminUID admin --adminPassword \\\'{}\\\' '
+                        '--baseDN \\\'o={}\\\' --trustAll -X -n').format(
                             primary_server.ip,
                             primary_server.ldap_password.replace("'","\\'"),
                             server.ip,
@@ -1986,8 +2003,8 @@ def opendjenablereplication(self, server_id):
                 wlogger.log(tid, "Securing replication on primary server {}".format(
                                                                 primary_server.hostname))
 
-                cmd = ('/opt/opendj/bin/dsconfig -h {} -p 4444 '
-                        ' -D  \'cn=Directory Manager\' -w $\'{}\' --trustAll '
+                cmd = ('OPENDJ_JAVA_HOME=/opt/jre /opt/opendj/bin/dsconfig -h {} -p 4444 '
+                        ' -D  \\\'cn=Directory Manager\\\' -w \\\'{}\\\' --trustAll '
                         '-n set-crypto-manager-prop --set ssl-encryption:true'
                         ).format(primary_server.ip, primary_server.ldap_password.replace("'","\\'"))
 
@@ -1998,8 +2015,8 @@ def opendjenablereplication(self, server_id):
 
             wlogger.log(tid, "Securing replication on server {}".format(
                                                             server.hostname))
-            cmd = ('/opt/opendj/bin/dsconfig -h {} -p 4444 '
-                    ' -D  \'cn=Directory Manager\' -w $\'{}\' --trustAll '
+            cmd = ('OPENDJ_JAVA_HOME=/opt/jre /opt/opendj/bin/dsconfig -h {} -p 4444 '
+                    ' -D  \\\'cn=Directory Manager\\\' -w \\\'{}\\\' --trustAll '
                     '-n set-crypto-manager-prop --set ssl-encryption:true'
                     ).format(server.ip, primary_server.ldap_password.replace("'","\\'"))
 
@@ -2017,7 +2034,7 @@ def opendjenablereplication(self, server_id):
 
     for server in servers:
 
-        if server.os == 'CentOS 7' or server.os == 'RHEL 7':
+        if server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
             restart_command = '/sbin/gluu-serverd-{0} restart'.format(
                                 app_config.gluu_version)
         else:
@@ -2045,8 +2062,8 @@ def opendjenablereplication(self, server_id):
             if  target != server:
 
                 for base in ['gluu', 'site']:
-                    cmd = ('/opt/opendj/bin/dsreplication initialize --baseDN \'o={}\' '
-                        '--adminUID admin --adminPassword $\'{}\' '
+                    cmd = ('OPENDJ_JAVA_HOME=/opt/jre /opt/opendj/bin/dsreplication initialize --baseDN \\\'o={}\\\' '
+                        '--adminUID admin --adminPassword \\\'{}\\\' '
                         '--hostSource {} --portSource 4444 '
                         '--hostDestination {} --portDestination 4444 '
                         '--trustAll --no-prompt').format(
@@ -2056,26 +2073,44 @@ def opendjenablereplication(self, server_id):
                             server.ip,
                             )
 
+                    cmd_run, cmd_chroot = get_run_cmd(server)
 
-                    cmd_run = '{}'
-
-                    if (server.os == 'CentOS 7') or (server.os == 'RHEL 7'):
-                        chroot = None
-                        cmd_run = ('ssh -o IdentityFile=/etc/gluu/keys/gluu-console '
-                                '-o Port=60022 -o LogLevel=QUIET '
-                                '-o StrictHostKeyChecking=no '
-                                '-o UserKnownHostsFile=/dev/null '
-                                '-o PubkeyAuthentication=yes root@localhost "{}"')
-                                    
+                    print "Sleeping 30 seconds"
+                    time.sleep(30)
 
                     wlogger.log(tid, "Inıtializing replication on server {} for base {}".format(
                                                                         server.hostname, base))
 
                     cmd = cmd_run.format(cmd)
-                    run_command(tid, c, cmd, chroot)
+                    run_command(tid, c, cmd, cmd_chroot)
             
 
         if not server.primary_server:
+
+            if server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
+
+                print "Sleeping 30 seconds"
+                time.sleep(30)
+
+                print "Running second initialization on {}".format(ct.host)
+
+
+                #sometimes we need re-imitialization
+                cmd = ('OPENDJ_JAVA_HOME=/opt/jre /opt/opendj/bin/dsreplication initialize --adminUID admin '
+                        '--adminPassword \\\'{}\\\' --baseDN o=gluu --hostSource {} '
+                        '--portSource 4444 --hostDestination {} '
+                        '--portDestination 4444 --trustAll --no-prompt').format(
+                                app_config.replication_pw.replace("'","\\'"),
+                                primary_server.ip,
+                                server.ip,
+                                )
+
+
+                print "Init command", cmd
+
+
+                cmd = cmd_run.format(cmd)
+                run_command(tid, ct, cmd, chroot)
 
             wlogger.log(tid, "Uploading OpenDj certificate files")
             for cf in opendj_cert_files:
@@ -2102,7 +2137,7 @@ def opendjenablereplication(self, server_id):
         ct.close()
 
 
-    if 'CentOS' in primary_server.os:
+    if server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
         wlogger.log(tid, "Waiting for Gluu to finish starting")
         time.sleep(60)
 
@@ -2110,8 +2145,8 @@ def opendjenablereplication(self, server_id):
 
     wlogger.log(tid, "Checking replication status")
 
-    cmd = ('/opt/opendj/bin/dsreplication status -n -X -h {} '
-            '-p 1444 -I admin -w $\'{}\'').format(
+    cmd = ('OPENDJ_JAVA_HOME=/opt/jre /opt/opendj/bin/dsreplication status -n -X -h {} '
+            '-p 1444 -I admin -w \'{}\'').format(
                     primary_server.ip,
                     app_config.replication_pw.replace("'","\\'"))
 
@@ -2194,8 +2229,8 @@ def installNGINX(self, nginx_host):
         
         
         #If this is centos we need to install epel-release
-        if 'CentOS' in os_type:
-            run_command(tid, c, 'yum install -y epel-release')
+        if os_type in ('CentOS 7', 'RHEL 7'):
+            run_command(tid, c, 'yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm')
             cmd = 'yum install -y nginx'
         else:
             run_command(tid, c, 'DEBIAN_FRONTEND=noninteractive apt-get update')
@@ -2301,10 +2336,8 @@ def exec_cmd(command):
 @celery.task(bind=True)
 def upgrade_clustermgr_task(self, pip=False):
     tid = self.request.id
-    if pip:
-        cmd = '/usr/bin/sudo pip install --upgrade clustermgr'
-    else:
-        cmd = '/usr/bin/sudo pip install --upgrade https://github.com/GluuFederation/cluster-mgr/archive/master.zip'
+    
+    cmd = '/usr/bin/sudo pip install --upgrade https://github.com/GluuFederation/cluster-mgr/archive/master.zip'
 
     wlogger.log(tid, cmd)
 
@@ -2418,5 +2451,6 @@ def check_latest_version():
         text = result.text.strip()
         latest_version = text.split('=')[1].strip().strip('"').strip("'")        
         appconf.latest_version = latest_version
+        print "Latest github version is %s" % latest_version
         db.session.commit()
 

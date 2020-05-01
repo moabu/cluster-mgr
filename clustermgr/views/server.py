@@ -100,17 +100,9 @@ def index():
                     "After setting your passphrase re-submit this form.",
                     'warning')
             else:
-                flash("SSH connection to {} failed. Please check if your pub key is "
-                    "added to /root/.ssh/authorized_keys on this server. Reason: {}".format(
+                flash("SSH connection to {} failed. Reason: {}".format(
                                                     server.hostname, e), 'error')
 
-        
-        #except:
-        #    flash("SSH connection to {} failed. Please check if your pub key is "
-        #        "asdded to /root/.ssh/authorized_keys on this server".format(
-        #                                            server.hostname))
-        
-            print "ask_passphrase", ask_passphrase
         
             return render_template('new_server.html',
                        form=form,
@@ -360,9 +352,9 @@ def install_gluu(server_id):
                   ):
             setup_prop[o] = getattr(form, o).data
 
-        #if setup_prop['ldap_type'] == 'wrends':
-        #    setup_prop['ldap_type'] = 'opendj'
-        #    setup_prop['opendj_type'] = 'wrends'
+        if setup_prop['ldap_type'] == 'wrends':
+            setup_prop['ldap_type'] = 'opendj'
+            setup_prop['opendj_type'] = 'wrends'
 
         write_setup_properties_file(setup_prop)
 

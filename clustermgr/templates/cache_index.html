@@ -31,7 +31,11 @@
             <td class="id">{{server.id}}</td>
             <td class="hostname">{{server.hostname}}</td>
             <td class="ip">{{server.ip}}</td>
-            <td align="center"> <span class="badge" id="stunnelstat-{{server.ip.replace('.','_')}}"></span> </td>
+            <td align="center"> <span class="badge" id="stunnelstat-{{server.ip.replace('.','_')}}"></span>
+              {% if cache_servers and cache_servers[0].installed  and not server.primary_server %} 
+                <a style="display: none" id="install-stunnel-{{server.ip.replace('.','_')}}" class="btn btn-primary btn-xs" href="{{ url_for('cache_mgr.install') }}?server={{server.id}}">Reinstall</a>
+              {% endif %}
+            </td>
             
           </tr>
           {% endfor %}
@@ -155,12 +159,16 @@ $("#cache-add-button").click(function(e){
   
   hostname = $("#hostname").val();
   ip = $("#ip").val();
+  redis_password = $("#redis_password").val();
   install_redis = $("#install_redis").is(':checked');
+  stunnel_port = $("#stunnel_port").val();
   
   csrf_token = $("#csrf_token").val();
   $.post("{{request.host_url}}{{url_for('cache_mgr.add_cache_server')[1:]}}?cid="+cacheServerId, 
             {hostname: hostname, ip: ip, 
              install_redis: install_redis,
+             redis_password: redis_password,
+             stunnel_port: stunnel_port,
              csrf_token: csrf_token
             },
             function(result, status, xhr){
@@ -197,15 +205,17 @@ function cacheStat() {
         for (var key in data.stunnel) {
             console.log('data:'+data.stunnel[key]);
             console.log('key:'+key);
-            
+            $("#install-stunnel-"+key).css("display","");
             
             if (data.stunnel[key]) {
-                
                 $("#stunnelstat-"+key).addClass("bg-green");
                 $("#stunnelstat-"+key).text("Live");
+                $("#install-stunnel-"+key).text("Reinstall")
+
             } else {
                 $("#stunnelstat-"+key).addClass("bg-red");
                 $("#stunnelstat-"+key).text("Down");
+                $("#install-stunnel-"+key).text("Install")
             }
             
             console.log("KK"+ $("#stunnelstat-"+key).text());

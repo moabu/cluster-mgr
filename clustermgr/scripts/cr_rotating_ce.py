@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # ------------------------------------
 """
-Copyright (c) 2019, Gluu
 updating cache refresh in gluu server
 Author : Mohammad Abudayyeh
 support@gluu.org

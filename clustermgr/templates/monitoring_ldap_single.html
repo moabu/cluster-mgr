@@ -14,6 +14,7 @@
 {% endfor %}
 
 
+
 <br><br>
 <form method="GET">
     Start Date: <input name="startdate" id="datepickers">
@@ -22,7 +23,11 @@
 </form>
 <br>
 
-<td><div id="chart_div"></div></td>
+
+
+          <div id="chart_div" style="height: 330px;"></div>
+        
+
 
 
 {% endblock %}
@@ -62,8 +67,8 @@
         
         var options = {
                 title: '{{title}}',
-                width: {{width}},
-                height: {{height}},
+                width: '80%',
+                height: '90%',
                 vAxis: { title: '{{items[item]["vAxis"]}}'},
                 hAxis: { title: 'Time' },
                 
