@@ -1423,7 +1423,6 @@ def installGluuServer(self, server_id):
     
     if not server.primary_server:
         setup_py = os.path.join(app.root_path,'setup', 'setup_{}.py'.format(appconf.gluu_version.replace('.','_')))
-        print "setup.py fn: "+ setup_py
         if os.path.exists(setup_py):
             remote_py = '/opt/{}/install/community-edition-setup/setup.py'.format(gluu_server)
             wlogger.log(tid, "Uploading {} to {}".format(setup_py, remote_py),'debug')
