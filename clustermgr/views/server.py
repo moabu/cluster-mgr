@@ -234,26 +234,17 @@ def remove_server(server_id):
     disable_replication = True if request.args.get('disablereplication') == \
                                'true' else False
 
-    
-    if setup_prop['ldap_type'] == 'openldap':
-        if server.mmr:
-            # remove its corresponding syncrepl configs from other servers
-            consumers = Server.query.filter(Server.id.isnot(server_id)).all()
-            for consumer in consumers:
-                remove_provider_from_consumer_f(consumer.id, provider_addr)
-    else:
+    print url_for('cluster.remove_server_from_cluster_view',
+                                server_id=server_id, removeserver=True,
+                                disablereplication=disable_replication,
+                                next='dashboard',
+                                )
 
-        print url_for('cluster.remove_server_from_cluster_view',
-                                    server_id=server_id, removeserver=True,
-                                    disablereplication=disable_replication,
-                                    next='dashboard',
-                                    )
-
-        return redirect(url_for('cluster.remove_server_from_cluster_view',
-                                    server_id=server_id, removeserver=True,
-                                    disablereplication=disable_replication,
-                                    next='dashboard',
-                                    ))
+    return redirect(url_for('cluster.remove_server_from_cluster_view',
+                                server_id=server_id, removeserver=True,
+                                disablereplication=disable_replication,
+                                next='dashboard',
+                                ))
  
     # TODO LATER perform checks on ther flags and add their cleanup tasks
 
@@ -347,14 +338,11 @@ def install_gluu(server_id):
                   'installSaml',
                   'installOxAuthRP',
                   'installPassport',
-                  'ldap_type',
                   'application_max_ram',
                   ):
             setup_prop[o] = getattr(form, o).data
 
-        if setup_prop['ldap_type'] == 'wrends':
-            setup_prop['ldap_type'] = 'opendj'
-            setup_prop['opendj_type'] = 'wrends'
+        setup_prop['ldap_type'] = 'opendj'
 
         write_setup_properties_file(setup_prop)
 
@@ -387,15 +375,9 @@ def install_gluu(server_id):
                   'installSaml',
                   'installOxAuthRP',
                   'installPassport',
-                  'ldap_type',
                   'application_max_ram',
                   ):
             getattr(form, o).data = setup_prop.get(o, '')
-
-        # if appconf.gluu_version < '3.1.2':
-        #     print "removeing opendj"
-        #     form.ldap_type.choices.remove(('opendj', 'OpenDJ'))
-        #     form.ldap_type.data = 'openldap'
 
     setup_properties_form = SetupPropertiesLastForm()
 
