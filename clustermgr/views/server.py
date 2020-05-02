@@ -223,7 +223,6 @@ def remove_server(server_id):
  
     # TODO LATER perform checks on ther flags and add their cleanup tasks
 
-    
     return redirect(url_for('index.home'))
 
 
@@ -306,6 +305,8 @@ def install_gluu(server_id):
         setup_prop['opendj_type'] = 'wrends'
         setup_prop['installJce'] = True
         setup_prop['installLdap'] = True
+        if setup_prop['installCasa']:
+            setup_prop['installOxd'] = True
 
         write_setup_properties_file(setup_prop)
 
