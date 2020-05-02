@@ -26,7 +26,7 @@ from clustermgr.tasks.monitoring import install_monitoring, install_local, \
 from clustermgr.monitoring_defs import left_menu, items, periods
 
 from clustermgr.core.utils import get_setup_properties, \
-    get_opendj_replication_status, port_status_cmd
+    get_opendj_replication_status, port_status_cmd, get_enabled_services
 
 monitoring = Blueprint('monitoring', __name__)
 monitoring.before_request(prompt_license)
@@ -615,24 +615,17 @@ def get_server_status():
                 'oxauth': '.well-known/openid-configuration',
                 'identity': 'identity/restv1/scim-configuration',
                 'shib': 'idp/shibboleth',
+                'casa': 'casa/enrollment-api.yaml',
             }
 
     status = {}
-    active_services = ['oxauth', 'identity']
-    prop = get_setup_properties()
-
-    if prop['installSaml']:
-        active_services.append('shib')
-
-    if prop['installPassport']:
-        active_services.append('passport')
+    active_services = get_enabled_services()
 
     cmd =  '''python -c "import urllib2,ssl; print urllib2.urlopen('https://localhost/{}', context= ssl._create_unverified_context()).getcode()"'''
 
-
     for server in servers:
         status[server.id] = {}
-        
+
         c = RemoteClient(server.hostname)
         c.ok = False
         try:
@@ -640,20 +633,25 @@ def get_server_status():
             c.ok = True
         except Exception as e:
             pass
-        
+
         for service in active_services:
             status[server.id][service] = False
-            
+
             if c.ok:
                 if service == 'passport':
                     passport_cmd = port_status_cmd.format('localhost', 8090)
                     r = c.run(passport_cmd)
                     if r[1].strip()=='0':
                         status[server.id][service] = True
+                elif service == 'oxd':
+                    passport_cmd = port_status_cmd.format('localhost', 8443)
+                    r = c.run(passport_cmd)
+                    if r[1].strip()=='0':
+                        status[server.id][service] = True
                 else:
                     try:
                         run_cmd = cmd.format(services[service])
-                        result = c.run(run_cmd)            
+                        result = c.run(run_cmd)
                         if result[1].strip() == '200':
                             status[server.id][service] = True
                     except Exception as e:

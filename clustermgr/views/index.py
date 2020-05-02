@@ -36,7 +36,7 @@ from clustermgr.core.remote import RemoteClient, FakeRemote, ClientNotSetupExcep
 from clustermgr.core.clustermgr_installer import Installer
 
 from clustermgr.core.utils import get_setup_properties, \
-    get_opendj_replication_status, as_boolean
+    get_opendj_replication_status, as_boolean, get_enabled_services
 
 from clustermgr.tasks.server import collect_server_details, set_up_ldap_cache_cleaner
 
@@ -108,16 +108,7 @@ def home():
 
 
     server_id_list = [str(server.id) for server in servers]
-    
-    services = ['oxauth', 'identity']
-    prop = get_setup_properties()
-
-    if as_boolean(prop['installSaml']):
-        services.append('shib')
-
-    if as_boolean(prop['installPassport']):
-        services.append('passport')
-
+    services = get_enabled_services()
 
     return render_template('dashboard.html', servers=servers, app_conf=appconf,
                              services=services, server_id_list=server_id_list,

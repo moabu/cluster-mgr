@@ -37,6 +37,22 @@ def get_proplist():
     with open(os.path.join(cur_dir, 'proplist.json')) as f:
         return json.load(f)
 
+def get_enabled_services():
+    services = []
+    prop = get_setup_properties()
+    for s, n in (('oxauth', 'installOxAuth'),
+             ('identity', 'installOxTrust'),
+             ('saml', 'installSaml'),
+             ('passport', 'installPassport'),
+             ('oxd', 'installOxd'),
+             ('casa', 'installCasa'),
+             ):
+
+        if as_boolean(prop[n]):
+            services.append(s)
+
+    return services
+
 def ldap_encode(password):
     salt = os.urandom(4)
     sha = hashlib.sha1(password)
