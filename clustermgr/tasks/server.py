@@ -20,7 +20,8 @@ from clustermgr.config import Config
 
 
 from clustermgr.core.clustermgr_installer import Installer
-from clustermgr.core.utils import get_setup_properties, modify_etc_hosts
+from clustermgr.core.utils import get_setup_properties, \
+    modify_etc_hosts, as_boolean, get_proplist
 from clustermgr.core.Properties import Properties
 
 from clustermgr.core.ldap_functions import LdapOLC, getLdapConn
@@ -391,7 +392,6 @@ def install_gluu_server(task_id, server_id):
     if not installer.conn:
         return False
 
-
     if app_conf.offline:
         if not checkOfflineRequirements(installer, server, app_conf):
             return False
@@ -600,67 +600,7 @@ def install_gluu_server(task_id, server_id):
         remote_file = '/opt/gluu-server/install/community-edition-setup/setup.properties.last'
         wlogger.log(task_id, 'Downloading setup.properties.last from primary server', 'debug')
 
-        prop_list = ['passport_rp_client_jks_pass', 
-                     'application_max_ram',
-                     'encoded_ldap_pw',
-                     'ldapPass',
-                     'state',
-                     'defaultTrustStorePW',
-                     'passport_rs_client_jks_pass_encoded',
-                     'passportSpJksPass',
-                     'pairwiseCalculationSalt',
-                     'installAsimba',
-                     'installLdap',
-                     'oxauth_client_id',
-                     'oxTrust_log_rotation_configuration',
-                     'scim_rs_client_jks_pass_encoded',
-                     'encoded_openldapJksPass',
-                     'inumApplianceFN',
-                     'inumAppliance',
-                     'oxauthClient_pw',
-                     'opendj_p12_pass',
-                     'passportSpKeyPass',
-                     'scim_rs_client_jks_pass',
-                     'inumOrgFN',
-                     'scim_rs_client_id',
-                     'default_key_algs',
-                     'installOxTrust',
-                     'ldap_port',
-                     'encoded_shib_jks_pw',
-                     'orgName',
-                     'openldapKeyPass',
-                     'city',
-                     'oxVersion',
-                     'baseInum',
-                     'asimbaJksPass',
-                     'oxTrustConfigGeneration',
-                     'passport_rp_client_id',
-                     'pairwiseCalculationKey',
-                     'scim_rp_client_jks_pass',
-                     'encoded_opendj_p12_pass',
-                     'httpdKeyPass',
-                     'installOxAuth',
-                     'admin_email',
-                     'passport_rs_client_jks_pass',
-                     'oxauth_openid_jks_pass',
-                     'countryCode',
-                     'installSaml',
-                     'installJce',
-                     'encoded_ldapTrustStorePass',
-                     'encode_salt',
-                     'inumOrg',
-                     'openldapJksPass',
-                     'encoded_ox_ldap_pw',
-                     'installHttpd',
-                     'passport_rs_client_id',
-                     'scim_rp_client_id',
-                     'ldap_hostname',
-                     'oxauthClient_encoded_pw',
-                     'shibJksPass',
-                     'installPassport',
-                     'installOxAuthRP',
-                     ]
-
+        prop_list = get_proplist()
         prop_io = None
 
         #get setup.properties.last from primary server.
@@ -711,10 +651,11 @@ def install_gluu_server(task_id, server_id):
     #JavaScript on logger duplicates next log if we don't add this
     time.sleep(1)
 
-    if app_conf.gluu_version == '4.1.0':
-        installer.run('wget https://raw.githubusercontent.com/GluuFederation/community-edition-setup/version_4.1.0/setup.py -O /install/community-edition-setup/setup.py',
-                    inside=True, error_exception='__ALL__')
-        installer.run('chmod +x /install/community-edition-setup/setup.py', inside=True, error_exception='__ALL__')
+    setup_py = os.path.join(app.root_path,'setup', 'setup_{}.py'.format(app_conf.gluu_version))
+    if os.path.exists(setup_py):
+        remote_py = '/opt/gluu-server/install/community-edition-setup/setup.py'
+        installer.upload_file(setup_py, remote_py)
+        installer.run('chmod +x ' + remote_py, inside=False)
 
     setup_cmd = '/install/community-edition-setup/setup.py -f /root/setup.properties --listen_all_interfaces -n'
 
@@ -767,7 +708,7 @@ def install_gluu_server(task_id, server_id):
                 '/opt/{1}/etc/gluu/conf/passport-config.json'
                 ).format(certs_remote_tmp, gluu_server)
 
-        primary_server_installer.run(cmd,inside=False, error_exception='Removing leading')
+        primary_server_installer.run(cmd, inside=False, error_exception='Removing leading')
 
         primary_server_installer.download_file(certs_remote_tmp, certs_local_tmp)
        
@@ -820,6 +761,22 @@ def install_gluu_server(task_id, server_id):
                                 )
             if r:
                 wlogger.log(task_id, "ou=statistic,o=metric created", 'success')
+
+
+        if as_boolean(setup_prop['installCasa']):
+            #we need to copy casa.json and oxd_db.mv.db from primry server
+            casa_files = (
+                        '/opt/gluu-server/etc/gluu/conf/casa.json', 
+                        '/opt/gluu-server/opt/oxd-server/data/oxd_db.mv.db',
+                        )
+            tmp_dir = os.path.join('/tmp', str(uuid.uuid4())[:8])
+            os.mkdir(tmp_dir)
+            for remote_fp in casa_files:
+
+                local_fp = os.path.join(tmp_dir, os.path.basename(remote_fp))
+                primary_server_installer.download_file(remote_fp, local_fp)
+                installer.upload_file(local_fp, remote_fp)
+                installer.run('chown jetty:jetty ' + remote_fp)
 
         wlogger.log(task_id, "Gluu Server successfully installed")
 

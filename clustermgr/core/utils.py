@@ -8,6 +8,7 @@ import subprocess
 import uuid
 import base64
 import socket
+import json
 
 from cryptography.hazmat.primitives.ciphers import Cipher
 from cryptography.hazmat.primitives.ciphers import algorithms
@@ -29,6 +30,12 @@ import traceback
 DEFAULT_CHARSET = string.ascii_uppercase + string.digits + string.lowercase
 
 port_status_cmd = '''python -c "import socket;sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM); socket.setdefaulttimeout(2.0); print (sock.connect_ex(('{}', {})))"'''
+
+
+def get_proplist():
+    cur_dir = os.path.dirname(os.path.realpath(__file__))
+    with open(os.path.join(cur_dir, 'proplist.json')) as f:
+        return json.load(f)
 
 def ldap_encode(password):
     salt = os.urandom(4)

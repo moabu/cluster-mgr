@@ -25,7 +25,8 @@ from ..core.license import license_reminder
 from ..core.license import prompt_license
 
 from clustermgr.core.utils import parse_setup_properties, \
-    write_setup_properties_file, get_setup_properties, port_status_cmd
+    write_setup_properties_file, get_setup_properties, \
+    port_status_cmd, as_boolean, get_proplist
 
 from clustermgr.core.ldap_functions import getLdapConn
 
@@ -337,9 +338,11 @@ def install_gluu(server_id):
                   'installPassport',
                   'installOxd',
                   'installCasa',
-                  'application_max_ram',
+                  
                   ):
-            getattr(form, o).data = setup_prop.get(o, '')
+            getattr(form, o).data = as_boolean(setup_prop.get(o, ''))
+
+    form['application_max_ram'].data = setup_prop['application_max_ram']
 
     setup_properties_form = SetupPropertiesLastForm()
 
@@ -374,48 +377,7 @@ def upload_setup_properties(server_id):
                 "danger")
                 return redirect(url_for('server.install_gluu', server_id=1))
 
-
-        for rf in ( 
-                    'oxauthClient_encoded_pw',
-                    'encoded_ldap_pw',
-                    'scim_rp_client_jks_pass',
-                    'passport_rp_client_jks_pass',
-                    'asimbaJksPass',
-                    'encoded_ox_ldap_pw',
-                    'oxauthClient_pw',
-                    'encoded_shib_jks_pw',
-                    'pairwiseCalculationSalt',
-                    'pairwiseCalculationKey',
-                    'httpdKeyPass',
-                    'scim_rs_client_jks_pass_encoded',
-                    'encode_salt',
-                    'scim_rs_client_jks_pass',
-                    'shibJksPass',
-                    'idp3_metadata',
-                    'idp3_dist_jar',
-                    'staticFolder',
-                    'idp3_configuration_saml_nameid',
-                    'oxTrust_log_rotation_configuration',
-                    'oxtrust_war',
-                    'idp3_configuration_properties',
-                    'idp3_configuration_services',
-                    'idp3_configuration_ldap_properties',
-                    'ce_setup_zip',
-                    'oxauth_war',
-                    'githubBranchName',
-                    'idp3_war',
-                    'configFolder',
-                    'oxVersion',
-                    'ox_ldap_properties',
-                    'oxauth_rp_war',
-                    'asimba_selector_configuration',
-                    'oxTrustCacheRefreshFolder',
-                    'defaultTrustStoreFN',
-                    'asimba',
-                    'oxTrustRemovedFolder',
-                    'idp3_cml_keygenerator',
-                    'os_type',
-                   ):
+        for rf in get_proplist():
             if rf in setup_prop:
                 del setup_prop[rf]
 
