@@ -8,7 +8,7 @@ from flask import Blueprint, render_template, url_for, flash, redirect, \
 from flask_login import login_required
 
 from clustermgr.models import Server, AppConfiguration
-from clustermgr.tasks.cache import install_cache_cluster
+from clustermgr.tasks.cache import install_cache_cluster, remove_cache_server_task
 
 
 from ..core.license import license_reminder
@@ -19,7 +19,6 @@ from clustermgr.core.utils import get_redis_config, get_cache_servers, random_ch
 from clustermgr.forms import CacheSettingsForm, cacheServerForm
 
 from clustermgr.models import db, CacheServer
-
 
 cache_mgr = Blueprint('cache_mgr', __name__, template_folder='templates')
 cache_mgr.before_request(prompt_license)
@@ -123,8 +122,6 @@ def add_cache_server():
             form.redis_password.data = random_chars(20)
             form.stunnel_port.data = 16379
 
-    print form.redis_password.data
-
     if request.method == "POST" and form.validate_on_submit():
         hostname = form.hostname.data
         ip = form.ip.data
@@ -153,6 +150,41 @@ def add_cache_server():
         return jsonify( {"result": True, "message": "Cache server was added"})
 
     return render_template( 'cache_server.html', form=form)
+
+
+@cache_mgr.route('/removecacheserver/', methods=['GET', 'POST'])
+@login_required
+def remove_cache_server():
+    cid = request.args.get('cid', type=int)
+
+    cache_servers = [ CacheServer.query.get(cid) ]
+    servers = Server.get_all()
+
+    if not (servers and cache_servers):
+        return redirect(url_for('cache_mgr.index'))
+
+    steps = ['Disable Redis Server and Stunnel on Cache Server', 'Disable Stunnel on Gluu Server Nodes']
+
+    title = "Removing Cache Settings"
+    whatNext = "Dashboard"
+    nextpage = url_for('index.home')
+    
+    task = remove_cache_server_task.delay(
+                                [server.id for server in cache_servers]
+                                )
+
+    return render_template('logger_single.html',
+                           title=title,
+                           steps=steps,
+                           task=task,
+                           cur_step=1,
+                           auto_next=True,
+                           multistep=True,
+                           multiserver=cache_servers+servers,
+                           nextpage=nextpage,
+                           whatNext=whatNext
+                           )
+
 
 @cache_mgr.route('/status/')
 @login_required

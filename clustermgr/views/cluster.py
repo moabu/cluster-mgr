@@ -333,7 +333,7 @@ def file_system_replication():
                 if 'csync{}.gluu'.format(server.id) in status[1]:
                     server.csync = True
                     csync += 1
-            
+
             if status[0]:
                 return render_template("fsr_home.html", servers=servers, csync=csync)
 

@@ -259,7 +259,68 @@ def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
     wlogger.log(task_id, "3", "setstep")
     return True
 
-def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE', redis_password=''):
+@celery.task(bind=True)
+def remove_cache_server_task(self, cache_servers_id_list):
+
+    task_id = self.request.id
+    servers = Server.get_all()
+
+    cache_servers = [ CacheServer.query.get(id) for id in cache_servers_id_list ]
+    primary_cache_server = CacheServer.query.first()
+    app_conf = AppConfiguration.query.first()
+
+    
+
+    for server in cache_servers:
+
+        server.os = None
+        installer =  Installer(
+                        server,
+                        app_conf.gluu_version,
+                        logger_task_id=task_id
+                    )
+
+        if not installer.conn:
+            wlogger.log(task_id, "SSH connection to server failed", "error", server_id=server.id)
+            return False
+
+        if installer.clone_type == 'deb':
+            stunnel_package = 'stunnel4'
+            redis_package = 'redis-server'
+        else:
+            stunnel_package = 'stunnel'
+            redis_package = 'redis'
+            
+
+        installer.enable_service(stunnel_package, enable=False, inside=False)
+        installer.enable_service(redis_package, enable=False, inside=False)
+
+
+    wlogger.log(task_id, "2", "setstep")
+
+    for server in servers:
+        installer =  Installer(
+                        server,
+                        app_conf.gluu_version,
+                        logger_task_id=task_id
+                    )
+        stunnel_package = 'stunnel4' if installer.clone_type == 'deb' else 'stunnel'
+        installer.enable_service(stunnel_package, enable=False, inside=False)
+        
+        if server.primary_server:
+            __update_LDAP_cache_method(task_id, server, use_ldap=True)
+            
+        installer.restart_gluu()
+
+    for server in cache_servers:
+        db.session.delete(server)
+
+    app_conf.use_ldap_cache = True
+    db.session.commit()
+
+    wlogger.log(task_id, "3", "setstep")
+
+def __update_LDAP_cache_method(tid, server, server_string='', method='STANDALONE', redis_password='', use_ldap=False):
     """Connects to LDAP and updathe cache method and the cache servers
 
     :param tid: task id for log identification
@@ -282,11 +343,17 @@ def __update_LDAP_cache_method(tid, server, server_string, method='STANDALONE', 
                          "connections from outside", "debug",
                     server_id=server.id)
         return
-    
-    result = adminOlc.changeOxCacheConfiguration('REDIS', server_string, redis_password)
 
-    if not result:
-        wlogger.log(tid, "oxCacheConfigutaion update failed", "fail",
+    if use_ldap:
+        adminOlc.changeOxCacheConfiguration('NATIVE_PERSISTENCE')
+        wlogger.log(tid,
+                'cacheProviderType entry is set to NATIVE_PERSISTENCE',
+                'success', server_id=server.id)
+    else:
+        result = adminOlc.changeOxCacheConfiguration('REDIS', server_string, redis_password)
+
+        if not result:
+            wlogger.log(tid, "oxCacheConfigutaion update failed", "fail",
                     server_id=server.id)
 
 
