@@ -163,7 +163,12 @@ def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
 
         redis_package = 'redis-server' if installer.clone_type == 'deb' else 'redis'  
         if not redis_installed:            
+
+            if installer.clone_type == 'rpm':
+                installer.epel_release()
+            
             wlogger.log(task_id, "Installing Redis Server", "info", server_id=server.id)
+            
             
             installer.install(redis_package, inside=False)
             
