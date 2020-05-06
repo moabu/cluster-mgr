@@ -88,13 +88,11 @@ def step1():
 def step2():
     
     task = wizard_step2.delay()
-    print "TASK STARTED", task.id
 
-    
     title = "Incorporating Existing Server"
 
-    whatNext = "Install Nginx Proxy Server"
-    nextpage = url_for('cluster.install_nginx')
+    whatNext = "Add Gluu Server"
+    nextpage = url_for('server.index')
 
     return render_template('logger_single.html',
                title=title,

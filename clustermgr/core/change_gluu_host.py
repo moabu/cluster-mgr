@@ -104,81 +104,39 @@ class ChangeGluuHostname:
         
         return True
 
-    def change_appliance_config(self):
-        print "Changing LDAP Applience configurations"
-        config_dn = 'ou=configuration,o=gluu'
+    def change_ldap_entries(self):
+        print "Changing LDAP Entries"
 
+        self.conn.modify(
+            'ou=configuration,o=gluu', 
+             {'gluuHostname': [MODIFY_REPLACE, self.new_host]}
+            )
 
-        for dns, cattr in (
-                    ('oxauth', 'oxAuthConfDynamic'),
-                    ('oxidp', 'oxConfApplication'),
-                    ('oxtrust', 'oxTrustConfApplication'),
-                    ):
+        sdns = [
+                'ou=configuration,o=gluu',
+                'ou=clients,o=gluu',
+                'ou=scripts,o=gluu',
+                'ou=uma,o=gluu',
+                'ou=scopes,o=gluu',
+                ]
 
-            dn = 'ou={},{}'.format(dns, config_dn)
+        for sdn in sdns:
+            self.conn.search(search_base=sdn, search_scope=SUBTREE, search_filter='(objectclass=*)', attributes=['*'])
 
-            self.conn.search(search_base=dn,
-                        search_filter='(objectClass=*)',
-                        search_scope=BASE, attributes=[cattr])
-
-            config_data = json.loads(self.conn.response[0]['attributes'][cattr][0])
-
-            for k in config_data:
-                kVal = config_data[k]
-                if type(kVal) == type(u''):
-                    if self.old_host in kVal:
-                        kVal=kVal.replace(self.old_host, self.new_host)
-                        config_data[k]=kVal
-                        
-            config_data = json.dumps(config_data)
-            self.conn.modify(dn, {cattr: [MODIFY_REPLACE, config_data]})
-
-
-    def change_clients(self):
-        print "Changing LDAP Clients configurations"
-        dn = "ou=clients,o=gluu"
-        self.conn.search(search_base=dn,
-                    search_filter='(objectClass=oxAuthClient)',
-                    search_scope=SUBTREE, attributes=[
-                                                'oxAuthPostLogoutRedirectURI',
-                                                'oxAuthRedirectURI',
-                                                'oxClaimRedirectURI',
-                                                ])
-        
-        result = self.conn.response[0]['attributes']
-
-        dn = self.conn.response[0]['dn']
-
-        for atr in result:
-            for i in range(len(result[atr])):
-                changeAttr = False
-                if self.old_host in result[atr][i]:
-                    changeAttr = True
-                    result[atr][i] = result[atr][i].replace(self.old_host, self.new_host)
-                    self.conn.modify(dn, {atr: [MODIFY_REPLACE, result[atr]]})
-
-
-
-    def change_uma(self):
-        print "Changing LDAP UMA Configurations"
-
-        for ou, cattr in (
-                    ('resources','oxResource'),
-                    ('scopes', 'oxId'),
-                    ):
-
-            dn = "ou={},ou=uma,o=gluu".format(ou)
-
-            self.conn.search(search_base=dn, search_filter='(objectClass=*)', search_scope=SUBTREE, attributes=[cattr])
-            result = self.conn.response 
-
-            for r in result:
-                for i in range(len( r['attributes'][cattr])):
+            for entry in self.conn.response:
+                
+                for field in entry['attributes']:
                     changeAttr = False
-                    if self.old_host in r['attributes'][cattr][i]:
-                        r['attributes'][cattr][i] = r['attributes'][cattr][i].replace(self.old_host, self.new_host)
-                        self.conn.modify(r['dn'], {cattr: [MODIFY_REPLACE, r['attributes'][cattr]]})
+                    for i, e in enumerate(entry['attributes'][field]):
+                        if isinstance(e, unicode) and self.old_host in e:
+                            entry['attributes'][field][i] = e.replace(self.old_host, self.new_host)
+                            changeAttr = True
 
+                    if changeAttr:
+                        self.conn.modify(
+                                entry['dn'], 
+                                {field: [MODIFY_REPLACE, entry['attributes'][field]]}
+                                )
 
     def change_httpd_conf(self):
         print "Changing httpd configurations"
@@ -276,9 +234,7 @@ if __name__ == "__main__":
         )
         
     name_changer.startup()
-    name_changer.change_appliance_config()
-    name_changer.change_clients()
-    name_changer.change_uma()
+    name_changer.change_ldap_entries()
     name_changer.change_httpd_conf()
     name_changer.create_new_certs()
     name_changer.change_host_name()

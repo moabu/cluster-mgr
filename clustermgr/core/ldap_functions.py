@@ -95,7 +95,7 @@ class LdapOLC(object):
         Returns:
             ldap modify result
         """
-        
+
         if self.conn.search(
                         search_base="ou=configuration,o=gluu", 
                         search_scope=BASE,

@@ -303,23 +303,22 @@ def checkOfflineRequirements(installer, server, appconf):
 
 
 def make_opendj_listen_world(server, installer):
-        
+
     wlogger.log(installer.logger_task_id, "Making openDJ listens all interfaces for port 4444 and 1636")
-    
+
     opendj_commands = [
             "sed -i 's/dsreplication.java-args=-Xms8m -client/dsreplication.java-args=-Xms8m -client -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true/g' /opt/opendj/config/java.properties",
-            "/opt/opendj/bin/dsjavaproperties",
             "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-administration-connector-prop  --set listen-address:0.0.0.0 -X".format(server.ldap_password),
             "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-connection-handler-prop --handler-name 'LDAPS Connection Handler' --set enabled:true --set listen-address:0.0.0.0 -X".format(server.ldap_password),
             ]
 
-    if server.os in ('RHEL 7', 'Ubuntu 18'):
-        opendj_commands.append('systemctl stop opendj')
-        opendj_commands.append('systemctl start opendj')
-    else:
+    if server.os == 'Ubuntu 16':
         opendj_commands.append('/etc/init.d/opendj stop')
         opendj_commands.append('/etc/init.d/opendj start')
-    
+    else:
+        opendj_commands.append('systemctl stop opendj')
+        opendj_commands.append('systemctl start opendj')
+
     for command in opendj_commands:
         installer.run(command)
 

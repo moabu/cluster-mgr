@@ -45,11 +45,7 @@ def modifyOxLdapProperties(server, installer, task_id, pDict):
         for line in result.split('\n'):
             if line.startswith('servers:'):
                 line = 'servers: {0}'.format( pDict[server.hostname] )
-                print line
             file_content += line+'\n'
-
-        print pDict
-        #print file_content
 
         result = installer.put_file(remote_file,file_content)
 
@@ -543,7 +539,6 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
 
     if remove_server:
         db.session.delete(server)
-
 
     for server in Server.get_all():
         if server.gluu_server:

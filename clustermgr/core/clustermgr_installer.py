@@ -130,7 +130,7 @@ class Installer:
 
 
 
-    def run(self, cmd, inside=True, error_exception=None):
+    def run(self, cmd, inside=True, error_exception=None, nolog=False):
 
         if inside:
             run_cmd = self.run_command.format(cmd)
@@ -143,7 +143,8 @@ class Installer:
         print "Installer> executing: {}".format(cmd)
         self.log_command(run_cmd)
         result = self.conn.run(run_cmd)
-        self.log(result, error_exception)
+        if not nolog:
+            self.log(result, error_exception)
 
         return result
 

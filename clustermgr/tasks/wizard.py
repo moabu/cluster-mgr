@@ -69,10 +69,10 @@ def wizard_step1(self):
             n = ls.find(':')
             en_password = ls[n+1:].strip()
             break
-    
-    pw_result = installer.run('/opt/gluu/bin/encode.py -D ' + en_password, inside=True)
+
+    pw_result = installer.run('/opt/gluu/bin/encode.py -D ' + en_password, inside=True, nolog=True)
     ldap_password = pw_result[1].strip()
-    
+
     server.ldap_password = ldap_password
     db.session.commit()
 
@@ -86,7 +86,7 @@ def wizard_step1(self):
     setup_properties_local = os.path.join(Config.DATA_DIR, 'setup.properties')
     
     result = installer.download_file(setup_properties_last, setup_properties_local)
-    
+
     if not result:
         wlogger.log(task_id, "setup.properties.last could not be dowloade. Ending analization of server.", 'error')
         return False
@@ -143,24 +143,13 @@ def wizard_step2(self):
         wlogger.log(tid, "Ending changing name.", 'error')
         return
 
-
-    wlogger.log(tid, "Cahnging LDAP Applience configurations")
-    name_changer.change_appliance_config()
-    wlogger.log(tid, "LDAP Applience configurations were changed", 'success')
-    
-    
-    wlogger.log(tid, "Cahnging LDAP Clients entries")
-    name_changer.change_clients()
-    wlogger.log(tid, "LDAP Applience Clients entries were changed", 'success')
-
-    wlogger.log(tid, "Cahnging LDAP Uma entries")
-    name_changer.change_uma()
-    wlogger.log(tid, "LDAP Applience Uma entries were changed", 'success')
+    wlogger.log(tid, "Cahnging LDAP Entries")
+    name_changer.change_ldap_entries()
+    wlogger.log(tid, "LDAP Entries were changed", 'success')
     
     wlogger.log(tid, "Reconfiguring http")
     name_changer.change_httpd_conf()
     wlogger.log(tid, " LDAP Applience Uma entries were changed", 'success')
-    
 
     wlogger.log(tid, "Creating certificates")
     name_changer.create_new_certs()
@@ -175,9 +164,6 @@ def wizard_step2(self):
     
     server.gluu_server = True
     db.session.commit()
-    
-    
-    
-    
+
     name_changer.installer.restart_gluu()
     
