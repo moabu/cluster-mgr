@@ -81,8 +81,6 @@ class ChangeGluuHostname:
         self.os_type = os_type
         self.gluu_version = gluu_version
         self.local = local
-        self.base_inum = None
-        self.appliance_inum = None
         self.logger_tid = None
 
 
@@ -103,107 +101,42 @@ class ChangeGluuHostname:
                                     self.os_type, self.logger_tid)
 
         self.installer.hostname = self.server
-
-        self.appliance_inum = self.get_appliance_inum()
-        self.base_inum = self.get_base_inum()
         
         return True
-    def get_appliance_inum(self):
-        self.conn.search(search_base='ou=appliances,o=gluu',
-                    search_filter='(objectclass=*)',
-                    search_scope=SUBTREE, attributes=['inum'])
-        
-        for r in self.conn.response:
-            if r['attributes']['inum']:
-                return r['attributes']['inum'][0]
 
+    def change_ldap_entries(self):
+        print("Changing LDAP Entries")
 
-    def get_base_inum(self):
-        self.conn.search(search_base='o=gluu',
-                search_filter='(objectclass=gluuOrganization)',
-                search_scope=SUBTREE, attributes=['o'])
+        self.conn.modify(
+            'ou=configuration,o=gluu', 
+             {'gluuHostname': [MODIFY_REPLACE, self.new_host]}
+            )
 
-        for r in self.conn.response:
-            if r['attributes']['o']:
-                return r['attributes']['o'][0]
+        sdns = [
+                'ou=configuration,o=gluu',
+                'ou=clients,o=gluu',
+                'ou=scripts,o=gluu',
+                'ou=uma,o=gluu',
+                'ou=scopes,o=gluu',
+                ]
 
+        for sdn in sdns:
+            self.conn.search(search_base=sdn, search_scope=SUBTREE, search_filter='(objectclass=*)', attributes=['*'])
 
-    def change_appliance_config(self):
-        print("Changing LDAP Applience configurations")
-        config_dn = 'ou=configuration,inum={},ou=appliances,o=gluu'.format(
-                    self.appliance_inum)
-
-
-        for dns, cattr in (
-                    ('oxauth', 'oxAuthConfDynamic'),
-                    ('oxidp', 'oxConfApplication'),
-                    ('oxtrust', 'oxTrustConfApplication'),
-                    ):
-
-            dn = 'ou={},{}'.format(dns, config_dn)
-
-            self.conn.search(search_base=dn,
-                        search_filter='(objectClass=*)',
-                        search_scope=BASE, attributes=[cattr])
-
-            config_data = json.loads(self.conn.response[0]['attributes'][cattr][0])
-
-            for k in config_data:
-                kVal = config_data[k]
-                if type(kVal) == type(''):
-                    if self.old_host in kVal:
-                        kVal=kVal.replace(self.old_host, self.new_host)
-                        config_data[k]=kVal
-                        
-            config_data = json.dumps(config_data)
-            self.conn.modify(dn, {cattr: [MODIFY_REPLACE, config_data]})
-
-
-    def change_clients(self):
-        print("Changing LDAP Clients configurations")
-        dn = "ou=clients,o={},o=gluu".format(self.base_inum)
-        self.conn.search(search_base=dn,
-                    search_filter='(objectClass=oxAuthClient)',
-                    search_scope=SUBTREE, attributes=[
-                                                'oxAuthPostLogoutRedirectURI',
-                                                'oxAuthRedirectURI',
-                                                'oxClaimRedirectURI',
-                                                ])
-        
-        result = self.conn.response[0]['attributes']
-
-        dn = self.conn.response[0]['dn']
-
-        for atr in result:
-            for i in range(len(result[atr])):
-                changeAttr = False
-                if self.old_host in result[atr][i]:
-                    changeAttr = True
-                    result[atr][i] = result[atr][i].replace(self.old_host, self.new_host)
-                    self.conn.modify(dn, {atr: [MODIFY_REPLACE, result[atr]]})
-
-
-
-    def change_uma(self):
-        print("Changing LDAP UMA Configurations")
-
-        for ou, cattr in (
-                    ('resources','oxResource'),
-                    ('scopes', 'oxId'),
-                    ):
-
-            dn = "ou={},ou=uma,o={},o=gluu".format(ou, self.base_inum)
-
-            self.conn.search(search_base=dn, search_filter='(objectClass=*)', search_scope=SUBTREE, attributes=[cattr])
-            result = self.conn.response 
-
-            for r in result:
-                for i in range(len( r['attributes'][cattr])):
+            for entry in self.conn.response:
+                
+                for field in entry['attributes']:
                     changeAttr = False
-                    if self.old_host in r['attributes'][cattr][i]:
-                        r['attributes'][cattr][i] = r['attributes'][cattr][i].replace(self.old_host, self.new_host)
-                        self.conn.modify(r['dn'], {cattr: [MODIFY_REPLACE, r['attributes'][cattr]]})
+                    for i, e in enumerate(entry['attributes'][field]):
+                        if isinstance(e, unicode) and self.old_host in e:
+                            entry['attributes'][field][i] = e.replace(self.old_host, self.new_host)
+                            changeAttr = True
 
+                    if changeAttr:
+                        self.conn.modify(
+                                entry['dn'], 
+                                {field: [MODIFY_REPLACE, entry['attributes'][field]]}
+                                )
 
     def change_httpd_conf(self):
         print("Changing httpd configurations")
@@ -251,8 +184,8 @@ class ChangeGluuHostname:
 
             if not crt == 'saml.pem':
 
-                self.installer.delete_key(self.old_host, crt)
-                self.installer.import_key(self.new_host, crt)
+                self.installer.delete_key(crt, self.old_host)
+                self.installer.import_key(crt, self.new_host)
             
         saml_crt_old_path = os.path.join(self.container, 'etc/certs/saml.pem.crt')
         saml_crt_new_path = os.path.join(self.container, 'etc/certs/saml.pem')
@@ -272,7 +205,7 @@ class ChangeGluuHostname:
         if r[0]:
             old_hosts = r[1]
             news_hosts = modify_etc_hosts([(self.new_host, self.ip_address)], old_hosts, self.old_host)
-            print(self.c.put_file(hosts_file, news_hosts)) 
+            print(self.c.put_file(hosts_file, news_hosts))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -301,9 +234,7 @@ if __name__ == "__main__":
         )
         
     name_changer.startup()
-    name_changer.change_appliance_config()
-    name_changer.change_clients()
-    name_changer.change_uma()
+    name_changer.change_ldap_entries()
     name_changer.change_httpd_conf()
     name_changer.create_new_certs()
     name_changer.change_host_name()

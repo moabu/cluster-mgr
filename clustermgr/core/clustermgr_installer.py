@@ -129,7 +129,7 @@ class Installer:
 
 
 
-    def run(self, cmd, inside=True, error_exception=None):
+    def run(self, cmd, inside=True, error_exception=None, nolog=False):
 
         if inside:
             run_cmd = self.run_command.format(cmd)
@@ -144,7 +144,8 @@ class Installer:
         result = self.conn.run(run_cmd)
         
         if 'connect to host localhost port 60022: Connection refused' in result[2]:
-            self.log(result)
+            if not nolog:
+                self.log(result)
         else:
             self.log(result, error_exception)
         
@@ -302,20 +303,20 @@ class Installer:
         
         print("Installer> Determining gluu version by using oxauth.war")
         
-        oxauth_path = '/opt/gluu-server/opt/gluu/jetty/oxauth/webapps/oxauth.war'
+        oxauth_path = '/opt/gluu/jetty/oxauth/webapps/oxauth.war'
         
         if installed and not self.conn.exists(oxauth_path):
-            oxauth_path = '/opt/gluu-server/opt/dist/gluu/oxauth.war'
-            
-        
-        if self.conn.exists(oxauth_path):
-            result = self.conn.run('''python -c "import zipfile;zf=zipfile.ZipFile('{}','r');print zf.read('META-INF/MANIFEST.MF')"'''.format(oxauth_path))
+            oxauth_path = '/opt/dist/gluu/oxauth.war'
+
+        if self.conn.exists(self.container + oxauth_path):
+            result = self.run('''python3 -c \\"import zipfile;zf=zipfile.ZipFile('{}','r');print(zf.read('META-INF/MANIFEST.MF').decode())\\"'''.format(oxauth_path))
 
             menifest = result[1]
 
-            for l in menifest.split('\n'):
+            for l in menifest.splitlines():
                 ls = l.strip()
-                if 'Implementation-Version:' in ls:
+                print(ls)
+                if ls.startswith('Implementation-Version'):
                     version = ls.split(':')[1].strip()
                     gluu_version = '.'.join(version.split('.')[:3])
                     print(("Installer> Gluu version was determined as {0}".format(gluu_version)))

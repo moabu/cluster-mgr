@@ -304,6 +304,17 @@ class ConfigParam(db.Model):
         return default
 
     @classmethod
+    def get_or_new(self, key, data={}):
+        result = self.get(key)
+        if result:
+            for k in data:
+                setattr(result.data, k, data[k])
+        else:
+            result = self.new(key, data)
+
+        return result
+
+    @classmethod
     def get_by_id(self, id):
         param_obj = ConfigParam.query.get(id)
 

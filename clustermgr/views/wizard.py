@@ -35,35 +35,50 @@ wizard_steps = ['Analyzing Server', 'Changing Hostname']
 
 @wizard.route('/step1',methods=['GET', 'POST'])
 def step1():
-    
-    pserver = Server.query.filter_by(primary_server=True).first()
+    """
+    pserver = ConfigParam.get_primary_server()
     if pserver:
         flash("Oops this service is not for you.",'warning')
         return redirect(url_for('index.home'))
- 
+    """
     wform = WizardStep1()
-    
-    if request.method == 'POST':
-        if wform.validate_on_submit():
-            replication_pw = uuid.uuid4().hex
-            app_conf = AppConfiguration()
-            app_conf.nginx_host = wform.new_hostname.data.strip()
-            app_conf.replication_pw = replication_pw
-            app_conf.nginx_ip = wform.nginx_ip.data.strip() 
-            app_conf.modify_hosts = True
-            db.session.add(app_conf)
-            
-            server = Server()
-            server.ip = wform.ip.data.strip()
-            server.hostname = wform.current_hostname.data.strip()
-            server.primary_server = True
-            
-            db.session.add(app_conf)
-            db.session.add(server)
-            db.session.commit()
-    
+
+    if 1:
+    #if request.method == 'POST':
+            """
+            if wform.validate_on_submit():
+                replication_pw = uuid.uuid4().hex
+                ldap_replication = ConfigParam.get('ldap_replication')
+                if not ldap_replication:
+                    ldap_replication = ConfigParam.new(
+                        'ldap_replication',
+                        data={
+                            'password': replication_pw,
+                            'use_ip': False
+                            }
+                        )
+                    ldap_replication.save()
+
+                load_balancer = ConfigParam.get_or_new('load_balancer')
+
+                load_balancer.data.hostname =  wform.new_hostname.data.strip()
+                load_balancer.data.ip = wform.nginx_ip.data.strip()
+                load_balancer.data.external = False
+                load_balancer.save()
+
+                server = ConfigParam.new(
+                        'gluuserver', 
+                        data={
+                            'hostname': wform.current_hostname.data.strip(),
+                            'ip': wform.ip.data.strip(),
+                            'primary': True,
+                            'mmr': False,
+                            }
+                        )
+
+                server.save()
+                """
             task = wizard_step1.delay()
-            print("TASK STARTED", task.id)
 
             title = "Incorporating Existing Server"
 
