@@ -58,7 +58,7 @@ def get_last_update_time(host, measurement):
 
     measurement_suffix = host.replace('.','_')
     
-    result = client.query('SELECT * FROM {} order by time desc limit 1'.format(measurement_suffix+'_'+measurement), epoch='s')
+    result = client.query('SELECT * FROM "{}" order by time desc limit 1'.format(measurement_suffix+'_'+measurement), epoch='s')
 
     if 'series' in result.raw:
         return result.raw['series'][0]['values'][0][0]

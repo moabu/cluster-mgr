@@ -90,9 +90,9 @@ def get_mean_last(measurement, host):
     returns: 
         Average of measurement for host
     """
-    querym = 'SELECT mean(*) FROM {}'.format(host.replace('.','_') +'_'+ measurement)
+    querym = 'SELECT mean(*) FROM "{}"'.format(host.replace('.','_') +'_'+ measurement)
     resultm = client.query(querym, epoch='s')
-    queryl = 'SELECT * FROM {}  ORDER BY DESC LIMIT 1'.format(host.replace('.','_') +'_'+ measurement)
+    queryl = 'SELECT * FROM "{}"  ORDER BY DESC LIMIT 1'.format(host.replace('.','_') +'_'+ measurement)
     resultl = client.query(queryl, epoch='s')
 
     return resultm.raw['series'][0]['values'][0][1], resultl.raw['series'][0]['values'][0][1]
@@ -177,7 +177,7 @@ def getData(item, step=None):
 
         measurement_d = server.data.hostname.replace('.','_') +'_'+ measurement
 
-        query = ('SELECT {} FROM {} WHERE '
+        query = ('SELECT "{}" FROM {} WHERE '
                   'time >= {}000000000 AND time <= {}000000000 '
                   'GROUP BY time({}s)'.format(
                     aggr_f,
