@@ -64,9 +64,16 @@
      
 </div>
 <b>Note:</b>Ports 4444 and 8989 should be open to/from among all nodes of cluster pool.
+
+{% if servers|length > 1 %}
 <a class="btn pull-right btn-primary btn-xs" href="{{ url_for('cluster.opendj_enable_replication', server_id='all') }}">
         {% if stat %}Re-Deploy All{%else%}Deploy All{%endif%}</a>
 <br>
+{% else %}
+<br><br>
+<p class="bg-warning">You need at least two nodes to deploy Multi Master Replication.</p>
+
+{% endif %}
 
 {% endif %}
 
