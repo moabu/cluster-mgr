@@ -89,9 +89,9 @@ def home():
     ask_passphrase = False
     
     c = RemoteClient(servers[0].data.ip, servers[0].data.hostname)
+
     try:
         c.startup()
-    
     except ClientNotSetupException as e:
 
         if str(e) == 'Pubkey is encrypted.':
@@ -107,7 +107,7 @@ def home():
         else:
             flash("SSH connection to {} failed. Please check if your pub key is "
                 "added to /root/.ssh/authorized_keys on this server. Reason: {}".format(
-                                                servers[0].hostname, e), 'error')
+                                                servers[0].data.hostname, e), 'error')
 
         if ask_passphrase:
             return render_template('index_passphrase.html', e=e, 
