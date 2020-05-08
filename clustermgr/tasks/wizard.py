@@ -115,10 +115,11 @@ def wizard_step2(self):
 
     setup_prop = get_setup_properties()
     
-    server = Server.query.filter_by(primary_server=True).first()
-    app_conf = AppConfiguration.query.first()
-    
-    c = RemoteClient(server.hostname, ip=server.ip)
+    server = ConfigParam.get_primary_server()
+    settings = ConfigParam.get('settings')
+    load_balancer = ConfigParam.get('load_balancer')
+
+    c = RemoteClient(server.data.hostname, ip=server.data.ip)
 
     wlogger.log(tid, "Making SSH Connection")
 
@@ -129,22 +130,23 @@ def wizard_step2(self):
         wlogger.log(tid, "Can't establish SSH connection",'fail')
         wlogger.log(tid, "Ending changing name.", 'error')
         return
-    
+
     name_changer = ChangeGluuHostname(
-            old_host = server.hostname,
-            new_host = app_conf.nginx_host,
+            old_host = server.data.hostname,
+            new_host = load_balancer.data.hostname,
             cert_city = setup_prop['city'],
             cert_mail = setup_prop['admin_email'], 
             cert_state = setup_prop['state'],
             cert_country = setup_prop['countryCode'],
-            server = server.hostname,
-            ip_address = server.ip,
+            server = server.data.hostname,
+            ip_address = server.data.ip,
             ldap_password = setup_prop['ldapPass'],
-            os_type = server.os,
-            gluu_version = app_conf.gluu_version
+            os_type = server.data.os,
+            gluu_version = settings.data.gluu_version
         )
 
     name_changer.logger_tid = tid
+    name_changer.server_id = server.id
 
     r = name_changer.startup()
     if not r:
@@ -153,23 +155,13 @@ def wizard_step2(self):
         return
 
 
-    wlogger.log(tid, "Cahnging LDAP Applience configurations")
-    name_changer.change_appliance_config()
-    wlogger.log(tid, "LDAP Applience configurations were changed", 'success')
-    
-    
-    wlogger.log(tid, "Cahnging LDAP Clients entries")
-    name_changer.change_clients()
-    wlogger.log(tid, "LDAP Applience Clients entries were changed", 'success')
-
-    wlogger.log(tid, "Cahnging LDAP Uma entries")
-    name_changer.change_uma()
-    wlogger.log(tid, "LDAP Applience Uma entries were changed", 'success')
+    wlogger.log(tid, "Cahnging LDAP Entries")
+    name_changer.change_ldap_entries()
+    wlogger.log(tid, "LDAP Entries were changed", 'success')
     
     wlogger.log(tid, "Reconfiguring http")
     name_changer.change_httpd_conf()
     wlogger.log(tid, " LDAP Applience Uma entries were changed", 'success')
-    
 
     wlogger.log(tid, "Creating certificates")
     name_changer.create_new_certs()
@@ -181,12 +173,6 @@ def wizard_step2(self):
     wlogger.log(tid, "Modifying /etc/hosts")
     name_changer.modify_etc_hosts()
     wlogger.log(tid, "/etc/hosts was modified", 'success')
-    
-    server.gluu_server = True
-    db.session.commit()
-    
-    
-    
-    
+
     name_changer.installer.restart_gluu()
     

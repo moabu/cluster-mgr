@@ -29,59 +29,54 @@ wizard = Blueprint('wizard', __name__)
 wizard.before_request(prompt_license)
 wizard.before_request(license_reminder)
 
-
 wizard_steps = ['Analyzing Server', 'Changing Hostname']
 
-
-@wizard.route('/step1',methods=['GET', 'POST'])
+@wizard.route('/step1', methods=['GET', 'POST'])
 def step1():
-    """
+
     pserver = ConfigParam.get_primary_server()
     if pserver:
         flash("Oops this service is not for you.",'warning')
         return redirect(url_for('index.home'))
-    """
+
     wform = WizardStep1()
 
-    if 1:
-    #if request.method == 'POST':
-            """
-            if wform.validate_on_submit():
-                replication_pw = uuid.uuid4().hex
-                ldap_replication = ConfigParam.get('ldap_replication')
-                if not ldap_replication:
-                    ldap_replication = ConfigParam.new(
-                        'ldap_replication',
-                        data={
-                            'password': replication_pw,
-                            'use_ip': False
-                            }
-                        )
-                    ldap_replication.save()
+    if request.method == 'POST':
+        if wform.validate_on_submit():
+            replication_pw = uuid.uuid4().hex
+            ldap_replication = ConfigParam.get('ldap_replication')
+            if not ldap_replication:
+                ldap_replication = ConfigParam.new(
+                    'ldap_replication',
+                    data={
+                        'password': replication_pw,
+                        'use_ip': False
+                        }
+                    )
+                ldap_replication.save()
 
-                load_balancer = ConfigParam.get_or_new('load_balancer')
+            load_balancer = ConfigParam.get_or_new('load_balancer')
 
-                load_balancer.data.hostname =  wform.new_hostname.data.strip()
-                load_balancer.data.ip = wform.nginx_ip.data.strip()
-                load_balancer.data.external = False
-                load_balancer.save()
+            load_balancer.data.hostname =  wform.new_hostname.data.strip()
+            load_balancer.data.ip = wform.nginx_ip.data.strip()
+            load_balancer.data.external = False
+            load_balancer.save()
 
-                server = ConfigParam.new(
-                        'gluuserver', 
-                        data={
-                            'hostname': wform.current_hostname.data.strip(),
-                            'ip': wform.ip.data.strip(),
-                            'primary': True,
-                            'mmr': False,
-                            }
-                        )
+            server = ConfigParam.new(
+                    'gluuserver', 
+                    data={
+                        'hostname': wform.current_hostname.data.strip(),
+                        'ip': wform.ip.data.strip(),
+                        'primary': True,
+                        'mmr': False,
+                        }
+                    )
 
-                server.save()
-                """
+            server.save()
+
             task = wizard_step1.delay()
 
             title = "Incorporating Existing Server"
-
             whatNext = wizard_steps[1]
             nextpage = url_for('wizard.step2')
 
@@ -96,20 +91,16 @@ def step1():
                        whatNext=whatNext
                        )
 
-
     return render_template( 'wizard/step1.html', wform=wform)
 
 @wizard.route('/step2')
 def step2():
     
     task = wizard_step2.delay()
-    print("TASK STARTED", task.id)
 
-    
     title = "Incorporating Existing Server"
-
-    whatNext = "Install Nginx Proxy Server"
-    nextpage = url_for('cluster.install_nginx')
+    whatNext = "Add Gluu Server"
+    nextpage = url_for('server.index')
 
     return render_template('logger_single.html',
                title=title,

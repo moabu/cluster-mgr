@@ -82,7 +82,7 @@ class ChangeGluuHostname:
         self.gluu_version = gluu_version
         self.local = local
         self.logger_tid = None
-
+        self.server_id = -1
 
     def startup(self):
         ldap_server = Server("ldaps://{}:1636".format(self.server), use_ssl=True)
@@ -97,11 +97,15 @@ class ChangeGluuHostname:
         self.c = RemoteClient(self.server)
         self.c.startup()
 
-        self.installer = Installer( self.c, self.gluu_version, 
-                                    self.os_type, self.logger_tid)
+        self.installer = Installer( 
+                            conn=self.c,
+                            server_os=self.os_type,
+                            logger_task_id=self.logger_tid,
+                            server_id = self.server_id
+                            )
 
         self.installer.hostname = self.server
-        
+
         return True
 
     def change_ldap_entries(self):
@@ -128,7 +132,7 @@ class ChangeGluuHostname:
                 for field in entry['attributes']:
                     changeAttr = False
                     for i, e in enumerate(entry['attributes'][field]):
-                        if isinstance(e, unicode) and self.old_host in e:
+                        if isinstance(e, str) and self.old_host in e:
                             entry['attributes'][field][i] = e.replace(self.old_host, self.new_host)
                             changeAttr = True
 

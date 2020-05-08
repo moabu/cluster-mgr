@@ -128,7 +128,6 @@ class Installer:
             wlogger.log(self.logger_task_id, "Running {}".format(cmd), 'debug', server_id=self.server_id)
 
 
-
     def run(self, cmd, inside=True, error_exception=None, nolog=False):
 
         if inside:
@@ -143,15 +142,14 @@ class Installer:
         self.log_command(run_cmd)
         result = self.conn.run(run_cmd)
         
-        if 'connect to host localhost port 60022: Connection refused' in result[2]:
-            if not nolog:
+        if not nolog:
+            if 'connect to host localhost port 60022: Connection refused' in result[2]:
                 self.log(result)
-        else:
-            self.log(result, error_exception)
+            else:
+                self.log(result, error_exception)
         
         return result
-        
-        
+
     def run_channel_command(self, cmd, re_list=[], inside=False):
     
         if inside:
