@@ -8,15 +8,15 @@
 
 <div class="box box-primary">
     <br>
-    <p>You are about to install NGINX on server {{app_conf.nginx_host}} with the following Gluu Servers as backends.</p>
+    <p>You are about to install NGINX on server {{lb_config.data.hostname}} with the following Gluu Servers as backends.</p>
     <br>
     <ul class="list-group">
     {% for s in servers %}
-      <li class="list-group-item">{{s.hostname}}</li>
+      <li class="list-group-item">{{s.data.hostname}}</li>
     {%endfor%}
     </ul>
     <br>
-    <a href="{{ url_for('loadbalancer.install_nginx', next='install') }}" class="btn btn-block btn-warning">
+    <a href="{{ url_for('load_balancer.install_nginx', next='install') }}" class="btn btn-block btn-warning">
             Start NGINX Installation </a>
 </div>
 

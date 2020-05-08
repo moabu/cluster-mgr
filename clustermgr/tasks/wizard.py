@@ -114,7 +114,7 @@ def wizard_step2(self):
     tid = self.request.id
 
     setup_prop = get_setup_properties()
-    
+
     server = ConfigParam.get_primary_server()
     settings = ConfigParam.get('settings')
     load_balancer = ConfigParam.get('load_balancer')
@@ -173,6 +173,9 @@ def wizard_step2(self):
     wlogger.log(tid, "Modifying /etc/hosts")
     name_changer.modify_etc_hosts()
     wlogger.log(tid, "/etc/hosts was modified", 'success')
+
+    server.data.gluu_server = True
+    server.save()
 
     name_changer.installer.restart_gluu()
     

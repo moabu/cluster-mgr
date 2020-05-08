@@ -61,7 +61,7 @@ def install_nginx():
         else:
             servers = ConfigParam.get_servers()
             return render_template("load_balancer_about_to_install.html", 
-                                            servers=servers, app_conf=app_conf)
+                                            servers=servers, lb_config=lb_config)
 
     # Start nginx  installation celery task
     task = installNGINX.delay(lb_config.data.hostname)
