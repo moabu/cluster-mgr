@@ -1133,7 +1133,7 @@ class Setup(object):
         if not self.application_max_ram:
             self.application_max_ram = 3072
         
-        if self.installCasa:
+        if self.installCasa and not self.ldif_scripts_casa in self.couchbaseBucketDict['default']['ldif']:
             self.couchbaseBucketDict['default']['ldif'].append(self.ldif_scripts_casa)
 
     def choose_from_list(self, list_of_choices, choice_name="item", default_choice_index=0):
