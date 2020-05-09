@@ -681,12 +681,12 @@ def install_gluu_server(task_id, server_id):
     #JavaScript on logger duplicates next log if we don't add this
     time.sleep(1)
 
-    # setup.py of 4.1.0 is buggy, we need to download from github
-    if settings.data.gluu_version == '4.1.0':
-        installer.run('wget https://raw.githubusercontent.com/GluuFederation/community-edition-setup/version_4.1.0/setup.py -O /install/community-edition-setup/setup.py',
-                        inside=True, error_exception='__ALL__')
-        installer.run('chmod +x /install/community-edition-setup/setup.py', inside=True, error_exception='__ALL__')
-
+    setup_py = os.path.join(app.root_path,'setup', 'setup_{}.py'.format(settings.data.gluu_version))
+    if os.path.exists(setup_py):
+        remote_py = '/opt/gluu-server/install/community-edition-setup/setup.py'
+        installer.upload_file(setup_py, remote_py)
+        installer.run('chmod +x ' + remote_py, inside=False)
+    
     setup_cmd = '/install/community-edition-setup/setup.py -f /root/setup.properties --listen_all_interfaces -n'
 
     #Don't load base data for secondary nodes

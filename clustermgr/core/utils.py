@@ -216,6 +216,8 @@ def get_setup_properties(createNew=False):
         'installSaml':False,
         'installOxAuthRP':False,
         'installPassport':False,
+        'installOxd': False,
+        'installCasa': False,
         'ldap_type': 'opendj',
         'opendj_type': 'wrends',
         'installLdap': True,

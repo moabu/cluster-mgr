@@ -347,6 +347,8 @@ def install_gluu(server_id):
                   'installSaml',
                   'installOxAuthRP',
                   'installPassport',
+                  'installOxd',
+                  'installCasa',
                   'application_max_ram',
                   ):
             setup_prop[o] = getattr(form, o).data
@@ -355,6 +357,9 @@ def install_gluu(server_id):
         setup_prop['installJce'] = True
         setup_prop['installLdap'] = True
 
+        if setup_prop['installCasa']:
+            setup_prop['installOxd'] = True
+            
         write_setup_properties_file(setup_prop)
 
         # Redirect to cluster.install_gluu_server to start installation.
@@ -381,6 +386,8 @@ def install_gluu(server_id):
                   'installSaml',
                   'installOxAuthRP',
                   'installPassport',
+                  'installCasa',
+                  'installOxd',
                   
                   ):
             getattr(form, o).data = as_boolean(setup_prop.get(o, ''))
