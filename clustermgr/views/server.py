@@ -425,49 +425,7 @@ def upload_setup_properties(server_id):
                 "danger")
                 return redirect(url_for('server.install_gluu', server_id=1))
 
-
-        for rf in ( 
-                    'oxauthClient_encoded_pw',
-                    'encoded_ldap_pw',
-                    'scim_rp_client_jks_pass',
-                    'passport_rp_client_jks_pass',
-                    'asimbaJksPass',
-                    'encoded_ox_ldap_pw',
-                    'oxauthClient_pw',
-                    'encoded_shib_jks_pw',
-                    'pairwiseCalculationSalt',
-                    'pairwiseCalculationKey',
-                    'httpdKeyPass',
-                    'scim_rs_client_jks_pass_encoded',
-                    'encode_salt',
-                    'scim_rs_client_jks_pass',
-                    'shibJksPass',
-                    'idp3_metadata',
-                    'idp3_dist_jar',
-                    'staticFolder',
-                    'idp3_configuration_saml_nameid',
-                    'oxTrust_log_rotation_configuration',
-                    'oxtrust_war',
-                    'idp3_configuration_properties',
-                    'idp3_configuration_services',
-                    'idp3_configuration_ldap_properties',
-                    'ce_setup_zip',
-                    'oxauth_war',
-                    'githubBranchName',
-                    'idp3_war',
-                    'configFolder',
-                    'oxVersion',
-                    'ox_ldap_properties',
-                    'oxauth_rp_war',
-                    'asimba_selector_configuration',
-                    'oxTrustCacheRefreshFolder',
-                    'defaultTrustStoreFN',
-                    'asimba',
-                    'oxTrustRemovedFolder',
-                    'idp3_cml_keygenerator',
-                    'os_type',
-                   ):
-            if rf in setup_prop:
+            if rf in get_proplist():
                 del setup_prop[rf]
 
         appconf = AppConfiguration.query.first()

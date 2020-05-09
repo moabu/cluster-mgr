@@ -8,6 +8,7 @@ import subprocess
 import uuid
 import base64
 import socket
+import json
 
 from cryptography.hazmat.primitives.ciphers import Cipher
 from cryptography.hazmat.primitives.ciphers import algorithms
@@ -37,6 +38,12 @@ handler = RotatingFileHandler(Config.LOG_FILE, maxBytes= 5*1024*1024, backupCoun
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.ERROR)
 logger.addHandler(handler)
+
+def get_proplist():
+    cur_dir = os.path.dirname(os.path.realpath(__file__))
+    with open(os.path.join(cur_dir, 'proplist.json')) as f:
+        return json.load(f)
+
 
 def ldap_encode(password):
     salt = os.urandom(4)

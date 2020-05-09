@@ -16,13 +16,12 @@ import re
 
 from clustermgr.core.remote import RemoteClient, get_connection
 from clustermgr.config import Config
-
-
 from clustermgr.core.clustermgr_installer import Installer
-from clustermgr.core.utils import get_setup_properties, modify_etc_hosts, \
-    write_setup_properties_file
-from clustermgr.core.jproperties import Properties
 
+from clustermgr.core.utils import get_setup_properties, modify_etc_hosts, \
+    write_setup_properties_file, get_proplist, as_boolean
+
+from clustermgr.core.jproperties import Properties
 from clustermgr.core.ldap_functions import LdapOLC
 
 @celery.task
@@ -570,66 +569,7 @@ def install_gluu_server(task_id, server_id):
         remote_file = '/opt/gluu-server/install/community-edition-setup/setup.properties.last'
         wlogger.log(task_id, 'Downloading setup.properties.last from primary server', 'debug')
 
-        prop_list = ['passport_rp_client_jks_pass', 
-                     'application_max_ram',
-                     'encoded_ldap_pw',
-                     'ldapPass',
-                     'state',
-                     'defaultTrustStorePW',
-                     'passport_rs_client_jks_pass_encoded',
-                     'passportSpJksPass',
-                     'pairwiseCalculationSalt',
-                     'installAsimba',
-                     'installLdap',
-                     'oxauth_client_id',
-                     'oxTrust_log_rotation_configuration',
-                     'scim_rs_client_jks_pass_encoded',
-                     'encoded_openldapJksPass',
-                     'inumApplianceFN',
-                     'inumAppliance',
-                     'oxauthClient_pw',
-                     'opendj_p12_pass',
-                     'passportSpKeyPass',
-                     'scim_rs_client_jks_pass',
-                     'inumOrgFN',
-                     'scim_rs_client_id',
-                     'default_key_algs',
-                     'installOxTrust',
-                     'ldap_port',
-                     'encoded_shib_jks_pw',
-                     'orgName',
-                     'openldapKeyPass',
-                     'city',
-                     'oxVersion',
-                     'baseInum',
-                     'asimbaJksPass',
-                     'oxTrustConfigGeneration',
-                     'passport_rp_client_id',
-                     'pairwiseCalculationKey',
-                     'scim_rp_client_jks_pass',
-                     'encoded_opendj_p12_pass',
-                     'httpdKeyPass',
-                     'installOxAuth',
-                     'admin_email',
-                     'passport_rs_client_jks_pass',
-                     'oxauth_openid_jks_pass',
-                     'countryCode',
-                     'installSaml',
-                     'installJce',
-                     'encoded_ldapTrustStorePass',
-                     'encode_salt',
-                     'inumOrg',
-                     'openldapJksPass',
-                     'encoded_ox_ldap_pw',
-                     'installHttpd',
-                     'passport_rs_client_id',
-                     'scim_rp_client_id',
-                     'ldap_hostname',
-                     'oxauthClient_encoded_pw',
-                     'shibJksPass',
-                     'installPassport',
-                     'installOxAuthRP',
-                     ]
+        prop_list = get_proplist()
 
         prop_io = None
 
@@ -782,6 +722,23 @@ def install_gluu_server(task_id, server_id):
                                 )
             if r:
                 wlogger.log(task_id, "ou=statistic,o=metric created", 'success')
+
+
+        if as_boolean(setup_prop['installCasa']):
+            #we need to copy casa.json and oxd_db.mv.db from primry server
+            casa_files = (
+                        '/opt/gluu-server/etc/gluu/conf/casa.json', 
+                        '/opt/gluu-server/opt/oxd-server/data/oxd_db.mv.db',
+                        )
+            tmp_dir = os.path.join('/tmp', str(uuid.uuid4())[:8])
+            os.mkdir(tmp_dir)
+
+            for remote_fp in casa_files:
+                local_fp = os.path.join(tmp_dir, os.path.basename(remote_fp))
+                primary_server_installer.download_file(remote_fp, local_fp)
+                installer.upload_file(local_fp, remote_fp)
+                
+                installer.run('chown jetty:jetty ' + remote_fp[16:])
 
         wlogger.log(task_id, "Gluu Server successfully installed")
 
