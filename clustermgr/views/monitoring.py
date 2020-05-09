@@ -27,7 +27,7 @@ from clustermgr.tasks.monitoring import install_monitoring, install_local, \
 from clustermgr.monitoring_defs import left_menu, items, periods
 
 from clustermgr.core.utils import get_setup_properties, \
-    get_opendj_replication_status, port_status_cmd
+    get_opendj_replication_status, port_status_cmd, get_enabled_services
 
 monitoring = Blueprint('monitoring', __name__)
 monitoring.before_request(prompt_license)
@@ -624,17 +624,12 @@ def get_server_status():
                 'oxauth': '.well-known/openid-configuration',
                 'identity': 'identity/restv1/scim-configuration',
                 'shib': 'idp/shibboleth',
+                'casa': 'casa/enrollment-api.yaml',
             }
 
     status = {}
-    active_services = ['oxauth', 'identity']
+    active_services = get_enabled_services()
     prop = get_setup_properties()
-
-    if prop['installSaml']:
-        active_services.append('shib')
-
-    if prop['installPassport']:
-        active_services.append('passport')
 
     cmd = '''python3 -c "from urllib import request; import ssl; print(request.urlopen('https://localhost/{}', context= ssl._create_unverified_context()).code)"'''
 
@@ -656,6 +651,11 @@ def get_server_status():
             if c.ok:
                 if service == 'passport':
                     passport_cmd = port_status_cmd.format('localhost', 8090)
+                    r = c.run(passport_cmd)
+                    if r[1].strip()=='0':
+                        status[server.id][service] = True
+                elif service == 'oxd':
+                    passport_cmd = port_status_cmd.format('localhost', 8443)
                     r = c.run(passport_cmd)
                     if r[1].strip()=='0':
                         status[server.id][service] = True

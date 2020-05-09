@@ -21,7 +21,8 @@ from clustermgr.forms import AppConfigForm, SchemaForm, \
 
 from celery.result import AsyncResult
 from ldap.schema import AttributeType, ObjectClass, LDAPSyntax
-from clustermgr.core.utils import get_setup_properties, logger, encode
+from clustermgr.core.utils import get_setup_properties, logger, \
+    encode, get_enabled_services
 from clustermgr.core.ldap_functions import LdapOLC
 from clustermgr.core.ldifschema_utils import OpenDjSchema
 
@@ -122,15 +123,7 @@ def home():
 
     server_id_list = [str(server.id) for server in servers]
 
-    services = ['oxauth', 'identity']
-    prop = get_setup_properties()
-
-    if as_boolean(prop['installSaml']):
-        services.append('shib')
-
-    if as_boolean(prop['installPassport']):
-        services.append('passport')
-
+    services = get_enabled_services()
 
     return render_template('dashboard.html', servers=servers,
                              services=services, server_id_list=server_id_list,

@@ -433,3 +433,19 @@ def is_hostname_resolved(hostname):
                   "manager machine.").format(hostname)
 
     return result
+
+def get_enabled_services():
+    services = []
+    prop = get_setup_properties()
+    for s, n in (('oxauth', 'installOxAuth'),
+             ('identity', 'installOxTrust'),
+             ('saml', 'installSaml'),
+             ('passport', 'installPassport'),
+             ('oxd', 'installOxd'),
+             ('casa', 'installCasa'),
+             ):
+
+        if as_boolean(prop[n]):
+            services.append(s)
+
+    return services
