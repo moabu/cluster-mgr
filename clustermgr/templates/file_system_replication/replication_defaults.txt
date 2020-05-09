@@ -1,3 +1,6 @@
+/opt/gluu/python/libs
+/opt/gluu/jetty/casa/static
+/opt/gluu/jetty/casa/plugins
 /opt/gluu/jetty/oxauth/custom/
 /opt/gluu/jetty/identity/custom/
 /opt/gluu/jetty/identity/conf/shibboleth3/idp/
@@ -7,5 +10,3 @@
 /opt/shibboleth-idp/sp/
 /opt/shibboleth-idp/temp_metadata/
 /etc/gluu/conf/
-
-
