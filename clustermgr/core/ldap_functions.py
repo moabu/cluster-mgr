@@ -183,6 +183,8 @@ class LdapOLC(object):
                             {"oxAuthConfDynamic": [MODIFY_REPLACE, oxAuthConfDynamic_json]}
                             )
     
+    def __del__(self):
+        self.close()
 
 
 def getLdapConn(addr, dn, passwd):
