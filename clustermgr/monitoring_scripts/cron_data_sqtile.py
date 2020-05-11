@@ -89,6 +89,8 @@ def collect_ldap_monitoring():
             execute_query('ldap_mon', [resp[0]['raw_attributes'][a][0] for a in attr_list])
 
 
+    conn.unbind()
+
 def collect_cpu_info():
     """Collects CPU times and writes to local sqlite database
     """
