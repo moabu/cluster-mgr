@@ -614,7 +614,7 @@ def get_server_status():
     services = {
                 'oxauth': '.well-known/openid-configuration',
                 'identity': 'identity/restv1/scim-configuration',
-                'shib': 'idp/shibboleth',
+                'saml': 'idp/shibboleth',
                 'casa': 'casa/enrollment-api.yaml',
             }
 
