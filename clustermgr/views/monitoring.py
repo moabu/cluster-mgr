@@ -386,7 +386,7 @@ def setup_local():
     steps = ['Install Components on Servers', 'Setup Local Server']
 
     title = "Install Monitoring Componenets"
-    whatNext = "Go to Monitoring Page"
+    whatNext = "Monitoring Page"
     nextpage = url_for('monitoring.home')
 
     task = install_local.delay()
