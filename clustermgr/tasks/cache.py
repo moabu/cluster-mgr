@@ -63,6 +63,13 @@ def install_stunnel(installer, app_conf, is_cache):
 
     if installer.ip == primary_cache_server.ip:
         if not installer.conn.exists(stunnel_pem_fn):
+            r = installer.run('which openssl', inside=False)
+            if not r[1]:
+                wlogger.log(installer.logger_task_id, 
+                    "openssl command not found. Please install openssl on {} host system and retry.".format(installer.hostname),
+                    "error", server_id=installer.server_id)
+                return False
+
             wlogger.log(installer.logger_task_id, "Creating SSL certificate for stunnel", "info",
                             server_id=installer.server_id)
             installer.run(
