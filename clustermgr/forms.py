@@ -1,5 +1,6 @@
 import glob
 import os
+import jinja2
 
 try:
     from flask_wtf import FlaskForm
@@ -243,7 +244,7 @@ class SignUpForm(FlaskForm):
                 ])
     passwordconfirm = PasswordField("Re-enter Password", validators=[DataRequired()])
     
-    license_confirm = BooleanField('Check here to indicate that you have read and agree to the terms of the <a target="_blank" href="https://github.com/GluuFederation/cluster-mgr/blob/master/LICENSE">GLUU-SUPPORT license</a>' , validators=[DataRequired()])
+    license_confirm = BooleanField(jinja2.Markup('Check here to indicate that you have read and agree to the terms of the <a target="_blank" href="https://github.com/GluuFederation/cluster-mgr/blob/master/LICENSE">GLUU-SUPPORT license</a>') , validators=[DataRequired()])
 
     login = SubmitField("Sign up")
 
