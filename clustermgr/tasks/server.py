@@ -488,7 +488,7 @@ def install_gluu_server(task_id, server_id):
     gluu_installed = False
 
     #Determine if a version of gluu server was installed.
-    
+
     if installer.conn.exists('/opt/gluu-server'):
         gluu_version = installer.get_gluu_version(installed=True)
         gluu_installed = True
@@ -607,10 +607,15 @@ def install_gluu_server(task_id, server_id):
             result = primary_server_installer.conn.get_file(remote_file)
             prop_io = result[1]
         else:
-            cmd_unenc = 'openssl enc -d -aes-256-cbc -in /install/community-edition-setup/setup.properties.last.enc -k \'{}\''.format(server.ldap_password)
-            result = primary_server_installer.run(cmd_unenc, inside=True)
-            prop_io = StringIO.StringIO(result[1])
-            prop_io.seek(0)
+            remote_file += '.cm'
+            cmd_unenc = 'openssl enc -d -aes-256-cbc -in /install/community-edition-setup/setup.properties.last.enc -k \'{}\' -out /install/community-edition-setup/setup.properties.last.cm'.format(server.ldap_password.replace("'","\\'"))
+            cmd_fn = os.path.join(installer.container, 'root/.cmd')
+            primary_server_installer.put_file(cmd_fn, cmd_unenc)
+            primary_server_installer.run('bash /root/.cmd')
+            primary_server_installer.run('rm -f /root/.cmd')
+            result = primary_server_installer.conn.get_file(remote_file)
+            prop_io = result[1]
+            installer.run('rm -f ' + remote_file)
 
         prop = Properties()
         if prop_io:

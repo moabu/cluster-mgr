@@ -471,10 +471,12 @@ def do_disable_replication(task_id, server, primary_server, app_conf):
             '--hostname {} --adminUID admin --adminPassword $\'{}\' '
             '--trustAll --no-prompt').format(
                             server.hostname,
-                            app_conf.replication_pw)
+                            app_conf.replication_pw.replace("'","\\'"))
 
-
-    installer.run(cmd, error_exception='no base DNs replicated')
+    cmd_fn = os.path.join(installer.container, 'root/.cmd')
+    installer.put_file(cmd_fn, cmd)
+    installer.run('bash /root/.cmd', error_exception='no base DNs replicated')
+    installer.run('rm -f /root/.cmd')
 
     server.mmr = False
     db.session.commit()
@@ -487,9 +489,12 @@ def do_disable_replication(task_id, server, primary_server, app_conf):
             '/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 4444 -I admin -w $\'{}\'').format(
                     primary_server.hostname,
-                    app_conf.replication_pw)
+                    app_conf.replication_pw.replace("'","\\'"))
 
-    installer.run(cmd)
+    cmd_fn = os.path.join(installer.container, 'root/.cmd')
+    installer.put_file(cmd_fn, cmd)
+    installer.run('bash /root/.cmd', error_exception='no base DNs replicated')
+    installer.run('rm -f /root/.cmd')
 
     return True
 
@@ -698,7 +703,11 @@ def opendjenablereplication(self, server_id):
                 wlogger.log(task_id, "Enabling replication on server {} for {}".format(
                                                             server.hostname, base))
 
-                installer.run(cmd, error_exception='no base DNs available to enable replication')
+                cmd_fn = os.path.join(installer.container, 'root/.cmd')
+                installer.put_file(cmd_fn, cmd)
+                installer.run('bash /root/.cmd', error_exception='no base DNs available to enable replication')
+                installer.run('rm -f /root/.cmd')
+
 
                 wlogger.log(task_id, "Initializing replication on server {} for {}".format(
                                                                 server.hostname, base))
@@ -713,7 +722,10 @@ def opendjenablereplication(self, server_id):
                             server.ip,
                             )
 
-                installer.run(cmd, error_exception='no base DNs available to enable replication')
+                cmd_fn = os.path.join(installer.container, 'root/.cmd')
+                installer.put_file(cmd_fn, cmd)
+                installer.run('bash /root/.cmd', error_exception='no base DNs available to enable replication')
+                installer.run('rm -f /root/.cmd')
 
             if not primary_server_secured:
 
@@ -726,7 +738,10 @@ def opendjenablereplication(self, server_id):
                         "-n set-crypto-manager-prop --set ssl-encryption:true"
                         ).format(primary_server.ip, primary_server.ldap_password.replace("'","\\'"))
 
-                installer.run(cmd)
+                cmd_fn = os.path.join(installer.container, 'root/.cmd')
+                installer.put_file(cmd_fn, cmd)
+                installer.run('bash /root/.cmd', error_exception='no base DNs available to enable replication')
+                installer.run('rm -f /root/.cmd')
                 
                 primary_server_secured = True
                 primary_server.mmr = True
@@ -739,7 +754,10 @@ def opendjenablereplication(self, server_id):
                     "-n set-crypto-manager-prop --set ssl-encryption:true"
                     ).format(server.ip, primary_server.ldap_password.replace("'","\\'"))
 
-            installer.run(cmd)
+            cmd_fn = os.path.join(installer.container, 'root/.cmd')
+            installer.put_file(cmd_fn, cmd)
+            installer.run('bash /root/.cmd', error_exception='no base DNs available to enable replication')
+            installer.run('rm -f /root/.cmd')
 
             server.mmr = True
 
@@ -784,7 +802,12 @@ def opendjenablereplication(self, server_id):
                                 primary_server.ip,
                                 server.ip,
                                 )
-                node_installer.run(cmd)
+                                
+                cmd_fn = os.path.join(installer.container, 'root/.cmd')
+                node_installer.put_file(cmd_fn, cmd)
+                node_installer.run('bash /root/.cmd', error_exception='no base DNs available to enable replication')
+                node_installer.run('rm -f /root/.cmd')
+                
 
         node_installer.restart_gluu()
 
@@ -801,7 +824,10 @@ def opendjenablereplication(self, server_id):
                     primary_server.hostname,
                     app_conf.replication_pw.replace("'","\\'"))
 
-    installer.run(cmd)
+    cmd_fn = os.path.join(installer.container, 'root/.cmd')
+    installer.put_file(cmd_fn, cmd)
+    installer.run('bash /root/.cmd', error_exception='no base DNs available to enable replication')
+    installer.run('rm -f /root/.cmd')
 
     return True
 

@@ -270,7 +270,11 @@ def get_opendj_replication_status():
                     primary_server.ip,
                     app_conf.replication_pw.replace("'","\\'"))
 
-    stdin, stdout, stderr = installer.run(cmd)
+    print "Uploading cmd"
+    cmd_fn = os.path.join(installer.container, 'root/.cmd')
+    installer.put_file(cmd_fn, cmd)
+    stdin, stdout, stderr = installer.run('bash /root/.cmd')
+    installer.run('rm -f /root/.cmd')
 
     return True, stdout
 
