@@ -94,7 +94,7 @@ class ChangeGluuHostname:
 
         self.container = '/opt/gluu-server-{}'.format(self.gluu_version)
 
-        self.c = RemoteClient(self.server)
+        self.c = RemoteClient(self.server, ssh_port=server.ssh_port)
         self.c.startup()
 
         self.installer = Installer( self.c, self.gluu_version, 

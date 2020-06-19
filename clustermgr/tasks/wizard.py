@@ -38,7 +38,8 @@ def wizard_step1(self):
 
     installer = Installer(
                 server, 
-                '', 
+                '',
+                ssh_port=server.ssh_port,
                 logger_task_id=task_id, 
                 )
 

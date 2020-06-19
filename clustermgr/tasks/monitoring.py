@@ -212,7 +212,8 @@ def install_monitoring(self):
         # 1. Installer
         installer = Installer(
                 server, 
-                app_conf.gluu_version, 
+                app_conf.gluu_version,
+                ssh_port=server.ssh_port,
                 logger_task_id=task_id, 
                 server_os=server.os
                 )
@@ -314,7 +315,8 @@ def remove_monitoring(self):
         # 1. Installer
         installer = Installer(
                 server, 
-                app_conf.gluu_version, 
+                app_conf.gluu_version,
+                ssh_port=server.ssh_port,
                 logger_task_id=task_id, 
                 server_os=server.os
                 )

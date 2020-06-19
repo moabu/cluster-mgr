@@ -52,6 +52,9 @@ class Server(db.Model):
     # Is monitoring installed
     monitoring = db.Column(db.Boolean)
     
+    # SSH Port
+    ssh_port = db.Column(db.Integer)
+    
     def __repr__(self):
         return '<Server {} {}>'.format(self.id, self.hostname)
 
@@ -112,6 +115,7 @@ class AppConfiguration(db.Model):
 
     ldap_cache_clean_period = db.Column(db.Integer)
     
+    nginx_ssh_port = db.Column(db.Integer, default=22)
 
 class KeyRotation(db.Model):
     __tablename__ = "keyrotation"
@@ -192,6 +196,7 @@ class CacheServer(db.Model):
     redis_password = db.Column(db.String(45))
     stunnel_port = db.Column(db.Integer)
     installed = db.Column(db.Boolean)
+    ssh_port = db.Column(db.Integer, default=22)
 
     def __repr__(self):
         return '<Cache Server {} {}>'.format(self.id, self.hostname)

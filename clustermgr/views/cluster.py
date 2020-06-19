@@ -270,7 +270,7 @@ def opendj_enable_replication(server_id):
 
 def chekFSR(server, gluu_version):
     print "Checking File System Replication"
-    c = RemoteClient(server.hostname, ip=server.ip)
+    c = RemoteClient(server.hostname, ip=server.ip, ssh_port=server.ssh_port)
     try:
         c.startup()
     except Exception as e:
@@ -303,7 +303,7 @@ def fsrep_health():
     status = {}
     for server in servers:
         status[server.id]= False
-        c = RemoteClient(server.hostname, ip=server.ip)
+        c = RemoteClient(server.hostname, ip=server.ip, ssh_port=server.ssh_port)
         try:
             c.startup()
         except Exception as e:

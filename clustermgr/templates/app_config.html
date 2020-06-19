@@ -78,9 +78,10 @@
                     </div>
                 </div>
 
-                <div class="form-group {{ 'has-error' if cform.nginx_ip.errors else '' }}" id="external_ip_group" {% if cform.external_load_balancer.data %}style="display: none"{% endif %} >
+                <div class="form-group {{ 'has-error' if cform.external_load_balancer.errors else '' }}" id="external_ip_group" {% if cform.external_load_balancer.data %}style="display: none"{% endif %} >
+                    
                     {{ cform.nginx_ip.label(class="control-label col-md-3") }}
-                    <div class="col-md-9">
+                    <div class="col-md-4">
                         {% if cform.external_load_balancer.data %}
                             {{ cform.nginx_ip(class="form-control", required=False) }}
                         {%else%}
@@ -90,6 +91,20 @@
                             <p class="help-block">{{ error }}</p>
                         {% endfor %}
                     </div>
+                    
+                    {{ cform.nginx_ssh_port.label(class="control-label col-md-2") }}
+                    <div class="col-md-3">
+                        {% if cform.external_load_balancer.data %}
+                            {{ cform.nginx_ssh_port(class="form-control", required=False) }}
+                        {%else%}
+                            {{ cform.nginx_ssh_port(class="form-control") }}
+                        {%endif%}
+                        {% for error in cform.nginx_ssh_port.errors %}
+                            <p class="help-block">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                    
+                    
                 </div>
 
                 <div class="form-group">

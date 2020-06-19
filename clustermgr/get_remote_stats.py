@@ -138,7 +138,8 @@ if not servers:
     print "Usage: python get_remote_stats.py server1 server2 servser3"
 
 for server in servers:
-    c = RemoteClient(server)
+    server_addr, ssh_port = server.slpit(':')
+    c = RemoteClient(server, ssh_port=ssh_port)
     c.startup()
     for t in sqlite_monitoring_tables.monitoring_tables:
         get_remote_data(server, t, c)

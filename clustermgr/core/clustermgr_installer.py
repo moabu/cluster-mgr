@@ -7,21 +7,21 @@ from clustermgr.extensions import wlogger
 from clustermgr.core.remote import RemoteClient
 
 class Installer:
-    def __init__(self, conn, gluu_version, server_os=None, logger_task_id=None, server_id=None):
+    def __init__(self, conn, gluu_version, server_os=None, logger_task_id=None, server_id=None, ssh_port=22):
         self.conn = conn
         self.logger_task_id = logger_task_id
         self.gluu_version = gluu_version
         self.server_os = server_os
         self.server_id = server_id
         self.repo_updated = {False:False, True:False}
-
+        self.ssh_port = ssh_port
         self.clone_type = None
         self.hostname = ''
 
         if conn.__class__.__name__ != "RemoteClient" and conn.__class__.__name__ != 'FakeRemote':
             self.server_os = conn.os
             self.server_id = conn.id
-            self.conn = RemoteClient(conn.hostname, conn.ip)
+            self.conn = RemoteClient(conn.hostname, conn.ip, ssh_port=self.ssh_port)
             self.hostname = conn.hostname
             self.ip = conn.ip
 

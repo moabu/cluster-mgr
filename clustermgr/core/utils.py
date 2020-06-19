@@ -259,6 +259,7 @@ def get_opendj_replication_status():
     installer = Installer(
                 primary_server,
                 app_conf.gluu_version,
+                ssh_port=primary_server.ssh_port,
                 logger_task_id=-1,
                 server_os=None
                 )

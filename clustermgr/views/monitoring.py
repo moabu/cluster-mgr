@@ -244,7 +244,7 @@ def getData(item, step=None):
     return ret_dict
 
 
-def get_uptime(host):
+def get_uptime(host, ssh_port):
     
     """Retreives uptime for host
     
@@ -255,7 +255,7 @@ def get_uptime(host):
         Uptime for host
     """
     
-    c = RemoteClient(host)
+    c = RemoteClient(host, ssh_port=ssh_port)
     try:
         c.startup()
     except:
@@ -328,13 +328,13 @@ def home():
         return render_template('monitoring_nodata.html')
 
     hosts = []
-
+    ssh_ports = {}
     for server in servers:
         hosts.append({
                     'name': server.hostname,
                     'id': server.id
                     })
-
+        ssh_ports[server.id] = server.ssh_port
     data = {'uptime':{}}
 
     #On the monitoring home page, we will display uptime, cpu and memeory usage
@@ -354,7 +354,7 @@ def home():
         m,l = get_mean_last('mem_usage', host['name'])
         data['mem'][host['name']]['mean']="%0.1f" % m
         data['mem'][host['name']]['last']="%0.1f" % l
-        data['uptime'][host['name']] = get_uptime(host['name'])
+        data['uptime'][host['name']] = get_uptime(host['name'], ssh_ports[host['id']])
 
 
     return render_template('monitoring_home.html',
@@ -626,7 +626,7 @@ def get_server_status():
     for server in servers:
         status[server.id] = {}
 
-        c = RemoteClient(server.hostname)
+        c = RemoteClient(server.hostname, ssh_port=server.ssh_port)
         c.ok = False
         try:
             c.startup()

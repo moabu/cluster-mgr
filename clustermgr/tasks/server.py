@@ -45,7 +45,8 @@ def collect_server_details(self, server_id):
                 server,
                 app_conf.gluu_version,
                 logger_task_id=-1,
-                server_os=None
+                server_os=None,
+                ssh_port=server.ssh_port
                 )
 
     os_type = installer.get_os_type()
@@ -364,7 +365,8 @@ def install_gluu_server(task_id, server_id):
                                 primary_server,
                                 app_conf.gluu_version,
                                 logger_task_id=task_id,
-                                server_os=server.os
+                                server_os=server.os,
+                                ssh_port=primary_server.ssh_port
                             )
 
         if not primary_server_installer.conn:
@@ -385,7 +387,8 @@ def install_gluu_server(task_id, server_id):
                     server, 
                     app_conf.gluu_version, 
                     logger_task_id=task_id, 
-                    server_os=server.os
+                    server_os=server.os,
+                    ssh_port=server.ssh_port
                     )
 
     if not installer.conn:

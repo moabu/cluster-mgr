@@ -3,7 +3,7 @@
 {{ form.csrf_token }}
 
   <div class="form-group {{ 'has-error' if form.hostname.errors else '' }}">
-    <label class="control-label col-sm-4" for="email">{{ form.hostname.label}}:</label>
+    <label class="control-label col-sm-4" for="hostname">{{ form.hostname.label}}:</label>
       <div class="col-sm-8">
         {{ form.hostname(class="form-control") }}
         
@@ -15,11 +15,22 @@
 
 
   <div class="form-group {{ 'has-error' if form.ip.errors else '' }}">
-    <label class="control-label col-sm-4" for="email">{{ form.ip.label}}:</label>
+    <label class="control-label col-sm-4" for="ipl">{{ form.ip.label}}:</label>
       <div class="col-sm-8">
         {{ form.ip(class="form-control") }}
         
         {% for error in form.ip.errors %}
+            <p class="help-block">{{ error }}</p>
+        {% endfor %}
+      </div>
+  </div>
+
+<div class="form-group {{ 'has-error' if form.ssh_port.errors else '' }}">
+    <label class="control-label col-sm-4" for="ssh_port">{{ form.ssh_port.label}}:</label>
+      <div class="col-sm-8">
+        {{ form.ssh_port(class="form-control") }}
+        
+        {% for error in form.ssh_port.errors %}
             <p class="help-block">{{ error }}</p>
         {% endfor %}
       </div>

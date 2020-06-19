@@ -141,13 +141,14 @@ def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
     cache_servers = [ CacheServer.query.get(id) for id in cache_servers_id_list ]
     primary_cache_server = CacheServer.query.first()
     app_conf = AppConfiguration.query.first()
-    
+
     for server in cache_servers:
 
         server.os = None
         installer =  Installer(
                         server,
                         app_conf.gluu_version,
+                        ssh_port=server.ssh_port,
                         logger_task_id=task_id
                     )
 
@@ -246,6 +247,7 @@ def install_cache_cluster(self, servers_id_list, cache_servers_id_list):
         installer =  Installer(
                         server,
                         app_conf.gluu_version,
+                        ssh_port=server.ssh_port,
                         logger_task_id=task_id
                     )
 
@@ -284,6 +286,7 @@ def remove_cache_server_task(self, cache_servers_id_list):
         installer =  Installer(
                         server,
                         app_conf.gluu_version,
+                        ssh_port=server.ssh_port,
                         logger_task_id=task_id
                     )
 
@@ -309,6 +312,7 @@ def remove_cache_server_task(self, cache_servers_id_list):
         installer =  Installer(
                         server,
                         app_conf.gluu_version,
+                        ssh_port=server.ssh_port,
                         logger_task_id=task_id
                     )
         stunnel_package = 'stunnel4' if installer.clone_type == 'deb' else 'stunnel'

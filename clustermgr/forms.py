@@ -33,7 +33,7 @@ class AppConfigForm(FlaskForm):
         
     nginx_host = StringField('Load Balancer Hostname', validators=[DataRequired()])
     nginx_ip = StringField('Load Balancer IP Address', validators=[DataRequired()])
-
+    nginx_ssh_port = StringField('Load Balancer SSH Port', default=22)
 
     ldap_update_period = SelectField('Service Liveness Status Polling Period',
             choices=[
@@ -140,6 +140,8 @@ class ServerForm(FlaskForm):
         ])
     ldap_password_confirm = PasswordField(
         'Re-enter LDAP Admin Password *', validators=[DataRequired()])
+
+    ssh_port = IntegerField("SSH Port *", default=22)
 
     def validate_hostname(form, field):
         is_resolved = is_hostname_resolved(field.data)
@@ -329,6 +331,7 @@ class cacheServerForm(FlaskForm):
     install_redis = BooleanField("Install Redis and stunnel", default=True)
     redis_password = StringField("Redis Password")
     stunnel_port = IntegerField("Stunnel Port", validators=[DataRequired()])
+    ssh_port = IntegerField("SSH Port", default="22", validators=[DataRequired()])
 
 
 class OxdConfigForm(FlaskForm):

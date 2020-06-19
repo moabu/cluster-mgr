@@ -121,6 +121,7 @@ def add_cache_server():
         if request.method == "GET":
             form.redis_password.data = random_chars(20)
             form.stunnel_port.data = 16379
+            form.ssh_port = 22
 
     if request.method == "POST" and form.validate_on_submit():
         hostname = form.hostname.data
@@ -128,6 +129,9 @@ def add_cache_server():
         install_redis = form.install_redis.data
         redis_password = form.redis_password.data
         stunnel_port = form.stunnel_port.data
+        ssh_port = form.ssh_port.data
+
+        print("SSH Port", ssh_port)
 
         if not cid:
             cacheserver = CacheServer()
@@ -137,6 +141,7 @@ def add_cache_server():
 
         cacheserver.hostname = hostname
         cacheserver.ip = ip
+        cacheserver.ssh_port = ssh_port
         cacheserver.install_redis = install_redis
         cacheserver.redis_password = redis_password
         cacheserver.stunnel_port = stunnel_port
@@ -204,7 +209,7 @@ def get_status():
     for server in servers + cache_servers:
         key = server.ip.replace('.','_')
 
-        c = RemoteClient(host=server.hostname, ip=server.ip)
+        c = RemoteClient(host=server.hostname, ip=server.ip, ssh_port=server.ssh_port)
         try:
             c.startup()
         except:

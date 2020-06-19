@@ -65,6 +65,7 @@ def index():
     primary_server = Server.query.filter(
         Server.primary_server.is_(True)).first()
 
+    form.ssh_port = 22
     if primary_server:
         del form.ldap_password
         del form.ldap_password_confirm
@@ -76,7 +77,7 @@ def index():
         server = Server()
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
-
+        server.ssh_port = form.ssh_port.data
         server.mmr = False
         ask_passphrase = False
 
@@ -88,7 +89,7 @@ def index():
                 server_exist.hostname), "warning")
             return redirect(url_for('index.home'))
 
-        c = RemoteClient(server.hostname, server.ip)
+        c = RemoteClient(server.hostname, server.ip, ssh_port=server.ssh_port)
         try:
             c.startup()
 
@@ -170,7 +171,7 @@ def edit(server_id):
     if form.validate_on_submit():
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
-
+        server.ssh_port = form.ssh_port.data
         
         if server.primary_server and form.ldap_password.data != '**dummy**':
             server.ldap_password = form.ldap_password.data.strip()
@@ -182,6 +183,7 @@ def edit(server_id):
 
     form.hostname.data = server.hostname
     form.ip.data = server.ip
+    form.ssh_port.data = server.ssh_port
     if server.primary_server:
         form.ldap_password.data = server.ldap_password
 
@@ -494,7 +496,7 @@ def dry_run(server_id):
     server = Server.query.get(server_id)
     appconf = AppConfiguration.query.first()
 
-    c = RemoteClient(server.hostname, server.ip)
+    c = RemoteClient(server.hostname, server.ip, ssh_port=server.ssh_port)
 
     try:
         c.startup()
@@ -517,14 +519,16 @@ def dry_run(server_id):
             if r[1].strip()=='0':
                 result['server']['port_status'][p] = True
 
+        ssh_port = 22
         if appconf.external_load_balancer:
             c_host = appconf.cache_host
             c_ip = appconf.cache_ip
         else:
             c_host = appconf.nginx_host
             c_ip = appconf.nginx_ip
+            ssh_port = appconf.nginx_ssh_port
 
-        c_nginx = RemoteClient(c_host, c_ip)
+        c_nginx = RemoteClient(c_host, c_ip, ssh_port=ssh_port)
         try:
             c_nginx.startup()
             result['nginx']['ssh']=True

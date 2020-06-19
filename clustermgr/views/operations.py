@@ -33,7 +33,7 @@ def httpd_certs():
     
     server = Server.query.filter_by(primary_server=True).first()
 
-    installer = Installer(server, app_config.gluu_version)
+    installer = Installer(server, app_config.gluu_version, ssh_port=server.ssh_port)
     httpd_key = installer.get_file(os.path.join(installer.container, 'etc/certs/httpd.key'))
 
     httpd_crt = installer.get_file(os.path.join(installer.container, 'etc/certs/httpd.crt'))

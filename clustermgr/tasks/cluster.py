@@ -217,7 +217,8 @@ def setup_filesystem_replication_do(task_id):
                                 server,
                                 app_conf.gluu_version,
                                 logger_task_id=task_id,
-                                server_os=server.os
+                                server_os=server.os,
+                                ssh_port=server.ssh_port
                             )
         
         modify_hosts(installer, cysnc_hosts)
@@ -386,7 +387,7 @@ def setup_filesystem_replication_do(task_id):
 
 def remove_filesystem_replication_do(server, app_config, task_id):
 
-        installer = Installer(server, app_config.gluu_version, logger_task_id=task_id)
+        installer = Installer(server, app_config.gluu_version, ssh_port=server.ssh_port, logger_task_id=task_id)
 
         if not installer.conn:
             return False
@@ -453,7 +454,8 @@ def do_disable_replication(task_id, server, primary_server, app_conf):
 
     installer = Installer(
                     server, 
-                    app_conf.gluu_version, 
+                    app_conf.gluu_version,
+                    ssh_port=server.ssh_port,
                     logger_task_id=task_id, 
                     server_os=server.os
                     )
@@ -551,6 +553,7 @@ def remove_server_from_cluster(self, server_id, remove_server=False,
             installer = Installer(
                         server,
                         app_conf.gluu_version,
+                        ssh_port=server.ssh_port,
                         logger_task_id=task_id,
                         server_os=server.os
                     )
@@ -592,7 +595,8 @@ def configure_OxIDPAuthentication(task_id, exclude=None, installers={}):
             if not installer:
                 installer = Installer(
                     server, 
-                    app_conf.gluu_version, 
+                    app_conf.gluu_version,
+                    ssh_port=server.ssh_port,
                     logger_task_id=task_id, 
                     server_os=server.os
                     )
@@ -650,7 +654,8 @@ def opendjenablereplication(self, server_id):
 
     installer = Installer(
                     primary_server, 
-                    app_conf.gluu_version, 
+                    app_conf.gluu_version,
+                    ssh_port=primary_server.ssh_port,
                     logger_task_id=task_id, 
                     server_os=primary_server.os
                     )
@@ -774,7 +779,8 @@ def opendjenablereplication(self, server_id):
 
             node_installer = Installer(
                     server, 
-                    app_conf.gluu_version, 
+                    app_conf.gluu_version,
+                    ssh_port=server.ssh_port,
                     logger_task_id=task_id, 
                     server_os=primary_server.os
                     )
@@ -843,7 +849,8 @@ def get_nginx_installer(app_conf, task_id):
     nginx_installer = Installer(
                     nginx_server, 
                     app_conf.gluu_version, 
-                    logger_task_id=task_id, 
+                    logger_task_id=task_id,
+                    ssh_port=app_conf.nginx_ssh_port,
                     server_os=nginx_server.os
                     )
 
@@ -951,6 +958,7 @@ def installNGINX(self, nginx_host, session_type):
                     primary_server,
                     app_conf.gluu_version,
                     logger_task_id=task_id,
+                    ssh_port=primary_server.ssh_port,
                     server_os=primary_server.os
                     )
 
@@ -1070,7 +1078,7 @@ def register_objectclass(self, objcls):
 
 
     for server in servers:
-        installer = Installer(server, app_conf.gluu_version, logger_task_id=task_id)
+        installer = Installer(server, app_conf.gluu_version, ssh_port=server.ssh_port, logger_task_id=task_id)
         if installer.conn:
             wlogger.log(task_id, "Restarting idendity at {}".format(server.hostname))
             installer.run('/etc/init.d/identity restart', error_exception='__ALL__')
@@ -1097,7 +1105,7 @@ def update_httpd_certs_task(self, httpd_key, httpd_crt):
         servers.insert(0, mock_server)
 
     for server in servers:
-        installer = Installer(server, app_conf.gluu_version, logger_task_id=task_id)
+        installer = Installer(server, app_conf.gluu_version, ssh_port=server.ssh_port, logger_task_id=task_id)
         if hasattr(server, 'proxy'):
             if not server.os:
                 print "Determining nginx os type"

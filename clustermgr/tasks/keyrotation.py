@@ -183,7 +183,8 @@ def _rotate_keys(kr, javalibs_dir, jks_path, task_id):
         for server in Server.query:
 
             installer = Installer(server, 
-                                  app_conf.gluu_version, 
+                                  app_conf.gluu_version,
+                                  ssh_port=server.ssh_port, 
                                   logger_task_id=task_id)
 
             remote_jks_path = os.path.join(installer.container, 

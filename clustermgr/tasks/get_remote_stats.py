@@ -137,7 +137,7 @@ def get_remote_stats():
             servers = Server.get_all()
             for server in servers:
                 print "Monitoring: getting data for server {}".format(server.hostname)
-                c = RemoteClient(server.hostname, ip=server.ip)
+                c = RemoteClient(server.hostname, ip=server.ip, ssh_port=server.ssh_port)
                 try:
                     c.startup()
                     for t in sqlite_monitoring_tables.monitoring_tables:

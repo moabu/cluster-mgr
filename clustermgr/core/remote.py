@@ -82,10 +82,11 @@ class RemoteClient(object):
             for all the file transfer operations over the SSH.
     """
 
-    def __init__(self, host, ip=None, user='root', passphrase=None):
+    def __init__(self, host, ip=None, user='root', passphrase=None, ssh_port=22):
         self.host = host
         self.ip = ip
         self.user = user
+        self.ssh_port = ssh_port
                 
         if not passphrase:
             pw_file = os.path.join(current_app.config['DATA_DIR'], '.pw')
@@ -109,8 +110,8 @@ class RemoteClient(object):
         it tries with the IP address if supplied
         """
         try:
-            logger.debug("Trying to connect to remote server %s", self.host)
-            self.client.connect(self.host, port=22, username=self.user, 
+            logger.debug("Trying to connect to remote server %s:%s", self.host, self.ssh_port)
+            self.client.connect(self.host, port=self.ssh_port, username=self.user, 
                                     passphrase=self.passphrase)
             self.sftpclient = self.client.open_sftp()
         except PasswordRequiredException:
@@ -347,8 +348,8 @@ class RemoteClient(object):
         self.client.close()
 
     def __repr__(self):
-        return "RemoteClient({0}, ip={1}, user={2})".format(self.host, self.ip,
-                                                            self.user)
+        return "RemoteClient({0}, ip={1}, user={2}, port={3})".format(self.host, self.ip,
+                                                            self.user, self.ssh_port)
 
 
 def get_connection(server, task_id):
@@ -356,7 +357,7 @@ def get_connection(server, task_id):
     wlogger.log(task_id, "Making SSH connection to {} ...".format(server.hostname),
                         'action', server.id)
     
-    conn = RemoteClient(server.hostname, ip=server.ip)
+    conn = RemoteClient(server.hostname, ip=server.ip, ssh_port=server.ssh_port)
 
     try:
         conn.startup()

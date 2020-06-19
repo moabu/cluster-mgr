@@ -20,8 +20,6 @@ from clustermgr.core.license import license_reminder
 from clustermgr.extensions import celery
 from clustermgr.core.license import prompt_license
 
-from clustermgr.core.remote import RemoteClient, FakeRemote
-
 from clustermgr.tasks.wizard import wizard_step1, wizard_step2
 
 

@@ -114,6 +114,7 @@ def collect_logs(self, server_id, path, influx_fmt=True):
         server,
         app_conf.gluu_version,
         logger_task_id=task_id,
+        ssh_port=server.ssh_port,
         server_os=server.os,
         server_id=server_id,
     )
@@ -255,6 +256,7 @@ def setup_filebeat(self, force_install=False):
         installer = Installer(
             server,
             app_conf.gluu_version,
+            ssh_port=server.ssh_port,
             logger_task_id=task_id,
             server_os=server.os
             )
@@ -324,6 +326,7 @@ def remove_filebeat(self):
         installer = Installer(
             server,
             app_conf.gluu_version,
+            ssh_port=server.ssh_port,
             logger_task_id=task_id,
             server_os=server.os
             )

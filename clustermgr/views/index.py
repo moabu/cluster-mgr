@@ -72,8 +72,7 @@ def home():
 
 
     ask_passphrase = False
-    
-    c = RemoteClient(servers[0].ip, servers[0].hostname)
+    c = RemoteClient(servers[0].ip, servers[0].hostname, ssh_port=servers[0].ssh_port)
     try:
         c.startup()
     
@@ -177,7 +176,7 @@ def app_configuration():
                 
                 if server:
                 
-                    c = RemoteClient(server.hostname, ip=server.ip)
+                    c = RemoteClient(server.hostname, ip=server.ip, ssh_port=server.ssh_port)
                     
                     try:
                         c.startup()
@@ -188,7 +187,7 @@ def app_configuration():
                                 "warning")
                     if c:
      
-                        installer = Installer(c, config.gluu_version, server.os)
+                        installer = Installer(c, config.gluu_version, server.os, ssh_port=server.ssh_port)
                     
                         cmd = ('/opt/opendj/bin/ldappasswordmodify --bindDN '
                         '\'cn=Directory Manager\' --bindPassword $\'{}\' '
@@ -211,6 +210,7 @@ def app_configuration():
         config.gluu_version = conf_form.gluu_version.data.strip()
         config.nginx_host = conf_form.nginx_host.data.strip()
         config.nginx_ip = conf_form.nginx_ip.data.strip()
+        config.nginx_ssh_port = conf_form.nginx_ssh_port.data
         config.modify_hosts = conf_form.modify_hosts.data
         
         config.ldap_update_period = conf_form.ldap_update_period.data
@@ -252,7 +252,8 @@ def app_configuration():
                                     primary_server,
                                     config.gluu_version,
                                     logger_task_id=0,
-                                    server_os=primary_server.os
+                                    server_os=primary_server.os,
+                                    ssh_port=primary_server.ssh_port
                                 )
 
             if not installer.conn:
@@ -285,6 +286,7 @@ def app_configuration():
         conf_form.nginx_host.data = config.nginx_host
         conf_form.modify_hosts.data = config.modify_hosts
         conf_form.nginx_ip.data = config.nginx_ip
+        conf_form.nginx_ssh_port.data = config.nginx_ssh_port
         conf_form.external_load_balancer.data = config.external_load_balancer
         conf_form.use_ldap_cache.data = config.use_ldap_cache
         conf_form.offline.data =  config.offline
