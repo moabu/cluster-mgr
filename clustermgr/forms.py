@@ -255,9 +255,11 @@ class WizardStep1(FlaskForm):
     new_hostname = StringField('New Hostname *', validators=[DataRequired()])
     ip = StringField(
         'Current IP Address of Standalone System *', validators=[DataRequired(), IPAddress()])
+    ssh_port = IntegerField("SSH Port of Server", default="22", validators=[DataRequired()])
     nginx_ip = StringField(
         'Load Balancer IP Address *', validators=[DataRequired(), IPAddress()])
-        
+    nginx_ssh_port = IntegerField("SSH Port of load balancer", default="22", validators=[DataRequired()])
+    
     next = SubmitField("Next")
 
 class CacheSettingsForm(FlaskForm):

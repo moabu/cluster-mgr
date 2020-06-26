@@ -47,13 +47,15 @@ def step1():
             app_conf = AppConfiguration()
             app_conf.nginx_host = wform.new_hostname.data.strip()
             app_conf.replication_pw = replication_pw
-            app_conf.nginx_ip = wform.nginx_ip.data.strip() 
+            app_conf.nginx_ip = wform.nginx_ip.data.strip()
+            app_conf.nginx_ssh_port = wform.nginx_ssh_port.data
             app_conf.modify_hosts = True
             db.session.add(app_conf)
             
             server = Server()
             server.ip = wform.ip.data.strip()
             server.hostname = wform.current_hostname.data.strip()
+            server.ssh_port = wform.ssh_port.data
             server.primary_server = True
             
             db.session.add(app_conf)

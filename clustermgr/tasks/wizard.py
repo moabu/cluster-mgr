@@ -133,7 +133,8 @@ def wizard_step2(self):
             ip_address = server.ip,
             ldap_password = setup_prop['ldapPass'],
             os_type = server.os,
-            gluu_version = app_conf.gluu_version
+            gluu_version = app_conf.gluu_version,
+            ssh_port = server.ssh_port
         )
 
     name_changer.logger_tid = tid

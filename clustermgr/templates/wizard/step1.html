@@ -16,6 +16,13 @@
         
         {{ wform.csrf_token }}
 
+
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <h3 class="panel-title">Load Balancer</h3>
+    </div>
+      <div class="panel-body">
+
         <div class="form-group  {{ 'has-error' if wform.new_hostname.errors else '' }}">
             <label for="new_hostname" class="control-label">{{ wform.new_hostname.label}}</label>
             <p class="help-block">This will be used as a load balancer hostname.</p>
@@ -24,7 +31,7 @@
             {% endfor %}
             {{ wform.new_hostname(class="form-control") }}
         </div>
-        
+
         <div class="form-group  {{ 'has-error' if wform.nginx_ip.errors else '' }}">
             <label for="current_hostname" class="control-label">{{ wform.nginx_ip.label}}</label>
             <p class="help-block">Ip address of load balancer.</p>
@@ -33,7 +40,27 @@
             {% endfor %}
             {{ wform.nginx_ip(class="form-control") }}
         </div>
-        
+
+
+        <div class="form-group  {{ 'has-error' if wform.nginx_ssh_port.errors else '' }}">
+            <label for="nginx_ssh_port" class="control-label">{{ wform.nginx_ssh_port.label}}</label>
+            <p class="help-block">SSH port of load balancer.</p>
+            {% for error in wform.nginx_ssh_port.errors %}
+                <p class="help-block">{{ error }}</p>
+            {% endfor %}
+            {{ wform.nginx_ssh_port(class="form-control") }}
+        </div>
+
+    </div>
+  </div>
+
+
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <h3 class="panel-title">Stand Alone Server</h3>
+    </div>
+      <div class="panel-body">
+
         <div class="form-group  {{ 'has-error' if wform.current_hostname.errors else '' }}">
             <label for="current_hostname" class="control-label">{{ wform.current_hostname.label}}</label>
             <p class="help-block">This hostname will be changed to new hostname.</p>
@@ -42,7 +69,7 @@
             {% endfor %}
             {{ wform.current_hostname(class="form-control") }}
         </div>
-        
+
         <div class="form-group  {{ 'has-error' if wform.ip.errors else '' }}">
             <label for="ip" class="control-label">{{ wform.ip.label}}</label>
             <p class="help-block">IP address of the server.</p>
@@ -51,7 +78,17 @@
             {% endfor %}
             {{ wform.ip(class="form-control") }}
         </div>
-        
+
+        <div class="form-group  {{ 'has-error' if wform.ssh_port.errors else '' }}">
+            <label for="ssh_prot" class="control-label">{{ wform.ssh_port.label}}</label>
+            <p class="help-block">SSH port of the server.</p>
+            {% for error in wform.nginx_ssh_port.errors %}
+                <p class="help-block">{{ error }}</p>
+            {% endfor %}
+            {{ wform.nginx_ssh_port(class="form-control") }}
+        </div>
+    </div>
+  </div>
         <p class="help-block">After you click to next button, information about your current server
         will be gathered, missing data will be asked to you.
         

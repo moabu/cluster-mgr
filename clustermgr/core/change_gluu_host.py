@@ -67,6 +67,7 @@ class ChangeGluuHostname:
     def __init__(self, old_host, new_host, cert_city, cert_mail, cert_state,
                     cert_country, ldap_password, os_type, ip_address,
                     gluu_version, server='localhost', local=False,
+                    ssh_port=22
                     ):
 
         self.old_host = old_host
@@ -77,6 +78,7 @@ class ChangeGluuHostname:
         self.cert_state = cert_state
         self.cert_country = cert_country
         self.server = server
+        self.ssh_port = ssh_port
         self.ldap_password = ldap_password
         self.os_type = os_type
         self.gluu_version = gluu_version
@@ -94,7 +96,7 @@ class ChangeGluuHostname:
 
         self.container = '/opt/gluu-server-{}'.format(self.gluu_version)
 
-        self.c = RemoteClient(self.server, ssh_port=server.ssh_port)
+        self.c = RemoteClient(self.server, ssh_port=self.ssh_port)
         self.c.startup()
 
         self.installer = Installer( self.c, self.gluu_version, 

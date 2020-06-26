@@ -77,7 +77,7 @@ def index():
         server = Server()
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
-        server.ssh_port = form.ssh_port.data
+        server.ssh_port = form.ssh_port
         server.mmr = False
         ask_passphrase = False
 
