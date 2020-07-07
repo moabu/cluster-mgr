@@ -292,6 +292,9 @@ def app_configuration():
         conf_form.offline.data =  config.offline
         conf_form.ldap_cache_clean_period.data = str(config.ldap_cache_clean_period)
         
+        if not conf_form.nginx_ssh_port.data:
+            conf_form.nginx_ssh_port.data = 22
+        
         #if config.external_load_balancer:
         #    conf_form.cache_host.data = config.cache_host
         #    conf_form.cache_ip.data = config.cache_ip
