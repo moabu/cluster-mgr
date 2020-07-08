@@ -69,7 +69,7 @@ def after_request(response):
         
         if not request.full_path.startswith('/log/'):
             ts = strftime('[%Y-%b-%d %H:%M]')
-            logger.error('%s %s %s %s %s %s',
+            logger.info('%s %s %s %s %s %s',
                           ts,
                           request.remote_addr,
                           request.method,
