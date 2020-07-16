@@ -45,7 +45,6 @@ setup(
         "Flask-WTF",
         "celery==4.2.1",
         "Flask-SQLAlchemy",
-        "redis==3.2.0",
         "requests>=2.20.0",
         "Flask-Migrate",
         "ldap3",
