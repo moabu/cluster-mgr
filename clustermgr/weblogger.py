@@ -1,13 +1,13 @@
 """weblogger.py - flask extension providing storage facility via Redis.
 """
 
-import redis
 import json
 
 from clustermgr.core.clustermgr_logging import web_logger as logger
 
 
 class WebLogger(object):
+    r = None
     """WebLogger is a Redis wrapper to store task logs for flask view access.
 
     In situations where a long running task generates logs which must be sent
@@ -56,19 +56,15 @@ class WebLogger(object):
 
     def __init__(self, app=None):
         self.app = app
-        self.r = redis.Redis()
         self.prefix = 'weblogger'
         if app is not None:
             self.init_app(app)
+            self.r = app.config["CLUSTERMGR_REDIS"]
 
     def init_app(self, app):
-        host = app.config['REDIS_HOST']
-        port = app.config['REDIS_PORT']
-        db = app.config['REDIS_LOG_DB']
-        self.prefix = app.name
+        if not self.r:
+            self.r = app.config["CLUSTERMGR_REDIS"]
 
-        self.r.connection_pool.disconnect()
-        self.r = redis.Redis(host=host, port=port, db=db)
 
     def __key(self, taskid):
         return "{0}:{1}".format(self.prefix, taskid)

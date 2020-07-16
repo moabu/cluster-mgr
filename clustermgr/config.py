@@ -1,6 +1,9 @@
+from redislite import Redis
+
 import os
 from datetime import timedelta
 import uuid
+
 
 class Config(object):
     DEBUG = False
@@ -11,16 +14,17 @@ class Config(object):
     #SQLALCHEMY_RECORD_QUERIES = True
     SECRET_KEY = 'prettysecret'
     BASE_DN = 'o=gluu'
-    CELERY_BROKER_URL = 'redis://localhost:6379'
-    CELERY_RESULT_BACKEND = 'redis://localhost:6379'
-    REDIS_HOST = 'localhost'
-    REDIS_PORT = 6379
-    REDIS_LOG_DB = 0
-    OX11_PORT = '8190'
+
     DATA_DIR = os.environ.get(
         "DATA_DIR",
         os.path.join(os.path.expanduser("~"), ".clustermgr4"),
     )
+
+    # The celery broker string to use our redislite server
+    redis_connection = Redis(os.path.join(DATA_DIR, 'redis.db'))
+    CELERY_RESULT_BACKEND = CELERY_BROKER_URL = CELERY_BROKER = 'redis+socket://' + redis_connection.socket_file
+    CLUSTERMGR_REDIS = redis_connection
+    OX11_PORT = '8190'
     
     LOGS_DIR = os.path.join(DATA_DIR, 'logs')
     
