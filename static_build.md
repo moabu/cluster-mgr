@@ -42,11 +42,11 @@ Update pip and setuptools
 Execute the following commands to install Cluster Manager to `/opt/clustermgr` with all dependencies
 
 ```
-# pip install python-ldap==2.4.15 --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
+# pip install --upgrade python-ldap==2.4.15 --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
 
-# pip install https://github.com/GluuFederation/redislite/archive/master.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
+# pip install --upgrade https://github.com/GluuFederation/redislite/archive/master.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
 
-# pip install  https://github.com/GluuFederation/cluster-mgr/archive/4.1.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
+# pip install  --upgrade https://github.com/GluuFederation/cluster-mgr/archive/4.1.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
 ```
 You need to copy `/opt/clustermgr` directory to RHEL7 that has no internet access. So let us package:
 
