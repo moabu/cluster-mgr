@@ -41,10 +41,13 @@ Update pip and setuptools
 
 Execute the following commands to install Cluster Manager to `/opt/clustermgr` with all dependencies
 
-`# pip install python-ldap==2.4.15 --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr`
-`# pip install https://github.com/mbaser/redislite/archive/master.zip  --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr`
-`# pip install  https://github.com/GluuFederation/cluster-mgr/archive/4.1.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr` 
+```
+# pip install python-ldap==2.4.15 --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
 
+# pip install https://github.com/mbaser/redislite/archive/master.zip  --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
+
+# pip install  https://github.com/GluuFederation/cluster-mgr/archive/4.1.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
+```
 You need to copy `/opt/clustermgr` directory to RHEL7 that has no internet access. So let us package:
 
 `# tar -zcf clustermgr4.tgz /opt/clustermgr`
@@ -54,7 +57,9 @@ Now you can copy `clustermgr4.tgz` to RHEL7 that has no internet access.
 ### Upgrading Cluster Manager
 If you built Cluster Manager before and there is an update, you can upgrade current static build as:
 
-`# pip install --upgrade --force-reinstall  --no-deps --no-cache-dir https://github.com/GluuFederation/cluster-mgr/archive/4.1.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr`
+```
+# pip install --upgrade --force-reinstall  --no-deps --no-cache-dir https://github.com/GluuFederation/cluster-mgr/archive/4.1.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
+```
 
 You need to create new `clustermgr4.tgz` and copy to RHEL7 that has no internet access.
 
@@ -66,10 +71,13 @@ On this machine you need java-1.8 and redis installed. Extract `clustermgr4.tgz`
 
 To start clustermanager use the following command:
 
-`# PYTHONPATH=/opt/clustermgr/clustermgr:/opt/clustermgr/bin PATH=$PATH:/opt/clustermgr/bin /opt/clustermgr/bin/clustermgr4-cli start`
-
+```
+# PYTHONPATH=/opt/clustermgr/clustermgr:/opt/clustermgr/bin PATH=$PATH:/opt/clustermgr/bin /opt/clustermgr/bin/clustermgr4-cli start
+```
 You can stop as follows:
 
-`# PYTHONPATH=/opt/clustermgr/clustermgr:/opt/clustermgr/bin PATH=$PATH:/opt/clustermgr/bin /opt/clustermgr/bin/clustermgr4-cli stop`
+```
+# PYTHONPATH=/opt/clustermgr/clustermgr:/opt/clustermgr/bin PATH=$PATH:/opt/clustermgr/bin /opt/clustermgr/bin/clustermgr4-cli stop
+```
 
 Please follow [these instuctions](./offline_install.md) for offline installation
