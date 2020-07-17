@@ -65,7 +65,7 @@ You need to create new `clustermgr4.tgz` and copy to RHEL7 that has no internet 
 
 ## On RHEL7 Machine Has no Internet Access
 
-On this machine you need java-1.8 and redis installed. Extract `clustermgr4.tgz` package:
+On this machine you need java-1.8 installed. Extract `clustermgr4.tgz` package:
 
 `# tar -zxf clustermgr4.tgz -C /`
 
