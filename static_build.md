@@ -44,7 +44,7 @@ Execute the following commands to install Cluster Manager to `/opt/clustermgr` w
 ```
 # pip install python-ldap==2.4.15 --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
 
-# pip install https://github.com/mbaser/redislite/archive/master.zip  --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
+# pip install https://github.com/GluuFederation/redislite/archive/master.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
 
 # pip install  https://github.com/GluuFederation/cluster-mgr/archive/4.1.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
 ```
