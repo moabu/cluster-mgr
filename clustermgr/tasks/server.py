@@ -536,11 +536,8 @@ def install_gluu_server(task_id, server_id):
         gluu_archive_fn = os.path.split(app_conf.gluu_archive)[1]
         wlogger.log(task_id, "Uploading {}".format(gluu_archive_fn))
 
-        cmd = 'scp {} root@{}:/root'.format(app_conf.gluu_archive, server.hostname)
-        wlogger.log(task_id, cmd,'debug')
-        time.sleep(1)
-        os.system(cmd)
-        
+        installer.upload_file(app_conf.gluu_archive, os.path.join('/root', gluu_archive_fn))
+
         if installer.clone_type == 'deb':
             install_command = 'dpkg -i /root/{}'.format(gluu_archive_fn)
         else:
