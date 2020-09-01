@@ -65,7 +65,6 @@ def index():
     primary_server = Server.query.filter(
         Server.primary_server.is_(True)).first()
 
-    form.ssh_port = 22
     if primary_server:
         del form.ldap_password
         del form.ldap_password_confirm
@@ -77,7 +76,8 @@ def index():
         server = Server()
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
-        server.ssh_port = form.ssh_port
+        server.ssh_port = form.ssh_port.data
+        print("SSH Port", server.ssh_port)
         server.mmr = False
         ask_passphrase = False
 

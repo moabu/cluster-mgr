@@ -305,20 +305,14 @@ def checkOfflineRequirements(installer, server, appconf):
 
 def make_opendj_listen_world(server, installer):
 
-    wlogger.log(installer.logger_task_id, "Making openDJ listens all interfaces for port 4444 and 1636")
-
     opendj_commands = [
             "sed -i 's/dsreplication.java-args=-Xms8m -client/dsreplication.java-args=-Xms8m -client -Dcom.sun.jndi.ldap.object.disableEndpointIdentification=true/g' /opt/opendj/config/java.properties",
             "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-administration-connector-prop  --set listen-address:0.0.0.0 -X".format(server.ldap_password),
             "/opt/opendj/bin/dsconfig -h localhost -p 4444 -D 'cn=directory manager' -w $'{}' -n set-connection-handler-prop --handler-name 'LDAPS Connection Handler' --set enabled:true --set listen-address:0.0.0.0 -X".format(server.ldap_password),
             ]
 
-    if server.os == 'Ubuntu 16':
-        opendj_commands.append('/etc/init.d/opendj stop')
-        opendj_commands.append('/etc/init.d/opendj start')
-    else:
-        opendj_commands.append('systemctl stop opendj')
-        opendj_commands.append('systemctl start opendj')
+    opendj_commands.append('systemctl stop opendj')
+    opendj_commands.append('systemctl start opendj')
 
     for command in opendj_commands:
         installer.run(command)
@@ -459,7 +453,8 @@ def install_gluu_server(task_id, server_id):
             if server.os == 'CentOS 7':
 
                 cmd = (
-                  'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O '
+                  #'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O '
+                  'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo  -O '
                   '/etc/yum.repos.d/Gluu.repo'
                   )
 
@@ -629,6 +624,7 @@ def install_gluu_server(task_id, server_id):
             prop['ip'] = str(server.ip)
             prop['ldap_type'] = 'opendj'
             prop['hostname'] = str(app_conf.nginx_host)
+            #prop['ldap_hostname'] = server.hostname
             ldap_passwd = prop['ldapPass']
 
             new_setup_properties_io = StringIO.StringIO()
@@ -660,6 +656,12 @@ def install_gluu_server(task_id, server_id):
         remote_py = '/opt/gluu-server/install/community-edition-setup/setup.py'
         installer.upload_file(setup_py, remote_py)
         installer.run('chmod +x ' + remote_py, inside=False)
+
+    opendj_properties_fn = os.path.join(app.root_path, 'templates', 'opendj', 'opendj-setup.properties')
+
+    if os.path.exists(opendj_properties_fn):
+        remote_fn = '/opt/gluu-server/install/community-edition-setup/templates/opendj-setup.properties'
+        installer.upload_file(opendj_properties_fn, remote_fn)
 
     setup_cmd = '/install/community-edition-setup/setup.py -f /root/setup.properties --listen_all_interfaces -n'
 

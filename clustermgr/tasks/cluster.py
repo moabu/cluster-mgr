@@ -699,7 +699,7 @@ def opendjenablereplication(self, server_id):
                         "--baseDN 'o={}' --trustAll -X -n").format(
                             primary_server.hostname,
                             primary_server.ldap_password.replace("'","\\'"),
-                            server.ip,
+                            server.hostname,
                             server.ldap_password.replace("'","\\'"),
                             app_conf.replication_pw.replace("'","\\'"),
                             base,
@@ -710,27 +710,10 @@ def opendjenablereplication(self, server_id):
 
                 cmd_fn = os.path.join(installer.container, 'root/.cmd')
                 installer.put_file(cmd_fn, cmd)
+                wlogger.log(task_id, "Executing command: " + cmd)
                 installer.run('bash /root/.cmd', error_exception='no base DNs available to enable replication')
                 installer.run('rm -f /root/.cmd')
 
-
-                wlogger.log(task_id, "Initializing replication on server {} for {}".format(
-                                                                server.hostname, base))
-
-                cmd = ( "OPENDJ_JAVA_HOME=/opt/jre "
-                        "/opt/opendj/bin/dsreplication initialize --baseDN 'o={}' "
-                        "--adminUID admin --adminPassword $'{}' "
-                        "--portSource 4444  --hostDestination {} --portDestination 4444 "
-                        "--trustAll -X -n").format(
-                            base,
-                            app_conf.replication_pw.replace("'","\\'"),
-                            server.ip,
-                            )
-
-                cmd_fn = os.path.join(installer.container, 'root/.cmd')
-                installer.put_file(cmd_fn, cmd)
-                installer.run('bash /root/.cmd', error_exception='no base DNs available to enable replication')
-                installer.run('rm -f /root/.cmd')
 
             if not primary_server_secured:
 
@@ -745,6 +728,7 @@ def opendjenablereplication(self, server_id):
 
                 cmd_fn = os.path.join(installer.container, 'root/.cmd')
                 installer.put_file(cmd_fn, cmd)
+                wlogger.log(task_id, "Executing command: " + cmd)
                 installer.run('bash /root/.cmd', error_exception='no base DNs available to enable replication')
                 installer.run('rm -f /root/.cmd')
                 
@@ -761,6 +745,7 @@ def opendjenablereplication(self, server_id):
 
             cmd_fn = os.path.join(installer.container, 'root/.cmd')
             installer.put_file(cmd_fn, cmd)
+            wlogger.log(task_id, "Executing command: " + cmd)
             installer.run('bash /root/.cmd', error_exception='no base DNs available to enable replication')
             installer.run('rm -f /root/.cmd')
 
@@ -794,28 +779,27 @@ def opendjenablereplication(self, server_id):
                 if not result:
                     return False
 
-            #sometimes we need re-initialization
-            wlogger.log(task_id, "Re-initialization replication")
-            for base in ['gluu', 'site']:
-                cmd = ( "OPENDJ_JAVA_HOME=/opt/jre /opt/opendj/bin/dsreplication "
-                        "initialize --adminUID admin "
-                        "--adminPassword $'{}' --baseDN o={} --hostSource {} "
-                        "--portSource 4444 --hostDestination {} "
-                        "--portDestination 4444 --trustAll --no-prompt"
-                        ).format(
-                                app_conf.replication_pw.replace("'","\\'"),
-                                base,
-                                primary_server.ip,
-                                server.ip,
-                                )
-                                
-                cmd_fn = os.path.join(installer.container, 'root/.cmd')
-                node_installer.put_file(cmd_fn, cmd)
-                node_installer.run('bash /root/.cmd', error_exception='no base DNs available to enable replication')
-                node_installer.run('rm -f /root/.cmd')
-                
+            node_installer.restart_gluu()
 
-        node_installer.restart_gluu()
+
+    wlogger.log(task_id, "Initialization replication on all servers")
+    for base in ['gluu', 'site']:
+        cmd = ( "OPENDJ_JAVA_HOME=/opt/jre /opt/opendj/bin/dsreplication "
+                "initialize-all --adminUID admin "
+                "--adminPassword $'{}' --baseDN o={} --hostname {} "
+                "--port 4444 --trustAll --no-prompt"
+                ).format(
+                        app_conf.replication_pw.replace("'","\\'"),
+                        base,
+                        primary_server.hostname,
+                        )
+        
+        cmd_fn = os.path.join(installer.container, 'root/.cmd')
+        installer.put_file(cmd_fn, cmd)
+        wlogger.log(task_id, "Executing command: " + cmd)
+        installer.run('bash /root/.cmd', error_exception='no base DNs available to enable replication')
+        installer.run('rm -f /root/.cmd')
+
 
     installer.restart_gluu()
 
@@ -830,8 +814,10 @@ def opendjenablereplication(self, server_id):
                     primary_server.hostname,
                     app_conf.replication_pw.replace("'","\\'"))
 
+    
     cmd_fn = os.path.join(installer.container, 'root/.cmd')
     installer.put_file(cmd_fn, cmd)
+    wlogger.log(task_id, "Executing command: " + cmd)
     installer.run('bash /root/.cmd', error_exception='no base DNs available to enable replication')
     installer.run('rm -f /root/.cmd')
 
