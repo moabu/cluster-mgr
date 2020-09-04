@@ -52,7 +52,7 @@ setup(
         "pyOpenSSL==19.0.0",
         "Flask-Login",
         "Flask-Mail",
-        "cryptography",
+        "cryptography==2.1.4",
         "ipaddress",
         "enum34",
         "influxdb==5.0.0",
