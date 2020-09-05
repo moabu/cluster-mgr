@@ -65,6 +65,7 @@ setup(
         'pyasn1==0.4.8',
         'pyasn1-modules==0.2.8',
         'email-validator==1.1.1',
+        'oxdpython',
     ],
     scripts=['clusterapp.py', 'clustermgr-cli'],
     classifiers=[
