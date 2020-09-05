@@ -28,6 +28,7 @@ setup(
     zip_safe=False,
     include_package_data=True,
     install_requires=[
+        "redis==3.5.3",
         "itsdangerous==1.1.0",
         "dnspython==1.16.0",
         "jinja2==2.11.2",
