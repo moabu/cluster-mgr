@@ -1,6 +1,8 @@
 #!/bin/sh
 
 export PYTHONPATH=/usr/local/bin:/usr/bin
+export PYTHONWARNINGS="ignore"
+
 CELERY_PID="$HOME/.clustermgr/celery.pid"
 CELERY_BEAT_PID="$HOME/.clustermgr/celery-beat.pid"
 GUNICORN_PID="$HOME/.clustermgr/gunicorn.pid"
