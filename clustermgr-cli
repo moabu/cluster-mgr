@@ -14,14 +14,14 @@ if ! java -version 2>&1 >/dev/null | grep -q "version"; then
 fi
 
 start() { 
+    if [ ! -f "$HOME/.clustermgr4/instance" ]
+    then
+        echo "Creating clustermgr data directory"
+        mkdir -p "$HOME/.clustermgr4/instance/"
+    fi
+
     echo "Upgrading Database"
     $app db upgrade
-
-    if [ ! -f "$HOME/.clustermgr/instance" ]
-    then
-        mkdir -p "$HOME/.clustermgr/instance/"
-        
-    fi
 
     printf "DEBUG = False\nSECRET_KEY = '$NEW_UUID'\nLICENSE_ENFORCEMENT_ENABLED = False" > "$HOME/.clustermgr/instance/config.py"
 
