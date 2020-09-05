@@ -16,14 +16,14 @@ app=`which clusterapp.py`
 #fi
 
 start() { 
-    echo "Upgrading Database"
-    $app db upgrade
-
     if [ ! -f "$HOME/.clustermgr4/instance" ]
     then
+        echo "Creating clustermgr data directory"
         mkdir -p "$HOME/.clustermgr4/instance/"
-        
     fi
+
+    echo "Upgrading Database"
+    $app db upgrade
 
     printf "DEBUG = False\nSECRET_KEY = '$NEW_UUID'\nLICENSE_ENFORCEMENT_ENABLED = False" > "$HOME/.clustermgr4/instance/config.py"
 
