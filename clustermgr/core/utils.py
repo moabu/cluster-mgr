@@ -182,9 +182,11 @@ def get_inums():
 
 def parse_setup_properties(prop_file):
     prop = Properties()
-
-    with open(prop_file) as f:
-        prop.load(f)
+    if hasattr(prop_file, 'read'):
+        prop.load(prop_file)
+    else:
+        with open(prop_file) as f:
+            prop.load(f)
 
     return prop.getPropertyDict()
 

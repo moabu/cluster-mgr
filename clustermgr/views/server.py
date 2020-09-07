@@ -401,7 +401,7 @@ def upload_setup_properties(server_id):
 
         f = setup_properties_form.setup_properties.data
 
-        setup_prop = parse_setup_properties(f.stream)
+        setup_prop = parse_setup_properties(f)
 
         for rf in ( 
                     'oxauthClient_encoded_pw',
