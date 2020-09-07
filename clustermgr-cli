@@ -16,10 +16,10 @@ if ! java -version 2>&1 >/dev/null | grep -q "version"; then
 fi
 
 start() { 
-    if [ ! -f "$HOME/.clustermgr4/instance" ]
+    if [ ! -f "$HOME/.clustermgr/instance" ]
     then
         echo "Creating clustermgr data directory"
-        mkdir -p "$HOME/.clustermgr4/instance/"
+        mkdir -p "$HOME/.clustermgr/instance/"
     fi
 
     echo "Upgrading Database"
