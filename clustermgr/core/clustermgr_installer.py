@@ -84,7 +84,10 @@ class Installer:
             self.packager = 'yum install -y {}'
 
 
-        if self.conn.__class__.__name__ != 'FakeRemote':
+        if self.gluu_version.endswith('-host'):
+            self.run_command = '{}'
+            self.container = '/'
+        elif self.conn.__class__.__name__ != 'FakeRemote':
             self.container = '/opt/gluu-server'
 
             if self.server_os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
@@ -96,7 +99,7 @@ class Installer:
                         )
             else:
                 self.run_command = 'chroot {} /bin/bash -c "{}"'.format(self.container,'{}')
-            
+
             if self.clone_type == 'deb':
                 self.install_command = self.run_command.format('DEBIAN_FRONTEND=noninteractive apt-get install -y {}')
             elif self.clone_type == 'rpm':
@@ -104,7 +107,7 @@ class Installer:
                 self.install_command = self.run_command.format('yum install -y {}')
         else:
             self.run_command = '{}'
-        
+
     def get_os_type(self):
         # 2. Linux Distribution of the server
         print "Installer> Determining OS type"
@@ -131,6 +134,8 @@ class Installer:
 
 
     def run(self, cmd, inside=True, error_exception=None, nolog=False):
+        if self.gluu_version.endswith('-host'):
+            inside = False
 
         if inside:
             run_cmd = self.run_command.format(cmd)
