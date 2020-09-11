@@ -781,6 +781,9 @@ def opendjenablereplication(self, server_id):
 
             node_installer.restart_gluu()
 
+    wlogger.log(task_id, "Waiting for Gluu to finish starting")
+    time.sleep(40)
+
 
     wlogger.log(task_id, "Initialization replication on all servers")
     for base in ['gluu', 'site']:
@@ -804,7 +807,7 @@ def opendjenablereplication(self, server_id):
     installer.restart_gluu()
 
     wlogger.log(task_id, "Waiting for Gluu to finish starting")
-    time.sleep(60)
+    time.sleep(40)
 
     wlogger.log(task_id, "Checking replication status")
 
