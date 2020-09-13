@@ -758,6 +758,8 @@ def opendjenablereplication(self, server_id):
 
     servers = Server.query.filter(Server.primary_server.isnot(True)).all()
 
+    node_installers = []
+
     for server in servers:
 
         if not server.primary_server:
@@ -779,10 +781,12 @@ def opendjenablereplication(self, server_id):
                 if not result:
                     return False
 
-            node_installer.restart_gluu()
+            node_installer.restart_service('opendj')
+            
+            node_installers.append(node_installer)
 
-    wlogger.log(task_id, "Waiting for Gluu to finish starting")
-    time.sleep(40)
+    wlogger.log(task_id, "Waiting for OpenDJ Server to finish starting")
+    time.sleep(20)
 
 
     wlogger.log(task_id, "Initialization replication on all servers")
@@ -804,6 +808,11 @@ def opendjenablereplication(self, server_id):
         installer.run('rm -f /root/.cmd')
 
 
+    wlogger.log(task_id, "Restarting Cluster Nodes")
+    for node_installer in node_installers:
+            node_installer.restart_gluu()
+
+    wlogger.log(task_id, "Restarting Primary Server")
     installer.restart_gluu()
 
     wlogger.log(task_id, "Waiting for Gluu to finish starting")
