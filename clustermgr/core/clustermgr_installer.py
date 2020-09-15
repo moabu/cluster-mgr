@@ -84,7 +84,7 @@ class Installer:
             self.packager = 'yum install -y {}'
 
 
-        if self.gluu_version.endswith('-host'):
+        if self.gluu_version and self.gluu_version.endswith('-host'):
             self.run_command = '{}'
             self.container = '/'
         elif self.conn.__class__.__name__ != 'FakeRemote':
@@ -134,7 +134,7 @@ class Installer:
 
 
     def run(self, cmd, inside=True, error_exception=None, nolog=False):
-        if self.gluu_version.endswith('-host'):
+        if self.gluu_version and self.gluu_version.endswith('-host'):
             inside = False
 
         if inside:
