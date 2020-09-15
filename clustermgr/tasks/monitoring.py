@@ -108,8 +108,10 @@ def install_local(self):
                     'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
                     'DEBIAN_FRONTEND=noninteractive sudo apt-get install influxdb',
                     'sudo service influxdb start',
+                    'sudo pip install --upgrade setuptools==42.0.0',
+                    'sudo pip install psutil==5.7.1',
                     'sudo pip install influxdb',
-                    'sudo pip install psutil',
+                    
                     ]
             
             elif 'Debian' in localos:
@@ -273,8 +275,9 @@ def install_monitoring(self):
 
             # 5b. These commands are common for all OS types 
             commands = [
+                            'pip install --upgrade setuptools==42.0.0',
+                            'pip install psutil==5.7.1',
                             'pip install ldap3', 
-                            'pip install psutil',
                             'pip install pyDes',
                             'python /var/monitoring/scripts/'
                             'sqlite_monitoring_tables.py'
