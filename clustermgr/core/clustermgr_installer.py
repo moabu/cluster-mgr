@@ -84,7 +84,7 @@ class Installer:
             self.packager = 'yum install -y {}'
 
 
-        if self.gluu_version and self.gluu_version.endswith('-host'):
+        if self.gluu_version and self.gluu_version.startswith('nochroot'):
             self.run_command = '{}'
             self.container = '/'
         elif self.conn.__class__.__name__ != 'FakeRemote':
@@ -100,13 +100,13 @@ class Installer:
             else:
                 self.run_command = 'chroot {} /bin/bash -c "{}"'.format(self.container,'{}')
 
-            if self.clone_type == 'deb':
-                self.install_command = self.run_command.format('DEBIAN_FRONTEND=noninteractive apt-get install -y {}')
-            elif self.clone_type == 'rpm':
-
-                self.install_command = self.run_command.format('yum install -y {}')
         else:
             self.run_command = '{}'
+
+        if self.clone_type == 'deb':
+            self.install_command = self.run_command.format('DEBIAN_FRONTEND=noninteractive apt-get install -y {}')
+        elif self.clone_type == 'rpm':
+            self.install_command = self.run_command.format('yum install -y {}')
 
     def get_os_type(self):
         # 2. Linux Distribution of the server
@@ -134,7 +134,7 @@ class Installer:
 
 
     def run(self, cmd, inside=True, error_exception=None, nolog=False):
-        if self.gluu_version and self.gluu_version.endswith('-host'):
+        if self.gluu_version and self.gluu_version.startswith('nochroot'):
             inside = False
 
         if inside:

@@ -228,11 +228,16 @@ def checkOfflineRequirements(installer, server, appconf):
     #Determine gluu version
     a_path, a_fname = os.path.split(appconf.gluu_archive)
     
-    m = re.search('gluu-server(_|-)(?P<gluu_version>(\d+).(\d+)((.\d+)?)(\.\d+)?)',a_fname)
+    version_re = r'gluu-server(-nochroot)*(_|-)(?P<gluu_version>(\d+).(\d+)((.\d+)?)(\.\d+)?)'
+    
+    m = re.search(version_re, a_fname)
+
 
     if m:
         gv = m.group('gluu_version')
         gv = gv.split('_')[0]
+        if '-nochroot' in a_fname:
+            gv = 'nochroot-' + gv
         appconf.gluu_version = gv
         db.session.commit()
         wlogger.log(
@@ -240,11 +245,13 @@ def checkOfflineRequirements(installer, server, appconf):
             "Gluu version was determined as {0} from gluu archive".format(gv),
             'success'
             )
+        installer.gluu_version = gv
     else:
         wlogger.log(installer.logger_task_id,
                     "Gluu version could not be determined from gluu archive", 
                     'error')
         return False
+
 
     #check if curl exists on the system
     cmd = 'which curl'
@@ -410,78 +417,77 @@ def install_gluu_server(task_id, server_id):
             installer.install('python', inside=False)
 
 
-        if not installer.gluu_version.endswith('-host'):
 
-            #add gluu server repo and imports signatures
-            if ('Ubuntu' in server.os) or ('Debian' in server.os):
+        #add gluu server repo and imports signatures
+        if ('Ubuntu' in server.os) or ('Debian' in server.os):
 
-                if server.os == 'Ubuntu 16':
-                    dist = 'xenial'
-                elif server.os == 'Ubuntu 18':
-                    dist = 'bionic'
+            if server.os == 'Ubuntu 16':
+                dist = 'xenial'
+            elif server.os == 'Ubuntu 18':
+                dist = 'bionic'
 
-                if 'Ubuntu' in server.os:
-                    cmd_list = (
-                    'curl https://repo.gluu.org/ubuntu/gluu-apt.key | '
-                    'apt-key add -',
-                    'echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
-                    '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist)
-                    )
+            if 'Ubuntu' in server.os:
+                cmd_list = (
+                'curl https://repo.gluu.org/ubuntu/gluu-apt.key | '
+                'apt-key add -',
+                'echo "deb https://repo.gluu.org/ubuntu/ {0} main" '
+                '> /etc/apt/sources.list.d/gluu-repo.list'.format(dist)
+                )
 
-                elif 'Debian' in server.os:
-                    cmd_list = (
-                    'curl https://repo.gluu.org/debian/gluu-apt.key | '
-                    'apt-key add -',
-                    'echo "deb https://repo.gluu.org/debian/ stable main" '
-                   '> /etc/apt/sources.list.d/gluu-repo.list'
-                    )
+            elif 'Debian' in server.os:
+                cmd_list = (
+                'curl https://repo.gluu.org/debian/gluu-apt.key | '
+                'apt-key add -',
+                'echo "deb https://repo.gluu.org/debian/ stable main" '
+               '> /etc/apt/sources.list.d/gluu-repo.list'
+                )
 
 
-                for cmd in cmd_list:
-                    installer.run(cmd, inside=False, error_exception='Xferd')
+            for cmd in cmd_list:
+                installer.run(cmd, inside=False, error_exception='Xferd')
 
-                cmd = 'DEBIAN_FRONTEND=noninteractive apt-get update'
-                cin, cout, cerr = installer.run(cmd, inside=False)
+            cmd = 'DEBIAN_FRONTEND=noninteractive apt-get update'
+            cin, cout, cerr = installer.run(cmd, inside=False)
 
-                if 'dpkg --configure -a' in cerr:
-                    cmd = 'dpkg --configure -a'
-                    wlogger.log(task_id, cmd, 'debug')
-                    installer.run(cmd, inside=False)
+            if 'dpkg --configure -a' in cerr:
+                cmd = 'dpkg --configure -a'
+                wlogger.log(task_id, cmd, 'debug')
+                installer.run(cmd, inside=False)
 
-            elif 'CentOS' in server.os or 'RHEL' in server.os:
-                if not installer.conn.exists('/usr/bin/wget'):
-                    installer.install('wget', inside=False, error_exception='warning: /var/cache/')
+        elif 'CentOS' in server.os or 'RHEL' in server.os:
+            if not installer.conn.exists('/usr/bin/wget'):
+                installer.install('wget', inside=False, error_exception='warning: /var/cache/')
 
-                if server.os == 'CentOS 7':
-
-                    cmd = (
-                      #'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O '
-                      'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo  -O '
-                      '/etc/yum.repos.d/Gluu.repo'
-                      )
-
-                    enable_command  = '/sbin/gluu-serverd enable'
-
-                elif server.os == 'RHEL 7':
-                    cmd = (
-                      'wget https://repo.gluu.org/rhel/Gluu-rhel7.repo -O '
-                      '/etc/yum.repos.d/Gluu.repo'
-                      )
-                    enable_command  = '/sbin/gluu-serverd enable'
-
-                installer.run(cmd, inside=False, error_exception='__ALL__')
+            if server.os == 'CentOS 7':
 
                 cmd = (
-                  'wget https://repo.gluu.org/centos/RPM-GPG-KEY-GLUU -O '
-                  '/etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'
+                  #'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O '
+                  'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo  -O '
+                  '/etc/yum.repos.d/Gluu.repo'
                   )
-                installer.run(cmd, inside=False, error_exception='__ALL__')
 
-                cmd = 'rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'
-                installer.run(cmd, inside=False, error_exception='__ALL__')
+                enable_command  = '/sbin/gluu-serverd enable'
 
-                cmd = 'yum clean all'
-                installer.run(cmd, inside=False, error_exception='__ALL__')
+            elif server.os == 'RHEL 7':
+                cmd = (
+                  'wget https://repo.gluu.org/rhel/Gluu-rhel7.repo -O '
+                  '/etc/yum.repos.d/Gluu.repo'
+                  )
+                enable_command  = '/sbin/gluu-serverd enable'
+
+            installer.run(cmd, inside=False, error_exception='__ALL__')
+
+            cmd = (
+              'wget https://repo.gluu.org/centos/RPM-GPG-KEY-GLUU -O '
+              '/etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'
+              )
+            installer.run(cmd, inside=False, error_exception='__ALL__')
+
+            cmd = 'rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'
+            installer.run(cmd, inside=False, error_exception='__ALL__')
+
+            cmd = 'yum clean all'
+            installer.run(cmd, inside=False, error_exception='__ALL__')
 
 
     wlogger.log(task_id, "Check if Gluu Server was installed", 'action')
@@ -491,7 +497,7 @@ def install_gluu_server(task_id, server_id):
     #Determine if a version of gluu server was installed.
 
     if installer.conn.exists('/opt/gluu-server'):
-        if installer.gluu_version.endswith('-host'):
+        if installer.gluu_version.startswith('nochroot'):
             wlogger.log(installer.logger_task_id,
                     "Can't re-install host installed gluu server", 'error')
             return False
@@ -531,58 +537,46 @@ def install_gluu_server(task_id, server_id):
     #JavaScript on logger duplicates next log if we don't add this
     time.sleep(1)
 
-
     wlogger.log(task_id, "Installing Gluu Server: " + gluu_server)
 
 
-    if installer.gluu_version.endswith('-host'):
-        installer.run('ln -s / /opt/gluu-server', inside=False)
-        host_package = 'gluu-server-{}.sh'.format(installer.gluu_version)
-        host_ce_url = 'http://162.243.99.240/icrby8xcvbcv/ce-host/' + host_package
-        host_package_path = '/root/' + host_package
-        installer.run('wget  {} -O {}'.format(host_ce_url, host_package_path), inside=False)
-        installer.run('sh ' + host_package_path, inside=False)
-        installer.run('rm ' + host_package_path, inside=False)
+    if app_conf.offline:
+
+        gluu_archive_fn = os.path.split(app_conf.gluu_archive)[1]
+        wlogger.log(task_id, "Uploading {}".format(gluu_archive_fn))
+
+        installer.upload_file(app_conf.gluu_archive, os.path.join('/root', gluu_archive_fn))
+
+        if installer.clone_type == 'deb':
+            install_command = 'dpkg -i /root/{}'.format(gluu_archive_fn)
+        else:
+            install_command = 'rpm -i /root/{}'.format(gluu_archive_fn)
+
+        installer.run(install_command, inside=False, error_exception='__ALL__')
 
     else:
 
-        if app_conf.offline:
-
-            gluu_archive_fn = os.path.split(app_conf.gluu_archive)[1]
-            wlogger.log(task_id, "Uploading {}".format(gluu_archive_fn))
-
-            installer.upload_file(app_conf.gluu_archive, os.path.join('/root', gluu_archive_fn))
-
-            if installer.clone_type == 'deb':
-                install_command = 'dpkg -i /root/{}'.format(gluu_archive_fn)
-            else:
-                install_command = 'rpm -i /root/{}'.format(gluu_archive_fn)
-
-            installer.run(install_command, inside=False, error_exception='__ALL__')
-
+        if server.os in ('Ubuntu 16', 'Ubuntu 18'):
+            gluu_package_name = gluu_server + '=' + app_conf.gluu_version + '~' + dist
         else:
+            gluu_package_name = gluu_server + '-' + app_conf.gluu_version
 
-            if server.os in ('Ubuntu 16', 'Ubuntu 18'):
-                gluu_package_name = gluu_server + '=' + app_conf.gluu_version + '~' + dist
-            else:
-                gluu_package_name = gluu_server + '-' + app_conf.gluu_version
+        cmd = installer.get_install_cmd(gluu_package_name, inside=False)
 
-            cmd = installer.get_install_cmd(gluu_package_name, inside=False)
+        ubuntu_re = re.compile('\[(\s|\w|%|/|-|\.)*\]')
+        ubuntu_re_2 = re.compile('\(Reading database ... \d*')
+        centos_re = re.compile(' \[(=|-|#|\s)*\] ')
 
-            ubuntu_re = re.compile('\[(\s|\w|%|/|-|\.)*\]')
-            ubuntu_re_2 = re.compile('\(Reading database ... \d*')
-            centos_re = re.compile(' \[(=|-|#|\s)*\] ')
+        re_list = [ubuntu_re, ubuntu_re_2, centos_re]
 
-            re_list = [ubuntu_re, ubuntu_re_2, centos_re]
+        all_cout = installer.run_channel_command(cmd, re_list)
 
-            all_cout = installer.run_channel_command(cmd, re_list)
-
-            #If previous installation was broken, make a re-installation. 
-            #This sometimes occur on ubuntu installations
-            if 'half-installed' in all_cout:
-                if ('Ubuntu' in server.os) or ('Debian' in server.os):
-                    cmd = 'DEBIAN_FRONTEND=noninteractive  apt-get install --reinstall -y '+ gluu_server
-                    installer.run_channel_command(cmd, re_list)
+        #If previous installation was broken, make a re-installation. 
+        #This sometimes occur on ubuntu installations
+        if 'half-installed' in all_cout:
+            if ('Ubuntu' in server.os) or ('Debian' in server.os):
+                cmd = 'DEBIAN_FRONTEND=noninteractive  apt-get install --reinstall -y '+ gluu_server
+                installer.run_channel_command(cmd, re_list)
 
     if enable_command:
         installer.run(enable_command, inside=False, error_exception='__ALL__')
@@ -595,6 +589,8 @@ def install_gluu_server(task_id, server_id):
         wlogger.log(task_id, "Sleeping 10 secs to wait for gluu server start properly.")
         time.sleep(10)
 
+    if installer.gluu_version.startswith('nochroot'):
+        installer.run('ln -s / /opt/gluu-server', inside=False)
 
     # If this server is primary, upload local setup.properties to server
     if server.primary_server:
@@ -684,6 +680,8 @@ def install_gluu_server(task_id, server_id):
         installer.upload_file(opendj_properties_fn, remote_fn)
 
     setup_cmd = '/install/community-edition-setup/setup.py -f /root/setup.properties --listen_all_interfaces -n'
+    if app_conf.gluu_version.replace('nochroot-', '') >= '4.2.0':
+        setup_cmd += ' -c'
 
     #Don't load base data for secondary nodes
     if not server.primary_server:
