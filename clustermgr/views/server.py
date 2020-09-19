@@ -308,6 +308,9 @@ def install_gluu(server_id):
         setup_prop['opendj_type'] = 'wrends'
         setup_prop['installJce'] = True
         setup_prop['installLdap'] = True
+        setup_prop['oxd_server_https'] = 'https://localhost:8443'
+        setup_prop['clustering'] = True
+        
         if setup_prop['installCasa']:
             setup_prop['installOxd'] = True
 

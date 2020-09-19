@@ -667,7 +667,7 @@ def install_gluu_server(task_id, server_id):
     #JavaScript on logger duplicates next log if we don't add this
     time.sleep(1)
 
-    setup_py = os.path.join(app.root_path,'setup', 'setup_{}.py'.format(app_conf.gluu_version))
+    setup_py = os.path.join(app.root_path,'setup', 'setup_{}.py'.format(app_conf.gluu_version.replace('nochroot-', '')))
     if os.path.exists(setup_py):
         remote_py = '/opt/gluu-server/install/community-edition-setup/setup.py'
         installer.upload_file(setup_py, remote_py)
