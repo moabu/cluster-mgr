@@ -794,15 +794,15 @@ def install_gluu_server(task_id, server_id):
         if as_boolean(setup_prop['installCasa']):
             #we need to copy casa.json and oxd_db.mv.db from primry server
             casa_files = [
-                        '/opt/gluu-server/opt/oxd-server/data/oxd_db.mv.db'
+                        os.path.join(installer.container, 'opt/oxd-server/data/oxd_db.mv.db')
                         ]
 
-            casa_files.append('/opt/gluu-server/etc/gluu/conf/casa.json')
+            if installer.gluu_version.replace('nochroot-', '') < '4.2.0':
+                casa_files.append(os.path.join(installer.container, 'etc/gluu/conf/casa.json'))
 
             tmp_dir = os.path.join('/tmp', str(uuid.uuid4())[:8])
             os.mkdir(tmp_dir)
             for remote_fp in casa_files:
-
                 local_fp = os.path.join(tmp_dir, os.path.basename(remote_fp))
                 primary_server_installer.download_file(remote_fp, local_fp)
                 installer.upload_file(local_fp, remote_fp)
