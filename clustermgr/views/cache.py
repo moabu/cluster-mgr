@@ -121,7 +121,7 @@ def add_cache_server():
         if request.method == "GET":
             form.redis_password.data = random_chars(20)
             form.stunnel_port.data = 16379
-            form.ssh_port = 22
+            form.ssh_port.data = 22
 
     if request.method == "POST" and form.validate_on_submit():
         hostname = form.hostname.data

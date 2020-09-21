@@ -632,9 +632,10 @@ def install_gluu_server(task_id, server_id):
         if prop_io:
             prop.load(prop_io)
             prop_keys = prop.keys()
-            
+            print("prop list", prop_list)
             for p in prop_keys[:]:
                 if not p in prop_list:
+                    print ("deleting " + p)
                     del prop[p]
 
             prop['ip'] = str(server.ip)
