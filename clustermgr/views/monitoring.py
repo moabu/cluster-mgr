@@ -611,50 +611,109 @@ def get_server_status():
 
     servers = Server.get_all()
 
-    services = {
+
+    status = {}
+    active_services = get_enabled_services()
+
+    app_conf = AppConfiguration.query.first()
+
+
+    if app_conf.gluu_version.replace('nochroot-','') < '4.2.1':
+
+        services = {
                 'oxauth': '.well-known/openid-configuration',
                 'identity': 'identity/restv1/scim-configuration',
                 'saml': 'idp/shibboleth',
                 'casa': 'casa/enrollment-api.yaml',
             }
 
-    status = {}
-    active_services = get_enabled_services()
+        cmd =  '''python -c "import urllib2,ssl; print urllib2.urlopen('https://localhost/{}', context= ssl._create_unverified_context()).getcode()"'''
 
-    cmd =  '''python -c "import urllib2,ssl; print urllib2.urlopen('https://localhost/{}', context= ssl._create_unverified_context()).getcode()"'''
+        for server in servers:
+            status[server.id] = {}
 
-    for server in servers:
-        status[server.id] = {}
+            c = RemoteClient(server.hostname, ssh_port=server.ssh_port)
+            c.ok = False
+            try:
+                c.startup()
+                c.ok = True
+            except Exception as e:
+                pass
 
-        c = RemoteClient(server.hostname, ssh_port=server.ssh_port)
-        c.ok = False
-        try:
-            c.startup()
-            c.ok = True
-        except Exception as e:
-            pass
+            for service in active_services:
+                status[server.id][service] = False
 
-        for service in active_services:
-            status[server.id][service] = False
-
-            if c.ok:
-                if service == 'passport':
-                    passport_cmd = port_status_cmd.format('localhost', 8090)
-                    r = c.run(passport_cmd)
-                    if r[1].strip()=='0':
-                        status[server.id][service] = True
-                elif service == 'oxd':
-                    passport_cmd = port_status_cmd.format('localhost', 8443)
-                    r = c.run(passport_cmd)
-                    if r[1].strip()=='0':
-                        status[server.id][service] = True
-                else:
-                    try:
-                        run_cmd = cmd.format(services[service])
-                        result = c.run(run_cmd)
-                        if result[1].strip() == '200':
+                if c.ok:
+                    if service == 'passport':
+                        passport_cmd = port_status_cmd.format('localhost', 8090)
+                        r = c.run(passport_cmd)
+                        if r[1].strip()=='0':
                             status[server.id][service] = True
-                    except Exception as e:
-                        print "Error getting service status of {0} for {1}. ERROR: {2}".format(server.hostname,service, e)
-                    
+                    elif service == 'oxd':
+                        passport_cmd = port_status_cmd.format('localhost', 8443)
+                        r = c.run(passport_cmd)
+                        if r[1].strip()=='0':
+                            status[server.id][service] = True
+                    else:
+                        if service in services:
+                            try:
+                                run_cmd = cmd.format(services[service])
+                                result = c.run(run_cmd)
+                                if result[1].strip() == '200':
+                                    status[server.id][service] = True
+                            except Exception as e:
+                                print "Error getting service status of {0} for {1}. ERROR: {2}".format(server.hostname,service, e)
+    else:
+
+        remote_cmd ='''python3 -c "import requests;r=requests.get('{}',verify=False);print( 1 if r.json()['status']=='running' else 0)"'''
+
+        services = {
+                'oxauth': 'https://{}/oxauth/restv1/health-check',
+                'identity': 'https://{}/identity/restv1/health-check',
+                'saml': 'https://{}/idp/shibboleth',
+                'casa': 'https://{}/casa/health-check',
+                'passport': 'http://{}/passport/token',
+                'scim': 'http://localhost:8087/scim/restv1/health-check',
+                'oxd': 'https://localhost:8443/health-check',
+            }
+
+        for server in servers:
+            status[server.id] = {}
+
+            c = RemoteClient(server.hostname, ssh_port=server.ssh_port)
+            c.ok = False
+            try:
+                c.startup()
+                c.ok = True
+            except Exception as e:
+                pass
+
+            for service in active_services:
+                status[server.id][service] = False
+
+                if 'localhost' in services[service]:
+                    if c.ok:
+                        r = c.run(remote_cmd.format(services[service]))
+                        if r[1].strip()=='1':
+                            status[server.id][service] = True
+                else:
+                    r = requests.get(services[service].format(server.hostname) ,verify=False)
+                    if service == 'passport':
+                        try:
+                            if r.json()['token_']:
+                                status[server.id][service] = True
+                        except:
+                            pass
+                    elif service == 'casa':
+                        if r.text.strip().lower() == 'ok':
+                            status[server.id][service] = True
+                    elif service == 'saml':
+                        status[server.id][service] = 'X509Certificate' in r.text
+                    else:
+                        try:
+                            if r.json()['status'] == 'running':
+                                status[server.id][service] = True
+                        except:
+                            pass
+    
     return jsonify(status)

@@ -46,6 +46,7 @@ def get_enabled_services():
              ('passport', 'installPassport'),
              ('oxd', 'installOxd'),
              ('casa', 'installCasa'),
+             ('scim', 'installScimServer')
              ):
 
         if as_boolean(prop[n]):
