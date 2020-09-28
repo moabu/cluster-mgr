@@ -1,6 +1,8 @@
 #!/bin/sh
 
 export PYTHONPATH=$PYTHONPATH:/usr/local/bin:/usr/bin:/opt/clustermgr/clustermgr:/opt/clustermgr/bin
+export PYTHONWARNINGS="ignore"
+export PATH=$PATH:/opt/clustermgr/bin
 
 CELERY_PID="$HOME/.clustermgr4/celery.pid"
 CELERY_BEAT_PID="$HOME/.clustermgr4/celery-beat.pid"
@@ -15,14 +17,14 @@ app=`which clusterapp.py`
 #fi
 
 start() { 
-    echo "Upgrading Database"
-    $app db upgrade
-
     if [ ! -f "$HOME/.clustermgr4/instance" ]
     then
+        echo "Creating clustermgr data directory"
         mkdir -p "$HOME/.clustermgr4/instance/"
-        
     fi
+
+    echo "Upgrading Database"
+    $app db upgrade
 
     printf "DEBUG = False\nSECRET_KEY = '$NEW_UUID'\nLICENSE_ENFORCEMENT_ENABLED = False" > "$HOME/.clustermgr4/instance/config.py"
 
