@@ -55,7 +55,7 @@ setup(
         "pyOpenSSL==19.0.0",
         "Flask-Login==0.5.0",
         "Flask-Mail==0.9.1",
-        "cryptography==3.1",
+        "cryptography==2.9.2",
         "ipaddress==1.0.17",
         "enum34==1.1.10",
         "python-dateutil==2.8.1",
