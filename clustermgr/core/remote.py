@@ -14,6 +14,9 @@ from clustermgr.extensions import wlogger
 from clustermgr.config import Config
 from clustermgr.core.clustermgr_logging import remote_logger as logger
 
+from paramiko.util import log_to_file
+log_to_file(os.path.join(os.path.expanduser("~"), ".clustermgr4", "logs", "paramiko.log"), level = "DEBUG")
+
 def decode(key, enc):
     dec = []
     enc = base64.urlsafe_b64decode(enc)

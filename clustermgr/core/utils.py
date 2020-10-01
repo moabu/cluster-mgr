@@ -49,7 +49,7 @@ def get_enabled_services():
              ('scim', 'installScimServer')
              ):
 
-        if as_boolean(prop[n]):
+        if n in prop and as_boolean(prop[n]):
             services.append(s)
 
     return services
