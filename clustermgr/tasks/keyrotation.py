@@ -11,7 +11,6 @@ from ldap3 import BASE
 from ldap3 import MODIFY_REPLACE
 from ldap3 import Server as Ldap3Server
 from ldap3.core.exceptions import LDAPSocketOpenError
-from clustermgr.core.Properties import Properties
 
 from ..core.clustermgr_installer import Installer
 from ..core.utils import random_chars

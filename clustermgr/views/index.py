@@ -19,7 +19,6 @@ from clustermgr.forms import AppConfigForm, SchemaForm, \
     TestUser, InstallServerForm, LdapSchema  # , KeyRotationForm
 
 from celery.result import AsyncResult
-from clustermgr.core.utils import get_setup_properties, encode
 
 from clustermgr.core.clustermgr_logging import sys_logger as logger
 
@@ -36,7 +35,7 @@ from clustermgr.core.remote import RemoteClient, FakeRemote, ClientNotSetupExcep
 from clustermgr.core.clustermgr_installer import Installer
 
 from clustermgr.core.utils import get_setup_properties, \
-    get_opendj_replication_status, as_boolean, get_enabled_services
+    get_opendj_replication_status, as_boolean, get_enabled_services, encode
 
 from clustermgr.tasks.server import collect_server_details, set_up_ldap_cache_cleaner
 
@@ -194,10 +193,6 @@ def app_configuration():
                         '--port 4444 --newPassword $\'{}\' --authzID '
                         '\'cn=admin,cn=Administrators,cn=admin data\' '
                         '--trustAll --useSSL'.format(
-                        
-                        server.ldap_password.replace("'","\\'"),
-                        new_replication_passwd.replace("'","\\'"),
-                        
                         ))
 
                         result = installer.run(cmd)

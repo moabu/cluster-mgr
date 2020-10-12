@@ -22,7 +22,7 @@ from clustermgr.models import Server, AppConfiguration, CacheServer
 from clustermgr.extensions import wlogger
 from flask import current_app as app
 from clustermgr.core.clustermgr_installer import Installer
-from clustermgr.core.Properties import Properties
+from clustermgr.core.jproperties import Properties
 
 import traceback
 
@@ -188,23 +188,28 @@ def parse_setup_properties(prop_file):
 
     prop = Properties()
 
-    with open(prop_file) as f:
+    with open(prop_file,'rb') as f:
         prop.load(f)
 
-    return prop.getPropertyDict()
+    retVal = {}
 
-def write_setup_properties_file(setup_prop):
+    for k in prop:
+        retVal[str(k)] = str(prop[k].data)
 
-    setup_properties_file = os.path.join(Config.DATA_DIR,
-                                         'setup.properties')
+    return retVal
+
+def write_setup_properties_file(setup_prop, prop_file='setup.properties'):
+
+    setup_properties_file = os.path.join(Config.DATA_DIR, prop_file)
+
     prop = Properties()
     for k in setup_prop:
         val = setup_prop[k]
         if not isinstance(val, str):
             val = str(val) 
         prop[k] = val
-    
-    with open(setup_properties_file, 'w') as w:
+
+    with open(setup_properties_file, 'wb') as w:
         prop.store(w)
 
 def get_setup_properties(createNew=False):
@@ -270,7 +275,7 @@ def get_opendj_replication_status():
             '/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 4444 -I admin -w $\'{}\'').format(
                     primary_server.ip,
-                    app_conf.replication_pw.replace("'","\\'"))
+                    app_conf.replication_pw)
 
     print "Uploading cmd"
     cmd_fn = os.path.join(installer.container, 'root/.cmd')

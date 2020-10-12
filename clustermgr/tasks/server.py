@@ -8,23 +8,24 @@ import uuid
 import traceback
 import StringIO
 import json
+import binascii
 
 from flask import current_app as app
 from ldap3 import SUBTREE, BASE, MODIFY_REPLACE
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import wlogger, db, celery
-import re
 
 from clustermgr.core.remote import RemoteClient, get_connection
 from clustermgr.config import Config
 
-
 from clustermgr.core.clustermgr_installer import Installer
 from clustermgr.core.utils import get_setup_properties, \
-    modify_etc_hosts, as_boolean, get_proplist
-from clustermgr.core.Properties import Properties
+    modify_etc_hosts, as_boolean, get_proplist, write_setup_properties_file, \
+    parse_setup_properties
 
+from clustermgr.core.jproperties import Properties
 from clustermgr.core.ldap_functions import LdapOLC, getLdapConn
+
 
 @celery.task(bind=True)
 def collect_server_details(self, server_id):
@@ -537,6 +538,7 @@ def install_gluu_server(task_id, server_id):
     #JavaScript on logger duplicates next log if we don't add this
     time.sleep(1)
 
+
     wlogger.log(task_id, "Installing Gluu Server: " + gluu_server)
 
 
@@ -583,6 +585,7 @@ def install_gluu_server(task_id, server_id):
 
     installer.start_gluu()
 
+    
     #Since we will make ssh inot centos container, we need to wait ssh server to
     #be started properly
     if server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
@@ -619,9 +622,10 @@ def install_gluu_server(task_id, server_id):
             prop_io = result[1]
         else:
             remote_file += '.cm'
-            cmd_unenc = 'openssl enc -d -aes-256-cbc -in /install/community-edition-setup/setup.properties.last.enc -k \'{}\' -out /install/community-edition-setup/setup.properties.last.cm'.format(server.ldap_password.replace("'","\\'"))
+            cmd_unenc = "openssl enc -d -aes-256-cbc -in /install/community-edition-setup/setup.properties.last.enc -k $'{}' -out /install/community-edition-setup/setup.properties.last.cm".format(server.ldap_password)
             cmd_fn = os.path.join(installer.container, 'root/.cmd')
             primary_server_installer.put_file(cmd_fn, cmd_unenc)
+            wlogger.log(task_id, "Executing: " + cmd_unenc, 'debug')
             primary_server_installer.run('bash /root/.cmd')
             primary_server_installer.run('rm -f /root/.cmd')
             result = primary_server_installer.conn.get_file(remote_file)
@@ -629,10 +633,13 @@ def install_gluu_server(task_id, server_id):
             installer.run('rm -f ' + remote_file)
 
         prop = Properties()
+        
         if prop_io:
-            prop.load(prop_io)
+            tmp_prop_file = '/tmp/{}.properties'.format(binascii.b2a_hex(os.urandom(4)))
+            with open(tmp_prop_file, 'wb') as w:
+                w.write(prop_io.read())
+            prop = parse_setup_properties(tmp_prop_file)
             prop_keys = prop.keys()
-            print("prop list", prop_list)
             for p in prop_keys[:]:
                 if not p in prop_list:
                     print ("deleting " + p)
@@ -644,14 +651,13 @@ def install_gluu_server(task_id, server_id):
             #prop['ldap_hostname'] = server.hostname
             ldap_passwd = prop['ldapPass']
 
-            new_setup_properties_io = StringIO.StringIO()
-            prop.store(new_setup_properties_io)
-            new_setup_properties_io.seek(0)
-            new_setup_properties = new_setup_properties_io.read()
+            write_setup_properties_file(prop, tmp_prop_file)
 
             #put setup.properties to server
             remote_file_new = '/opt/gluu-server/root/setup.properties'
-            installer.put_file(remote_file_new, new_setup_properties)
+            installer.upload_file(tmp_prop_file, remote_file_new)
+
+            os.remove(tmp_prop_file)
 
             if ldap_passwd:
                 server.ldap_password = ldap_passwd

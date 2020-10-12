@@ -71,6 +71,11 @@ class AppConfigForm(FlaskForm):
         if is_resolved:
             raise ValidationError(is_resolved)
 
+    def validate_replication_pw(form, field):
+        for c in '\\\'"':
+            if c in field.data:
+                raise ValidationError("Use of {} prohibited".format(c))
+
 class SchemaForm(FlaskForm):
     schema = FileField(validators=[
         FileRequired(),
@@ -150,6 +155,11 @@ class ServerForm(FlaskForm):
         is_resolved = is_hostname_resolved(field.data)
         if is_resolved:
             raise ValidationError(is_resolved)
+
+    def validate_ldap_password(form, field):
+        for c in '\\\'"':
+            if c in field.data:
+                raise ValidationError("Use of {} prohibited".format(c))
 
 class TestUser(FlaskForm):
     first_name = StringField('First Name', validators=[DataRequired()])
