@@ -473,7 +473,7 @@ def do_disable_replication(task_id, server, primary_server, app_conf):
             '--hostname {} --adminUID admin --adminPassword $\'{}\' '
             '--trustAll --no-prompt').format(
                             server.hostname,
-                            app_conf.replication_pw.replace("'","\\'"))
+                            app_conf.replication_pw)
 
     cmd_fn = os.path.join(installer.container, 'root/.cmd')
     installer.put_file(cmd_fn, cmd)
@@ -491,7 +491,7 @@ def do_disable_replication(task_id, server, primary_server, app_conf):
             '/opt/opendj/bin/dsreplication status -n -X -h {} '
             '-p 4444 -I admin -w $\'{}\'').format(
                     primary_server.hostname,
-                    app_conf.replication_pw.replace("'","\\'"))
+                    app_conf.replication_pw)
 
     cmd_fn = os.path.join(installer.container, 'root/.cmd')
     installer.put_file(cmd_fn, cmd)
@@ -698,10 +698,10 @@ def opendjenablereplication(self, server_id):
                         "--replicationPort2 8989 --adminUID admin --adminPassword $'{}' "
                         "--baseDN 'o={}' --trustAll -X -n").format(
                             primary_server.hostname,
-                            primary_server.ldap_password.replace("'","\\'"),
+                            primary_server.ldap_password,
                             server.hostname,
-                            server.ldap_password.replace("'","\\'"),
-                            app_conf.replication_pw.replace("'","\\'"),
+                            server.ldap_password,
+                            app_conf.replication_pw,
                             base,
                             )
             
@@ -724,7 +724,7 @@ def opendjenablereplication(self, server_id):
                         "/opt/opendj/bin/dsconfig -h {} -p 4444 "
                         " -D  'cn=Directory Manager' -w $'{}' --trustAll "
                         "-n set-crypto-manager-prop --set ssl-encryption:true"
-                        ).format(primary_server.ip, primary_server.ldap_password.replace("'","\\'"))
+                        ).format(primary_server.ip, primary_server.ldap_password)
 
                 cmd_fn = os.path.join(installer.container, 'root/.cmd')
                 installer.put_file(cmd_fn, cmd)
@@ -741,7 +741,7 @@ def opendjenablereplication(self, server_id):
                     "/opt/opendj/bin/dsconfig -h {} -p 4444 "
                     " -D  'cn=Directory Manager' -w $'{}' --trustAll "
                     "-n set-crypto-manager-prop --set ssl-encryption:true"
-                    ).format(server.ip, primary_server.ldap_password.replace("'","\\'"))
+                    ).format(server.ip, primary_server.ldap_password)
 
             cmd_fn = os.path.join(installer.container, 'root/.cmd')
             installer.put_file(cmd_fn, cmd)
@@ -796,7 +796,7 @@ def opendjenablereplication(self, server_id):
                 "--adminPassword $'{}' --baseDN o={} --hostname {} "
                 "--port 4444 --trustAll --no-prompt"
                 ).format(
-                        app_conf.replication_pw.replace("'","\\'"),
+                        app_conf.replication_pw,
                         base,
                         primary_server.hostname,
                         )
@@ -824,7 +824,7 @@ def opendjenablereplication(self, server_id):
             "/opt/opendj/bin/dsreplication status -n -X -h {} "
             "-p 4444 -I admin -w $'{}'").format(
                     primary_server.hostname,
-                    app_conf.replication_pw.replace("'","\\'"))
+                    app_conf.replication_pw)
 
     
     cmd_fn = os.path.join(installer.container, 'root/.cmd')
