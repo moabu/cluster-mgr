@@ -422,9 +422,7 @@ def install_gluu_server(task_id, server_id):
         #add gluu server repo and imports signatures
         if ('Ubuntu' in server.os) or ('Debian' in server.os):
 
-            if server.os == 'Ubuntu 16':
-                dist = 'xenial'
-            elif server.os == 'Ubuntu 18':
+            if server.os == 'Ubuntu 18':
                 dist = 'bionic'
 
             if 'Ubuntu' in server.os:
@@ -459,29 +457,21 @@ def install_gluu_server(task_id, server_id):
             if not installer.conn.exists('/usr/bin/wget'):
                 installer.install('wget', inside=False, error_exception='warning: /var/cache/')
 
-            if server.os == 'CentOS 7':
+            os_name, os_version = server.os.split()
+            enable_command  = '/sbin/gluu-serverd enable'
 
-                cmd = (
-                  'wget https://repo.gluu.org/centos/Gluu-centos7.repo -O '
-                  #'wget https://repo.gluu.org/centos/Gluu-centos-7-testing.repo  -O '
+            cmd = (
+                  'wget https://repo.gluu.org/{0}/Gluu-{0}{1}.repo -O '
                   '/etc/yum.repos.d/Gluu.repo'
-                  )
-
-                enable_command  = '/sbin/gluu-serverd enable'
-
-            elif server.os == 'RHEL 7':
-                cmd = (
-                  'wget https://repo.gluu.org/rhel/Gluu-rhel7.repo -O '
-                  '/etc/yum.repos.d/Gluu.repo'
-                  )
-                enable_command  = '/sbin/gluu-serverd enable'
+                  ).format(os_name.lower(), os_version)
 
             installer.run(cmd, inside=False, error_exception='__ALL__')
 
             cmd = (
-              'wget https://repo.gluu.org/centos/RPM-GPG-KEY-GLUU -O '
+              'wget https://repo.gluu.org/{}/RPM-GPG-KEY-GLUU -O '
               '/etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'
-              )
+              ).format(os_name.lower())
+
             installer.run(cmd, inside=False, error_exception='__ALL__')
 
             cmd = 'rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-GLUU'

@@ -68,7 +68,7 @@ class Installer:
     
     def settings(self):
 
-        if self.server_os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
+        if self.server_os in ('CentOS 8', 'CentOS 7', 'RHEL 7', 'RHEL 8','Ubuntu 18'):
             self.init_command = '/sbin/gluu-serverd {0}'
             self.service_script = 'systemctl {1} {0}'
         else:
@@ -90,7 +90,7 @@ class Installer:
         elif self.conn.__class__.__name__ != 'FakeRemote':
             self.container = '/opt/gluu-server'
 
-            if self.server_os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
+            if self.server_os in ('CentOS 8', 'CentOS 7', 'RHEL 7', 'RHEL 8', 'Ubuntu 18'):
                 self.run_command = (
                         'ssh -q -o IdentityFile=/etc/gluu/keys/gluu-console '
                         '-o UserKnownHostsFile=/dev/null '
