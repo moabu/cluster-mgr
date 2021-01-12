@@ -66,6 +66,10 @@ class Installer:
     
         self.settings()
     
+    @property
+    def os_version(self):
+        return self.server_os.split()[1]
+    
     def settings(self):
 
         if self.server_os in ('CentOS 8', 'CentOS 7', 'RHEL 7', 'RHEL 8','Ubuntu 18'):

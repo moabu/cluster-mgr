@@ -247,7 +247,8 @@ def setup_filesystem_replication_do(task_id):
 
             elif installer.clone_type == 'rpm':
                 installer.epel_release(True)
-
+                
+                
                 if installer.server_os == 'RHEL 7':
                     centos_base_repo_file = os.path.join(
                                             app.root_path, 'templates',
@@ -256,12 +257,16 @@ def setup_filesystem_replication_do(task_id):
 
                     installer.upload_file(centos_base_repo_file, 
                             '/opt/gluu-server/etc/yum.repos.d/CentOS-Base.repo')
-                    
+                if installer.os_version == '8':
+                    csync_rpm = 'http://162.243.99.240/icrby8xcvbcv/csync2/csync2-2.0-3.gluu.el8.x86_64.rpm'
+                else:
+                    csync_rpm = 'http://162.243.99.240/icrby8xcvbcv/csync2/csync2-2.0-3.gluu.{}.x86_64.rpm'.format(server.os.replace(' ', '').lower())
+
                 installer.epel_release(True)
 
                 installer.run('curl http://mirror.centos.org/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7 >/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7', inside=True, error_exception= '__ALL__')
 
-                csync_rpm = 'http://162.243.99.240/icrby8xcvbcv/csync2/csync2-2.0-3.gluu.{}.x86_64.rpm'.format(server.os.replace(' ', '').lower())
+                
 
                 installer.install(csync_rpm, inside=True, error_exception= '__ALL__')
 
