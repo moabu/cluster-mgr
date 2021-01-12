@@ -578,9 +578,8 @@ def install_gluu_server(task_id, server_id):
     
     #Since we will make ssh inot centos container, we need to wait ssh server to
     #be started properly
-    if server.os in ('CentOS 7', 'RHEL 7', 'Ubuntu 18'):
-        wlogger.log(task_id, "Sleeping 10 secs to wait for gluu server start properly.")
-        time.sleep(10)
+    wlogger.log(task_id, "Sleeping 10 secs to wait for gluu server start properly.")
+    time.sleep(10)
 
     if installer.gluu_version.startswith('nochroot'):
         installer.run('ln -s / /opt/gluu-server', inside=False)

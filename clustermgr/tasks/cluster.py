@@ -929,6 +929,8 @@ def installNGINX(self, nginx_host, session_type):
                 nginx_installer.run('yum install -y http://162.243.99.240/icrby8xcvbcv/nginx/centos7/nginx-1.14.2-1.gluu.centos7.x86_64.rpm 2>&1', inside=False)
             elif nginx_installer.server_os == 'RHEL 7':
                 nginx_installer.run('yum install -y http://162.243.99.240/icrby8xcvbcv/nginx/rhel7/nginx-1.14.2-1.gluu.rhel7.x86_64.rpm 2>&1', inside=False)
+            elif nginx_installer.server_os in ('CentOS 8', 'RHEL 8'):
+                nginx_installer.run('yum install -y http://162.243.99.240/icrby8xcvbcv/nginx/el8/nginx-1.19.6-1.el8.ngx_sticky.x86_64.rpm 2>&1', inside=False)
 
 
     #Check if ssl certificates directory exist on this server
