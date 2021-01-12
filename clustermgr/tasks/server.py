@@ -284,17 +284,30 @@ def checkOfflineRequirements(installer, server, appconf):
             )
         return False
 
-    #Check if ntp was installed
-    if installer.conn.exists('/usr/sbin/ntpdate'):
-        wlogger.log(installer.logger_task_id, "ntpdate was installed", 'success')
+    if installer.clone_type == 'rpm' and installer.os_version == '8':
+        #Check if chrony was installed
+        if installer.conn.exists('/usr/sbin/chronyd'):
+            wlogger.log(installer.logger_task_id, "chronyd was installed", 'success')
+        else:
+            wlogger.log(
+                installer.logger_task_id, 
+                'chrony was not installed. Please install chrony on the host '
+                'system (outside of the container) and retry.', 
+                'error'
+                )
+            return False
     else:
-        wlogger.log(
-            installer.logger_task_id, 
-            'ntpdate was not installed. Please install ntpdate on the host '
-            'system (outside of the container) and retry.', 
-            'error'
-            )
-        return False
+        #Check if ntp was installed
+        if installer.conn.exists('/usr/sbin/ntpdate'):
+            wlogger.log(installer.logger_task_id, "ntpdate was installed", 'success')
+        else:
+            wlogger.log(
+                installer.logger_task_id, 
+                'ntpdate was not installed. Please install ntpdate on the host '
+                'system (outside of the container) and retry.', 
+                'error'
+                )
+            return False
 
     #Check if stunnel was installed
     if installer.conn.exists('/usr/bin/stunnel') or installer.conn.exists('/bin/stunnel'):
@@ -831,16 +844,27 @@ def install_gluu_server(task_id, server_id):
     #done by time stamp. If not isntalled, install and configure crontab
     wlogger.log(task_id, "Checking if ntp is installed and configured.")
 
-    if installer.conn.exists('/usr/sbin/ntpdate'):
-        wlogger.log(task_id, "ntp was installed", 'success')
+    if installer.clone_type == 'rpm' and installer.os_version == '8':
+        if installer.conn.exists('/usr/sbin/chronyd'):
+            wlogger.log(task_id, "chrony was installed", 'success')
+        else:
+            installer.install('chrony', inside=False)
+        
+        installer.enable_service('chronyd')
+        installer.start_service('chronyd')
+        
     else:
-        installer.install('ntpdate', inside=False)
 
-    #run time sync an every minute
-    installer.put_file('/etc/cron.d/setdate',
-                '* * * * *    root    /usr/sbin/ntpdate -s time.nist.gov\n')
-    wlogger.log(task_id, 'Crontab entry was created to update time in every minute',
-                     'debug')
+        if installer.conn.exists('/usr/sbin/ntpdate'):
+            wlogger.log(task_id, "ntp was installed", 'success')
+        else:
+            installer.install('ntpdate', inside=False)
+
+        #run time sync an every minute
+        installer.put_file('/etc/cron.d/setdate',
+                    '* * * * *    root    /usr/sbin/ntpdate -s time.nist.gov\n')
+        wlogger.log(task_id, 'Crontab entry was created to update time in every minute',
+                         'debug')
 
     if 'CentOS' in server.os or 'RHEL' in server.os:
         installer.restart_service('crond')
