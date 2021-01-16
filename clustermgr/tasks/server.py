@@ -720,6 +720,12 @@ def install_gluu_server(task_id, server_id):
 
     wlogger.log(task_id, "Connecting LDAP Server: {}".format(server.hostname), 'debug')
 
+    
+    if installer.clone_type == 'rpm' and installer.os_version == '8' and not installer.conn.exists(os.path.join(installer.container, 'usr/sbin/crond')):
+        installer.install('crontabs')
+        installer.enable_service('crond')
+        installer.start_service('crond')
+    
     if server.primary_server:
         ldapc.connect()
         ldapc.set_ldap_cache_cleanup_interval()
@@ -842,7 +848,7 @@ def install_gluu_server(task_id, server_id):
 
     #ntp is required for time sync, since ldap replication will be
     #done by time stamp. If not isntalled, install and configure crontab
-    wlogger.log(task_id, "Checking if ntp is installed and configured.")
+    wlogger.log(task_id, "Checking if time sysnc server (ntp/chronyd) is installed and configured.")
 
     if installer.clone_type == 'rpm' and installer.os_version == '8':
         if installer.conn.exists('/usr/sbin/chronyd'):
@@ -850,8 +856,8 @@ def install_gluu_server(task_id, server_id):
         else:
             installer.install('chrony', inside=False)
         
-        installer.enable_service('chronyd')
-        installer.start_service('chronyd')
+        installer.enable_service('chronyd', inside=False)
+        installer.start_service('chronyd', inside=False)
         
     else:
 
