@@ -497,7 +497,7 @@ def system(item):
         for h in data:
             for d in data[h]['data']:
                 for v in d[1:]:
-                    if not v=='null':
+                    if isinstance(v, float) or isinstance(v, int):
                         if v > max_value:
                             max_value = v
                         if v < min_value:
