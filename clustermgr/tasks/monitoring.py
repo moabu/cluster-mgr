@@ -141,7 +141,7 @@ def install_local(self):
                     'sudo pip install psutil',
                     ]
 
-            elif localos in ('CentOS 7', 'RHEL 7'):
+            elif localos in ('CentOS 8', 'CentOS 7', 'RHEL 7', 'RHEL 8'):
                 influx_cmd = [
                                 'sudo yum install -y epel-release',
                                 'sudo yum repolist',
@@ -268,20 +268,26 @@ def install_monitoring(self):
 
             # 5. Installing packages. 
             # 5a. First determine commands for each OS type
-            packages = ['gcc', 'python-dev', 'python-pip']
+            packages = ['gcc']
+            if installer.clone_type == 'rpm' and installer.os_version == '8':
+                packages += ['python2', 'python2-dev', 'python2-pip']
+            else:
+                packages += ['python-dev', 'python-pip']
 
             for package in packages:
                 installer.install(package, inside=False, error_exception='warning:')
 
             # 5b. These commands are common for all OS types 
             commands = [
-                            'pip install --upgrade setuptools==42.0.0',
-                            'pip install psutil==5.7.1',
-                            'pip install ldap3', 
-                            'pip install pyDes',
+                            'pip2 install --upgrade setuptools==42.0.0',
+                            'pip2 install psutil==5.7.1',
+                            'pip2 install ldap3', 
+                            'pip2 install pyDes',
                             'python /var/monitoring/scripts/'
                             'sqlite_monitoring_tables.py'
                             ]
+            if installer.clone_type == 'rpm' and installer.os_version == '8':
+                installer.run('ln -s /usr/bin/python2 /usr/bin/python', inside=False)
 
             if installer.clone_type == 'deb':
                 commands.append('service cron restart')
