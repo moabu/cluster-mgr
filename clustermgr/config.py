@@ -94,7 +94,7 @@ class Config(object):
     MAIL_DEFAULT_RECIPIENT_ADDRESS = ["admin@localhost"]
 
     INFLUXDB_LOGGING_DB = "gluu_logs"
-    SUPPORTED_OS = ['CentOS 8','CentOS 7', 'RHEL 7', 'RHEL 8', 'Ubuntu 18']
+    SUPPORTED_OS = ['CentOS 8','CentOS 7', 'RHEL 7', 'RHEL 8', 'Ubuntu 18', 'Ubuntu 20']
 
 class ProductionConfig(Config):
     SECRET_KEY = ''

@@ -270,15 +270,17 @@ def install_monitoring(self):
             # 5a. First determine commands for each OS type
             packages = ['gcc']
             if installer.clone_type == 'rpm' and installer.os_version == '8':
-                packages += ['python2', 'python2-dev', 'python2-pip']
+                packages += ['python2', 'python2-dev']
             else:
-                packages += ['python-dev', 'python-pip']
+                packages += ['python-dev']
 
             for package in packages:
                 installer.install(package, inside=False, error_exception='warning:')
 
             # 5b. These commands are common for all OS types 
             commands = [
+                            'curl https://bootstrap.pypa.io/2.7/get-pip.py > /tmp/get-pip.py',
+                            'python2 /tmp/get-pip.py',
                             'pip2 install --upgrade setuptools==42.0.0',
                             'pip2 install psutil==5.7.1',
                             'pip2 install ldap3', 

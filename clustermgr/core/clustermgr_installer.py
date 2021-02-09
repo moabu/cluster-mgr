@@ -72,12 +72,9 @@ class Installer:
     
     def settings(self):
 
-        if self.server_os in ('CentOS 8', 'CentOS 7', 'RHEL 7', 'RHEL 8','Ubuntu 18'):
-            self.init_command = '/sbin/gluu-serverd {0}'
-            self.service_script = 'systemctl {1} {0}'
-        else:
-            self.init_command = '/etc/init.d/gluu-server {0}'
-            self.service_script = 'service {0} {1}'
+
+        self.init_command = '/sbin/gluu-serverd {0}'
+        self.service_script = 'systemctl {1} {0}'
 
 
         if ('Ubuntu' in self.server_os) or ('Debian' in self.server_os):
@@ -94,15 +91,12 @@ class Installer:
         elif self.conn.__class__.__name__ != 'FakeRemote':
             self.container = '/opt/gluu-server'
 
-            if self.server_os in ('CentOS 8', 'CentOS 7', 'RHEL 7', 'RHEL 8', 'Ubuntu 18'):
-                self.run_command = (
-                        'ssh -q -o IdentityFile=/etc/gluu/keys/gluu-console '
-                        '-o UserKnownHostsFile=/dev/null '
-                        '-o Port=60022 -o StrictHostKeyChecking=no '
-                        '-o PubkeyAuthentication=yes root@localhost  "{0}"'
-                        )
-            else:
-                self.run_command = 'chroot {} /bin/bash -c "{}"'.format(self.container,'{}')
+            self.run_command = (
+                    'ssh -q -o IdentityFile=/etc/gluu/keys/gluu-console '
+                    '-o UserKnownHostsFile=/dev/null '
+                    '-o Port=60022 -o StrictHostKeyChecking=no '
+                    '-o PubkeyAuthentication=yes root@localhost  "{0}"'
+                    )
 
         else:
             self.run_command = '{}'
@@ -273,12 +267,9 @@ class Installer:
     def enable_service(self, service, inside=True, enable=True):
 
         condition = 'enable' if enable else 'disable'
-        
-        if self.clone_type == 'deb':
-            self.run('update-rc.d {0} {1}'.format(service, condition), inside=inside, error_exception='warning:')
-        else:
-            error_exception =  'Created symlink from' if enable else 'Removed symlink'
-            self.run(self.service_script.format(service, condition), inside=inside, error_exception=error_exception)
+
+        error_exception =  'Created symlink from' if enable else 'Removed symlink'
+        self.run(self.service_script.format(service, condition), inside=inside, error_exception=error_exception)
 
     def stop_service(self, service, inside=True):
         cmd = self.service_script.format(service, 'stop')

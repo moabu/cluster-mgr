@@ -379,12 +379,6 @@ def setup_filesystem_replication_do(task_id):
             installer.restart_service('xinetd')
             installer.restart_service('crond')
         else:
-            if server.os == 'Ubuntu 16':
-                pids = installer.run('pidof inetd')
-                if pids[1].strip():
-                    cmd = 'kill -9 {0}'.format( pids[1].strip())
-                    installer.run(cmd, error_exception='__ALL__')
-                    
             installer.restart_service('cron')
             installer.restart_service('openbsd-inetd')
 
@@ -918,9 +912,15 @@ def installNGINX(self, nginx_host, session_type):
                                 'libnginx-mod-stream_1.14.0-0ubuntu1.7_amd64.deb',
                                 'nginx-core_1.14.0-0ubuntu1.7_amd64.deb'
                                 ],
-                        '16': [
-                                'nginx-common_1.10.3-0ubuntu0.16.04.5_all.deb',
-                                'nginx-core_1.10.3-0ubuntu0.16.04.5_amd64.deb'
+                        '20': [
+                           
+                                'nginx-common_1.18.0-0ubuntu1_all.deb',
+                                'libnginx-mod-http-geoip_1.18.0-0ubuntu1_amd64.deb',
+                                'libnginx-mod-http-xslt-filter_1.18.0-0ubuntu1_amd64.deb',
+                                'libnginx-mod-mail_1.18.0-0ubuntu1_amd64.deb',
+                                'libnginx-mod-stream_1.18.0-0ubuntu1_amd64.deb',
+                                'libnginx-mod-http-image-filter_1.18.0-0ubuntu1_amd64.deb',
+                                'nginx-core_1.18.0-0ubuntu1_amd64.deb',
                                 ]
                         }
                 ubuntu_ver = nginx_installer.server_os.split()[1]

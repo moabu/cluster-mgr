@@ -39,6 +39,8 @@ def get_os_type(self):
 
     if "Ubuntu" in cout and "18.04" in cout:
         os_type = "Ubuntu 18"
+    if "Ubuntu" in cout and "20.04" in cout:
+        os_type = "Ubuntu 20"
     if "CentOS" in cout and "release 7." in cout:
         os_type = "CentOS 7"
     if "CentOS" in cout and "release 8." in cout:

@@ -161,10 +161,11 @@ def _install_filebeat(installer):
     if installer.clone_type == 'deb':
         installer.install('apt-transport-https', inside=False)
         installer.install('filebeat', inside=False)
-        installer.run('update-rc.d filebeat defaults 95 10', inside=False)
     else:
         installer.install('filebeat', inside=False)
-        installer.run('chkconfig --add filebeat', inside=False)
+
+    installer.enable_service('filebeat')
+
 
 
 def _render_filebeat_config(installer):

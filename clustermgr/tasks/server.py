@@ -437,6 +437,8 @@ def install_gluu_server(task_id, server_id):
 
             if server.os == 'Ubuntu 18':
                 dist = 'bionic'
+            elif server.os == 'Ubuntu 20':
+                dist = 'focal'
 
             if 'Ubuntu' in server.os:
                 cmd_list = (
@@ -561,8 +563,9 @@ def install_gluu_server(task_id, server_id):
 
     else:
 
-        if server.os in ('Ubuntu 16', 'Ubuntu 18'):
-            gluu_package_name = gluu_server + '=' + app_conf.gluu_version + '~' + dist
+        if server.os in ('Ubuntu 18', 'Ubuntu 20'):
+            installer.put_file('/etc/apt/apt.conf.d/90forceconf', 'Dpkg::Options {\n  "--force-confdef";\n  "--force-confold";\n}')
+            gluu_package_name = gluu_server + '=' + app_conf.gluu_version + '~ubuntu' + installer.os_version + '.04'
         else:
             gluu_package_name = gluu_server + '-' + app_conf.gluu_version
 
@@ -915,7 +918,9 @@ def install_gluu_server(task_id, server_id):
                         "LDAP Connection failed.",
                         "error")
             return
-
+    else:
+        installer.restart_service('opendj')
+        
     wlogger.log(task_id, "5", "setstep")
     return True
 
