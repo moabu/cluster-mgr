@@ -79,6 +79,13 @@ $('#installOxd').change(function(){
   check_oxd_install();
 });
 
+
+$('#installCasa').change(function(){
+  if ($(this).is(":checked")) {
+    $('#oxd_use_gluu_storage').prop( "checked", true );
+  }
+});
+
 function check_oxd_install() {
   var oxdInstalled = $('#installOxd').is(":checked");
   $('#oxd_use_gluu_storage').prop("disabled", !oxdInstalled);
