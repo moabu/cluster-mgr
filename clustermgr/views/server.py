@@ -202,17 +202,14 @@ def remove_server(server_id):
         if server.primary_server:
             flash("Please first remove non-primary servers ", "danger")
             return redirect(url_for('index.home'))
-            
 
     if (not server.gluu_server) or (request.args.get('removefromdashboard') == 'true'):
         db.session.delete(server)
         db.session.commit()
         flash("Server {0} is removed.".format(server.hostname), "success")
+
         return redirect(url_for('index.home'))
 
-
-    
-        
 
     disable_replication = True if request.args.get('disablereplication') == \
                                'true' else False
@@ -291,7 +288,6 @@ def install_gluu(server_id):
         setup_prop['admin_email'] = form.admin_email.data.strip()
         setup_prop['application_max_ram'] = str(form.application_max_ram.data)
 
-
         for o in ('installOxAuth',
                   'installOxTrust',
                   'installLdap',
@@ -302,6 +298,7 @@ def install_gluu(server_id):
                   'installOxd',
                   'installCasa',
                   'application_max_ram',
+                  'oxd_use_gluu_storage',
                   ):
             setup_prop[o] = getattr(form, o).data
         setup_prop['ldap_type'] = 'opendj'
@@ -310,7 +307,7 @@ def install_gluu(server_id):
         setup_prop['installLdap'] = True
         setup_prop['oxd_server_https'] = 'https://localhost:8443'
         setup_prop['clustering'] = True
-        
+
         if setup_prop['installCasa']:
             setup_prop['installOxd'] = True
 
@@ -332,7 +329,7 @@ def install_gluu(server_id):
         form.orgName.data = setup_prop['orgName']
         form.admin_email.data = setup_prop['admin_email']
         form.application_max_ram.data = setup_prop['application_max_ram']
-
+        form.oxd_use_gluu_storage = setup_prop['oxd_use_gluu_storage']
 
         for o in ('installOxAuth',
                   'installOxTrust',
@@ -343,7 +340,6 @@ def install_gluu(server_id):
                   'installPassport',
                   'installOxd',
                   'installCasa',
-                  
                   ):
             getattr(form, o).data = as_boolean(setup_prop.get(o, ''))
 

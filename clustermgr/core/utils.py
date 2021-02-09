@@ -238,6 +238,7 @@ def get_setup_properties(createNew=False):
         'ldap_type': 'opendj',
         'opendj_type': 'wrends',
         'installLdap': True,
+        'oxd_use_gluu_storage': False,
         'application_max_ram': 3072,
         }
 

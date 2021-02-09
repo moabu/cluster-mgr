@@ -75,6 +75,19 @@ $('#submit_passphrase').click(function(e){
     $("#passphrase_modal").modal("hide");
 });
 
+$('#installOxd').change(function(){
+  check_oxd_install();
+});
+
+function check_oxd_install() {
+  var oxdInstalled = $('#installOxd').is(":checked");
+  $('#oxd_use_gluu_storage').prop("disabled", !oxdInstalled);
+}
+
+$( document ).ready(function() {
+  check_oxd_install();
+});
+
 </script>
 {% endblock %}
 

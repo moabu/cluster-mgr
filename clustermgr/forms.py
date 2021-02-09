@@ -195,6 +195,7 @@ class InstallServerForm(FlaskForm):
     installOxAuthRP = BooleanField('Install oxAuth RP')
     installPassport = BooleanField('Install Passport')
     installOxd = BooleanField('Install Oxd')
+    oxd_use_gluu_storage = BooleanField('Use Gluu Storage for Oxd')
     installCasa = BooleanField('Install Casa')
     
     gluu_licence = SelectField(
