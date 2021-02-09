@@ -1,3 +1,18 @@
+
+# Install CM on CentOS 8
+
+```
+yum install -y epel-release
+yum repolist
+yum remove python2-pyasn1 python2-pyasn1-modules
+yum install gcc gcc-c++ libffi-devel make python2 python2-devel openssl-devel openldap-devel python2-pip java-1.8.0-openjdk-headless
+
+pip2 install --upgrade setuptools==42.0.0
+pip2 install --upgrade psutil==5.7.2
+pip2 install https://github.com/GluuFederation/redislite/archive/master.zip
+pip2 https://github.com/GluuFederation/cluster-mgr/archive/4.2.zip
+```
+
 # Instal CM on RedHat 7
 
 
