@@ -19,6 +19,7 @@ from clustermgr.core.utils import is_hostname_resolved
 
 class AppConfigForm(FlaskForm):
     versions = [
+                '4.2.3',
                 '4.2.2',
                 '4.2.1',
                 'nochroot-4.2.1',
