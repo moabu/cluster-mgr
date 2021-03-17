@@ -28,6 +28,7 @@ setup(
     zip_safe=False,
     include_package_data=True,
     install_requires=[
+        "email_validator==1.1.2",
         "vine",
         "more_itertools==5.0.0",
         "MarkupSafe>=0.23",
