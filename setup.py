@@ -30,7 +30,6 @@ setup(
     install_requires=[
         "email_validator==1.1.2",
         "idna==2.10",
-        "importlib-metadata==2.1.0",
         "itsdangerous==1.1.0",
         "dnspython==1.16.0",
         "jinja2==2.11.2",
@@ -66,8 +65,7 @@ setup(
         'gunicorn==19.7.1',
         'psutil==5.7.2',
         'pyasn1==0.4.8',
-        'pyasn1-modules==0.2.8',
-        'email-validator==1.1.1',
+        'pyasn1-modules==0.2.8'
     ],
     scripts=['clusterapp.py', 'clustermgr4-cli'],
     classifiers=[
