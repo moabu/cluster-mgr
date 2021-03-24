@@ -28,6 +28,7 @@ setup(
     zip_safe=False,
     include_package_data=True,
     install_requires=[
+        "email_validator==1.1.2",
         "itsdangerous==1.1.0",
         "dnspython==1.16.0",
         "jinja2==2.11.2",
@@ -47,7 +48,7 @@ setup(
         "Flask==1.1.2",
         "Flask-WTF",
         "celery==4.2.1",
-        "Flask-SQLAlchemy",
+        "Flask-SQLAlchemy==2.2",
         "requests==2.24.0",
         "Flask-Migrate",
         "ldap3==2.7",
