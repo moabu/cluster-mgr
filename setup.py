@@ -29,6 +29,8 @@ setup(
     include_package_data=True,
     install_requires=[
         "email_validator==1.1.2",
+        "idna==2.10",
+        "importlib-metadata==2.1.0",
         "itsdangerous==1.1.0",
         "dnspython==1.16.0",
         "jinja2==2.11.2",
@@ -57,7 +59,7 @@ setup(
         "Flask-Login==0.5.0",
         "Flask-Mail==0.9.1",
         "cryptography==3.3.1",
-        "ipaddress==1.0.17",
+        "ipaddress==1.0.16",
         "enum34==1.1.10",
         "python-dateutil==2.8.1",
         "influxdb==5.0.0",
