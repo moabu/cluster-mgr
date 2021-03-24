@@ -29,6 +29,7 @@ setup(
     include_package_data=True,
     install_requires=[
         "email_validator==1.1.2",
+        "SQLAlchemy==1.3.23",
         "idna==2.10",
         "itsdangerous==1.1.0",
         "dnspython==1.16.0",
