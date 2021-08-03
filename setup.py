@@ -48,7 +48,7 @@ setup(
         "alembic==1.4.2",
         "WTForms==2.3.3",
         "Flask==1.1.2",
-        "Flask-WTF",
+        "Flask-WTF==0.14.3",
         "celery==4.2.1",
         "Flask-SQLAlchemy==2.2",
         "requests==2.24.0",
