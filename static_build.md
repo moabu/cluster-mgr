@@ -52,6 +52,7 @@ You need to create new `clustermgr4.tgz` and copy to RHEL8 that has no internet 
 ## On RHEL8 Machine Has no Internet Access
 
 Install python2
+
 `yum install python2`
 
 On this machine you need java-1.8 installed. Extract `clustermgr4.tgz` package:
