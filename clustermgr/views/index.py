@@ -172,11 +172,11 @@ def app_configuration():
 
                 c = None
                 server = Server.query.first()
-                
+
                 if server:
-                
+
                     c = RemoteClient(server.hostname, ip=server.ip, ssh_port=server.ssh_port)
-                    
+
                     try:
                         c.startup()
                     except Exception as e:
@@ -201,13 +201,13 @@ def app_configuration():
                             flash("Replication password is changed", "success")
                             config.replication_pw = new_replication_passwd
  
-        
+
         config.gluu_version = conf_form.gluu_version.data.strip()
         config.nginx_host = conf_form.nginx_host.data.strip()
         config.nginx_ip = conf_form.nginx_ip.data.strip()
         config.nginx_ssh_port = conf_form.nginx_ssh_port.data
         config.modify_hosts = conf_form.modify_hosts.data
-        
+
         config.ldap_update_period = conf_form.ldap_update_period.data
         config.ldap_update_period_unit = 's'
         config.external_load_balancer = conf_form.external_load_balancer.data
@@ -230,7 +230,7 @@ def app_configuration():
         if getattr(conf_form, 'replication_pw'):
             if conf_form.replication_pw_confirm.data:
                 config.replication_pw = conf_form.replication_pw.data.strip()
-    
+
         config.gluu_version = conf_form.gluu_version.data.strip()
 
         db.session.commit()
@@ -289,12 +289,12 @@ def app_configuration():
         
         if not conf_form.nginx_ssh_port.data:
             conf_form.nginx_ssh_port.data = 22
-        
+
         #if config.external_load_balancer:
         #    conf_form.cache_host.data = config.cache_host
         #    conf_form.cache_ip.data = config.cache_ip
-        
-        
+
+
         service_status_update_period = config.ldap_update_period
 
         if service_status_update_period and config.ldap_update_period_unit != 's':
@@ -311,7 +311,7 @@ def app_configuration():
 
     #create fake remote class that provides the same interface with RemoteClient
     fc = FakeRemote()
-    
+
     #Getermine local OS type
     localos = fc.get_os_type()
 
@@ -517,7 +517,7 @@ def upgrade_clustermgr():
     """Initiates upgrading of clustermgr"""
 
     task = upgrade_clustermgr_task.delay()
-    print "TASK STARTED", task.id
+    print("TASK STARTED", task.id)
     title = "Upgrading clustermgr"
     nextpage = url_for("index.home")
     whatNext = "Go to Dashboard"

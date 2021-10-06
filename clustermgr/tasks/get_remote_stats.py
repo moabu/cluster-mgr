@@ -40,7 +40,7 @@ def write_influx(host, measurement, data):
                             "time": d[0],
                             "fields": fields,
                             })
-    
+    print("Writing data to InfluxDB")
     client.write_points(json_body, time_precision='s')
 
 
@@ -57,10 +57,10 @@ def get_last_update_time(host, measurement):
     """
 
     measurement_suffix = host.replace('.','_')
-    
-    result = client.query('SELECT * FROM "{}" order by time desc limit 1'.format(measurement_suffix+'_'+measurement), epoch='s')
 
-    if result.raw.has_key('series'):
+    result = client.query('SELECT * FROM {} order by time desc limit 1'.format(measurement_suffix+'_'+measurement), epoch='s')
+
+    if result.raw.get('series'):
         return result.raw['series'][0]['values'][0][0]
     return 0
 
@@ -77,14 +77,15 @@ def get_remote_data(host, measurement, c):
     """
 
     start = get_last_update_time(host, measurement)
+    #start = 0
+    print("Monitoring: last update time {} for measurement {} for host {}".format(start, measurement, host))
 
-    print "Monitoring: last update time {} for measuremenet {} for host {}".format(start, measurement, host)
-    
     #Execute remote script and fetch standard output
-    cmd = 'python /var/monitoring/scripts/get_data.py stats {} {}'.format(
+    cmd = 'python3 /var/monitoring/scripts/get_data.py stats {} {}'.format(
                                 measurement,
                                 start
                                 )
+    print("Monitoring: executing remote command", cmd)
     s_in, s_out, s_err = c.run(cmd)
 
     #If nothing bad on the remote server, data on the standard output shoul be
@@ -92,17 +93,17 @@ def get_remote_data(host, measurement, c):
     try:
         data = json.loads(s_out)
     except Exception as e:
-        print "Monitoring: Server {} did not return json data. Error {}".format(host, e)
+        print("Monitoring: Server {} did not return json data. Error {}".format(host, e))
         return
 
-    print "Monitoring: {} records received for measurement {} from host {}".format(len(data['data']['data']), measurement, host)
+    print("Monitoring: {} records received for measurement {} from host {}".format(len(data['data']['data']), measurement, host))
     
     #wrtite fetched data to imnfluxdb
     write_influx(host, measurement, data['data'])
 
-    
+
 def get_age(host, c):
-    
+
     """This function isdeprecieated!
     Fetches umptime for host and writes to influxdb
 
@@ -112,36 +113,44 @@ def get_age(host, c):
             for the SSH communication
     """
 
-    
-    print "Monitoring: fetching uptime for {}".format(host)
-    cmd = 'python /var/monitoring/scripts/get_data.py age'
+
+    print("Monitoring: fetching uptime for {}".format(host))
+    cmd = 'python3 /var/monitoring/scripts/get_data.py age'
     s_in, s_out, s_err = c.run(cmd)
 
     try:
         data = json.loads(s_out)
-        arg_d = {u'fields': ['time', u'uptime'], u'data': [[int(time.time()), data['data']['uptime']]]}
+        arg_d = {'fields': ['time', 'uptime'], 'data': [[int(time.time()), data['data']['uptime']]]}
     except Exception as e:
-        print "Monitoring: server {} did not return json data. Error: {}".format(host, e)
-        arg_d = {u'fields': ['time', u'uptime'], u'data': [[int(time.time()), 0]]}
-        return
-    
-    print "Monitoring: uptime {}".format(data['data'])
+        print("Monitoring: server {} did not return json data. Error: {}".format(host, e))
+        arg_d = {'fields': ['time', 'uptime'], 'data': [[int(time.time()), 0]]}
+
+    print("Monitoring: uptime {}".format(data['data']))
     write_influx(host, 'uptime', arg_d)
-    
+
 @celery.task
 def get_remote_stats():
+    print("Monitoring Statistics task")
     app_conf = AppConfiguration.query.first()
     if app_conf:
         if app_conf.monitoring:
-        
+
             servers = Server.get_all()
             for server in servers:
-                print "Monitoring: getting data for server {}".format(server.hostname)
-                c = RemoteClient(server.hostname, ip=server.ip, ssh_port=server.ssh_port)
+                c = RemoteClient(server.hostname, ip=server.ip)
                 try:
+                    print("Monitoring: making ssh connection to server {}".format(server.hostname))
                     c.startup()
-                    for t in sqlite_monitoring_tables.monitoring_tables:
-                        get_remote_data(server.hostname, t, c)
-                        get_age(server.hostname, c)
                 except Exception as e:
-                    print "Monitoring: An error occurred while retreiveing monitoring data from server {}. Error {}".format(server.hostname, e)
+                    print("Monitoring: An error occurred while making ssh connection {}".format(e))
+                else:
+                    print("Monitoring: getting data for derver {}".format(server.hostname))
+                    try:
+                        get_age(server.hostname, c)
+                    except Exception as e:
+                        print("Monitoring: An error occurred while retreiveing monitoring data from server {}. Error {}".format(server.hostname, e))
+                    for t in sqlite_monitoring_tables.monitoring_tables:
+                        try:
+                            get_remote_data(server.hostname, t, c)
+                        except Exception as e:
+                            print("Monitoring: An error occurred while retreiveing {} data from server {}. Error {}".format(t, server.hostname, e))

@@ -131,7 +131,7 @@ def add_cache_server():
         stunnel_port = form.stunnel_port.data
         ssh_port = form.ssh_port.data
 
-        print("SSH Port", ssh_port)
+        print(("SSH Port", ssh_port))
 
         if not cid:
             cacheserver = CacheServer()

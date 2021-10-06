@@ -19,9 +19,9 @@ attr_list = ["addRequests", "modifyRequests", "deleteRequests", "searchRequests"
 sql_db_file = os.path.join(data_path, 'gluu_monitoring.sqlite3')
 
 def get_ldap_admin_password():
-    
+
     """Retreives ldap directory manager password from gluu installation
-    
+
     Returns:
         string: ldap directory manager password
     """
@@ -39,27 +39,32 @@ def get_ldap_admin_password():
 
 
 def execute_query(table, data, options=None):
-    
+
     """Writes data to sqlite database
 
     Args:
         tables (string): table name
         data: compound data to be written to database
     """
-    
+
+    for i,d in enumerate(data):
+        if isinstance(d, bytes):
+            data[i] = d.decode()
+
     tmpdata = [ str(d) for d in data ]
-    
+
     datas = ', '.join(tmpdata)
-    
+
     if not options:
         options = monitoring_tables[table]
-    
+
     options = ['`{0}`'.format(o) for o in options]
-    
+
     query = 'INSERT INTO {0} (time, {1}) VALUES ({2}, {3})'.format(
                                         table,
                                         ', '.join(options), 
                                         int(time.time()), datas)
+    print(query)
     cur.execute(query)
 
 def collect_ldap_monitoring():
@@ -75,7 +80,7 @@ def collect_ldap_monitoring():
     try:
         conn.bind()
     except:
-        print "Can't connect to ldap server"
+        print("Can't connect to ldap server")
     else:
 
         conn.search(
@@ -98,7 +103,7 @@ def collect_cpu_info():
     data = [float(cpu_times.system), float(cpu_times.user), float(cpu_times.nice), float(cpu_times.idle), 
             float(cpu_times.iowait), float(cpu_times.irq), float(cpu_times.softirq), 
             float(cpu_times.steal), float(cpu_times.guest)]
-    
+
     execute_query('cpu_info', data)
 
 def collect_cpu_percent():
@@ -119,7 +124,7 @@ def collect_disk_usage():
     
     """Collects disk usage (per partition) and write to local sqlite database
     """
-    
+
     disks = psutil.disk_partitions()
 
     cur.execute('SELECT * FROM disk_usage LIMIT 1')
@@ -139,7 +144,7 @@ def collect_disk_usage():
                 break
         else:
             data.append(0.0)
-    
+
     execute_query('disk_usage', data, dnames)
     
 

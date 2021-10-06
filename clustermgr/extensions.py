@@ -18,7 +18,7 @@ db = SQLAlchemy()
 csrf = CSRFProtect()
 migrate = Migrate()
 wlogger = WebLogger()
-celery = Celery('clustermgr.application', backend=Config.CELERY_RESULT_BACKEND,
+celery = Celery('clustermgr.application', backend=Config.result_backend,
                 broker=Config.CELERY_BROKER_URL
                 )
 login_manager = LoginManager()

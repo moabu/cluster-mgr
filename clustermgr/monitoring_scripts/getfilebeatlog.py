@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import json
 import os
@@ -24,9 +24,9 @@ if os.path.exists(filebeat_fn):
                 matched = True
 
             if matched:
-                print l,
+                print(l, end=' ')
 
     if not matched:
         with open(filebeat_fn) as f:
             for l in f:
-                print l,
+                print(l, end=' ')

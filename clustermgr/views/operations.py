@@ -52,7 +52,7 @@ def update_httpd_certificate():
     httpd_crt = cert_form.httpd_crt.data
     
     task = update_httpd_certs_task.delay(httpd_key, httpd_crt)
-    print "TASK STARTED", task.id
+    print("TASK STARTED", task.id)
     head = "Updating HTTPD Certificate"
     nextpage = "index.home"
     whatNext = "Go to Dashboard"

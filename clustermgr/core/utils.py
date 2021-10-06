@@ -27,7 +27,7 @@ from clustermgr.core.jproperties import Properties
 import traceback
 
 
-DEFAULT_CHARSET = string.ascii_uppercase + string.digits + string.lowercase
+DEFAULT_CHARSET = string.ascii_uppercase + string.digits + string.ascii_lowercase
 
 port_status_cmd = '''python -c "import socket;sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM); socket.setdefaulttimeout(2.0); print (sock.connect_ex(('{}', {})))"'''
 
@@ -144,7 +144,7 @@ def split_redis_cluster_slots(nodes):
     parts = 16384 / nodes
     allotted = -1
     ranges = []
-    for i in xrange(nodes):
+    for i in range(nodes):
         if i == nodes-1:
             ranges.append((allotted+1, 16383))
         else:
@@ -278,7 +278,7 @@ def get_opendj_replication_status():
                     primary_server.ip,
                     app_conf.replication_pw)
 
-    print "Uploading cmd"
+    print("Uploading cmd")
     cmd_fn = os.path.join(installer.container, 'root/.cmd')
     installer.put_file(cmd_fn, cmd)
     stdin, stdout, stderr = installer.run('bash /root/.cmd')
@@ -450,7 +450,7 @@ def get_cache_servers():
 def is_hostname_resolved(hostname):
     result = ''
     try:
-        print socket.gethostbyname(hostname)
+        print(socket.gethostbyname(hostname))
     except:
         result = ("Unable to resolve hostname {}. Please check the DNS record, "
                   "or add the hostname to /etc/hosts of the cluster "

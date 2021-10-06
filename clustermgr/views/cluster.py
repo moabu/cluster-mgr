@@ -136,7 +136,7 @@ def remove_deployment(server_id):
 
     # Start deployment removal celery task
     task = removeMultiMasterDeployement.delay(server_id)
-    print "TASK STARTED", task.id
+    print("TASK STARTED", task.id)
     title = "Removing Deployment"
     nextpage = url_for('index.multi_master_replication')
     whatNext = "Multi Master Replication"
@@ -217,7 +217,7 @@ def do_install_nginx():
     # Start nginx  installation celery task
     task = installNGINX.delay(app_conf.nginx_host, session_type)
 
-    print "Install NGINX TASK STARTED", task.id
+    print("Install NGINX TASK STARTED", task.id)
     head = "Configuring NGINX Load Balancer on {0}".format(app_conf.nginx_host)
 
     if request.args.get('next') == 'this':
@@ -238,7 +238,7 @@ def do_uninstall_nginx():
     
     # Start nginx  uninstallation celery task
     task = uninstallNGINX.delay()
-    print "Uninstall NGINX TASK STARTED", task.id
+    print("Uninstall NGINX TASK STARTED", task.id)
     head = "Uninstalling NGINX Load Balancer on {0}".format(app_conf.nginx_host)
 
     nextpage = url_for('cluster.install_nginx')
@@ -269,7 +269,7 @@ def opendj_enable_replication(server_id):
 
 
 def chekFSR(server, gluu_version):
-    print "Checking File System Replication"
+    print("Checking File System Replication")
     c = RemoteClient(server.hostname, ip=server.ip, ssh_port=server.ssh_port)
     try:
         c.startup()
@@ -307,7 +307,7 @@ def fsrep_health():
         try:
             c.startup()
         except Exception as e:
-            print "Can't establish SSH connection to", server.hostname, "Reason:", e
+            print("Can't establish SSH connection to", server.hostname, "Reason:", e)
     
         csyncs2_cmd = port_status_cmd.format('localhost', 30865)
         r = c.run(csyncs2_cmd)

@@ -6,7 +6,7 @@ import time
 import subprocess
 import uuid
 import traceback
-import StringIO
+import io
 import json
 import binascii
 
@@ -29,7 +29,7 @@ from clustermgr.core.ldap_functions import LdapOLC, getLdapConn
 
 @celery.task(bind=True)
 def collect_server_details(self, server_id):
-    print "Start collecting server details task"
+    print("Start collecting server details task")
     app_conf = AppConfiguration.query.first()
     
     if server_id == -1:
@@ -73,7 +73,7 @@ def collect_server_details(self, server_id):
     installed = []
     
     if server.gluu_server:
-        for component, marker in components.iteritems():
+        for component, marker in components.items():
             marker = os.path.join(installer.container, marker)
             if installer.conn.exists(marker):
                 installed.append(component)
@@ -638,16 +638,16 @@ def install_gluu_server(task_id, server_id):
             installer.run('rm -f ' + remote_file)
 
         prop = Properties()
-        
+
         if prop_io:
             tmp_prop_file = '/tmp/{}.properties'.format(binascii.b2a_hex(os.urandom(4)))
-            with open(tmp_prop_file, 'wb') as w:
+            with open(tmp_prop_file, 'w') as w:
                 w.write(prop_io.read())
             prop = parse_setup_properties(tmp_prop_file)
-            prop_keys = prop.keys()
+            prop_keys = list(prop.keys())
             for p in prop_keys[:]:
                 if not p in prop_list:
-                    print ("deleting " + p)
+                    print(("deleting " + p))
                     del prop[p]
 
             prop['ip'] = str(server.ip)
@@ -683,7 +683,6 @@ def install_gluu_server(task_id, server_id):
     if os.path.exists(setup_py):
         remote_py = '/opt/gluu-server/install/community-edition-setup/setup.py'
         installer.upload_file(setup_py, remote_py)
-        installer.run('chmod +x ' + remote_py, inside=False)
 
     opendj_properties_fn = os.path.join(app.root_path, 'templates', 'opendj', 'opendj-setup.properties')
 
@@ -691,18 +690,24 @@ def install_gluu_server(task_id, server_id):
         remote_fn = '/opt/gluu-server/install/community-edition-setup/templates/opendj-setup.properties'
         installer.upload_file(opendj_properties_fn, remote_fn)
 
-    setup_cmd = '/install/community-edition-setup/setup.py -f /root/setup.properties --listen_all_interfaces -n'
+    setup_cmd = 'python3 -u /install/community-edition-setup/setup.py -f /root/setup.properties --listen_all_interfaces -n'
     if app_conf.gluu_version.replace('nochroot-', '') >= '4.2.0':
         setup_cmd += ' -c'
+
+    if app_conf.gluu_version.replace('nochroot-', '') >= '4.3.0':
+        setup_cmd += ' --no-progress'
 
     #Don't load base data for secondary nodes
     if not server.primary_server:
         setup_cmd += ' --no-data'
 
     cmd = installer.run_command.format(setup_cmd)
-    
-    re_list = [re.compile(' \[(#|\s)*\] ')]
-    
+
+    if app_conf.gluu_version.replace('nochroot-', '') < '4.3.0':
+        re_list = [re.compile(' \[(#|\s)*\] ')]
+    else:
+        re_list = []
+
     all_cout = installer.run_channel_command(cmd, re_list)
 
     wlogger.log(task_id, "4", "setstep")
@@ -766,13 +771,11 @@ def install_gluu_server(task_id, server_id):
 
         #delete old keys and import new ones
         wlogger.log(task_id, 'Manuplating keys')
-        for suffix in (
-                'httpd',
-                'shibIDP',
-                'idp-encryption',
-                #'asimba',
-                setup_prop['ldap_type'],
-                ):
+        suffix_list = ['httpd', setup_prop['ldap_type']]
+        if str(setup_prop.get('installSaml','')).lower() == 'true':
+            suffix_list.append('shibIDP', 'idp-encryption')
+
+        for suffix in suffix_list:
             installer.delete_key(suffix, app_conf.nginx_host)
             installer.import_key(suffix, app_conf.nginx_host)
 
@@ -782,10 +785,10 @@ def install_gluu_server(task_id, server_id):
                                             installer.conn, 
                                             'opendj', gluu_server
                                         )
-                                        
-        #create base dn for o=metric backend    
+
+        #create base dn for o=metric backend
         wlogger.log(task_id, "Creating base dn for o=metric backend")
-        
+
         if not ldapc.connect():
             wlogger.log(task_id, "Cannot connect to ldap server. Failed to "
                             "create base dn for o=metric backend", 'warning')
@@ -861,7 +864,7 @@ def install_gluu_server(task_id, server_id):
         
         installer.enable_service('chronyd', inside=False)
         installer.start_service('chronyd', inside=False)
-        
+
     else:
 
         if installer.conn.exists('/usr/sbin/ntpdate'):
@@ -878,6 +881,7 @@ def install_gluu_server(task_id, server_id):
     if 'CentOS' in server.os or 'RHEL' in server.os:
         installer.restart_service('crond')
     else:
+        installer.run('systemctl daemon-reload')
         installer.restart_service('cron')
 
     # we need to download pathced oxauth.war for key rotation for version 4.0

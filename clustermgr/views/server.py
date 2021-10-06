@@ -77,7 +77,7 @@ def index():
         server.hostname = form.hostname.data.strip()
         server.ip = form.ip.data.strip()
         server.ssh_port = form.ssh_port.data
-        print("SSH Port", server.ssh_port)
+        print(("SSH Port", server.ssh_port))
         server.mmr = False
         ask_passphrase = False
 
@@ -116,7 +116,7 @@ def index():
         #        "added to /root/.ssh/authorized_keys on this server".format(
         #                                            server.hostname))
         
-            print "ask_passphrase", ask_passphrase
+            print("ask_passphrase", ask_passphrase)
         
             return render_template('new_server.html',
                        form=form,
@@ -420,7 +420,7 @@ def confirm_setup_properties(server_id):
     setup_prop['ip'] = server.ip
     setup_prop['ldapPass'] = server.ldap_password
 
-    keys = setup_prop.keys()
+    keys = list(setup_prop.keys())
     keys.sort()
 
     return render_template(
@@ -475,7 +475,7 @@ def test_port(server, client, port, port_status_cmd):
             if i > 5:
                 break
     except Exception as e:
-        print e
+        print(e)
         return False
 
 
@@ -501,7 +501,7 @@ def dry_run(server_id):
         c.startup()
         result['server']['ssh']=True
     except Exception as e:
-        print e
+        print(e)
         pass
 
     c.use_py3 = False
@@ -532,7 +532,7 @@ def dry_run(server_id):
             c_nginx.startup()
             result['nginx']['ssh']=True
         except Exception as e:
-            print e
+            print(e)
 
         c_nginx.use_py3 = False
         if c_nginx.run('which python3')[1].strip():
@@ -578,7 +578,7 @@ def make_primary(server_id):
 @login_required
 def install_gluu_server(server_id):
     
-    print "Installing Gluu Server"
+    print("Installing Gluu Server")
     
     task = task_install_gluu_server.delay(server_id)
     
@@ -606,7 +606,7 @@ def install_gluu_server(server_id):
 
 @server_view.route('/test', methods=['GET'])
 def test_view():
-    print "Test View"
+    print("Test View")
     
     task = task_test.delay()
     

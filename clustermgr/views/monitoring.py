@@ -264,7 +264,7 @@ def get_uptime(host, ssh_port):
     try:
         #Execute script on the remote server, fetch output and convert json data
         #to Python dictionary
-        cmd = 'python /var/monitoring/scripts/get_data.py age'
+        cmd = 'python3 /var/monitoring/scripts/get_data.py age'
         result = c.run(cmd)
         data = json.loads(result[1])
         return str(timedelta(seconds=data['data']['uptime']))
@@ -461,7 +461,7 @@ def system(item):
     
     #if measurement is not 'cpu_usage', use 'monitoring_graph_system.html'
     #template
-    if not item == 'cpu_usage':
+    if item != 'cpu_usage':
         temp = 'monitoring_graph_system.html'
 
     #colors to be used in giraphics
@@ -478,7 +478,7 @@ def system(item):
         for host in data:
             colors[host]=[]
 
-            for i in range(len(data[host]['legends'])/2):
+            for i in range(int(len(data[host]['legends'])/2)):
                 colors[host].append(line_colors[i])
                 colors[host].append(line_colors[i])
 
@@ -627,7 +627,7 @@ def get_server_status():
                 'casa': 'casa/enrollment-api.yaml',
             }
 
-        cmd =  '''python -c "import urllib2,ssl; print urllib2.urlopen('https://localhost/{}', context= ssl._create_unverified_context()).getcode()"'''
+        cmd =  '''python3 -c "import urllib2,ssl; print urllib2.urlopen('https://localhost/{}', context= ssl._create_unverified_context()).getcode()"'''
 
         for server in servers:
             status[server.id] = {}
@@ -662,7 +662,7 @@ def get_server_status():
                                 if result[1].strip() == '200':
                                     status[server.id][service] = True
                             except Exception as e:
-                                print "Error getting service status of {0} for {1}. ERROR: {2}".format(server.hostname,service, e)
+                                print("Error getting service status of {0} for {1}. ERROR: {2}".format(server.hostname,service, e))
     else:
 
         remote_cmd ='''python3 -c "import requests;r=requests.get('{}',verify=False);print( 1 if r.json()['status']=='running' else 0)"'''

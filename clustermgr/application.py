@@ -107,7 +107,7 @@ def create_app():
         return dict(hashed_url=hashed_url)
 
     def url_for_next_page(page):
-        args = {k: v for k, v in request.values.iteritems()}
+        args = {k: v for k, v in request.values}
 
         try:
             page = int(page)
@@ -118,7 +118,7 @@ def create_app():
         return url_for(request.endpoint, **args)
 
     def url_for_prev_page(page):
-        args = {k: v for k, v in request.values.iteritems()}
+        args = {k: v for k, v in request.values}
 
         try:
             page = int(page)
@@ -149,7 +149,7 @@ def create_app():
             
         app.jinja_env.globals['use_ldap_cache'] = use_ldap_cache
 
-        if appconfig:                
+        if appconfig:
             app.jinja_env.globals['latest_version'] = appconfig.latest_version
 
         app.jinja_env.globals['use_ldap_cache'] = use_ldap_cache

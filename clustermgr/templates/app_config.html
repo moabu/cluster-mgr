@@ -212,7 +212,9 @@
 
 {% if localos != 'Alpine' %}
 
-  {% if not request.path.endswith('upgradewithpip') and latest_version > version %}
+
+
+  {% if not request.path.endswith('upgradewithpip') and (config.latest_version and config.latest_version > version) %}
 
     <div class="panel panel-default" id="upgrade-panel">
         <div class="panel-heading">

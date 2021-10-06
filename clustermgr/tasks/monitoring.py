@@ -108,9 +108,9 @@ def install_local(self):
                     'DEBIAN_FRONTEND=noninteractive sudo apt-get update',
                     'DEBIAN_FRONTEND=noninteractive sudo apt-get install influxdb',
                     'sudo service influxdb start',
-                    'sudo pip install --upgrade setuptools==42.0.0',
-                    'sudo pip install psutil==5.7.1',
-                    'sudo pip install influxdb',
+                    'sudo pip3 install --upgrade setuptools',
+                    'sudo pip3 install psutil==5.7.1',
+                    'sudo pip3 install influxdb',
                     
                     ]
             
@@ -137,8 +137,8 @@ def install_local(self):
                     'sudo apt-get -y remove influxdb',
                     'DEBIAN_FRONTEND=noninteractive sudo apt-get -y install influxdb',
                     'sudo service influxdb start',
-                    'sudo pip install influxdb',
-                    'sudo pip install psutil',
+                    'sudo pip3 install influxdb',
+                    'sudo pip3 install psutil',
                     ]
 
             elif localos in ('CentOS 8', 'CentOS 7', 'RHEL 7', 'RHEL 8'):
@@ -157,7 +157,7 @@ def install_local(self):
                                 'sudo yum remove -y influxdb',
                                 'sudo yum install -y influxdb',
                                 'sudo service influxdb start',
-                                'sudo pip install psutil',
+                                'sudo pip3 install psutil',
                             ]
 
             #run commands to install influxdb on local machine
@@ -242,7 +242,7 @@ def install_monitoring(self):
                 
         # 4. Upload crontab entry to collect data in every 5 minutes
         crontab_entry = (
-                        '*/5 * * * *    root    python '
+                        '*/5 * * * *    root    python3 '
                         '/var/monitoring/scripts/cron_data_sqtile.py\n'
                         )
                         
@@ -253,12 +253,12 @@ def install_monitoring(self):
         if app_conf.offline:
             # check if psutil and ldap3 was installed on remote server
             for py_mod in ('psutil', 'ldap3', 'pyDes'):
-                result = installer.run("python -c 'import {0}'".format(py_mod), inside=False)
+                result = installer.run("python3 -c 'import {0}'".format(py_mod), inside=False)
                 if 'No module named' in result[2]:
                     wlogger.log(
                                 task_id, 
                                 "{0} module is not installed. Please "
-                                "install python-{0} and retry.".format(py_mod),
+                                "install python3-{0} and retry.".format(py_mod),
                                 "error", server_id=server.id,
                                 )
                     return False
@@ -270,26 +270,24 @@ def install_monitoring(self):
             # 5a. First determine commands for each OS type
             packages = ['gcc']
             if installer.clone_type == 'rpm' and installer.os_version == '8':
-                packages += ['python2', 'python2-dev']
+                packages += ['python3', 'python3-dev']
             else:
-                packages += ['python-dev']
+                packages += ['python3-dev']
 
             for package in packages:
                 installer.install(package, inside=False, error_exception='warning:')
 
             # 5b. These commands are common for all OS types 
             commands = [
-                            'curl https://bootstrap.pypa.io/2.7/get-pip.py > /tmp/get-pip.py',
-                            'python2 /tmp/get-pip.py',
-                            'pip2 install --upgrade setuptools==42.0.0',
-                            'pip2 install psutil==5.7.1',
-                            'pip2 install ldap3', 
-                            'pip2 install pyDes',
-                            'python /var/monitoring/scripts/'
+                            'curl https://bootstrap.pypa.io/get-pip.py > /tmp/get-pip.py',
+                            'python3 /tmp/get-pip.py',
+                            'pip3 install --upgrade setuptools',
+                            'pip3 install psutil==5.7.1',
+                            'pip3 install ldap3', 
+                            'pip3 install pyDes',
+                            'python3 /var/monitoring/scripts/'
                             'sqlite_monitoring_tables.py'
                             ]
-            if installer.clone_type == 'rpm' and installer.os_version == '8':
-                installer.run('ln -s /usr/bin/python2 /usr/bin/python', inside=False)
 
             if installer.clone_type == 'deb':
                 commands.append('service cron restart')

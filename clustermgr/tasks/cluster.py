@@ -11,6 +11,7 @@ import requests
 
 from flask import current_app as app
 
+import clustermgr
 from clustermgr.models import Server, AppConfiguration
 from clustermgr.extensions import wlogger, db, celery
 from clustermgr.core.remote import RemoteClient
@@ -324,7 +325,7 @@ def setup_filesystem_replication_do(task_id):
             inet_conf_file = os.path.join(installer.container, 'etc','inetd.conf')
             inet_conf_file_content = installer.get_file(inet_conf_file)
             
-            print "File content {}".format(inet_conf_file_content)
+            print("File content {}".format(inet_conf_file_content))
             
             csync_line = 'csync2\tstream\ttcp\tnowait\troot\t/usr/sbin/csync2\tcsync2 -i -l -N csync{}.gluu\n'.format(server.id) 
             csync_line_exists = False
@@ -440,7 +441,7 @@ def modify_hosts(installer, hosts, inside=True, server_host=None):
     
     old_hosts = installer.get_file(hosts_file)
     
-    print "OLD hosts", old_hosts
+    print("OLD hosts", old_hosts)
     
     if old_hosts:
         new_hosts = modify_etc_hosts(hosts, old_hosts)
@@ -1113,7 +1114,7 @@ def update_httpd_certs_task(self, httpd_key, httpd_crt):
         installer = Installer(server, app_conf.gluu_version, ssh_port=server.ssh_port, logger_task_id=task_id)
         if hasattr(server, 'proxy'):
             if not server.os:
-                print "Determining nginx os type"
+                print("Determining nginx os type")
                 app_conf.nginx_os_type = installer.server_os
                 db.session.commit()
 
@@ -1140,10 +1141,11 @@ def update_httpd_certs_task(self, httpd_key, httpd_crt):
 def check_latest_version():
     app_conf = AppConfiguration.query.first()
     if app_conf:
-        print "Checking latest version from github"
-        result = requests.get('https://raw.githubusercontent.com/GluuFederation/cluster-mgr/4.1/clustermgr/__init__.py')
+        current_version = clustermgr.__version__
+        github_branch = current_version.spit('-')[0]
+        result = requests.get('https://raw.githubusercontent.com/GluuFederation/cluster-mgr/{}/clustermgr/__init__.py'.format(github_branch))
         text = result.text.strip()
-        latest_version = text.split('=')[1].strip().strip('"').strip("'")        
+        latest_version = text.split('=')[1].strip().strip('"').strip("'")
         app_conf.latest_version = latest_version
-        print "Latest github version is %s" % latest_version
+        print("Latest github version is %s" % latest_version)
         db.session.commit()

@@ -1,4 +1,4 @@
-import ConfigParser
+import configparser
 import json
 import os
 import time
@@ -166,11 +166,11 @@ class LicenseManager(object):
             "accepted",
         )
 
-        parser = ConfigParser.SafeConfigParser()
+        parser = configparser.SafeConfigParser()
 
         # set all required section and options
         parser.add_section(section)
-        for opt, val in data.iteritems():
+        for opt, val in data.items():
             if opt not in options:
                 continue
             parser.set(section, opt, val)
@@ -186,12 +186,12 @@ class LicenseManager(object):
         :returns: A ``dict`` of configuration items.
         """
         app = self._get_app()
-        parser = ConfigParser.SafeConfigParser()
+        parser = configparser.SafeConfigParser()
         parser.read(app.config["LICENSE_CONFIG_FILE"])
 
         try:
             cfg = dict(parser.items("license"))
-        except ConfigParser.NoSectionError:
+        except configparser.NoSectionError:
             cfg = {}
         return cfg
 

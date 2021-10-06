@@ -22,7 +22,7 @@ class Config(object):
 
     # The celery broker string to use our redislite server
     redis_connection = Redis(os.path.join(DATA_DIR, 'redis.db'))
-    CELERY_RESULT_BACKEND = CELERY_BROKER_URL = CELERY_BROKER = 'redis+socket://' + redis_connection.socket_file
+    result_backend = CELERY_BROKER_URL = 'redis+socket://' + redis_connection.socket_file
     CLUSTERMGR_REDIS = redis_connection
     OX11_PORT = '8190'
     
@@ -54,29 +54,29 @@ class Config(object):
     LICENSE_ENFORCEMENT_ENABLED = True
     AUTH_CONFIG_FILE = os.path.join(DATA_DIR, "auth.ini")
 
-    CELERYBEAT_SCHEDULE = {
+    beat_schedule = CELERYBEAT_SCHEDULE = {
 
         'send_reminder_email': {
             'task': 'clustermgr.tasks.license.send_reminder_email',
-            'schedule': timedelta(seconds=60 * 60 * 24),
+            'schedule': 60 * 60 * 24,
             'args': (),
         },
 
         'schedule_key_rotation': {
             'task': 'clustermgr.tasks.keyrotation.schedule_key_rotation',
-            'schedule': timedelta(seconds=60 * 60 * 1),
+            'schedule': 60 * 60 * 1,
             'args': (),
         },
 
         'get_remote_stats': {
             'task': 'clustermgr.tasks.get_remote_stats.get_remote_stats',
-            'schedule': timedelta(seconds=60 * 5),
+            'schedule': 60 * 5,
             'args': (),
         },
 
         'check_latest_version': {
             'task': 'clustermgr.tasks.cluster.check_latest_version',
-            'schedule': timedelta(seconds=60 * 60 * 6),
+            'schedule': 60 * 60 * 6,
             'args': (),
         },
 

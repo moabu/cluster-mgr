@@ -1,8 +1,9 @@
-import StringIO
+import io
 import socket
 import os
 import base64
 import logging
+import subprocess
 
 from logging.handlers import RotatingFileHandler
 from paramiko import SSHException
@@ -256,7 +257,7 @@ class RemoteClient(object):
         output = []
         for buf in buffers:
             try:
-                output.append(buf.read())
+                output.append(buf.read().decode())
             except IOError:
                 output.append('')
 
@@ -271,18 +272,21 @@ class RemoteClient(object):
         Returns:
             tuple: True/False, file like object / error
         """
-        
+
         logger.debug("[%s] Getting file %s", self.host, filename)
-        
-        file_obj = StringIO.StringIO()
+
+        file_obj = io.BytesIO()
         try:
             result = self.sftpclient.getfo(filename, file_obj)
             file_obj.seek(0)
-            return result, file_obj
+            ret_io = io.StringIO()
+            ret_io.write(file_obj.read().decode())
+            ret_io.seek(0)
+            return result, ret_io
         except Exception as err:
-            print err
+            logger.error("Failed to get file %s: %s", self.host, str(err))
             return False, err
-    
+
     def put_file(self,  filename, filecontent):
         """Puts content to a file on remote server
 
@@ -296,8 +300,8 @@ class RemoteClient(object):
 
         logger.debug("[%s] Putting file %s", self.host, filename)
 
-        file_obj = StringIO.StringIO()
-        file_obj.write(filecontent)
+        file_obj = io.BytesIO()
+        file_obj.write(filecontent.encode())
         file_obj.seek(0)
 
         try:
@@ -393,10 +397,11 @@ class FakeRemote:
             Standard input, output and error of command
         
         """
-        print cmd
-        cin, cout, cerr = os.popen3(cmd)
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        
+        cout, cerr = p.communicate()
 
-        return '', cout.read(), cerr.read()
+        return '', cout.decode(), cerr.decode()
 
 
     def put_file(self, filename, filecontent):

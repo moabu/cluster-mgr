@@ -1,10 +1,10 @@
-import ConfigParser
+import configparser
 import os
 import socket
 import hashlib
 import requests
 import json
-from urlparse import urljoin
+from urllib.parse import urljoin
 
 from flask import current_app, make_response
 from flask import Blueprint
@@ -41,12 +41,12 @@ class User(UserMixin):
 
 
 def user_from_config(cfg_file, username):
-    parser = ConfigParser.SafeConfigParser()
+    parser = configparser.SafeConfigParser()
     parser.read(cfg_file)
 
     try:
         cfg = dict(parser.items("user"))
-    except ConfigParser.NoSectionError:
+    except configparser.NoSectionError:
         return
 
     if username != cfg["username"]:
@@ -78,7 +78,7 @@ def login():
 
         user = user_from_config(cfg_file, form.username.data)
 
-        enc_password = hashlib.sha224(form.password.data).hexdigest()
+        enc_password = hashlib.sha224(form.password.data.encode()).hexdigest()
 
         if user and enc_password == user.password:
             next_ = request.values.get('next')
@@ -276,9 +276,9 @@ def signup():
             username = form.username.data.strip()
             password = form.password.data.strip()
 
-            enc_password = hashlib.sha224(form.password.data).hexdigest()
+            enc_password = hashlib.sha224(form.password.data.encode()).hexdigest()
 
-            config = ConfigParser.RawConfigParser()
+            config = configparser.RawConfigParser()
             config.add_section('user')
             config.set('user', 'username', username)
             config.set('user', 'password', enc_password)
