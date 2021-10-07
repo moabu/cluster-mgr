@@ -38,7 +38,7 @@ start() {
     then
         echo "Celery Worker pid file $CELERY_PID exists, not starting"
     else
-        NEW_UUID=$NEW_UUID celery multi start worker -A clusterapp.celery --pidfile=$CELERY_PID --logfile="$HOME/.clustermgr4/logs/celery.log" --detach
+        NEW_UUID=$NEW_UUID celery multi start -A clusterapp.celery worker --loglevel=info -P prefork --pidfile=$CELERY_PID --logfile="$HOME/.clustermgr4/logs/celery.log" --detach
     fi
     
     echo "Starting Celery Beat"
@@ -46,7 +46,7 @@ start() {
     then
         echo "Celery Beat pid file $CELERY_BEAT_PID exists, not starting"
     else
-        NEW_UUID=$NEW_UUID celery beat -A clusterapp.celery --pidfile=$CELERY_BEAT_PID --logfile="$HOME/.clustermgr4/logs/celery-beat.log" -s "$HOME/.clustermgr4/celerybeat-schedule" --detach
+        NEW_UUID=$NEW_UUID celery -A clusterapp.celery beat --loglevel=info --pidfile=$CELERY_BEAT_PID --logfile="$HOME/.clustermgr4/logs/celery-beat.log" -s "$HOME/.clustermgr4/celerybeat-schedule" --detach
     fi
 
     echo "Starting Gunicorn Web Server"
