@@ -10,6 +10,8 @@ import io
 import json
 import binascii
 
+from pathlib import Path
+
 from flask import current_app as app
 from ldap3 import SUBTREE, BASE, MODIFY_REPLACE
 from clustermgr.models import Server, AppConfiguration
@@ -679,10 +681,21 @@ def install_gluu_server(task_id, server_id):
     #JavaScript on logger duplicates next log if we don't add this
     time.sleep(1)
 
-    setup_py = os.path.join(app.root_path,'setup', 'setup_{}.py'.format(app_conf.gluu_version.replace('nochroot-', '')))
+    setup_py = os.path.join(app.root_path, 'setup', 'setup_{}.py'.format(app_conf.gluu_version.replace('nochroot-', '')))
     if os.path.exists(setup_py):
         remote_py = '/opt/gluu-server/install/community-edition-setup/setup.py'
         installer.upload_file(setup_py, remote_py)
+
+    # upload local setup files for >= 4.3.0
+    server_root_path = Path(os.path.join(installer.container, 'install/community-edition-setup'))
+    setup_dir = os.path.join(app.root_path, 'setup', app_conf.gluu_version.replace('nochroot-', ''))
+    setup_path = Path(setup_dir)
+
+    for p in setup_path.glob('**/*'):
+        if p.is_file():
+            relative_path = p.relative_to(setup_path)
+            remote_path = server_root_path.joinpath(relative_path)
+            installer.upload_file(str(p), str(remote_path))
 
     opendj_properties_fn = os.path.join(app.root_path, 'templates', 'opendj', 'opendj-setup.properties')
 
