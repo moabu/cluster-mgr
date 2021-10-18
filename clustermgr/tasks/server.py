@@ -469,6 +469,7 @@ def install_gluu_server(task_id, server_id):
                 installer.run(cmd, inside=False)
 
         elif 'CentOS' in server.os or 'RHEL' in server.os:
+            installer.install('ca-certificates', inside=False, error_exception='__ALL__')
             if not installer.conn.exists('/usr/bin/wget'):
                 installer.install('wget', inside=False, error_exception='warning: /var/cache/')
 
@@ -597,6 +598,10 @@ def install_gluu_server(task_id, server_id):
     wlogger.log(task_id, "Sleeping 10 secs to wait for gluu server start properly.")
     time.sleep(10)
 
+    if installer.clone_type == 'rpm' and installer.os_version < '8':
+        installer.run('cp -f /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem {}'.format(os.path.join(installer.container, 'etc/pki/ca-trust/extracted/pem/')), inside=False)
+        installer.run('cp -f /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt {}'.format(os.path.join(installer.container, 'etc/pki/ca-trust/extracted/openssl/')), inside=False)
+
     if installer.gluu_version.startswith('nochroot'):
         installer.run('ln -s / /opt/gluu-server', inside=False)
 
@@ -723,7 +728,7 @@ def install_gluu_server(task_id, server_id):
 
     wlogger.log(task_id, "Connecting LDAP Server: {}".format(server.hostname), 'debug')
 
-    
+
     if installer.clone_type == 'rpm' and installer.os_version == '8' and not installer.conn.exists(os.path.join(installer.container, 'usr/sbin/crond')):
         installer.install('crontabs')
         installer.enable_service('crond')
