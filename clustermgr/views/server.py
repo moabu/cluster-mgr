@@ -270,6 +270,10 @@ def install_gluu(server_id):
     del form.ip_address
     del form.ldap_password
 
+    if appconf.gluu_version >= '4.3.0':
+        del form.installOxAuthRP
+
+
     header = 'Install Gluu Server on {0}'.format(server.hostname)
 
     # Get default setup properties.
@@ -278,6 +282,20 @@ def install_gluu(server_id):
     setup_prop['hostname'] = appconf.nginx_host
     setup_prop['ip'] = server.ip
     setup_prop['ldapPass'] = server.ldap_password
+
+    services = ['installOxAuth',
+              'installOxTrust',
+              'installLdap',
+              'installHTTPD',
+              'installSaml',
+              'installOxAuthRP',
+              'installPassport',
+              'installOxd',
+              'installCasa',
+              ]
+
+    if appconf.gluu_version >= '4.3.0':
+        services.remove('installOxAuthRP')
 
     # If form is submitted and validated, create setup.properties file.
     if form.validate_on_submit():
@@ -288,18 +306,9 @@ def install_gluu(server_id):
         setup_prop['admin_email'] = form.admin_email.data.strip()
         setup_prop['application_max_ram'] = str(form.application_max_ram.data)
 
-        for o in ('installOxAuth',
-                  'installOxTrust',
-                  'installLdap',
-                  'installHTTPD',
-                  'installSaml',
-                  'installOxAuthRP',
-                  'installPassport',
-                  'installOxd',
-                  'installCasa',
-                  'application_max_ram',
-                  'oxd_use_gluu_storage',
-                  ):
+
+
+        for o in services + ['application_max_ram', 'oxd_use_gluu_storage']:
             setup_prop[o] = getattr(form, o).data
         setup_prop['ldap_type'] = 'opendj'
         setup_prop['opendj_type'] = 'wrends'
@@ -331,16 +340,8 @@ def install_gluu(server_id):
         form.application_max_ram.data = setup_prop['application_max_ram']
         form.oxd_use_gluu_storage = setup_prop['oxd_use_gluu_storage']
 
-        for o in ('installOxAuth',
-                  'installOxTrust',
-                  'installLdap',
-                  'installHTTPD',
-                  'installSaml',
-                  'installOxAuthRP',
-                  'installPassport',
-                  'installOxd',
-                  'installCasa',
-                  ):
+        for o in services:
+            print(o)
             getattr(form, o).data = as_boolean(setup_prop.get(o, ''))
 
     form['application_max_ram'].data = setup_prop['application_max_ram']
@@ -419,6 +420,9 @@ def confirm_setup_properties(server_id):
     setup_prop['hostname'] = appconf.nginx_host
     setup_prop['ip'] = server.ip
     setup_prop['ldapPass'] = server.ldap_password
+
+    if appconf.gluu_version >= '4.3.0':
+        del setup_prop['installOxAuthRP']
 
     keys = list(setup_prop.keys())
     keys.sort()

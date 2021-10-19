@@ -665,55 +665,62 @@ def get_server_status():
                                 print("Error getting service status of {0} for {1}. ERROR: {2}".format(server.hostname,service, e))
     else:
 
-        remote_cmd ='''python3 -c "import requests;r=requests.get('{}',verify=False);print( 1 if r.json()['status']=='running' else 0)"'''
+        remote_cmd ='''python3 -W ignore -c "import requests;r=requests.get('{}',verify=False);print( 1 if r.json()['status']=='running' else 0)"'''
 
         services = {
                 'oxauth': 'https://{}/oxauth/restv1/health-check',
                 'identity': 'https://{}/identity/restv1/health-check',
                 'saml': 'https://{}/idp/shibboleth',
                 'casa': 'https://{}/casa/health-check',
-                'passport': 'http://{}/passport/token',
+                'passport': 'https://{}/passport/token',
                 'scim': 'http://localhost:8087/scim/restv1/health-check',
-                'oxd': 'https://localhost:8443/health-check',
+                'oxd': 'https://{}:8443/health-check',
             }
 
         for server in servers:
             status[server.id] = {}
-
             c = RemoteClient(server.hostname, ssh_port=server.ssh_port)
             c.ok = False
             try:
                 c.startup()
                 c.ok = True
             except Exception as e:
+                print(e)
                 pass
 
             for service in active_services:
                 status[server.id][service] = False
-
-                if 'localhost' in services[service]:
+                if 'localhost' in services[service] or service in ('oxd',):
+                    service_url = services[service]
+                    if service == 'oxd':
+                        service_url = service_url.format(server.ip)
                     if c.ok:
-                        r = c.run(remote_cmd.format(services[service]))
+                        r = c.run(remote_cmd.format(service_url))
                         if r[1].strip()=='1':
                             status[server.id][service] = True
                 else:
-                    r = requests.get(services[service].format(server.hostname) ,verify=False)
-                    if service == 'passport':
-                        try:
-                            if r.json()['token_']:
+                    try:
+                        r = requests.get(services[service].format(server.hostname) ,verify=False)
+                        if service == 'passport':
+                            try:
+                                if r.json()['token_']:
+                                    status[server.id][service] = True
+                            except:
+                                pass
+                        elif service == 'casa':
+                            if r.text.strip().lower() == 'ok':
                                 status[server.id][service] = True
-                        except:
-                            pass
-                    elif service == 'casa':
-                        if r.text.strip().lower() == 'ok':
-                            status[server.id][service] = True
-                    elif service == 'saml':
-                        status[server.id][service] = 'X509Certificate' in r.text
-                    else:
-                        try:
-                            if r.json()['status'] == 'running':
-                                status[server.id][service] = True
-                        except:
-                            pass
+                        elif service == 'saml':
+                            status[server.id][service] = 'X509Certificate' in r.text
+                        else:
+                            try:
+                                jsdata = r.json()
+                                if jsdata['status'] == 'running':
+                                    status[server.id][service] = True
+                            except:
+                                pass
+                    except Exception as e:
+                        print(e)
+                        status[server.id][service] = False
     
     return jsonify(status)

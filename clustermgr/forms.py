@@ -20,10 +20,7 @@ from clustermgr.core.utils import is_hostname_resolved
 class AppConfigForm(FlaskForm):
     versions = [
                 '4.3.0',
-                '4.2.3',
-                '4.2.2',
-                '4.2.1',
-                'nochroot-4.2.1',
+                'nochroot-4.3.0',
                 ]
     gluu_version = SelectField('Gluu Server Version',
                                choices=[(v, v) for v in versions])

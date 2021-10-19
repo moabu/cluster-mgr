@@ -105,11 +105,11 @@ def set_up_ldap_cache_cleaner(installer, ldap_cache_clean_period):
 
 def modify_hosts(task_id, conn, hosts, chroot='/', server_host=None, server_id=''):
     wlogger.log(task_id, "Modifying /etc/hosts of server {0}".format(server_host), server_id=server_id)
-    
+
     hosts_file = os.path.join(chroot,'etc/hosts')
-    
+
     result, old_hosts = conn.get_file(hosts_file)
-    
+
     if result:
         new_hosts = modify_etc_hosts(hosts, old_hosts.read())
         conn.put_file(hosts_file, new_hosts)
@@ -219,7 +219,7 @@ def checkOfflineRequirements(installer, server, appconf):
 
     wlogger.log(installer.logger_task_id, "Checking if dependencies were installed")
 
-    #Check if archive type and os type matches    
+    #Check if archive type and os type matches
     if not appconf.gluu_archive.endswith('.'+installer.clone_type):
         wlogger.log(installer.logger_task_id,
                     "Os type does not match gluu archive type", 'error')
@@ -272,16 +272,16 @@ def checkOfflineRequirements(installer, server, appconf):
             'error'
             )
         return False
-        
+
 
     #Check if python is installed
-    if installer.conn.exists('/usr/bin/python'):
-        wlogger.log(installer.logger_task_id, "Python was installed",'success')
+    if installer.conn.exists('/usr/bin/python3'):
+        wlogger.log(installer.logger_task_id, "Python 3 was installed",'success')
     else:
         wlogger.log(
             installer.logger_task_id, 
-            'python was not installed. Please install python on the host '
-            'system (outside of the container) and retry.', 
+            'python3 was not installed. Please install python3 on the host '
+            'system (outside of the container) and retry.',
             'error'
             )
         return False
@@ -421,8 +421,7 @@ def install_gluu_server(task_id, server_id):
         result = installer.run(cmd, inside=False)
         if not result[1]:
             installer.install('curl', inside=False)
-        
-        
+
         #nc is required for dyr run
         netcat_package = 'nc'
         if installer.clone_type == 'deb':
@@ -430,8 +429,7 @@ def install_gluu_server(task_id, server_id):
         installer.install(netcat_package, inside=False)
             
         if not installer.conn.exists('/usr/bin/python'):
-            installer.install('python', inside=False)
-
+            installer.install('python3', inside=False)
 
 
         #add gluu server repo and imports signatures
@@ -697,6 +695,23 @@ def install_gluu_server(task_id, server_id):
             remote_path = server_root_path.joinpath(relative_path)
             installer.upload_file(str(p), str(remote_path))
 
+
+    # fix login.defs inside container
+    login_defs_fn = os.path.join(installer.container, 'etc/login.defs')
+    result, login_defs = installer.conn.get_file(login_defs_fn)
+    if result:
+        login_defs_list = login_defs.read().splitlines()
+        umask_line = 'UMASK    022'
+        for i, l in enumerate(login_defs_list):
+            ls = l.strip()
+            if ls.startswith('UMASK'):
+                login_defs_list[i] = umask_line
+                break
+        else:
+            login_defs_list.append(umask_line)
+
+        installer.put_file(login_defs_fn, '\n'.join(login_defs_list))
+
     opendj_properties_fn = os.path.join(app.root_path, 'templates', 'opendj', 'opendj-setup.properties')
 
     if os.path.exists(opendj_properties_fn):
@@ -786,13 +801,14 @@ def install_gluu_server(task_id, server_id):
         wlogger.log(task_id, 'Manuplating keys')
         suffix_list = ['httpd', setup_prop['ldap_type']]
         if str(setup_prop.get('installSaml','')).lower() == 'true':
-            suffix_list.append('shibIDP', 'idp-encryption')
+            suffix_list.append('shibIDP')
+            suffix_list.append('idp-encryption')
 
         for suffix in suffix_list:
             installer.delete_key(suffix, app_conf.nginx_host)
             installer.import_key(suffix, app_conf.nginx_host)
 
-        download_and_upload_custom_schema(  
+        download_and_upload_custom_schema(
                                             task_id,
                                             primary_server_installer.conn,
                                             installer.conn, 
