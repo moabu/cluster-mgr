@@ -674,7 +674,7 @@ def get_server_status():
                 'casa': 'https://{}/casa/health-check',
                 'passport': 'https://{}/passport/token',
                 'scim': 'http://localhost:8087/scim/restv1/health-check',
-                'oxd': 'https://{}:8443/health-check',
+                'oxd': 'https://localhost:8443/health-check',
             }
 
         for server in servers:
@@ -690,10 +690,8 @@ def get_server_status():
 
             for service in active_services:
                 status[server.id][service] = False
-                if 'localhost' in services[service] or service in ('oxd',):
+                if 'localhost' in services[service]:
                     service_url = services[service]
-                    if service == 'oxd':
-                        service_url = service_url.format(server.ip)
                     if c.ok:
                         r = c.run(remote_cmd.format(service_url))
                         if r[1].strip()=='1':
