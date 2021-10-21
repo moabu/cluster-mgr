@@ -403,7 +403,7 @@ class Installer:
     def restart_gluu(self):
         wlogger.log(self.logger_task_id,'Restarting Gluu Server on server ' + self.hostname, server_id=self.server_id)
         self.stop_gluu()
-        time.sleep(5)
+        time.sleep(10)
         self.start_gluu()
         time.sleep(5)
 
