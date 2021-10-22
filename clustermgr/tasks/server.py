@@ -686,7 +686,7 @@ def install_gluu_server(task_id, server_id):
 
     # upload local setup files for >= 4.3.0
     server_root_path = Path(os.path.join(installer.container, 'install/community-edition-setup'))
-    setup_dir = os.path.join(app.root_path, 'setup', app_conf.gluu_version.replace('nochroot-', ''))
+    setup_dir = os.path.join(app.root_path, 'setups', app_conf.gluu_version.replace('nochroot-', ''))
     setup_path = Path(setup_dir)
 
     for p in setup_path.glob('**/*'):
