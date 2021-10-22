@@ -690,7 +690,7 @@ def install_gluu_server(task_id, server_id):
     setup_path = Path(setup_dir)
 
     for p in setup_path.glob('**/*'):
-        if p.is_file():
+        if p.is_file() and not p.name.endswith('.pyc'):
             relative_path = p.relative_to(setup_path)
             remote_path = server_root_path.joinpath(relative_path)
             installer.upload_file(str(p), str(remote_path))
