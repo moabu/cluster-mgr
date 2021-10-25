@@ -72,8 +72,6 @@ class Installer:
         return self.server_os.split()[1]
     
     def settings(self):
-
-
         self.init_command = '/sbin/gluu-serverd {0}'
         self.service_script = 'systemctl {1} {0}'
 
@@ -211,7 +209,7 @@ class Installer:
     def epel_release(self, inside=False):
         if self.clone_type == 'rpm':
             wlogger.log(self.logger_task_id, "Installing epel-release", server_id=self.server_id)
-            self.run('yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm', inside=inside, error_exception='__ALL__')
+            self.run('yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-{}.noarch.rpm'.format(self.os_version), inside=inside, error_exception='__ALL__')
             self.run('yum repolist', inside=inside, error_exception="Trying other mirror")
 
     def upload_file(self, local, remote):

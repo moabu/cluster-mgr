@@ -664,15 +664,20 @@ def get_server_status():
                             except Exception as e:
                                 print("Error getting service status of {0} for {1}. ERROR: {2}".format(server.hostname,service, e))
     else:
-
-        remote_cmd ='''python3 -W ignore -c "import requests;r=requests.get('{}',verify=False);print( 1 if r.json()['status']=='running' else 0)"'''
+        remote_cmd_raw = '''python3 -W ignore -c "import requests;r=requests.get('{}',verify=False);'''
+        remote_cmd = remote_cmd_raw + '''print( 1 if r.json()['status']=='running' else 0)"'''
+        remote_cmd = remote_cmd_raw + '''print( 1 if r.json()['status']=='running' else 0)"'''
+        remote_sml_cmd = remote_cmd_raw + '''print( 1 if '<ds:X509Certificate>' in r.text else 0)"'''
+        remote_casa_cmd = remote_cmd_raw + '''print( 1 if r.text.lower()=='ok' else 0)"'''
+        remote_passport_cmd = remote_cmd_raw + '''print( 1 if r.text.lower()=='ok' else 0)"'''
+        remote_passport_cmd = remote_cmd_raw + '''print( 1 if r.json().get('token_') else 0)"'''
 
         services = {
-                'oxauth': 'https://{}/oxauth/restv1/health-check',
-                'identity': 'https://{}/identity/restv1/health-check',
-                'saml': 'https://{}/idp/shibboleth',
-                'casa': 'https://{}/casa/health-check',
-                'passport': 'https://{}/passport/token',
+                'oxauth': 'http://localhost:8081/oxauth/restv1/health-check',
+                'identity': 'http://localhost:8082/identity/restv1/health-check',
+                'saml': 'http://localhost:8086/idp/shibboleth',
+                'casa': 'http://localhost:8099/casa/health-check',
+                'passport': 'http://localhost:8090/passport/token',
                 'scim': 'http://localhost:8087/scim/restv1/health-check',
                 'oxd': 'https://localhost:8443/health-check',
             }
@@ -689,36 +694,24 @@ def get_server_status():
                 pass
 
             for service in active_services:
-                status[server.id][service] = False
-                if 'localhost' in services[service]:
+                    status[server.id][service] = False
+
                     service_url = services[service]
                     if c.ok:
-                        r = c.run(remote_cmd.format(service_url))
+                        if service == 'saml':
+                            rcmd = remote_sml_cmd
+                        elif service == 'casa':
+                            rcmd = remote_casa_cmd
+                        elif service == 'passport':
+                            rcmd = remote_passport_cmd
+                        else:
+                            rcmd = remote_cmd
+                        rcmd = rcmd.format(service_url)
+                        print(service, rcmd)
+
+                        r = c.run(rcmd)
                         if r[1].strip()=='1':
                             status[server.id][service] = True
-                else:
-                    try:
-                        r = requests.get(services[service].format(server.hostname) ,verify=False)
-                        if service == 'passport':
-                            try:
-                                if r.json()['token_']:
-                                    status[server.id][service] = True
-                            except:
-                                pass
-                        elif service == 'casa':
-                            if r.text.strip().lower() == 'ok':
-                                status[server.id][service] = True
-                        elif service == 'saml':
-                            status[server.id][service] = 'X509Certificate' in r.text
-                        else:
-                            try:
-                                jsdata = r.json()
-                                if jsdata['status'] == 'running':
-                                    status[server.id][service] = True
-                            except:
-                                pass
-                    except Exception as e:
-                        print(e)
-                        status[server.id][service] = False
+
     
     return jsonify(status)

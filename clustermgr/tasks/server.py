@@ -415,7 +415,9 @@ def install_gluu_server(task_id, server_id):
             return False
 
     if not app_conf.offline:
-        
+        if installer.clone_type == 'rpm' and installer.gluu_version.startswith('nochroot'):
+            installer.epel_release(inside=False)
+
         #check if curl exists on the system
         cmd = 'which curl'
         result = installer.run(cmd, inside=False)

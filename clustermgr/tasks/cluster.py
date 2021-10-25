@@ -248,8 +248,7 @@ def setup_filesystem_replication_do(task_id):
 
             elif installer.clone_type == 'rpm':
                 installer.epel_release(True)
-                
-                
+
                 if installer.server_os == 'RHEL 7':
                     centos_base_repo_file = os.path.join(
                                             app.root_path, 'templates',
