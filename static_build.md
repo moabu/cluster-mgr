@@ -17,22 +17,32 @@ need anymore.
 !!! Note
     If your Gluu Server nodes will be Red Hat 8, please enable epel release each node before attempting to install Gluu Server via CM.
 
-`yum install gcc gcc-c++ libffi-devel make python2 python2-devel openssl-devel openldap-devel python2-pip`
+`yum install gcc gcc-c++ libffi-devel make python3-devel openssl-devel python3-pip`
 
-Update pip and setuptools
+Update pip, setuptools and wheel
 
-`pip2 install --upgrade pip==19.0.0`
-
-`pip2 install --upgrade setuptools==44.1.1`
+```
+pip3 install --upgrade pip
+pip3 install --upgrade setuptools
+pip3 install --upgrade wheel
+```
 
 ### Build Cluster Manager
+
+First create directories
+
+```
+mkdir /tmp/bin
+mkdir /opt/clustermgr
+```
 
 Execute the following commands to install Cluster Manager to `/opt/clustermgr` with all dependencies
 
 ```
-pip2 install --upgrade python-ldap==2.4.15 --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
-pip2 install --upgrade https://github.com/GluuFederation/redislite/archive/master.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
-pip2 install  --upgrade https://github.com/GluuFederation/cluster-mgr/archive/4.2.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
+pip3 install --upgrade --target=/opt/clustermgr https://github.com/GluuFederation/redislite/archive/master.zip
+cp /opt/clustermgr/bin/* /tmp/bin
+pip3 install --upgrade --target=/opt/clustermgr https://github.com/GluuFederation/cluster-mgr/archive/4.3.zip
+cp /tmp/bin/* /opt/clustermgr/bin
 ```
 You need to copy `/opt/clustermgr` directory to RHEL8 that has no internet access. So let us package:
 
@@ -43,17 +53,13 @@ Now you can copy `clustermgr4.tgz` to RHEL8 that has no internet access.
 ### Upgrading Cluster Manager
 If you built Cluster Manager before and there is an update, you can upgrade current static build as:
 
-```
-# pip install --upgrade --force-reinstall  --no-deps --no-cache-dir https://github.com/GluuFederation/cluster-mgr/archive/4.2.zip --install-option="--install-scripts=/opt/clustermgr/bin" --target=/opt/clustermgr/clustermgr
-```
-
 You need to create new `clustermgr4.tgz` and copy to RHEL8 that has no internet access.
 
 ## On RHEL8 Machine Has no Internet Access
 
-Install python2
+Install python3
 
-`yum install python2`
+`yum install python3`
 
 On this machine you need java-1.8 installed. Extract `clustermgr4.tgz` package:
 

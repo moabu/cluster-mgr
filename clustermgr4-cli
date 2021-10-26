@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export PYTHONPATH=$PYTHONPATH:/usr/local/bin:/usr/bin:/opt/clustermgr/clustermgr:/opt/clustermgr/bin
+export PYTHONPATH=$PYTHONPATH:/usr/local/bin:/usr/bin:/opt/clustermgr:/opt/clustermgr/bin
 export PYTHONWARNINGS="ignore"
 export PATH=$PATH:/opt/clustermgr/bin
 
