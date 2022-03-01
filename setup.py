@@ -31,7 +31,7 @@ setup(
         'email_validator',
         'billiard',
         'more_itertools',
-        'MarkupSafe',
+        'MarkupSafe>=2.0.0',
         'pyOpenSSL',
         'Flask',
         'SQLAlchemy',
