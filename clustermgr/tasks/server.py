@@ -846,7 +846,7 @@ def install_gluu_server(task_id, server_id):
         if not as_boolean(setup_prop['oxd_use_gluu_storage']):
             #we need to copy casa.json and oxd_db.mv.db from primry server
             casa_files = [
-                        os.path.join(installer.container, 'opt/oxd-server/data/oxd_db.mv.db')
+                        #os.path.join(installer.container, 'opt/oxd-server/data/oxd_db.mv.db')
                         ]
 
             if installer.gluu_version.replace('nochroot-', '') < '4.2.0':
