@@ -902,6 +902,8 @@ def installNGINX(self, nginx_host, session_type):
 
         else:
             if 'ubuntu' in nginx_installer.server_os.lower():
+                # install dependencies
+                nginx_installer.run('DEBIAN_FRONTEND=noninteractive apt install -y libxslt1.1 geoip-database libgeoip1 libmaxminddb0 fontconfig-config fonts-dejavu-core libfontconfig1 libfreetype6 libgd3 libjbig0 libjpeg-turbo8 libjpeg8 libpng16-16 libtiff5 libwebp6 libxpm'), inside=False)
                 ubuntu_sticky_packages = {
                         '18': [ 
                                 'nginx-common_1.14.0-0ubuntu1.7_all.deb',
