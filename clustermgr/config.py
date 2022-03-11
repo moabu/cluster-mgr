@@ -1,9 +1,6 @@
-from redislite import Redis
-
 import os
-from datetime import timedelta
 import uuid
-
+from datetime import timedelta
 
 class Config(object):
     DEBUG = False
@@ -21,9 +18,7 @@ class Config(object):
     )
 
     # The celery broker string to use our redislite server
-    redis_connection = Redis(os.path.join(DATA_DIR, 'redis.db'))
-    result_backend = CELERY_BROKER_URL = 'redis+socket://' + redis_connection.socket_file
-    CLUSTERMGR_REDIS = redis_connection
+
     OX11_PORT = '8190'
     
     LOGS_DIR = os.path.join(DATA_DIR, 'logs')

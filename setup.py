@@ -50,7 +50,9 @@ setup(
         'gunicorn',
         'pyasn1',
         'pyasn1-modules',
-        'email-validator'
+        'email-validator',
+        'redislite @ git+https://github.com/GluuFederation/redislite.git@master#egg=redislite',
+
     ],
     scripts=['clusterapp.py', 'clustermgr4-cli'],
     classifiers=[

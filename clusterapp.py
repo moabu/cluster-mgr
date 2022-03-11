@@ -1,13 +1,16 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 #logging credit: ivanleoncz <https://gist.github.com/ivanlmj/dbf29670761cbaed4c5c787d9c9c006b>
 
 import os
 import traceback
 import click
+import multiprocessing as mp
+import gunicorn.app.base
+
 from flask.cli import FlaskGroup
-from celery.bin import beat
-from celery.bin import worker
+from celery.apps import beat
+from celery.apps import worker
 
 from clustermgr.application import create_app, init_celery
 from clustermgr.extensions import celery
@@ -16,6 +19,7 @@ from time import strftime
 from clustermgr.models import AppConfiguration
 
 from flask import request, render_template
+from flask_migrate import upgrade as db_upgrade
 from clustermgr.core.clustermgr_logging import sys_logger as logger
 
 app = create_app()
@@ -34,21 +38,75 @@ def cli():
 
 def run_celerybeat():
     """Function that starts the scheduled tasks in celery using celery.beat"""
-    runner = beat.beat(app=celery)
+    print("Starting Celery Beat")
     config = {
+        "app": celery,
         "loglevel": "INFO",
         "schedule": os.path.join(celery.conf["DATA_DIR"], "celerybeat-schedule"),
     }
-    runner.run(**config)
+    runner = beat.Beat(**config)
+    runner.run()
 
 
 def run_celery_worker():
+    print("Starting Celery Worker")
     """Function that starts the celery worker to run all the tasks"""
-    runner = worker.worker(app=celery)
     config = {
-        "loglevel": "INFO",
+        "loglevel": "DEBUG",
+        "logfile": os.path.join(app.config['LOGS_DIR'], 'celery.log'),
+        "app": celery,
     }
-    runner.run(**config)
+
+    celery_worker = worker.Worker(**config)
+    celery_worker.setup_logging()
+    celery_worker.start()
+
+def run_gunicorn_web_server():
+    print("Starting Gunicorn Web Server")
+
+    options = {
+        'bind': '%s:%s' % ('127.0.0.1', '5000'),
+        'workers': 2,
+        'loglevel': 'debug',
+        'capture_output': True,
+        'accesslog': os.path.join(app.config['LOGS_DIR'], 'gunicorn-access.log'),
+        'errorlog': os.path.join(app.config['LOGS_DIR'], 'gunicorn-debug.log'),
+    }
+
+    StandaloneApplication(app, options).run()
+
+class StandaloneApplication(gunicorn.app.base.BaseApplication):
+
+    def __init__(self, app, options=None):
+        self.options = options or {}
+        self.application = app
+        super().__init__()
+
+    def load_config(self):
+        config = {key: value for key, value in self.options.items()
+                  if key in self.cfg.settings and value is not None}
+        for key, value in config.items():
+            self.cfg.set(key.lower(), value)
+
+    def load(self):
+        return self.application
+
+
+@cli.command()
+def run_clustermgr():
+
+    db_upgrade()
+
+    p_cb = mp.Process(target=run_celerybeat, args=())
+    p_cb.start()
+    
+    p_cw = mp.Process(target=run_celery_worker, args=())
+    p_cw.start()
+
+    p_ga = mp.Process(target=run_gunicorn_web_server, args=())
+    p_ga.start()
+    p_ga.join()
+
 
 @app.before_request
 def before_request():
