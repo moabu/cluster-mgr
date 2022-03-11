@@ -22,6 +22,8 @@ from flask import request, render_template
 from flask_migrate import upgrade as db_upgrade
 from clustermgr.core.clustermgr_logging import sys_logger as logger
 
+os.environ['NEW_UUID'] = os.urandom(16).hex()
+
 app = create_app()
 
 init_celery(app, celery)
