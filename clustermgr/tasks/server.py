@@ -567,7 +567,11 @@ def install_gluu_server(task_id, server_id):
 
         if server.os in ('Ubuntu 18', 'Ubuntu 20'):
             installer.put_file('/etc/apt/apt.conf.d/90forceconf', 'Dpkg::Options {\n  "--force-confdef";\n  "--force-confold";\n}')
-            gluu_package_name = gluu_server + '=' + app_conf.gluu_version + '~ubuntu' + installer.os_version + '.04'
+            if 'nochroot' in app_conf.gluu_version:
+                nchs, nchv = app_conf.gluu_version.split('-')
+                gluu_package_name = gluu_server + '-' + nchs + '=' + nchv
+            else:
+                gluu_package_name = gluu_server + '=' + app_conf.gluu_version + '~ubuntu' + installer.os_version + '.04'
         else:
             gluu_package_name = gluu_server + '-' + app_conf.gluu_version
 
