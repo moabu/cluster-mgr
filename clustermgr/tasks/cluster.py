@@ -903,7 +903,7 @@ def installNGINX(self, nginx_host, session_type):
         else:
             if 'ubuntu' in nginx_installer.server_os.lower():
                 # install dependencies
-                nginx_installer.run('DEBIAN_FRONTEND=noninteractive apt install -y libxslt1.1 geoip-database libgeoip1 libmaxminddb0 fontconfig-config fonts-dejavu-core libfontconfig1 libfreetype6 libgd3 libjbig0 libjpeg-turbo8 libjpeg8 libpng16-16 libtiff5 libwebp6 libxpm', inside=False)
+                nginx_installer.install('libxslt1.1 geoip-database libgeoip1 libmaxminddb0 fontconfig-config fonts-dejavu-core libfontconfig1 libfreetype6 libgd3 libjbig0 libjpeg-turbo8 libjpeg8 libpng16-16 libtiff5 libwebp6 libgd3', inside=False)
                 ubuntu_sticky_packages = {
                         '18': [ 
                                 'nginx-common_1.14.0-0ubuntu1.7_all.deb',
@@ -915,7 +915,6 @@ def installNGINX(self, nginx_host, session_type):
                                 'nginx-core_1.14.0-0ubuntu1.7_amd64.deb'
                                 ],
                         '20': [
-                           
                                 'nginx-common_1.18.0-0ubuntu1_all.deb',
                                 'libnginx-mod-http-geoip_1.18.0-0ubuntu1_amd64.deb',
                                 'libnginx-mod-http-xslt-filter_1.18.0-0ubuntu1_amd64.deb',
@@ -931,7 +930,7 @@ def installNGINX(self, nginx_host, session_type):
                     package_url = 'http://162.243.99.240/icrby8xcvbcv/nginx/ubuntu{}/{}'.format(ubuntu_ver, package)
                     nginx_installer.run('wget -nv {} -O /tmp/{} 2>&1'.format(package_url, package), inside=False)
                     nginx_installer.run('DEBIAN_FRONTEND=noninteractive dpkg -i /tmp/{} 2>&1'.format(package), inside=False)
-                    nginx_installer.run('DEBIAN_FRONTEND=noninteractive apt-get install -y -f 2>&1', inside=False)
+                nginx_installer.run('DEBIAN_FRONTEND=noninteractive apt-get install -y -f 2>&1', inside=False)
             elif nginx_installer.server_os == 'CentOS 7':
                 nginx_installer.run('yum install -y http://162.243.99.240/icrby8xcvbcv/nginx/centos7/nginx-1.14.2-1.gluu.centos7.x86_64.rpm 2>&1', inside=False)
             elif nginx_installer.server_os == 'RHEL 7':

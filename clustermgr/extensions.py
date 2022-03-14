@@ -20,8 +20,8 @@ db = SQLAlchemy()
 csrf = CSRFProtect()
 migrate = Migrate()
 wlogger = WebLogger()
-Config.CLUSTERMGR_REDIS = Redis(os.path.join(Config.DATA_DIR, 'redis.db'))
 
+Config.CLUSTERMGR_REDIS = Redis(os.path.join(Config.DATA_DIR, 'redis.db'))
 Config.CELERY_BROKER_URL = 'redis+socket://' + Config.CLUSTERMGR_REDIS.socket_file
 
 celery = Celery('clustermgr.application', backend=Config.CELERY_BROKER_URL,
