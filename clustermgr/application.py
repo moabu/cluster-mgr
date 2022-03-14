@@ -10,7 +10,7 @@ from clustermgr.extensions import db, csrf, migrate, wlogger, \
     login_manager, mailer
 from .core.license import license_manager
 from clustermgr.models import AppConfiguration
-from . import __version__
+from clustermgr.version import __version__
 
 
 def init_celery(app, celery):

@@ -23,7 +23,7 @@ setup(
     url="https://github.com/GluuFederation/cluster-mgr/tree/4.0/clustermgr",
     description="Tool to facilitate LDAP replication, key management and log centralization for the Gluu Server",
     long_description="See project `README <https://github.com/GluuFederation/cluster-mgr>`_ for details.",
-    version=find_version("clustermgr", "__init__.py"),
+    version=find_version("clustermgr/version.py"),
     packages=find_packages(exclude=["e2e", "tests"]),
     zip_safe=False,
     include_package_data=True,
