@@ -163,9 +163,14 @@ def wizard_step2(self):
     wlogger.log(tid, "Modifying /etc/hosts")
     name_changer.modify_etc_hosts()
     wlogger.log(tid, "/etc/hosts was modified", 'success')
-    
+
     server.gluu_server = True
     db.session.commit()
 
+    web_server_files = ['/etc/apache2/sites-available/https_jans.conf'] if name_changer.installer.clone_type == 'deb' else ['/etc/httpd/conf.d/https_gluu.conf', '/etc/httpd/conf/httpd.conf']
+
+    for fn in web_server_files:
+        name_changer.installer.run("sed -i 's/{}/{}/g' {}".format(server.hostname, app_conf.nginx_host, fn))
+
     name_changer.installer.restart_gluu()
-    
+
