@@ -6,6 +6,11 @@ try:
     from flask_wtf import FlaskForm
 except ImportError:
     from flask_wtf import Form as FlaskForm
+try:
+    from markupsafe import Markup
+except ImportError:
+    from jinja2 import Markup
+
 from wtforms import StringField, SelectField, BooleanField, IntegerField, \
     PasswordField, RadioField, SubmitField, validators, TextAreaField, \
     HiddenField
@@ -21,6 +26,8 @@ class AppConfigForm(FlaskForm):
     versions = [
                 '4.3.1',
                 'nochroot-4.3.1',
+                '4.4.0',
+                'nochroot-4.4.0',
                 ]
     gluu_version = SelectField('Gluu Server Version',
                                choices=[(v, v) for v in versions])
@@ -257,7 +264,7 @@ class SignUpForm(FlaskForm):
                 ])
     passwordconfirm = PasswordField("Re-enter Password", validators=[DataRequired()])
     
-    license_confirm = BooleanField(jinja2.Markup('Check here to indicate that you have read and agree to the terms of the <a target="_blank" href="https://github.com/GluuFederation/cluster-mgr/blob/master/LICENSE">GLUU-SUPPORT license</a>') , validators=[DataRequired()])
+    license_confirm = BooleanField(Markup('Check here to indicate that you have read and agree to the terms of the <a target="_blank" href="https://github.com/GluuFederation/cluster-mgr/blob/master/LICENSE">GLUU-SUPPORT license</a>') , validators=[DataRequired()])
 
     login = SubmitField("Sign up")
 

@@ -61,5 +61,6 @@
   "installOxd",
   "installCasa",
   "oxd_server_https",
-  "clustering"
+  "clustering",
+  "opendj_truststore_pass"
 ]
