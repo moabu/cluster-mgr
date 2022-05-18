@@ -646,7 +646,7 @@ def install_gluu_server(task_id, server_id):
         prop = Properties()
 
         if prop_io:
-            tmp_prop_file = '/tmp/{}.properties'.format(binascii.b2a_hex(os.urandom(4)))
+            tmp_prop_file = '/tmp/{}.properties'.format(os.urandom(4).hex())
             with open(tmp_prop_file, 'w') as w:
                 w.write(prop_io.read())
             prop = parse_setup_properties(tmp_prop_file)
