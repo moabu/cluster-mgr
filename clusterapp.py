@@ -28,7 +28,7 @@ app = create_app()
 
 init_celery(app, celery)
 
-def create_cluster_app(info):
+def create_cluster_app(info=None):
     return create_app()
 
 
