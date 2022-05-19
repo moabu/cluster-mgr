@@ -960,7 +960,10 @@ def install_gluu_server(task_id, server_id):
             return
     else:
         installer.restart_service('opendj')
-        
+
+    if not app_conf.offline:
+        installer.install('python3-requests', inside=False)
+
     wlogger.log(task_id, "5", "setstep")
     return True
 
