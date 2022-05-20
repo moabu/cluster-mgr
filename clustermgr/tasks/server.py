@@ -433,6 +433,7 @@ def install_gluu_server(task_id, server_id):
         if not installer.conn.exists('/usr/bin/python'):
             installer.install('python3', inside=False)
 
+        installer.install('python3-requests', inside=False)
 
         #add gluu server repo and imports signatures
         if ('Ubuntu' in server.os) or ('Debian' in server.os):
@@ -961,8 +962,6 @@ def install_gluu_server(task_id, server_id):
     else:
         installer.restart_service('opendj')
 
-    if not app_conf.offline:
-        installer.install('python3-requests', inside=False)
 
     wlogger.log(task_id, "5", "setstep")
     return True
