@@ -10,4 +10,4 @@ uninstall:
 	pip3 uninstall clustermgr4 -y
 
 zipapp:
-	shiv --compressed -o clustermgr4.pyz -p '/usr/bin/env python3' -c clusterapp.py . --no-cache
+	shiv --compressed -o clustermgr4-4.pyz -p '/usr/bin/env python3' -c clusterapp.py . --no-cache
