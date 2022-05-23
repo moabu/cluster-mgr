@@ -56,29 +56,31 @@ jobs:
           mv clustermgr4-4.pyz clustermgr4-4-centos7-X86-64-setup.pyz
           sha256sum clustermgr4-4-centos7-X86-64-setup.pyz > clustermgr4-4-centos7-X86-64-setup.pyz.sha256sum
 
-    - name: Set up Python 3.7
-      uses: actions/setup-python@v3
-      with:
-        python-version: 3.7
-    - name: Build with Ubuntu
+    - uses: addnab/docker-run-action@v3
+      name: Build with Ubuntu latest LTS
       continue-on-error: true
-      run: |
-        
-        sudo apt-get update
-        pip3 install --upgrade pip
-        pip3 install --upgrade setuptools
-        pip3 install --upgrade shiv
-        echo "Building package"
-        make zipapp
-        mv clustermgr4-4.pyz clustermgr4-4-ubuntu-X86-64-setup.pyz
-        sha256sum clustermgr4-4-ubuntu-X86-64-setup.pyz > clustermgr4-4-ubuntu-X86-64-setup.pyz.sha256sum
+      with:
+        image: ubuntu:latest
+        options: -v ${{ github.workspace }}:/ubuntu
+        run: |
+          apt-get update
+          apt install -y python3 python3-pip make
+          pip3 install --upgrade pip
+          pip3 install --upgrade setuptools
+          pip3 install --upgrade shiv
+          echo "Building package"
+          cd /ubuntu
+          make zipapp
+          mv clustermgr4-4.pyz clustermgr4-4-ubuntu-X86-64-setup.pyz
+          sha256sum clustermgr4-4-ubuntu-X86-64-setup.pyz > clustermgr4-4-ubuntu-X86-64-setup.pyz.sha256sum
+
 
     - uses: actions/cache@v3
       id: cache-installers
       with:
         path: |
-          ${{github.workspace}}/clustermgr4-4-X86-64-setup.pyz
-          ${{github.workspace}}/clustermgr4-4-X86-64-setup.pyz.sha256sum
+          ${{github.workspace}}/clustermgr4-4-centos7-X86-64-setup.pyz
+          ${{github.workspace}}/clustermgr4-4-centos7-X86-64-setup.pyz.sha256sum
           ${{github.workspace}}/clustermgr4-4-suse-X86-64-setup.pyz
           ${{github.workspace}}/clustermgr4-4-suse-X86-64-setup.pyz.sha256sum
           ${{github.workspace}}/clustermgr4-4-ubuntu-X86-64-setup.pyz
@@ -90,7 +92,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        name: [centos, ubuntu, suse]
+        name: [centos7, ubuntu, suse]
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -98,8 +100,8 @@ jobs:
       id: cache-installers
       with:
         path: |
-          ${{github.workspace}}/clustermgr4-4-X86-64-setup.pyz
-          ${{github.workspace}}/clustermgr4-4-X86-64-setup.pyz.sha256sum
+          ${{github.workspace}}/clustermgr4-4-centos7-X86-64-setup.pyz
+          ${{github.workspace}}/clustermgr4-4-centos7-X86-64-setup.pyz.sha256sum
           ${{github.workspace}}/clustermgr4-4-suse-X86-64-setup.pyz
           ${{github.workspace}}/clustermgr4-4-suse-X86-64-setup.pyz.sha256sum
           ${{github.workspace}}/clustermgr4-4-ubuntu-X86-64-setup.pyz
