@@ -26,6 +26,7 @@ jobs:
           zypper --non-interactive install -y python3-dev
           echo "Building package"
           cd /suse
+          ls
           pip install shiv
           make zipapp
           mv clustermgr4-4.pyz clustermgr4-4-suse-X86-64-setup.pyz
@@ -56,16 +57,16 @@ jobs:
           mv clustermgr4-4.pyz clustermgr4-4-centos7-X86-64-setup.pyz
           sha256sum clustermgr4-4-centos7-X86-64-setup.pyz > clustermgr4-4-centos7-X86-64-setup.pyz.sha256sum
 
-    - name: Set up Python 3.6
+    - name: Set up Python 3.7
       uses: actions/setup-python@v3
       with:
-        python-version: 3.6
+        python-version: 3.7
     - name: Build with Ubuntu
       continue-on-error: true
       run: |
+        
         sudo apt-get update
-        sudo apt-get install build-essential python3-venv python3-pip -y
-        python3 -m pip install --upgrade pip
+        sudo apt-get install build-essential
         pip3 install shiv
         echo "Building package"
         make zipapp
