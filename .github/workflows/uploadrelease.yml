@@ -16,7 +16,7 @@ jobs:
       continue-on-error: true
       with:
         image: opensuse/leap:15.4
-        options: -v ${{ github.workspace }}/suse
+        options: -v ${{ github.workspace }}:/suse
         run: |
           zypper addrepo https://download.opensuse.org/repositories/openSUSE:Leap:15.1/standard/openSUSE:Leap:15.1.repo
           zypper --gpg-auto-import-keys refresh
@@ -26,7 +26,6 @@ jobs:
           zypper --non-interactive install -y python3-dev
           echo "Building package"
           cd /suse
-          ls
           pip install shiv
           make zipapp
           mv clustermgr4-4.pyz clustermgr4-4-suse-X86-64-setup.pyz
@@ -66,8 +65,9 @@ jobs:
       run: |
         
         sudo apt-get update
-        sudo apt-get install build-essential
-        pip3 install shiv
+        pip3 install --upgrade pip
+        pip3 install --upgrade setuptools
+        pip3 install --upgrade shiv
         echo "Building package"
         make zipapp
         mv clustermgr4-4.pyz clustermgr4-4-ubuntu-X86-64-setup.pyz
