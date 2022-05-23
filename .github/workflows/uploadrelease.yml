@@ -6,67 +6,126 @@ on:
       - '*'
   workflow_dispatch:
 jobs:
-  publish:
-    name: Publish for ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+  build_python_packages:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - uses: addnab/docker-run-action@v3
+      name: Build with Suse
+      continue-on-error: true
+      with:
+        image: opensuse/leap:15.4
+        options: -v ${{ github.workspace }}/suse
+        run: |
+          zypper addrepo https://download.opensuse.org/repositories/openSUSE:Leap:15.1/standard/openSUSE:Leap:15.1.repo
+          zypper --gpg-auto-import-keys refresh
+          zypper --non-interactive install -y gcc-c++ make gcc automake autoconf libtool python3-pip python3-setuptools python3-wheel          
+          zypper addrepo https://download.opensuse.org/repositories/home:smarty12:Python/RaspberryPi_Leap_15.2/home:smarty12:Python.repo
+          zypper --gpg-auto-import-keys refresh
+          zypper --non-interactive install -y python3-dev
+          echo "Building package"
+          cd /suse
+          pip install shiv
+          make zipapp
+          mv clustermgr4-4.pyz clustermgr4-4-suse-X86-64-setup.pyz
+          sha256sum clustermgr4-4-suse-X86-64-setup.pyz > clustermgr4-4-suse-X86-64-setup.pyz.sha256sum
+
+    - uses: addnab/docker-run-action@v3
+      name: Build with CentOS7
+      continue-on-error: true
+      with:
+        image: centos:centos7
+        options: -v ${{ github.workspace }}:/centos
+        run: |
+          yum install python36u python36u-devel python36u-pip -y
+          yum install gcc openssl-devel bzip2-devel libffi-devel zlib-devel -y
+          curl https://www.python.org/ftp/python/3.7.9/Python-3.7.9.tgz --output Python-3.7.9.tgz
+          tar xzf Python-3.7.9.tgz
+          cd Python-3.7.9
+          ./configure --enable-optimizations
+          yum install make -y
+          make altinstall
+          yum -y install epel-release
+          curl https://bootstrap.pypa.io/get-pip.py --output get-pip.py
+          python3.7 get-pip.py
+          echo "Building package"
+          cd /centos
+          pip install shiv
+          make zipapp
+          mv clustermgr4-4.pyz clustermgr4-4-centos7-X86-64-setup.pyz
+          sha256sum clustermgr4-4-centos7-X86-64-setup.pyz > clustermgr4-4-centos7-X86-64-setup.pyz.sha256sum
+
+    - name: Set up Python 3.6
+      uses: actions/setup-python@v3
+      with:
+        python-version: 3.6
+    - name: Build with Ubuntu
+      continue-on-error: true
+      run: |
+        sudo apt-get update
+        sudo apt-get install build-essential python3-venv python3-pip -y
+        python3 -m pip install --upgrade pip
+        pip3 install shiv
+        echo "Building package"
+        make zipapp
+        mv clustermgr4-4.pyz clustermgr4-4-ubuntu-X86-64-setup.pyz
+        sha256sum clustermgr4-4-ubuntu-X86-64-setup.pyz > clustermgr4-4-ubuntu-X86-64-setup.pyz.sha256sum
+
+    - uses: actions/cache@v3
+      id: cache-installers
+      with:
+        path: |
+          ${{github.workspace}}/clustermgr4-4-X86-64-setup.pyz
+          ${{github.workspace}}/clustermgr4-4-X86-64-setup.pyz.sha256sum
+          ${{github.workspace}}/clustermgr4-4-suse-X86-64-setup.pyz
+          ${{github.workspace}}/clustermgr4-4-suse-X86-64-setup.pyz.sha256sum
+          ${{github.workspace}}/clustermgr4-4-ubuntu-X86-64-setup.pyz
+          ${{github.workspace}}/clustermgr4-4-ubuntu-X86-64-setup.pyz.sha256sum
+        key: ${{ github.sha }}
+
+  upload_python_packages:
+    needs: build_python_packages
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - os: ubuntu-latest
-            artifact_name: clustermgr4.pyz
-            asset_name: clustermgr4-linux-amd64.pyz
-          #- os: windows-latest
-          #  artifact_name: pygluu-kubernetes-windows
-          #  asset_name: pygluu-kubernetes-windows-amd64
-          #- os: macos-latest
-          #  artifact_name: pygluu-kubernetes.pyz
-          #  asset_name: pygluu-kubernetes-macos-amd64.pyz
-
+        name: [centos, ubuntu, suse]
     steps:
-    - name: Checkout code
-      uses: actions/checkout@master
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v3.0.0
+    - name: Checkout
+      uses: actions/checkout@v3
+    - uses: actions/cache@v3
+      id: cache-installers
       with:
-        python-version: 3.8
-
-    - name: Install dependencies
-      run: |
-        python3 -m pip install --upgrade pip
-        pip3 install jq
-
-    #- name: Lint with flake8
-    #  run: |
-    #    pip3 install flake8
-    #    # stop the build if there are Python syntax errors or undefined names
-    #    flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-    #    # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-    #    flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-
-    - name: Checkout code
-      uses: actions/checkout@master
-
-    - name: Build Zipapp
-      run: |
-        sudo apt-get update || brew install jq
-        sudo apt-get install build-essential || echo "Maybe im on macor OS"
-        pip3 install shiv
-        make zipapp
-
+        path: |
+          ${{github.workspace}}/clustermgr4-4-X86-64-setup.pyz
+          ${{github.workspace}}/clustermgr4-4-X86-64-setup.pyz.sha256sum
+          ${{github.workspace}}/clustermgr4-4-suse-X86-64-setup.pyz
+          ${{github.workspace}}/clustermgr4-4-suse-X86-64-setup.pyz.sha256sum
+          ${{github.workspace}}/clustermgr4-4-ubuntu-X86-64-setup.pyz
+          ${{github.workspace}}/clustermgr4-4-ubuntu-X86-64-setup.pyz.sha256sum
+        key: ${{ github.sha }}
     - name: Get latest tag
       id: previoustag
       run: |
         echo "::set-output name=tag::$(curl https://api.github.com/repos/${{ github.repository }}/releases -s | grep "tag_name" | cut -d '"' -f 4 | grep -o '^\v.*' | head -n 1)"
-
     - name: Print Version
       run: |
         echo "${{ steps.previoustag.outputs.tag }}"
-
-
     - name: Upload binaries to release
+      id: upload_binaries_setup
+      continue-on-error: true
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.MOWORKFLOWTOKEN }}
-        file: ${{ matrix.artifact_name }}
-        asset_name: ${{ matrix.asset_name }}
+        file: ${{github.workspace}}/clustermgr4-4-${{ matrix.name }}-X86-64-setup.pyz
+        asset_name: clustermgr4-4-${{ matrix.name }}-X86-64-setup.pyz
+        tag: ${{ steps.previoustag.outputs.tag }}
+    - name: Upload checksum to release
+      id: upload_shas_setup
+      continue-on-error: true
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.MOWORKFLOWTOKEN }}
+        file: ${{github.workspace}}/clustermgr4-4-${{ matrix.name }}-X86-64-setup.pyz.sha256sum
+        asset_name: clustermgr4-4-${{ matrix.name }}-X86-64-setup.pyz.sha256sum
         tag: ${{ steps.previoustag.outputs.tag }}
